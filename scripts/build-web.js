@@ -5,6 +5,8 @@ const root = path.resolve(__dirname, '..');
 require('dotenv').config({ path: path.join(root, '.env') });
 
 const output = path.join(root, 'dist');
+const download = 'app-generation-liaison.apk';
+const downloadSource = path.join(root, 'downloads', download);
 const buildAndroid = process.argv.includes('--android');
 const apiUrl = (process.env.CAPACITOR_API_URL || '').replace(/\/+$/, '');
 const pages = ['index.html', 'aidant.html', 'pro.html', 'app-mobile.html'];
@@ -30,9 +32,6 @@ for (const page of pages) {
   fs.writeFileSync(path.join(output, page), content);
 }
 
-if (buildAndroid) {
-  fs.copyFileSync(path.join(output, 'app-mobile.html'), path.join(output, 'index.html'));
-}
+fs.copyFileSync(downloadSource, path.join(output, download));
 
 console.log(`Web files copied to ${path.relative(root, output)}.`);
-
