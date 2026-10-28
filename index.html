@@ -766,6 +766,16 @@
       text-underline-offset: 3px;
     }
 
+    .landing-download-link {
+      display: inline-block;
+      margin: 14px 0 0;
+      color: var(--primary-dark);
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
     .landing-note {
       margin: 16px 0 0;
       color: var(--muted);
@@ -826,7 +836,10 @@
       <a class="landing-app-link" href="/app-mobile.html">
         Ouvrir l’application en ligne
       </a>
-      <p class="landing-note">Le téléchargement Google Play sera disponible après publication de l’application.</p>
+      <a class="landing-download-link" href="/app-generation-liaison.apk" download>
+        Télécharger l’application Android
+      </a>
+      <p class="landing-note">Fichier APK Android. L’installation peut demander l’autorisation d’installer des applications provenant de cette source.</p>
     </section>
   </main>
 
