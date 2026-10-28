@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: generation-liaison
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/status

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Génération Liaison - Espace Professionnel</title>
+	<style>
+		body {
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			background-color: #f5f6fa;
+			margin: 0;
+			padding: 20px;
+		}
+		.container {
+			max-width: 600px;
+			margin: 0 auto;
+			background: white;
+			padding: 30px;
+			border-radius: 15px;
+			box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+		}
+		.header {
+			border-bottom: 2px solid #dcdde1;
+			padding-bottom: 15px;
+			margin-bottom: 25px;
+		}
+		h2 { color: #2f3640; margin: 0; }
+		.status-badge {
+			display: inline-block;
+			background: #e1b12c;
+			color: white;
+			padding: 5px 10px;
+			border-radius: 5px;
+			font-size: 0.8rem;
+			margin-top: 5px;
+		}
+		.btn-mic {
+			background-color: #e84118;
+			color: white;
+			border: none;
+			width: 100px;
+			height: 100px;
+			border-radius: 50%;
+			font-size: 2.5rem;
+			cursor: pointer;
+			box-shadow: 0 5px 10px rgba(232, 65, 24, 0.3);
+			transition: all 0.2s;
+			display: block;
+			margin: 30px auto;
+		}
+		.btn-mic.recording {
+			background-color: #4cd137;
+			animation: pulse 1.5s infinite;
+			box-shadow: 0 5px 10px rgba(76, 209, 55, 0.3);
+		}
+		@keyframes pulse {
+			0% { transform: scale(1); }
+			50% { transform: scale(1.05); }
+			100% { transform: scale(1); }
+		}
+		textarea {
+			width: 95%;
+			height: 120px;
+			padding: 10px;
+			border: 2px solid #dcdde1;
+			border-radius: 8px;
+			font-size: 1rem;
+			resize: none;
+			margin-bottom: 20px;
+		}
+		.btn-submit {
+			background-color: #2f3640;
+			color: white;
+			border: none;
+			padding: 15px;
+			width: 100%;
+			border-radius: 8px;
+			font-size: 1.1rem;
+			font-weight: bold;
+			cursor: pointer;
+		}
+		#status {
+			text-align: center;
+			font-weight: bold;
+			margin-top: 15px;
+			color: #7f8c8d;
+		}
+	</style>
+</head>
+<body>
+
+<div class="container">
+	<div class="header">
+		<h2>Espace Soignants 🩺</h2>
+		<span class="status-badge">Visite chez <span id="senior-name">Senior</span></span>
+	</div>
+
+	<p style="text-align: center; color: #7f8c8d;">Appuyez sur le micro pour dicter votre compte-rendu de visite :</p>
+
+	<!-- Bouton Micro interactif -->
+	<button id="mic-btn" class="btn-mic" onclick="toggleEcoute()">🎙️</button>
+
+	<label style="font-weight: bold; color: #2f3640; display: block; margin-bottom: 5px;">Texte dicté :</label>
+	<textarea id="note-text" placeholder="Le compte-rendu apparaîtra ici automatiquement lors de votre dictée..."></textarea>
+
+	<button class="btn-submit" onclick="envoyerNote()">Valider et envoyer à la famille</button>
+	<div id="status"></div>
+</div>
+
+<script>
+	const SESSION_KEY = 'generation-liaison-mobile-session';
+	const authToken = localStorage.getItem(SESSION_KEY);
+
+	async function verifierAccesProfessionnel() {
+		if (!authToken) {
+			window.location.replace('/app-mobile.html');
+			return;
+		}
+
+		const response = await fetch('/api/auth/me', {
+			headers: { Authorization: `Bearer ${authToken}` }
+		});
+		if (response.status === 401) {
+			localStorage.removeItem(SESSION_KEY);
+			window.location.replace('/app-mobile.html');
+			return;
+		}
+		if (!response.ok) throw new Error('Vérification du compte impossible.');
+
+		const { user } = await response.json();
+		if (user.role !== 'pro') {
+			window.location.replace('/app-mobile.html');
+			return;
+		}
+		document.getElementById('senior-name').textContent = user.seniorName;
+	}
+
+	// Configuration de la reconnaissance vocale de l'IA Web
+	const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+	let recognition;
+	let estEnTrainDeregistrer = false;
+
+	if (SpeechRecognition) {
+		recognition = new SpeechRecognition();
+		recognition.lang = 'fr-FR';
+		recognition.continuous = true;
+		recognition.interimResults = true;
+
+		recognition.onresult = (event) => {
+			let texteFinal = '';
+			for (let i = event.resultIndex; i < event.results.length; ++i) {
+				if (event.results[i].isFinal) {
+					texteFinal += event.results[i][0].transcript;
+				}
+			}
+			if (texteFinal) {
+				document.getElementById('note-text').value += texteFinal + ' ';
+			}
+		};
+
+		recognition.onerror = (e) => { console.error("Erreur Dictée :", e); };
+	} else {
+		alert("La reconnaissance vocale n'est pas supportée sur ce navigateur. Utilisez Google Chrome ou Edge.");
+	}
+
+	// Gestion du bouton micro
+	function toggleEcoute() {
+		const btn = document.getElementById('mic-btn');
+		if (!recognition) return;
+
+		if (!estEnTrainDeregistrer) {
+			recognition.start();
+			estEnTrainDeregistrer = true;
+			btn.classList.add('recording');
+			document.getElementById('status').innerText = "🎙️ Écoute en cours... Parlez maintenant.";
+		} else {
+			recognition.stop();
+			estEnTrainDeregistrer = false;
+			btn.classList.remove('recording');
+			document.getElementById('status').innerText = "⏸️ Dictée en pause.";
+		}
+	}
+
+	// Envoi du texte dicté au serveur Node.js
+	async function envoyerNote() {
+		const texte = document.getElementById('note-text').value;
+		const statusDiv = document.getElementById('status');
+
+		if (!texte.trim()) {
+			alert("Veuillez dicter ou écrire une note avant d'envoyer.");
+			return;
+		}
+
+		try {
+			const response = await fetch('/api/logs', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					Authorization: `Bearer ${authToken}`
+				},
+				body: JSON.stringify({
+					content: texte,
+					log_type: "medical_report"
+				})
+			});
+
+			if (response.ok) {
+				statusDiv.innerText = "✅ Note transmise avec succès à la famille !";
+				statusDiv.style.color = "#4cd137";
+				document.getElementById('note-text').value = "";
+			} else {
+				statusDiv.innerText = "❌ Erreur lors de l'envoi.";
+				statusDiv.style.color = "#e84118";
+			}
+		} catch (error) {
+			console.error('Envoi du rapport impossible :', error);
+			statusDiv.innerText = "❌ Connexion serveur perdue.";
+			statusDiv.style.color = "#e84118";
+		}
+	}
+
+	verifierAccesProfessionnel().catch(error => {
+		console.error('Vérification du compte professionnel impossible :', error);
+		document.getElementById('status').innerText = error.message;
+	});
+</script>
+
+</body>
+</html>

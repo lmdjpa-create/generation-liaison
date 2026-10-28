@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Génération Liaison - Espace Aidant</title>
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8; margin: 0; padding: 20px; }
+        .dashboard { max-width: 800px; margin: 0 auto; }
+        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
+        .section-title { color: #2c3e50; font-size: 1.5rem; border-bottom: 2px solid #bdc3c7; padding-bottom: 10px; margin-top: 30px; margin-bottom: 15px; }
+        .meal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        @media(max-width: 600px) { .meal-grid { grid-template-columns: 1fr; } }
+        .meal-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; }
+        .badge { display: inline-block; padding: 5px 10px; font-size: 0.8rem; font-weight: bold; border-radius: 20px; margin-bottom: 10px; width: fit-content; }
+        .badge-medical { background: #e8f4f8; color: #2980b9; }
+        .badge-traditionnel { background: #eafaf1; color: #27ae60; }
+        .badge-plaisir { background: #fef9e7; color: #f39c12; }
+        .price { font-size: 1.3rem; font-weight: bold; color: #2c3e50; margin: 15px 0; }
+        .btn-order { background: #3498db; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; cursor: pointer; width: 100%; }
+        
+        /* Styles du carnet de liaison historique */
+        .log-list { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .log-item { padding: 12px; border-bottom: 1px solid #f0f3f4; display: flex; justify-content: space-between; align-items: center; }
+        .log-item:last-child { border-bottom: none; }
+        .log-item > div:first-child { min-width: 0; }
+        .log-content { font-size: 1rem; color: #34495e; }
+        .log-content { overflow-wrap: anywhere; }
+        .log-meta { flex: 0 0 auto; margin-left: 12px; font-size: 0.8rem; color: #95a5a6; white-space: nowrap; }
+        .type-indicator { font-weight: bold; font-size: 0.85rem; padding: 4px 8px; border-radius: 4px; margin-right: 10px; }
+        .type-medical_report { background: #fadbd8; color: #c0392b; }
+        .type-family_note { background: #d4efdf; color: #27ae60; }
+        .type-meal_delivery { background: #d6eaf8; color: #2980b9; }
+
+        #notification { position: fixed; bottom: 20px; right: 20px; padding: 15px 25px; background: #2ecc71; color: white; font-weight: bold; border-radius: 8px; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="dashboard">
+    <div class="header">
+        <h2>Espace Proches & Aidants 👨‍👩‍👧‍👦</h2>
+        <p>Suivi et logistique pour : <strong>Henri (Père)</strong></p>
+    </div>
+
+    <!-- CARNET DE LIAISON EN DIRECT -->
+    <div class="section-title">📊 Carnet de liaison en temps réel</div>
+    <div class="log-list" id="logs-container">Chargement du fil d'actualité...</div>
+
+    <!-- MODULE DE COMMANDE -->
+    <div class="section-title">🍲 Commander un repas chez notre partenaire</div>
+    <div class="meal-grid" id="meals-container">Chargement des menus...</div>
+</div>
+
+<div id="notification">🛒 Commande envoyée au prestataire !</div>
+
+<script>
+    const SESSION_KEY = 'generation-liaison-mobile-session';
+    let authToken;
+    let seniorName = 'Senior';
+
+    async function verifierAccesAidant() {
+        authToken = localStorage.getItem(SESSION_KEY);
+        if (!authToken) {
+            window.location.replace('/app-mobile.html');
+            return false;
+        }
+
+        const response = await fetch('/api/auth/me', {
+            headers: { Authorization: `Bearer ${authToken}` }
+        });
+        if (response.status === 401) {
+            localStorage.removeItem(SESSION_KEY);
+            window.location.replace('/app-mobile.html');
+            return false;
+        }
+        if (!response.ok) throw new Error('Vérification du compte impossible.');
+
+        const { user } = await response.json();
+        if (user.role !== 'aidant') {
+            window.location.replace('/app-mobile.html');
+            return false;
+        }
+
+        seniorName = user.seniorName;
+        document.querySelector('.header strong').textContent = seniorName;
+        return true;
+    }
+
+    function headersAvecSession(headers = {}) {
+        return { ...headers, Authorization: `Bearer ${authToken}` };
+    }
+
+    async function init() {
+        if (!await verifierAccesAidant()) return;
+        await chargerMenus();
+        await chargerHistorique();
+        setInterval(chargerHistorique, 5000);
+    }
+
+    async function chargerHistorique() {
+        const container = document.getElementById('logs-container');
+        try {
+            const response = await fetch('/api/logs/all', { headers: headersAvecSession() });
+            if (!response.ok) throw new Error('Impossible de charger le carnet.');
+            const logs = await response.json();
+            container.replaceChildren();
+
+            if(logs.length === 0) {
+                container.textContent = "Aucun événement aujourd'hui.";
+                return;
+            }
+
+            logs.forEach(log => {
+                let auteur = log.author_id === 3 ? "🩺 Soignant" : log.author_id === 2 ? "👨‍👩‍👧 Famille" : `👴 ${seniorName}`;
+                let dateStr = new Date(log.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+
+                const item = document.createElement('div');
+                const contentContainer = document.createElement('div');
+                const author = document.createElement('span');
+                const content = document.createElement('span');
+                const meta = document.createElement('div');
+                item.className = 'log-item';
+                author.className = `type-indicator type-${log.log_type}`;
+                author.textContent = auteur;
+                content.className = 'log-content';
+                content.textContent = log.content;
+                meta.className = 'log-meta';
+                meta.textContent = dateStr;
+                contentContainer.append(author, content);
+                item.append(contentContainer, meta);
+                container.append(item);
+            });
+        } catch (error) {
+            console.error('Chargement du carnet impossible :', error);
+            container.textContent = error.message || 'Erreur historique.';
+        }
+    }
+
+    function getMealBadgeClass(type) {
+        const normalized = String(type || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+
+        const mapping = {
+            medicalise: 'badge-medical',
+            traditionnel: 'badge-traditionnel',
+            plaisir: 'badge-plaisir'
+        };
+
+        return mapping[normalized] || 'badge-medical';
+    }
+
+    async function chargerMenus() {
+        const container = document.getElementById('meals-container');
+        try {
+            const response = await fetch('/api/meals/today');
+            if (!response.ok) throw new Error('Impossible de charger les menus.');
+            const plats = await response.json();
+            container.innerHTML = "";
+            plats.forEach(plat => {
+                const badgeClass = getMealBadgeClass(plat.type);
+                container.innerHTML += `
+                    <div class="meal-card">
+                        <div>
+                            <span class="badge ${badgeClass}">${plat.type}</span>
+                            <h3 style="margin:5px 0 10px 0; font-size:1.1rem;">${plat.title}</h3>
+                        </div>
+                        <div>
+                            <div class="price">${plat.price.toFixed(2)} €</div>
+                            <button class="btn-order" onclick="commanderPlat('${plat.title.replace(/'/g, "\\'")}')">Commander</button>
+                        </div>
+                    </div>
+                `;
+            });
+        } catch (error) {
+            console.error('Chargement des menus impossible :', error);
+            container.textContent = error.message || 'Erreur menus.';
+        }
+    }
+
+    async function commanderPlat(nomDuPlat) {
+        const notif = document.getElementById('notification');
+        try {
+            const response = await fetch('/api/logs', {
+                method: 'POST',
+                headers: headersAvecSession({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify({ content: `Commande : ${nomDuPlat}`, log_type: "family_note" })
+            });
+            if (!response.ok) throw new Error('Impossible d’envoyer la commande.');
+
+            notif.textContent = '🛒 Commande envoyée au prestataire !';
+            notif.style.display = "block";
+            setTimeout(() => { notif.style.display = "none"; }, 3000);
+            chargerHistorique();
+        } catch (error) {
+            console.error('Envoi de la commande impossible :', error);
+            notif.textContent = error.message || 'Impossible d’envoyer la commande.';
+            notif.style.display = "block";
+        }
+    }
+
+    init().catch(error => {
+        console.error('Initialisation de l’espace aidant impossible :', error);
+        document.getElementById('logs-container').textContent = error.message;
+    });
+</script>
+</body>
+</html>
