@@ -1,0 +1,10 @@
+{
+  "appId": "com.generationliaison.app",
+  "appName": "Generation Liaison",
+  "webDir": "dist",
+  "plugins": {
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert", "banner", "list"]
+    }
+  }
+}

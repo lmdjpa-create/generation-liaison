@@ -1,0 +1,10 @@
+node_modules
+dist
+android
+ios
+.idea
+.git
+.env
+.env.*
+*.jks
+*.keystore

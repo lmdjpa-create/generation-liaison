@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Espace administrateur sécurisé de Génération Liaison.">
+  <title>Administration — Génération Liaison</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #18352e;
+      --muted: #62736d;
+      --green: #147d5b;
+      --mint: #e8f4ee;
+      --line: #dce8e1;
+      --surface: #fff;
+      --background: #f3f7f4;
+      --danger: #a63d3d;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--ink);
+      font: 15px/1.5 "Segoe UI", Arial, sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .shell { width: min(1440px, calc(100% - 48px)); margin: 0 auto; padding: 28px 0 56px; }
+    .topbar, .panel, .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+    .topbar { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 18px 22px; }
+    .brand { display: flex; align-items: center; gap: 12px; font-size: 1.15rem; font-weight: 800; }
+    .brand-mark { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: var(--mint); }
+    .top-actions { display: flex; align-items: center; gap: 14px; }
+    .muted, .hint { color: var(--muted); }
+    .welcome { margin: 28px 0 18px; }
+    .welcome h1 { margin: 0 0 5px; font-size: clamp(1.7rem, 3vw, 2.3rem); }
+    .welcome p { margin: 0; color: var(--muted); }
+    .notice { margin: 16px 0; padding: 13px 15px; border: 1px solid #e8dfc7; border-radius: 10px; background: #fffaf0; color: #66552f; }
+
+    .stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 18px 0; }
+    .stat-card { padding: 16px; }
+    .stat-card span { display: block; color: var(--muted); font-size: .82rem; }
+    .stat-card strong { display: block; margin-top: 6px; font-size: 1.65rem; }
+    .layout { display: grid; gap: 16px; }
+    .panel { min-width: 0; padding: 20px; }
+    .panel h2 { margin: 0; font-size: 1.2rem; }
+    .panel-head { display: flex; justify-content: space-between; align-items: start; gap: 16px; margin-bottom: 14px; }
+    .panel-head p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
+
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid #edf1ee; vertical-align: middle; }
+    th { color: var(--muted); font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; }
+    td { min-width: 110px; }
+    td small { display: block; color: var(--muted); }
+    .table-empty { padding: 18px 12px; color: var(--muted); }
+    .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; background: var(--mint); color: var(--green); font-size: .8rem; font-weight: 700; }
+    .badge.off { background: #f1f2f2; color: #68716d; }
+
+    .control-group { display: flex; align-items: center; gap: 8px; }
+    .admin-form { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin: 0 0 16px; }
+    .admin-form input, .admin-form select { width: 100%; }
+    .assistant-handoff { margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+    .assistant-thread { display: grid; gap: 7px; margin: 10px 0; }
+    .assistant-thread-message { padding: 9px 11px; border-radius: 9px; background: #f3f7f4; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .assistant-reply { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+    .assistant-reply textarea { min-height: 60px; padding: 8px; border: 1px solid #cbd8d0; border-radius: 8px; font: inherit; }
+    select, input {
+      min-height: 38px;
+      padding: 7px 9px;
+      border: 1px solid #cbd8d0;
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+    }
+    .button {
+      min-height: 38px;
+      padding: 8px 13px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--green);
+      color: white;
+      font-weight: 700;
+    }
+    .button.secondary { border: 1px solid var(--line); background: white; color: var(--ink); }
+    .button:disabled { opacity: .6; cursor: wait; }
+    .login-card { width: min(460px, 100%); margin: 9vh auto; padding: 30px; background: white; border: 1px solid var(--line); border-radius: 18px; }
+    .login-card h1 { margin: 0 0 8px; }
+    .login-card p { color: var(--muted); }
+    .login-card form { display: grid; gap: 10px; margin-top: 20px; }
+    .login-card label { font-weight: 700; }
+    .login-card input { width: 100%; }
+    .error { min-height: 24px; color: var(--danger); }
+    .status { min-height: 24px; margin: 10px 0; color: var(--green); }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 1050px) {
+      .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      .shell { width: min(100% - 24px, 1440px); padding-top: 12px; }
+      .topbar { align-items: flex-start; flex-direction: column; padding: 15px; }
+      .top-actions { width: 100%; justify-content: space-between; }
+      .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .stat-card { padding: 12px; }
+      .panel { padding: 14px; }
+      .control-group { align-items: flex-start; flex-direction: column; }
+      .admin-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .assistant-reply { grid-template-columns: 1fr; }
+      td, th { padding: 9px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section id="login-view" class="login-card">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">🤝</span><span>Génération Liaison</span></div>
+      <h1 style="margin-top:24px;">Espace administrateur</h1>
+      <p>Connectez-vous avec un compte autorisé par l’administrateur du serveur.</p>
+      <form id="login-form">
+        <label for="email">Adresse e-mail</label>
+        <input id="email" type="email" autocomplete="username" required>
+        <label for="password">Mot de passe</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+        <label for="admin-code">Code secret d’administration</label>
+        <input id="admin-code" type="password" autocomplete="off" minlength="32" required>
+        <small class="hint">Code confidentiel d’au moins 32 caractères, configuré sur le serveur.</small>
+        <button class="button" type="submit">Se connecter</button>
+        <div id="login-error" class="error" role="alert"></div>
+      </form>
+      <a href="/">← Retour au site</a>
+    </section>
+
+    <section id="admin-view" hidden>
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">🤝</span><span>Administration Génération Liaison</span></div>
+        <div class="top-actions">
+          <span id="admin-name" class="muted"></span>
+          <button id="refresh-button" class="button secondary" type="button">Actualiser</button>
+          <button id="logout-button" class="button secondary" type="button">Déconnexion</button>
+        </div>
+      </header>
+      <section class="welcome">
+        <h1>Vue d’ensemble</h1>
+        <p>Gérez les comptes et les services du quotidien depuis votre ordinateur.</p>
+      </section>
+      <div class="notice"><strong>Données protégées :</strong> cet espace ne présente ni notes de soins, ni transmissions médicales, ni contacts d’urgence, ni adresses ou téléphones des clients. Pour les demandes de clôture, l’IA reçoit uniquement le rôle, la catégorie de formule et des décomptes de dossiers ; elle donne un pré-jugement indicatif, jamais une décision. L’administration vérifie les dossiers réels et confirme seule la clôture.</div>
+      <div id="page-status" class="status" role="status" aria-live="polite"></div>
+      <section id="stats" class="stats" aria-label="Indicateurs"></section>
+      <div class="layout">
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>Partenaires des services du quotidien</h2><p>Activation et formule de rémunération. Les tarifs restent à définir.</p></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Partenaire</th><th>Service</th><th>Équipe</th><th>Zone</th><th>Demandes</th><th>Rémunération</th><th>Accès</th><th>Action</th></tr></thead>
+            <tbody id="partners-body"></tbody>
+          </table></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>Demandes et rendez-vous de services</h2><p>Les coordonnées du client ne sont pas affichées dans cet espace.</p></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date</th><th>Client</th><th>Service / partenaire</th><th>Organisation</th><th>Statut</th><th>Action</th></tr></thead>
+            <tbody id="bookings-body"></tbody>
+          </table></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>Rendez-vous d’accompagnement</h2><p>Chaque création ou modification demande l’accord de l’intervenant avant son ajout aux agendas. Aucun compte-rendu ni note de soins.</p></div>
+          </div>
+          <form id="care-visit-form" class="admin-form">
+            <select id="care-recipient" aria-label="Personne accompagnée" required><option value="">Choisir une personne</option></select>
+            <select id="care-professional" aria-label="Intervenant" required><option value="">Choisir un intervenant</option></select>
+            <input id="care-datetime" type="datetime-local" aria-label="Date et heure" required>
+            <input id="care-duration" type="number" min="15" max="480" step="15" value="30" aria-label="Durée en minutes" required>
+            <input id="care-type" type="text" maxlength="120" placeholder="Type de rendez-vous" required>
+            <button class="button" type="submit">Créer le rendez-vous</button>
+          </form>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date / heure</th><th>Personne</th><th>Intervenant</th><th>Organisation</th><th>Type</th><th>Statut</th><th>Action</th></tr></thead>
+            <tbody id="visits-body"></tbody>
+          </table></div>
+        </section>
+        <section class="panel" id="visit-evaluation-alerts">
+          <div class="panel-head">
+            <div><h2>Signalements rouges après intervention</h2><p>À examiner par l’administration. Les signalements rouges déclenchent également une notification aux comptes administrateurs configurés.</p></div>
+          </div>
+          <div id="red-visit-evaluations" aria-live="polite">Chargement des signalements…</div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>Assistant IA et demandes de contact</h2><p>L’interrupteur désactive ou réactive l’assistant pour tous les seniors. Seuls les administrateurs autorisés voient les demandes de contact humain.</p></div>
+            <button id="assistant-toggle-button" class="button secondary" type="button" disabled>Chargement…</button>
+          </div>
+          <p id="assistant-config-status" class="hint" role="status" aria-live="polite"></p>
+          <div id="assistant-handoffs" aria-live="polite">Chargement des demandes de contact…</div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Profil</th><th>Équipes</th><th>Créé le</th><th>Dossier intervenant</th><th>Accès</th></tr></thead>
+            <tbody id="accounts-body"></tbody>
+          </table></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>Demandes de clôture et d’effacement</h2><p>Le compte est désactivé dès la demande. Traitez chaque demande dans les 30 jours calendaires suivant sa réception. L’IA prépare un pré-jugement indicatif à partir d’un inventaire minimisé ; elle n’accède ni au contenu des notes et transmissions ni aux justificatifs professionnels. L’administration vérifie les données réelles, décide des suppressions ou conservations, puis confirme le traitement avec une note.</p></div>
+          </div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Demande reçue</th><th>Échéance (30 jours)</th><th>Compte</th><th>Rôle</th><th>État</th><th>Pré-jugement IA et inventaire</th><th>Actions</th></tr></thead>
+            <tbody id="account-closure-requests-body"></tbody>
+          </table></div>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script>
+    const SESSION_KEY = 'generation-liaison-mobile-session';
+    const ADMIN_CODE_KEY = 'generation-liaison-admin-code';
+    const loginView = document.getElementById('login-view');
+    const adminView = document.getElementById('admin-view');
+    let overviewRefreshTimer = null;
+    const statusLabels = {
+      requested: 'À confirmer',
+      confirmed: 'Confirmé',
+      completed: 'Réalisé',
+      cancelled: 'Annulé'
+    };
+    const serviceLabels = {
+      meal_delivery: 'Livraison de repas',
+      hairdresser: 'Coiffure à domicile',
+      housekeeping: 'Ménage à domicile'
+    };
+    const billingLabels = {
+      subscription: 'Abonnement · tarif à définir',
+      per_completed_booking: 'Après prestation · tarif à définir'
+    };
+    const roleLabels = { senior: 'Senior', aidant: 'Aidant', pro: 'Intervenant' };
+    const closureJudgmentLabels = {
+      simple_to_review: 'Dossier apparemment simple à examiner',
+      shared_data_requires_review: 'Données partagées à examiner',
+      extra_checks_required: 'Vérifications supplémentaires recommandées'
+    };
+    const closureInventoryLabels = {
+      professionalDocuments: 'Justificatifs professionnels',
+      notifications: 'Notifications',
+      notificationDeliveries: 'Envois de notifications',
+      pushSubscriptions: 'Abonnements push',
+      directoryBookings: 'Réservations annuaire',
+      accountComplianceRecords: 'Traces d’acceptation des conditions',
+      organizations: 'Organisations',
+      teamMemberships: 'Associations aux équipes',
+      servicePartners: 'Partenariats de services',
+      liaisonLogs: 'Journal de liaison',
+      planningRecipients: 'Personnes suivies dans les équipes',
+      sharedNotes: 'Notes partagées',
+      careVisits: 'Visites',
+      serviceBookings: 'Services',
+      visitEvents: 'Événements de visite',
+      visitEvaluations: 'Évaluations de visite',
+      planningAccessAudits: 'Traces d’accès au suivi',
+      aiMessages: 'Messages assistant IA'
+    };
+
+    function authHeaders() {
+      const token = localStorage.getItem(SESSION_KEY);
+      return token ? { Authorization: 'Bearer ' + token } : {};
+    }
+
+    async function readResponse(response) {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Une erreur est survenue.');
+      return data;
+    }
+
+    async function adminRequest(url, options = {}) {
+      const headers = { ...authHeaders() };
+      const adminCode = sessionStorage.getItem(ADMIN_CODE_KEY);
+      if (adminCode) headers['X-Admin-Access-Code'] = adminCode;
+      const init = { ...options, headers };
+      if (options.body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+        init.body = JSON.stringify(options.body);
+      }
+      return readResponse(await fetch(url, init));
+    }
+
+    function showLoginError(message) {
+      document.getElementById('login-error').textContent = message;
+    }
+
+    function setAdminView(user) {
+      if (!user || user.isAdmin !== true) {
+        throw new Error('Ce compte n’est pas autorisé à accéder à l’administration.');
+      }
+      loginView.hidden = true;
+      adminView.hidden = false;
+      document.getElementById('admin-name').textContent = `${user.name} · Administrateur`;
+      clearInterval(overviewRefreshTimer);
+      overviewRefreshTimer = setInterval(() => {
+        if (!document.hidden) loadOverview();
+      }, 30000);
+      return loadOverview();
+    }
+
+    function formatDate(value) {
+      return new Date(value).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+
+    function localDateTimeValue(value) {
+      const date = new Date(value);
+      const pad = number => String(number).padStart(2, '0');
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function addCell(row, value, secondary) {
+      const cell = document.createElement('td');
+      cell.textContent = value || '—';
+      if (secondary) {
+        const detail = document.createElement('small');
+        detail.textContent = secondary;
+        cell.append(detail);
+      }
+      row.append(cell);
+      return cell;
+    }
+
+    function renderEmpty(tbody, columns, message) {
+      const row = document.createElement('tr');
+      const cell = document.createElement('td');
+      cell.className = 'table-empty';
+      cell.colSpan = columns;
+      cell.textContent = message;
+      row.append(cell);
+      tbody.replaceChildren(row);
+    }
+
+    async function loadAssistantHandoffs() {
+      try {
+        const [settings, result] = await Promise.all([
+          adminRequest('/api/admin/assistant/settings'),
+          adminRequest('/api/admin/assistant/handoffs')
+        ]);
+        const toggle = document.getElementById('assistant-toggle-button');
+        toggle.dataset.enabled = String(settings.enabled);
+        toggle.textContent = settings.enabled ? 'Désactiver l’assistant IA' : 'Activer l’assistant IA';
+        toggle.disabled = false;
+        document.getElementById('assistant-config-status').textContent = settings.configured
+          ? ''
+          : 'Clé OpenAI non configurée : l’assistant ne répondra pas tant que OPENAI_API_KEY n’est pas définie sur le serveur.';
+        const container = document.getElementById('assistant-handoffs');
+        container.replaceChildren();
+        if (!result.handoffs.length) {
+          container.textContent = 'Aucune demande de contact en attente.';
+          return;
+        }
+        result.handoffs.forEach(handoff => {
+          const article = document.createElement('article');
+          article.className = 'assistant-handoff';
+          const heading = document.createElement('h3');
+          heading.textContent = `${handoff.seniorName} · demande du ${formatDate(handoff.updatedAt)}`;
+          article.append(heading);
+          const thread = document.createElement('div');
+          thread.className = 'assistant-thread';
+          handoff.messages.forEach(message => {
+            const item = document.createElement('div');
+            item.className = 'assistant-thread-message';
+            const role = document.createElement('strong');
+            role.textContent = `${message.role === 'user' ? handoff.seniorName : message.role === 'admin' ? 'Équipe' : 'Assistant IA'} : `;
+            item.append(role, document.createTextNode(message.content));
+            thread.append(item);
+          });
+          article.append(thread);
+          const form = document.createElement('form');
+          form.className = 'assistant-reply';
+          const input = document.createElement('textarea');
+          input.maxLength = 1200;
+          input.required = true;
+          input.setAttribute('aria-label', `Répondre à ${handoff.seniorName}`);
+          const submit = document.createElement('button');
+          submit.className = 'button';
+          submit.type = 'submit';
+          submit.textContent = 'Répondre';
+          form.append(input, submit);
+          form.addEventListener('submit', async event => {
+            event.preventDefault();
+            submit.disabled = true;
+            try {
+              await adminRequest(`/api/admin/assistant/handoffs/${encodeURIComponent(handoff.id)}/reply`, {
+                method: 'POST',
+                body: { message: input.value.trim() }
+              });
+              await loadAssistantHandoffs();
+            } catch (error) {
+              setStatus(error.message || 'Impossible d’envoyer la réponse.', true);
+              submit.disabled = false;
+            }
+          });
+          article.append(form);
+          container.append(article);
+        });
+      } catch (error) {
+        document.getElementById('assistant-handoffs').textContent =
+          error.message || 'Impossible de charger les demandes de contact.';
+      }
+    }
+
+    function renderStats(summary) {
+      const stats = [
+        ['Comptes', summary.accounts],
+        ['Organisations', summary.organizations],
+        ['Partages actifs', summary.sharedProfiles],
+        ['Rendez-vous de soins', summary.careVisits],
+        ['Partenaires actifs', summary.activePartners],
+        ['Demandes en attente', summary.pendingBookings]
+      ];
+      const container = document.getElementById('stats');
+      container.replaceChildren();
+      stats.forEach(([label, value]) => {
+        const card = document.createElement('article');
+        card.className = 'stat-card';
+        const title = document.createElement('span');
+        title.textContent = label;
+        const count = document.createElement('strong');
+        count.textContent = String(value);
+        card.append(title, count);
+        container.append(card);
+      });
+    }
+
+    function renderPartners(partners) {
+      const tbody = document.getElementById('partners-body');
+      if (!partners.length) return renderEmpty(tbody, 8, 'Aucun partenaire référencé.');
+      tbody.replaceChildren();
+      partners.forEach(partner => {
+        const row = document.createElement('tr');
+        addCell(row, partner.displayName, `${partner.accountName} · ${partner.email}`);
+        addCell(row, serviceLabels[partner.serviceType] || 'Service');
+        addCell(row, partner.organizationName);
+        addCell(row, partner.serviceArea);
+        addCell(row, String(partner.bookingCount));
+
+        const modelCell = document.createElement('td');
+        const model = document.createElement('select');
+        model.setAttribute('aria-label', `Rémunération pour ${partner.displayName}`);
+        Object.entries(billingLabels).forEach(([value, label]) => model.add(new Option(label, value)));
+        model.value = partner.billingModel;
+        modelCell.append(model);
+        row.append(modelCell);
+
+        const activeCell = document.createElement('td');
+        const active = document.createElement('span');
+        active.className = `badge${partner.active ? '' : ' off'}`;
+        active.textContent = partner.active ? 'Actif' : 'Suspendu';
+        activeCell.append(active);
+        row.append(activeCell);
+
+        const actionCell = document.createElement('td');
+        const save = document.createElement('button');
+        save.className = 'button secondary';
+        save.type = 'button';
+        save.textContent = 'Enregistrer';
+        save.addEventListener('click', () => updatePartner(partner, model.value, save));
+        actionCell.append(save);
+        const toggle = document.createElement('button');
+        toggle.className = 'button secondary';
+        toggle.type = 'button';
+        toggle.style.marginLeft = '6px';
+        toggle.textContent = partner.active ? 'Suspendre' : 'Réactiver';
+        toggle.addEventListener('click', () => updatePartner(partner, model.value, toggle, !partner.active));
+        actionCell.append(toggle);
+        row.append(actionCell);
+        tbody.append(row);
+      });
+    }
+
+    async function updatePartner(partner, billingModel, button, active = partner.active) {
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/service-partners/${encodeURIComponent(partner.id)}`, {
+          method: 'PATCH',
+          body: { billingModel, active }
+        });
+        setStatus('Partenaire mis à jour.');
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message, true);
+        button.disabled = false;
+      }
+    }
+
+    function renderBookings(bookings) {
+      const tbody = document.getElementById('bookings-body');
+      if (!bookings.length) return renderEmpty(tbody, 6, 'Aucune demande de service.');
+      tbody.replaceChildren();
+      bookings.forEach(booking => {
+        const row = document.createElement('tr');
+        addCell(row, formatDate(booking.scheduledAt));
+        addCell(row, booking.recipientName);
+        addCell(row, booking.partnerName, serviceLabels[booking.serviceType] || 'Service');
+        addCell(row, booking.organizationName);
+        addCell(row, statusLabels[booking.status] || booking.status);
+        const action = document.createElement('td');
+        if (booking.status === 'requested' || booking.status === 'confirmed') {
+          const controls = document.createElement('div');
+          controls.className = 'control-group';
+          const next = document.createElement('select');
+          next.setAttribute('aria-label', `Changer le statut du rendez-vous de ${booking.recipientName}`);
+          const options = booking.status === 'requested'
+            ? [['confirmed', 'Confirmer'], ['cancelled', 'Annuler']]
+            : [['completed', 'Marquer réalisé'], ['cancelled', 'Annuler']];
+          options.forEach(([value, label]) => next.add(new Option(label, value)));
+          const save = document.createElement('button');
+          save.className = 'button secondary';
+          save.type = 'button';
+          save.textContent = 'Valider';
+          save.addEventListener('click', () => updateBooking(booking.id, next.value, save));
+          controls.append(next, save);
+          action.append(controls);
+        } else {
+          action.textContent = statusLabels[booking.status] || booking.status;
+        }
+        row.append(action);
+        tbody.append(row);
+      });
+    }
+
+    async function updateBooking(bookingId, status, button) {
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/service-bookings/${encodeURIComponent(bookingId)}`, {
+          method: 'PATCH',
+          body: { status }
+        });
+        setStatus('Rendez-vous mis à jour.');
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message, true);
+        button.disabled = false;
+      }
+    }
+
+    async function updateAccount(account, button) {
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/accounts/${encodeURIComponent(account.id)}`, {
+          method: 'PATCH',
+          body: { active: !account.active }
+        });
+        setStatus(account.active ? 'Compte suspendu et sessions fermées.' : 'Compte réactivé.');
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message, true);
+        button.disabled = false;
+      }
+    }
+
+    async function downloadVerificationDocument(accountId, documentType) {
+      const headers = { ...authHeaders() };
+      const adminCode = sessionStorage.getItem(ADMIN_CODE_KEY);
+      if (adminCode) headers['X-Admin-Access-Code'] = adminCode;
+      const response = await fetch(
+        `/api/admin/accounts/${encodeURIComponent(accountId)}/verification-documents/${encodeURIComponent(documentType)}`,
+        { headers }
+      );
+      if (!response.ok) {
+        await readResponse(response);
+        return;
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = documentType;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    async function reviewProfessional(account, verificationStatus, button) {
+      const question = verificationStatus === 'approved'
+        ? 'Valider ce dossier et supprimer immédiatement les justificatifs ?'
+        : 'Refuser ce dossier et supprimer immédiatement les justificatifs ?';
+      if (!window.confirm(question)) return;
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/accounts/${encodeURIComponent(account.id)}/verification`, {
+          method: 'PATCH',
+          body: { verificationStatus }
+        });
+        setStatus(verificationStatus === 'approved' ? 'Dossier intervenant validé ; notification mise en file.' : 'Dossier refusé ; notification mise en file.');
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message || 'Impossible de traiter le dossier intervenant.', true);
+        button.disabled = false;
+      }
+    }
+
+    function renderVisits(visits) {
+      const tbody = document.getElementById('visits-body');
+      if (!visits.length) return renderEmpty(tbody, 7, 'Aucun rendez-vous dans la période affichée.');
+      tbody.replaceChildren();
+      visits.forEach(visit => {
+        const row = document.createElement('tr');
+        const dateCell = document.createElement('td');
+        const dateInput = document.createElement('input');
+        dateInput.type = 'datetime-local';
+        dateInput.value = localDateTimeValue(visit.scheduledAt);
+        dateInput.min = localDateTimeValue(Date.now());
+        dateInput.setAttribute('aria-label', `Nouvel horaire pour ${visit.recipientName}`);
+        dateCell.append(dateInput);
+        row.append(dateCell);
+        addCell(row, visit.recipientName);
+        const professionalCell = document.createElement('td');
+        const professional = document.createElement('select');
+        professional.setAttribute('aria-label', `Intervenant pour ${visit.recipientName}`);
+        (visit.professionals || []).forEach(option => {
+          professional.add(new Option(`${option.name} · ${option.email}`, option.id));
+        });
+        if (!(visit.professionals || []).some(option => option.id === visit.assignedUserId)) {
+          professional.add(new Option(`${visit.professionalName} (compte inactif)`, visit.assignedUserId));
+        }
+        professional.value = visit.assignedUserId;
+        professionalCell.append(professional);
+        row.append(professionalCell);
+        addCell(row, visit.organizationName);
+        addCell(row, visit.visitType);
+        const acceptanceLabel = {
+          pending: 'En attente de l’intervenant',
+          accepted: 'Accepté et planifié',
+          declined: 'Refusé'
+        }[visit.acceptanceStatus] || (visit.status === 'completed' ? 'Terminé' : 'Planifié');
+        addCell(row, acceptanceLabel);
+        const action = document.createElement('td');
+        if (visit.status === 'scheduled') {
+          const save = document.createElement('button');
+          save.className = 'button secondary';
+          save.type = 'button';
+          save.textContent = 'Enregistrer';
+          save.addEventListener('click', () => updateCareVisit(visit.id, dateInput.value, professional.value, save));
+          action.append(save);
+        } else {
+          action.textContent = 'Terminé';
+        }
+        row.append(action);
+        tbody.append(row);
+      });
+    }
+
+    function renderRedEvaluations(evaluations) {
+      const container = document.getElementById('red-visit-evaluations');
+      container.replaceChildren();
+      if (!evaluations.length) {
+        container.textContent = 'Aucun signalement rouge.';
+        return;
+      }
+      evaluations.forEach(evaluation => {
+        const card = document.createElement('article');
+        card.className = 'notice';
+        const title = document.createElement('strong');
+        title.textContent = `${evaluation.visitType} · ${evaluation.recipientName}`;
+        const details = document.createElement('p');
+        details.textContent =
+          `Intervenant : ${evaluation.professionalName} · Signalé par : ${evaluation.authorName} (${evaluation.authorRole === 'aidant' ? 'aidant' : 'senior'}) · Intervention : ${formatDate(evaluation.scheduledAt)} · Signalement : ${formatDate(evaluation.createdAt)}`;
+        const comment = document.createElement('p');
+        comment.textContent = evaluation.comment;
+        card.append(title, details, comment);
+        container.append(card);
+      });
+    }
+
+    function renderCareSelectors(result) {
+      const recipients = document.getElementById('care-recipient');
+      const professionals = document.getElementById('care-professional');
+      recipients.replaceChildren(new Option('Choisir une personne autorisée', ''));
+      professionals.replaceChildren(new Option('Choisir un intervenant', ''));
+      result.careRecipients.forEach(recipient => {
+        const option = new Option(`${recipient.name} · ${recipient.organizationName}`, recipient.id);
+        option.dataset.organizationId = recipient.organizationId;
+        recipients.add(option);
+      });
+      result.careProfessionals.forEach(professional => {
+        const option = new Option(
+          `${professional.name} · ${professional.organizationName}`,
+          `${professional.organizationId}:${professional.userId}`
+        );
+        option.dataset.organizationId = professional.organizationId;
+        professionals.add(option);
+      });
+      recipients.onchange = () => {
+        const organizationId = recipients.selectedOptions[0]?.dataset.organizationId;
+        [...professionals.options].forEach(option => {
+          option.hidden = Boolean(option.value) && option.dataset.organizationId !== organizationId;
+        });
+        professionals.value = '';
+      };
+    }
+
+    async function createCareVisit(event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      const [organizationId, assignedUserId] = document.getElementById('care-professional').value.split(':');
+      const recipient = document.getElementById('care-recipient');
+      const selectedRecipient = recipient.selectedOptions[0];
+      const selectedProfessional = document.getElementById('care-professional').selectedOptions[0];
+      button.disabled = true;
+      try {
+        await adminRequest('/api/admin/care-visits', {
+          method: 'POST',
+          body: {
+            recipientId: recipient.value,
+            assignedUserId,
+            organizationId,
+            scheduledAt: new Date(document.getElementById('care-datetime').value).toISOString(),
+            durationMinutes: Number(document.getElementById('care-duration').value),
+            visitType: document.getElementById('care-type').value.trim()
+          }
+        });
+        form.reset();
+        document.getElementById('care-duration').value = '30';
+        setStatus(`Rendez-vous créé pour ${selectedRecipient.textContent} avec ${selectedProfessional.textContent}.`);
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message || 'Impossible de créer le rendez-vous.', true);
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    async function updateCareVisit(visitId, scheduledAt, assignedUserId, button) {
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/care-visits/${encodeURIComponent(visitId)}`, {
+          method: 'PATCH',
+          body: {
+            scheduledAt: new Date(scheduledAt).toISOString(),
+            assignedUserId
+          }
+        });
+        setStatus('Rendez-vous modifié.');
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message || 'Impossible de modifier le rendez-vous.', true);
+        button.disabled = false;
+      }
+    }
+
+    function renderAccounts(accounts, limits) {
+      const tbody = document.getElementById('accounts-body');
+      if (!accounts.length) return renderEmpty(tbody, 8, 'Aucun compte.');
+      tbody.replaceChildren();
+      accounts.forEach(account => {
+        const row = document.createElement('tr');
+        addCell(row, account.name);
+        addCell(row, account.email);
+        addCell(row, `${roleLabels[account.role] || account.role}${account.administrator ? ' · Admin' : ''}`);
+        addCell(row, account.profileName);
+        addCell(row, String(account.teamCount));
+        addCell(row, new Date(account.createdAt).toLocaleDateString('fr-FR'));
+        const verification = document.createElement('td');
+        if (account.role === 'pro') {
+          const verificationState = document.createElement('span');
+          verificationState.className = `badge${account.verificationStatus === 'approved' ? '' : ' off'}`;
+          verificationState.textContent = account.verificationStatus === 'approved'
+            ? 'Validé'
+            : account.verificationStatus === 'rejected' ? 'À compléter' : 'En attente';
+          verification.append(verificationState);
+          const documents = account.verificationDocuments || {};
+          for (const [type, label] of [['identity', 'Identité'], ['kbis', 'Kbis']]) {
+            const button = document.createElement('button');
+            button.className = 'button secondary';
+            button.style.margin = '6px 4px 0 0';
+            button.type = 'button';
+            button.textContent = `${documents[type] ? 'Télécharger' : 'Manquant'} · ${label}`;
+            button.disabled = !documents[type];
+            button.addEventListener('click', async () => {
+              button.disabled = true;
+              try {
+                await downloadVerificationDocument(account.id, type);
+              } catch (error) {
+                setStatus(error.message || 'Téléchargement impossible.', true);
+              } finally {
+                button.disabled = !documents[type];
+              }
+            });
+            verification.append(button);
+          }
+          if (account.verificationStatus === 'pending') {
+            const approve = document.createElement('button');
+            approve.className = 'button';
+            approve.style.margin = '6px 4px 0 0';
+            approve.type = 'button';
+            approve.textContent = 'Valider';
+            approve.disabled = !documents.identity || !documents.kbis;
+            approve.addEventListener('click', () => reviewProfessional(account, 'approved', approve));
+            verification.append(approve);
+
+            const reject = document.createElement('button');
+            reject.className = 'button secondary';
+            reject.style.marginTop = '6px';
+            reject.type = 'button';
+            reject.textContent = 'Refuser';
+            reject.addEventListener('click', () => reviewProfessional(account, 'rejected', reject));
+            verification.append(reject);
+          }
+        } else {
+          verification.textContent = '—';
+        }
+        row.append(verification);
+        const action = document.createElement('td');
+        const state = document.createElement('span');
+        state.className = `badge${account.active ? '' : ' off'}`;
+        state.textContent = account.active ? 'Actif' : 'Suspendu';
+        action.append(state);
+        if (!account.administrator) {
+          const button = document.createElement('button');
+          button.className = 'button secondary';
+          button.style.marginLeft = '8px';
+          button.type = 'button';
+          button.textContent = account.active ? 'Suspendre' : 'Réactiver';
+          button.addEventListener('click', () => updateAccount(account, button));
+          action.append(button);
+        }
+        row.append(action);
+        tbody.append(row);
+      });
+      document.getElementById('account-limit').textContent =
+        `Les ${accounts.length} comptes les plus récents sont affichés (maximum ${limits.accounts}). Les mots de passe ne sont jamais accessibles. Les justificatifs de vérification restent accessibles uniquement aux administrateurs.`;
+    }
+
+    function renderAccountClosureRequests(requests) {
+      const tbody = document.getElementById('account-closure-requests-body');
+      if (!requests.length) return renderEmpty(tbody, 7, 'Aucune demande en attente.');
+      tbody.replaceChildren();
+      requests.forEach(request => {
+        const row = document.createElement('tr');
+        addCell(row, formatDate(request.requestedAt));
+        const overdue = new Date(request.dueAt).getTime() < Date.now();
+        addCell(row, formatDate(request.dueAt), overdue ? 'Délai dépassé' : '');
+        addCell(row, request.name, request.email);
+        const accountTier = ['active', 'trial'].includes(request.premiumStatus)
+          ? 'Premium ou essai'
+          : 'Gratuit ou formule inactive';
+        addCell(row, roleLabels[request.role] || request.role, accountTier);
+        addCell(row, request.status === 'processing' ? 'En cours de traitement' : 'À examiner');
+        const reviewCell = document.createElement('td');
+        if (request.aiReviewSummary) {
+          const details = document.createElement('details');
+          const heading = document.createElement('summary');
+          heading.textContent = closureJudgmentLabels[request.aiReviewSummary.preliminaryJudgment] ||
+            'Pré-jugement IA disponible';
+          const rationale = document.createElement('p');
+          rationale.textContent = request.aiReviewSummary.rationale || '';
+          const checks = document.createElement('ul');
+          (request.aiReviewSummary.checks || []).forEach(check => {
+            const item = document.createElement('li');
+            item.textContent = check;
+            checks.append(item);
+          });
+          const decisionNote = document.createElement('p');
+          decisionNote.textContent = 'Pré-jugement indicatif uniquement : l’administration prend la décision finale.';
+          const inventory = document.createElement('ul');
+          Object.entries(closureInventoryLabels).forEach(([key, label]) => {
+            const item = document.createElement('li');
+            const count = request.aiReviewInventory?.[key];
+            item.textContent = `${label} : ${Number.isSafeInteger(count) && count >= 0 ? count : 'indisponible'}`;
+            inventory.append(item);
+          });
+          details.append(heading, rationale, checks, decisionNote, inventory);
+          reviewCell.append(details);
+          const reviewedAt = document.createElement('small');
+          reviewedAt.textContent = `Analyse du ${formatDate(request.aiReviewedAt)}`;
+          reviewCell.append(reviewedAt);
+        } else {
+          reviewCell.textContent = 'Analyse IA à effectuer';
+        }
+        row.append(reviewCell);
+        const actionCell = document.createElement('td');
+        const reviewButton = document.createElement('button');
+        reviewButton.className = 'button secondary';
+        reviewButton.type = 'button';
+        reviewButton.textContent = request.aiReviewSummary ? 'Actualiser le pré-jugement IA' : 'Pré-jugement IA';
+        reviewButton.addEventListener('click', () => reviewAccountClosureRequest(request, reviewButton));
+        actionCell.append(reviewButton);
+        const button = document.createElement('button');
+        button.className = 'button secondary';
+        button.type = 'button';
+        button.textContent = request.status === 'processing' ? 'Marquer la demande traitée' : 'Prendre en charge';
+        button.addEventListener('click', () => updateAccountClosureRequest(request, button));
+        actionCell.append(button);
+        row.append(actionCell);
+        tbody.append(row);
+      });
+    }
+
+    async function reviewAccountClosureRequest(request, button) {
+      button.disabled = true;
+      setStatus('Préparation du pré-jugement IA à partir des seuls décomptes…');
+      try {
+        await adminRequest(
+          `/api/admin/account-closure-requests/${encodeURIComponent(request.id)}/ai-review`,
+          { method: 'POST' }
+        );
+        setStatus('Pré-jugement indicatif prêt. L’administration doit vérifier les données et décider.');
+        await loadAccountClosureRequests();
+      } catch (error) {
+        setStatus(error.message || 'Impossible de préparer le pré-jugement IA.', true);
+        button.disabled = false;
+      }
+    }
+
+    async function updateAccountClosureRequest(request, button) {
+      let status;
+      const body = {};
+      if (request.status === 'pending') {
+        status = 'processing';
+      } else {
+        if (!request.aiReviewSummary) {
+          setStatus('Effectuez et examinez le pré-jugement IA avant de confirmer la clôture.', true);
+          return;
+        }
+        if (!window.confirm('Avez-vous vérifié le pré-jugement IA et les données réelles ? La décision finale vous appartient.')) {
+          return;
+        }
+        const resolutionNote = window.prompt(
+          'Après vérification du pré-jugement IA et des données réelles, décrivez les données effacées et celles conservées avec leur motif (au moins 20 caractères).'
+        );
+        if (resolutionNote === null) return;
+        if (resolutionNote.trim().length < 20) {
+          setStatus('Ajoutez une note de traitement d’au moins 20 caractères.', true);
+          return;
+        }
+        status = 'completed';
+        body.resolutionNote = resolutionNote.trim();
+      }
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/account-closure-requests/${encodeURIComponent(request.id)}`, {
+          method: 'PATCH',
+          body: { ...body, status }
+        });
+        setStatus(status === 'processing' ? 'Demande prise en charge.' : 'Demande clôturée.');
+        await loadAccountClosureRequests();
+      } catch (error) {
+        setStatus(error.message || 'Impossible de mettre à jour la demande.', true);
+        button.disabled = false;
+      }
+    }
+
+    async function loadAccountClosureRequests() {
+      try {
+        const result = await adminRequest('/api/admin/account-closure-requests');
+        renderAccountClosureRequests(result.requests);
+      } catch (error) {
+        document.getElementById('account-closure-requests-body').textContent =
+          error.message || 'Impossible de charger les demandes de clôture.';
+      }
+    }
+
+    async function loadOverview() {
+      setStatus('Chargement du tableau de bord…');
+      try {
+        const result = await adminRequest('/api/admin/overview');
+        renderStats(result.summary);
+        renderPartners(result.partners);
+        renderBookings(result.bookings);
+        renderCareSelectors(result);
+        renderVisits(result.careVisits);
+        renderRedEvaluations(result.redEvaluations || []);
+        renderAccounts(result.accounts, result.limits);
+        await loadAccountClosureRequests();
+        await loadAssistantHandoffs();
+        setStatus(`Données actualisées à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`);
+      } catch (error) {
+        setStatus(error.message || 'Impossible de charger le tableau de bord.', true);
+      }
+    }
+
+    function setStatus(message, isError = false) {
+      const status = document.getElementById('page-status');
+      status.textContent = message;
+      status.style.color = isError ? 'var(--danger)' : 'var(--green)';
+    }
+
+    document.getElementById('login-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = event.currentTarget.querySelector('button[type="submit"]');
+      button.disabled = true;
+      showLoginError('');
+      try {
+        const adminCode = document.getElementById('admin-code').value;
+        if (adminCode.length < 32) {
+          throw new Error('Le code secret doit contenir au moins 32 caractères.');
+        }
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: document.getElementById('email').value.trim(),
+            password: document.getElementById('password').value
+          })
+        });
+        const result = await readResponse(response);
+        if (!result.user.isAdmin) {
+          throw new Error('Ce compte n’est pas autorisé à accéder à l’administration.');
+        }
+        localStorage.setItem(SESSION_KEY, result.token);
+        sessionStorage.setItem(ADMIN_CODE_KEY, adminCode);
+        await setAdminView(result.user);
+      } catch (error) {
+        localStorage.removeItem(SESSION_KEY);
+        sessionStorage.removeItem(ADMIN_CODE_KEY);
+        showLoginError(error.message || 'Connexion impossible.');
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById('refresh-button').addEventListener('click', loadOverview);
+    document.getElementById('care-visit-form').addEventListener('submit', createCareVisit);
+    document.getElementById('assistant-toggle-button').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      const enabled = button.dataset.enabled !== 'true';
+      button.disabled = true;
+      try {
+        const result = await adminRequest('/api/admin/assistant/settings', {
+          method: 'PATCH',
+          body: { enabled }
+        });
+        button.dataset.enabled = String(result.enabled);
+        button.textContent = result.enabled ? 'Désactiver l’assistant IA' : 'Activer l’assistant IA';
+        setStatus(result.enabled ? 'Assistant IA activé.' : 'Assistant IA désactivé.');
+      } catch (error) {
+        setStatus(error.message || 'Impossible de modifier l’assistant IA.', true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+    document.getElementById('logout-button').addEventListener('click', async () => {
+      clearInterval(overviewRefreshTimer);
+      overviewRefreshTimer = null;
+      const headers = authHeaders();
+      localStorage.removeItem(SESSION_KEY);
+      sessionStorage.removeItem(ADMIN_CODE_KEY);
+      try {
+        if (headers.Authorization) {
+          const response = await fetch('/api/auth/logout', { method: 'POST', headers });
+          if (!response.ok) throw new Error('La fermeture de session serveur a échoué.');
+        }
+        window.location.reload();
+      } catch (error) {
+        showLoginError(error.message);
+        adminView.hidden = true;
+        loginView.hidden = false;
+      }
+    });
+
+    async function initAdmin() {
+      const token = localStorage.getItem(SESSION_KEY);
+      if (!token) return;
+      if (!sessionStorage.getItem(ADMIN_CODE_KEY)) {
+        showLoginError('Reconnectez-vous et saisissez le code secret d’administration.');
+        return;
+      }
+      try {
+        const result = await adminRequest('/api/auth/me');
+        await setAdminView(result.user);
+      } catch (error) {
+        localStorage.removeItem(SESSION_KEY);
+        showLoginError(error.message || 'Session expirée. Connectez-vous à nouveau.');
+      }
+    }
+
+    initAdmin();
+  </script>
+</body>
+</html>

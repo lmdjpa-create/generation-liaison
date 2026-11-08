@@ -782,6 +782,15 @@
       font-size: 0.78rem;
     }
 
+    .admin-link {
+      display: none;
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
     .return-home {
       display: inline-flex;
       align-items: center;
@@ -813,6 +822,10 @@
         font-size: 0.98rem;
       }
     }
+
+    @media (min-width: 700px) {
+      .admin-link { display: inline-block; }
+    }
   </style>
 </head>
 <body>
@@ -825,13 +838,15 @@
       <p class="landing-kicker">Le lien au quotidien</p>
       <h1 id="landing-title">Bien entouré, mieux accompagné</h1>
       <p class="landing-description">
-        Un espace simple pour faciliter les échanges entre les seniors, leurs proches et les professionnels.
+        Un espace simple pour faciliter les échanges entre les seniors, leurs proches et les professionnels, avec un accès séparé aux services du quotidien.
       </p>
       <ul class="landing-features" aria-label="Fonctionnalités">
         <li>Suivi partagé</li>
         <li>Carnet de liaison</li>
         <li>Alertes et assistance</li>
+        <li>Services du quotidien</li>
       </ul>
+      <p class="landing-note" id="connection-status" role="status" aria-live="polite">Vérification de la connexion...</p>
       <a class="landing-login" id="login-link" href="/app-mobile.html">Se connecter <span aria-hidden="true">→</span></a>
       <a class="landing-app-link" href="/app-mobile.html">
         Ouvrir l’application en ligne
@@ -840,95 +855,29 @@
         Télécharger l’application Android
       </a>
       <p class="landing-note">Fichier APK Android. L’installation peut demander l’autorisation d’installer des applications provenant de cette source.</p>
+      <a class="landing-download-link" href="/app-generation-liaison.aab" download>
+        Télécharger le bundle AAB pour la Play Console
+      </a>
+      <a class="admin-link" href="/admin.html">Espace administrateur</a>
+      <p class="landing-note">
+        <a href="/cgu.html">Conditions d’utilisation</a> ·
+        <a href="/cgv.html">Projet de tarifs et CGV</a> ·
+        <a href="/privacy-policy.html">Confidentialité</a>
+      </p>
     </section>
   </main>
 
-  <div class="app" id="dashboard" hidden>
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-badge">🤝</div>
-        <div>
-          <div>Génération Liaison</div>
-          <div class="muted">Suivi du senior</div>
-        </div>
-      </div>
-      <a class="return-home" id="home-link" href="#accueil">← Accueil</a>
-      <div class="role-switch" aria-label="Choix du rôle">
-        <button class="role-button active" data-role="senior">Senior</button>
-        <button class="role-button" data-role="aidant">Aidant</button>
-        <button class="role-button" data-role="pro">Professionnel</button>
-      </div>
-    </header>
-
-    <section class="welcome-banner" aria-labelledby="welcome-title">
-      <div>
-        <h1 id="welcome-title">Bonjour, bienvenue dans votre espace</h1>
-        <p>Un suivi simple et partagé pour rester proche, chaque jour.</p>
-      </div>
-      <div class="welcome-badge" id="connection-status" data-status="checking" role="status" aria-live="polite">
-        Vérification de la connexion...
-      </div>
-    </section>
-
-    <main class="workspace">
-      <section class="panel">
-        <div class="tabs">
-          <button class="tab-button active" data-tab="home">Accueil</button>
-          <button class="tab-button" data-tab="notes">Carnet</button>
-          <button class="tab-button" data-tab="alerts">Alertes</button>
-        </div>
-
-        <div id="tab-home" class="tab-panel">
-          <h2>Vue d'ensemble</h2>
-          <div class="status-pill" id="role-status">Rôle : Senior</div>
-          <div class="composer">
-            <textarea id="quick-note" rows="4" placeholder="Écrire une note de suivi..."></textarea>
-          </div>
-          <div class="composer">
-            <button class="primary-btn" id="submit-note">Ajouter au carnet</button>
-          </div>
-        </div>
-
-        <div id="tab-notes" class="tab-panel" style="display:none;">
-          <h2>Carnet de liaison</h2>
-          <div class="msg-list" id="messages"></div>
-        </div>
-
-        <div id="tab-alerts" class="tab-panel" style="display:none;">
-          <h2>Alertes actives</h2>
-          <div class="msg-list" id="alerts-list"></div>
-        </div>
-      </section>
-
-      <aside class="panel">
-        <h2>Actions rapides</h2>
-        <div class="card-grid">
-          <div class="meal-card">
-            <strong>Repas</strong>
-            <p class="muted">Commande du midi</p>
-            <button class="primary-btn" id="meal-alert" style="background-color: var(--danger);">Signaler un problème</button>
-          </div>
-          <div class="meal-card">
-            <strong>Visio</strong>
-            <p class="muted">Appel d'urgence</p>
-            <button class="primary-btn" id="video-call" style="background-color: var(--accent);">Lancer</button>
-          </div>
-          <div class="meal-card">
-            <strong>Récap</strong>
-            <p class="muted">Contexte</p>
-            <button class="primary-btn" id="refresh">Actualiser</button>
-          </div>
-        </div>
-      </aside>
-    </main>
-  </div>
-
   <script>
-    const STORAGE_KEY = 'generation-liaison-demo';
-    const landingPage = document.getElementById('accueil');
-    const dashboard = document.getElementById('dashboard');
+    function redirectLegacyDashboard() {
+      if (window.location.hash === '#dashboard') {
+        window.location.replace('/app-mobile.html');
+      }
+    }
+
+    redirectLegacyDashboard();
+    window.addEventListener('hashchange', redirectLegacyDashboard);
+
     const connectionStatus = document.getElementById('connection-status');
-    let connectionCheckInProgress = false;
 
     function setConnectionStatus(status, message) {
       connectionStatus.dataset.status = status;
@@ -941,8 +890,6 @@
         return;
       }
 
-      if (connectionCheckInProgress) return;
-      connectionCheckInProgress = true;
       const controller = new AbortController();
       const timeoutId = window.setTimeout(() => controller.abort(), 5000);
 
@@ -951,22 +898,16 @@
           cache: 'no-store',
           signal: controller.signal
         });
-        if (!response.ok) throw new Error(`Erreur serveur (${response.status})`);
+        if (!response.ok) throw new Error('Erreur serveur (' + response.status + ')');
 
         const result = await response.json();
         if (result.status !== 'En ligne') throw new Error('Statut serveur inattendu');
-
-        if (navigator.onLine === false) {
-          setConnectionStatus('offline', 'Pas de connexion internet');
-        } else {
-          setConnectionStatus('connected', 'Connexion vérifiée');
-        }
+        setConnectionStatus('connected', 'Service accessible');
       } catch (error) {
         setConnectionStatus('unavailable', 'Serveur inaccessible');
         console.warn('Vérification de la connexion impossible :', error);
       } finally {
         window.clearTimeout(timeoutId);
-        connectionCheckInProgress = false;
       }
     }
 
@@ -976,267 +917,6 @@
     });
     window.setInterval(checkConnection, 30000);
     checkConnection();
-
-    function updatePageView() {
-      const showDashboard = window.location.hash === '#dashboard';
-      landingPage.hidden = showDashboard;
-      dashboard.hidden = !showDashboard;
-      window.scrollTo(0, 0);
-    }
-
-    document.getElementById('home-link').addEventListener('click', event => {
-      event.preventDefault();
-      window.location.hash = 'accueil';
-      updatePageView();
-    });
-
-    window.addEventListener('hashchange', updatePageView);
-    updatePageView();
-
-    const defaultState = {
-      currentRole: 'senior',
-      messages: [
-        {
-          author: 'Infirmière',
-          role: 'pro',
-          content: 'Passage matinal. Tension 12/7. Tout va bien.',
-          time: '08:15'
-        },
-        {
-          author: 'Aidant',
-          role: 'aidant',
-          content: 'Commande du repas confirmée pour 12h00.',
-          time: '11:40'
-        }
-      ],
-      alerts: [
-        {
-          id: 1,
-          text: 'Repas non réceptionné à 12h05',
-          resolved: false
-        }
-      ]
-    };
-
-    // CHARGEMENT ET SAUVEGARDE DE L'ÉTAT
-    let state = loadState();
-
-    function getDefaultState() {
-      return {
-        currentRole: defaultState.currentRole,
-        messages: defaultState.messages.map(message => ({ ...message })),
-        alerts: defaultState.alerts.map(alert => ({ ...alert }))
-      };
-    }
-
-    function loadState() {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (!saved) return getDefaultState();
-
-        const parsed = JSON.parse(saved);
-        const validRoles = ['senior', 'aidant', 'pro'];
-        if (!parsed || typeof parsed !== 'object') return getDefaultState();
-        const messages = Array.isArray(parsed.messages)
-          ? parsed.messages.filter(message =>
-            message &&
-            typeof message.author === 'string' &&
-            validRoles.includes(message.role) &&
-            typeof message.content === 'string' &&
-            typeof message.time === 'string')
-          : defaultState.messages.map(message => ({ ...message }));
-        const alerts = Array.isArray(parsed.alerts)
-          ? parsed.alerts.filter(alert =>
-            alert &&
-            (typeof alert.id === 'number' || typeof alert.id === 'string') &&
-            typeof alert.text === 'string')
-          : defaultState.alerts.map(alert => ({ ...alert }));
-
-        return {
-          currentRole: validRoles.includes(parsed.currentRole) ? parsed.currentRole : defaultState.currentRole,
-          messages,
-          alerts
-        };
-      } catch (error) {
-        console.warn('État local illisible ou indisponible, chargement des données de démonstration.', error);
-        return getDefaultState();
-      }
-    }
-
-    function saveState() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } catch (error) {
-        console.error('Impossible de sauvegarder les données localement.', error);
-      }
-      render();
-    }
-
-    // GESTION DES ONGLETS
-    document.querySelectorAll('.tab-button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.tab-button').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
-        
-        btn.classList.add('active');
-        document.getElementById(`tab-${btn.dataset.tab}`).style.display = 'block';
-      });
-    });
-
-    // GESTION DES RÔLES
-    document.querySelectorAll('.role-button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.role-button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.currentRole = btn.dataset.role;
-        saveState();
-      });
-    });
-
-    // AJOUT DE NOTE
-    document.getElementById('submit-note').addEventListener('click', () => {
-      const txt = document.getElementById('quick-note').value.trim();
-      if (!txt) return;
-
-      const now = new Date();
-      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-
-      let author = 'Senior';
-      if (state.currentRole === 'aidant') author = 'Aidant';
-      if (state.currentRole === 'pro') author = 'Professionnel';
-      state.messages.push({
-        author,
-        role: state.currentRole,
-        content: txt,
-        time: timeStr
-      });
-      document.getElementById('quick-note').value = '';
-      saveState();
-    });
-
-    // GESTION DES ALERTES
-    document.getElementById('meal-alert').addEventListener('click', () => {
-      const newAlert = {
-        id: Date.now(),
-        text: 'Repas non réceptionné à ' + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-        resolved: false
-      };
-      state.alerts.push(newAlert);
-      saveState();
-    });
-
-    // CONNEXION À L'API VISIO D'URGENCE
-    document.getElementById('video-call').addEventListener('click', async (event) => {
-      const btn = event.currentTarget;
-      const originalText = btn.textContent;
-      const videoWindow = window.open('', '_blank');
-
-      try {
-        btn.disabled = true;
-        btn.textContent = 'Connexion...';
-        btn.style.opacity = '0.7';
-
-        const response = await fetch('/api/video/urgency', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ senior_id: 1 })
-        });
-
-        if (!response.ok) throw new Error(`Erreur serveur (${response.status})`);
-
-        const data = await response.json();
-        if (!data.url) throw new Error('Le serveur n’a pas renvoyé de lien de visioconférence.');
-        const videoUrl = new URL(data.url);
-        if (videoUrl.protocol !== 'https:' || videoUrl.hostname !== 'meet.jit.si') {
-          throw new Error('Le serveur a renvoyé un lien de visioconférence invalide.');
-        }
-
-        if (videoWindow) {
-          videoWindow.location.href = videoUrl.href;
-        } else {
-          alert(`Lien de visioconférence : ${videoUrl.href}`);
-        }
-      } catch (error) {
-        if (videoWindow) videoWindow.close();
-        console.error('Échec du lancement de la visioconférence :', error);
-        alert('Impossible de lancer la visioconférence. Vérifiez que le serveur est démarré sur le port 3000.');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = originalText;
-        btn.style.opacity = '1';
-      }
-    });
-
-    document.getElementById('refresh').addEventListener('click', () => {
-      state = loadState();
-      render();
-    });
-
-    document.getElementById('alerts-list').addEventListener('click', (event) => {
-      const button = event.target.closest('button[data-alert-id]');
-      if (!button) return;
-      resolveAlert(Number(button.dataset.alertId));
-    });
-
-    function render() {
-      const roleNames = {
-        senior: 'Senior',
-        aidant: 'Aidant',
-        pro: 'Professionnel'
-      };
-      document.getElementById('role-status').textContent = `Rôle : ${roleNames[state.currentRole]}`;
-      document.querySelectorAll('.role-button').forEach(button => {
-        button.classList.toggle('active', button.dataset.role === state.currentRole);
-      });
-
-      // Rendu des messages
-      const msgList = document.getElementById('messages');
-      msgList.innerHTML = '';
-      state.messages.slice().reverse().forEach(msg => {
-        const item = document.createElement('div');
-        item.className = 'msg-item';
-        const meta = document.createElement('div');
-        meta.className = 'msg-meta';
-        const author = document.createElement('span');
-        author.textContent = `${msg.author} (${capitalize(msg.role)})`;
-        const time = document.createElement('span');
-        time.textContent = msg.time;
-        meta.append(author, time);
-
-        const content = document.createElement('p');
-        content.className = 'msg-content';
-        content.textContent = msg.content;
-        item.append(meta, content);
-        msgList.appendChild(item);
-      });
-
-      // Rendu des alertes
-      const alertsList = document.getElementById('alerts-list');
-      alertsList.innerHTML = '';
-      state.alerts.forEach(alert => {
-        const item = document.createElement('div');
-        item.className = 'alert-item';
-        const text = document.createElement('span');
-        text.textContent = alert.text;
-        const resolveButton = document.createElement('button');
-        resolveButton.type = 'button';
-        resolveButton.dataset.alertId = alert.id;
-        resolveButton.textContent = 'Résolu';
-        item.append(text, resolveButton);
-        alertsList.appendChild(item);
-      });
-    }
-
-    function resolveAlert(id) {
-      state.alerts = state.alerts.filter(alert => alert.id !== id);
-      saveState();
-    }
-
-    function capitalize(str) {
-      return str.charAt(0).toUpperCase() + str.slice(1);
-    }
-
-    render();
   </script>
 </body>
 </html>

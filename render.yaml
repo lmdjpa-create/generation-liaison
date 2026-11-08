@@ -5,3 +5,84 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     healthCheckPath: /api/status
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: generation-liaison-db
+          property: connectionString
+
+      - key: CAPACITOR_API_URL
+        value: https://generation-liaison.onrender.com
+
+      - key: PUBLIC_APP_URL
+        value: https://generation-liaison.onrender.com
+
+      - key: ADMIN_EMAILS
+        sync: false
+
+      - key: ADMIN_ACCESS_CODE
+        sync: false
+
+      - key: PLANNING_COORDINATOR_EMAILS
+        sync: false
+
+      - key: OPENAI_API_KEY
+        sync: false
+
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+
+      - key: FIREBASE_SERVICE_ACCOUNT_JSON
+        sync: false
+
+      - key: WEB_PUSH_PUBLIC_KEY
+        sync: false
+
+      - key: WEB_PUSH_PRIVATE_KEY
+        sync: false
+
+      - key: WEB_PUSH_SUBJECT
+        sync: false
+
+      - key: RESEND_API_KEY
+        sync: false
+
+      - key: NOTIFICATIONS_FROM_EMAIL
+        sync: false
+
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+
+      - key: TWILIO_FROM_NUMBER
+        sync: false
+
+      - key: GOOGLE_CALENDAR_CLIENT_ID
+        sync: false
+
+      - key: GOOGLE_CALENDAR_CLIENT_SECRET
+        sync: false
+
+      - key: CALENDAR_TOKEN_ENCRYPTION_KEY
+        sync: false
+
+      - key: GOOGLE_CALENDAR_REDIRECT_URI
+        value: https://generation-liaison.onrender.com/api/calendar/google/callback
+
+      - key: DAILY_API_KEY
+        sync: false
+
+      - key: DAILY_DOMAIN
+        sync: false
+
+databases:
+  - name: generation-liaison-db
+    databaseName: generationliaison
+    user: generationliaison
