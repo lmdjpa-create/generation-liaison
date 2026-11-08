@@ -43,6 +43,16 @@ function getResendClient() {
   return resendClient;
 }
 
+async function sendPasswordResetEmail(email, url) {
+  const result = await getResendClient().emails.send({
+    from: process.env.NOTIFICATIONS_FROM_EMAIL,
+    to: email,
+    subject: 'Réinitialisation de votre mot de passe Génération Liaison',
+    text: `Pour choisir un nouveau mot de passe, ouvrez ce lien dans les 15 minutes :\n\n${url}\n\nSi vous n’avez pas demandé cette modification, ignorez cet e-mail.`
+  });
+  if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
+}
+
 function configureWebPush() {
   const { WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY, WEB_PUSH_SUBJECT } = process.env;
   if (!WEB_PUSH_PUBLIC_KEY && !WEB_PUSH_PRIVATE_KEY && !WEB_PUSH_SUBJECT) return;
@@ -286,5 +296,6 @@ function startDeliveryWorker(pool) {
 module.exports = {
   isConfigured,
   publicConfiguration,
+  sendPasswordResetEmail,
   startDeliveryWorker
 };

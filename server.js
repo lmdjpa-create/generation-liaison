@@ -2538,6 +2538,39 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/password-reset/request', async (req, res) => {
+  if (!notificationDelivery.isConfigured().email) {
+    return res.status(503).json({ error: 'La récupération par e-mail n’est pas encore configurée.' });
+  }
+  try {
+    const appUrl = new URL(process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com');
+    if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password) {
+      throw new Error('PUBLIC_APP_URL doit être une URL HTTPS valide.');
+    }
+    const email = req.body?.email;
+    const token = await authService.createPasswordReset(email);
+    if (token) {
+      const link = new URL('/reset-password.html', appUrl);
+      link.hash = token;
+      notificationDelivery.sendPasswordResetEmail(email.trim().toLowerCase(), link.toString()).catch(error => {
+        console.error('Échec de l’envoi du lien de réinitialisation :', error.message);
+      });
+    }
+    return res.json({ message: 'Si un compte actif correspond à cette adresse, un e-mail sera envoyé.' });
+  } catch (error) {
+    return sendApiError(res, error, 'Impossible de demander la réinitialisation.');
+  }
+});
+
+app.post('/api/auth/password-reset/confirm', async (req, res) => {
+  try {
+    await authService.resetPassword(req.body?.token, req.body?.password);
+    return res.json({ message: 'Votre mot de passe a été modifié. Vous pouvez vous connecter.' });
+  } catch (error) {
+    return sendApiError(res, error, 'Impossible de modifier le mot de passe.');
+  }
+});
+
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: req.authUser });
 });

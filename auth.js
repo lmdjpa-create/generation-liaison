@@ -272,6 +272,12 @@ function createAuthService(pool) {
           expires_at TIMESTAMPTZ NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS app_password_resets (
+          user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+          token_hash CHAR(64) NOT NULL UNIQUE,
+          expires_at TIMESTAMPTZ NOT NULL,
+          requested_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         CREATE TABLE IF NOT EXISTS app_account_closure_requests (
           id UUID PRIMARY KEY,
           user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
@@ -688,6 +694,66 @@ function createAuthService(pool) {
     }
   }
 
+  async function createPasswordReset(email) {
+    if (typeof email !== 'string' || email.length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      throw new AuthError(400, 'Saisissez une adresse e-mail valide.');
+    }
+    await ensureSchema();
+    const token = randomBytes(32).toString('hex');
+    const { rows } = await pool.query(
+      `INSERT INTO app_password_resets (user_id, token_hash, expires_at)
+       SELECT id, $2, CURRENT_TIMESTAMP + INTERVAL '15 minutes'
+       FROM app_users WHERE email = $1 AND is_active = TRUE
+       ON CONFLICT (user_id) DO UPDATE
+       SET token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at,
+           requested_at = CURRENT_TIMESTAMP
+       WHERE app_password_resets.requested_at <= CURRENT_TIMESTAMP - INTERVAL '1 minute'
+       RETURNING user_id`,
+      [email.trim().toLowerCase(), hashToken(token)]
+    );
+    return rows.length ? token : null;
+  }
+
+  async function resetPassword(token, password) {
+    if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) {
+      throw new AuthError(400, 'Ce lien est invalide ou a expiré. Demandez un nouveau lien.');
+    }
+    if (typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH || password.length > 256) {
+      throw new AuthError(400, `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`);
+    }
+    await ensureSchema();
+    const credentials = await hashPassword(password);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `DELETE FROM app_password_resets
+         WHERE token_hash = $1 AND expires_at > CURRENT_TIMESTAMP
+         RETURNING user_id`,
+        [hashToken(token)]
+      );
+      if (!rows.length) {
+        throw new AuthError(400, 'Ce lien est invalide ou a expiré. Demandez un nouveau lien.');
+      }
+      const updated = await client.query(
+        `UPDATE app_users SET password_salt = $2, password_hash = $3
+         WHERE id = $1 AND is_active = TRUE RETURNING id`,
+        [rows[0].user_id, credentials.salt, credentials.hash]
+      );
+      if (!updated.rows.length) {
+        throw new AuthError(400, 'Ce lien est invalide ou a expiré. Demandez un nouveau lien.');
+      }
+      await client.query('DELETE FROM app_sessions WHERE user_id = $1', [rows[0].user_id]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async function login({ email, password }) {
     await ensureSchema();
     if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
@@ -695,32 +761,36 @@ function createAuthService(pool) {
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const { rows } = await pool.query(
-      `SELECT u.id, u.senior_id, u.name, u.email, u.role, u.is_active,
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT u.id, u.senior_id, u.name, u.email, u.role, u.is_active,
               u.verification_status,
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.password_salt, u.password_hash,
               s.name AS senior_name
-       FROM app_users u
-       JOIN senior_profiles s ON s.id = u.senior_id
-       WHERE u.email = $1`,
-      [normalizedEmail]
-    );
-    const row = rows[0];
-    const matches = row
-      ? await verifyPassword(password, row.password_salt, row.password_hash)
-      : await verifyPassword(password, DUMMY_SALT.toString('hex'), DUMMY_HASH.toString('hex'));
+         FROM app_users u
+         JOIN senior_profiles s ON s.id = u.senior_id
+         WHERE u.email = $1 FOR UPDATE OF u`,
+        [normalizedEmail]
+      );
+      const row = rows[0];
+      const matches = row
+        ? await verifyPassword(password, row.password_salt, row.password_hash)
+        : await verifyPassword(password, DUMMY_SALT.toString('hex'), DUMMY_HASH.toString('hex'));
 
-    if (!row || !row.is_active || !matches) {
-      throw new AuthError(401, 'Adresse e-mail ou mot de passe incorrect.');
-    }
-
-    const client = await pool.connect();
-    try {
+      if (!row || !row.is_active || !matches) {
+        throw new AuthError(401, 'Adresse e-mail ou mot de passe incorrect.');
+      }
       const token = await createSession(client, row.id);
+      await client.query('COMMIT');
       return { token, user: publicUser(row) };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
     } finally {
       client.release();
     }
@@ -826,7 +896,7 @@ function createAuthService(pool) {
     }
   }
 
-  return { authenticate, ensureSchema, login, logout, register, requestAccountClosure };
+  return { authenticate, createPasswordReset, ensureSchema, login, logout, register, requestAccountClosure, resetPassword };
 }
 
 module.exports = {

@@ -17,6 +17,7 @@ const pages = [
   'aidant.html',
   'pro.html',
   'app-mobile.html',
+  'reset-password.html',
   'admin.html',
   'privacy-policy.html',
   'cgu.html',
@@ -45,7 +46,7 @@ for (const page of pages) {
   const sourcePath = path.join(root, page);
   let content = fs.readFileSync(sourcePath, 'utf8');
 
-  if (page === 'app-mobile.html' && apiUrl) {
+  if ((page === 'app-mobile.html' || page === 'reset-password.html') && apiUrl) {
     content = content.replace(
       'const SERVER_URL = window.APP_API_BASE_URL || window.location.origin;',
       `const SERVER_URL = ${JSON.stringify(apiUrl)};`

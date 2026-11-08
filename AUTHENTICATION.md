@@ -11,6 +11,10 @@ The mobile app now uses server-side accounts. The API stores users, individual s
 
 Registration currently supports senior, family caregiver, and professional roles. Passwords must be at least 12 characters. Sessions expire after 30 days and are revoked when the user signs out.
 
+## Password recovery
+
+The sign-in and administrator pages link to `/reset-password.html`. Configure `RESEND_API_KEY`, `NOTIFICATIONS_FROM_EMAIL` (a sender on a verified Resend domain), and the public HTTPS `PUBLIC_APP_URL` before using recovery. Requests return the same message for active and unknown accounts; delivery failures are logged on the server. A new request for the same account is limited to one per minute. Recovery e-mails are transactional and do not require optional notification consent. Links expire after 15 minutes, can be used once, and reset all existing sessions. Closed or suspended accounts cannot be reset. The page never asks for the administrator access code.
+
 ## Professional account verification
 
 New professional accounts remain pending and cannot access the professional workspace until an administrator approves them. Registration requires an identity document and a Kbis. PDF, JPEG, and PNG files up to 10 MB each are accepted; the server also checks file signatures. While the application is pending, documents are stored as private PostgreSQL data and are available only through authenticated administrator endpoints. They are deleted in the same transaction as the approval or rejection decision. After a rejection, the applicant must upload both required documents again. Do not store or serve these files from the public `dist` directory.

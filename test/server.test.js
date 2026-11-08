@@ -53,6 +53,7 @@ test('serves the application pages and legal documents', async () => {
     '/aidant.html',
     '/pro.html',
     '/app-mobile.html',
+    '/reset-password.html',
     '/admin.html',
     '/privacy-policy.html',
     '/cgu.html',
@@ -296,6 +297,7 @@ test('all application page scripts have valid JavaScript syntax', () => {
     'aidant.html',
     'pro.html',
     'app-mobile.html',
+    'reset-password.html',
     'admin.html',
     path.join('dist', 'app-mobile.html'),
     path.join('android', 'app', 'src', 'main', 'assets', 'public', 'index.html')
@@ -789,6 +791,24 @@ test('reports missing authentication database configuration', async () => {
   });
   assert.equal(response.status, 503);
   assert.match((await response.json()).error, /pas configuré/i);
+});
+
+test('reports unavailable password recovery and rejects invalid links', async () => {
+  if (!process.env.RESEND_API_KEY || !process.env.NOTIFICATIONS_FROM_EMAIL) {
+    const request = await fetch(`${baseUrl}/api/auth/password-reset/request`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'personne@example.com' })
+    });
+    assert.equal(request.status, 503);
+    assert.match((await request.json()).error, /pas encore configurée/);
+  }
+  const confirm = await fetch(`${baseUrl}/api/auth/password-reset/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token: 'invalid', password: 'a-valid-password' })
+  });
+  assert.equal(confirm.status, 400);
 });
 
 test('requires acceptance of the current terms before account registration', async () => {
