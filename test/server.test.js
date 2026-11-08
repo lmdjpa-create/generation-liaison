@@ -65,6 +65,54 @@ test('serves the application pages and legal documents', async () => {
   }
 });
 
+test('serves the shared French and English language selector', async () => {
+  const response = await fetch(`${baseUrl}/language.js`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /javascript/);
+  const source = fs.readFileSync(path.join(projectRoot, 'language.js'), 'utf8');
+  assert.match(source, /generationLiaisonSetLanguage/);
+  for (const page of ['index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'admin.html']) {
+    assert.match(fs.readFileSync(path.join(projectRoot, page), 'utf8'), /<script src="\/language\.js"><\/script>/);
+  }
+
+  const storedValues = new Map();
+  const window = {
+    localStorage: {
+      getItem: key => storedValues.get(key) || null,
+      setItem: (key, value) => storedValues.set(key, value)
+    },
+    dispatchEvent() {}
+  };
+  const document = { documentElement: { lang: 'fr' }, addEventListener() {} };
+  vm.runInNewContext(source, {
+    window,
+    document,
+    console,
+    CustomEvent: class CustomEvent {
+      constructor(type, options) {
+        this.type = type;
+        this.detail = options.detail;
+      }
+    }
+  });
+
+  assert.equal(window.generationLiaisonLocale(), 'fr-FR');
+  assert.equal(window.generationLiaisonTranslate('Se connecter'), 'Se connecter');
+  window.generationLiaisonSetLanguage('en');
+  assert.equal(window.generationLiaisonLocale(), 'en-US');
+  assert.equal(window.generationLiaisonTranslate('Se connecter'), 'Sign in');
+  assert.equal(
+    window.generationLiaisonTranslate('Je suis tuteur légal et souhaite accéder aux profils seniors qui me seront associés par l’administration.'),
+    'I am a legal guardian and want access to senior profiles linked to my account by an administrator.'
+  );
+  assert.equal(window.generationLiaisonTranslate('Choisir un profil senior'), 'Choose a senior profile');
+  assert.equal(window.generationLiaisonTranslate('Un nom saisi par un utilisateur'), 'Un nom saisi par un utilisateur');
+  assert.equal(document.documentElement.lang, 'en');
+  assert.equal(storedValues.get('generation-liaison-language'), 'en');
+  window.generationLiaisonSetLanguage('fr');
+  assert.equal(window.generationLiaisonTranslate('Se connecter'), 'Se connecter');
+});
+
 test('homepage opens the real app and no longer exposes demo data', () => {
   const homepage = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
   assert.match(homepage, /href="\/app-mobile\.html"/);
@@ -281,7 +329,7 @@ test('senior home greets the signed-in user and refreshes the date when the app 
   assert.match(mobileApp, /Bonjour <span id="welcome-senior-name">Senior<\/span> !/);
   assert.match(mobileApp, /function afficherAccueilSenior\(user\)/);
   assert.match(mobileApp, /const displayName = user\.name \|\| user\.seniorName \|\| 'Senior'/);
-  assert.match(mobileApp, /document\.getElementById\('date-senior'\)\.textContent = new Date\(\)\.toLocaleDateString\('fr-FR'/);
+  assert.match(mobileApp, /document\.getElementById\('date-senior'\)\.textContent = new Date\(\)\.toLocaleDateString\(window\.generationLiaisonLocale\(\)/);
   assert.match(mobileApp, /afficherAccueilSenior\(user\)/);
 });
 
@@ -757,6 +805,126 @@ test('requires acceptance of the current terms before account registration', asy
     assert.equal(response.status, 400);
     assert.match((await response.json()).error, /accepter les conditions générales/);
   }
+});
+
+test('allows an aidant account to register before any senior has joined', async () => {
+  const statements = [];
+  const client = {
+    async query(sql, params = []) {
+      statements.push({ sql, params });
+      if (sql.includes('INSERT INTO app_users')) {
+        return {
+          rows: [{
+            id: params[0],
+            senior_id: params[1],
+            name: params[2],
+            email: params[3],
+            role: params[4],
+            home_latitude: params[5],
+            home_longitude: params[6],
+            service_radius_km: params[7],
+            verification_status: params[10]
+          }]
+        };
+      }
+      return { rows: [] };
+    },
+    release() {}
+  };
+  const auth = createAuthService({
+    async query() {
+      return { rows: [] };
+    },
+    async connect() {
+      return client;
+    }
+  });
+
+  const result = await auth.register({
+    name: 'Camille Aidant',
+    email: 'camille@example.com',
+    password: 'motdepassevalide',
+    role: 'aidant',
+    acceptedTerms: true,
+    acceptedTermsVersion: '2026-11-03.1'
+  });
+
+  assert.equal(result.user.role, 'aidant');
+  assert.equal(result.user.seniorName, null);
+  assert.deepEqual(
+    statements.find(statement => statement.sql.includes('INSERT INTO senior_profiles')).params,
+    [result.user.seniorId, 'Camille Aidant']
+  );
+  assert.ok(statements.some(statement => statement.sql === 'COMMIT'));
+});
+
+test('registers legal guardians as pending and limits them to verification until approval', async () => {
+  const statements = [];
+  const client = {
+    async query(sql, params = []) {
+      statements.push({ sql, params });
+      if (sql.includes('INSERT INTO app_users')) {
+        return {
+          rows: [{
+            id: params[0],
+            senior_id: params[1],
+            name: params[2],
+            email: params[3],
+            role: params[4],
+            is_legal_guardian: params[14],
+            guardian_verification_status: params[14] ? 'pending' : 'not_required'
+          }]
+        };
+      }
+      return { rows: [] };
+    },
+    release() {}
+  };
+  const auth = createAuthService({
+    async query() {
+      return { rows: [] };
+    },
+    async connect() {
+      return client;
+    }
+  });
+
+  const result = await auth.register({
+    name: 'Camille Aidant',
+    email: 'camille@example.com',
+    password: 'motdepassevalide',
+    role: 'aidant',
+    isLegalGuardian: true,
+    acceptedTerms: true,
+    acceptedTermsVersion: '2026-11-03.1'
+  });
+
+  assert.equal(result.user.isLegalGuardian, true);
+  assert.equal(result.user.guardianVerificationStatus, 'pending');
+  assert.equal(statements.find(statement => statement.sql.includes('INSERT INTO app_users')).params[14], true);
+
+  const serverSource = fs.readFileSync(path.join(projectRoot, 'server.js'), 'utf8');
+  const adminSource = fs.readFileSync(path.join(projectRoot, 'admin.html'), 'utf8');
+  assert.match(serverSource, /guardianVerificationStatus !== 'approved' && !canPendingLegalGuardianAccess\(req\)/);
+  assert.match(serverSource, /document_type IN \('identity', 'guardianship'\)/);
+  assert.match(serverSource, /app\.patch\('\/api\/admin\/accounts\/:accountId\/guardian-verification'/);
+  assert.match(serverSource, /DELETE FROM app_legal_guardian_verification_documents WHERE user_id = \$1/);
+  assert.match(adminSource, /downloadGuardianDocument/);
+  assert.match(adminSource, /linkSenior/);
+  assert.match(adminSource, /unlinkSenior/);
+});
+
+test('limits shared wellbeing check-ins to the selected senior and verified guardianship links', () => {
+  const serverSource = fs.readFileSync(path.join(projectRoot, 'server.js'), 'utf8');
+  const policy = fs.readFileSync(path.join(projectRoot, 'privacy-policy.html'), 'utf8')
+    .replace(/\s+/g, ' ');
+
+  assert.match(serverSource, /app\.get\('\/api\/wellbeing\/shared-check-ins', requireAuth, requireAidantSeniorContext/);
+  assert.match(serverSource, /WHERE owner\.senior_id = \$2/);
+  assert.match(serverSource, /guardian\.guardian_verification_status = 'approved'/);
+  assert.match(policy, /pièce d’identité et la preuve officielle de tutelle sont requises avant validation/);
+  assert.match(policy, /Après validation, les fichiers justificatifs sont supprimés/);
+  assert.match(policy, /sans demande de consentement séparée dans l’application/);
 });
 
 test('requires authentication to create or process account closure requests', async () => {

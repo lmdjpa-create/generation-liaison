@@ -88,6 +88,12 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS verification_reviewed_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
           ADD COLUMN IF NOT EXISTS verification_rejection_reason VARCHAR(500);
         ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS is_legal_guardian BOOLEAN NOT NULL DEFAULT FALSE,
+          ADD COLUMN IF NOT EXISTS guardian_verification_status VARCHAR(16) NOT NULL DEFAULT 'not_required'
+            CHECK (guardian_verification_status IN ('not_required', 'pending', 'approved', 'rejected')),
+          ADD COLUMN IF NOT EXISTS guardian_reviewed_at TIMESTAMPTZ,
+          ADD COLUMN IF NOT EXISTS guardian_reviewed_by UUID REFERENCES app_users(id) ON DELETE SET NULL;
+        ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS home_latitude DOUBLE PRECISION,
           ADD COLUMN IF NOT EXISTS home_longitude DOUBLE PRECISION,
           ADD COLUMN IF NOT EXISTS service_radius_km SMALLINT NOT NULL DEFAULT 30;
@@ -128,6 +134,24 @@ function createAuthService(pool) {
           uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           UNIQUE (user_id, document_type)
         );
+        CREATE TABLE IF NOT EXISTS app_legal_guardian_verification_documents (
+          id UUID PRIMARY KEY,
+          user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          document_type VARCHAR(24) NOT NULL CHECK (document_type IN ('identity', 'guardianship')),
+          content_type VARCHAR(64) NOT NULL CHECK (content_type IN ('application/pdf', 'image/jpeg', 'image/png')),
+          file_data BYTEA NOT NULL,
+          uploaded_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (user_id, document_type)
+        );
+        CREATE TABLE IF NOT EXISTS app_aidant_senior_links (
+          aidant_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          senior_profile_id UUID NOT NULL REFERENCES senior_profiles(id) ON DELETE CASCADE,
+          linked_by UUID NOT NULL REFERENCES app_users(id),
+          linked_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          PRIMARY KEY (aidant_user_id, senior_profile_id)
+        );
+        CREATE INDEX IF NOT EXISTS app_aidant_senior_links_profile_idx
+          ON app_aidant_senior_links (senior_profile_id, aidant_user_id);
         CREATE TABLE IF NOT EXISTS app_notifications (
           id UUID PRIMARY KEY,
           user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
@@ -510,8 +534,12 @@ function createAuthService(pool) {
       role: row.role,
       isActive: row.is_active !== false,
       verificationStatus: row.verification_status || 'approved',
+      isLegalGuardian: row.is_legal_guardian === true,
+      guardianVerificationStatus: row.guardian_verification_status || 'not_required',
       seniorId: row.senior_id,
-      seniorName: row.senior_name,
+      seniorName: row.role === 'senior'
+        ? row.senior_name || row.name
+        : row.senior_name && row.senior_name !== row.name ? row.senior_name : null,
       serviceRadiusKm: row.service_radius_km ?? null,
       premiumStatus: row.premium_status || 'inactive',
       premiumUntil: row.premium_until || null,
@@ -536,6 +564,7 @@ function createAuthService(pool) {
     password,
     role,
     seniorName,
+    isLegalGuardian = false,
     homeLatitude,
     homeLongitude,
     serviceRadiusKm,
@@ -552,15 +581,13 @@ function createAuthService(pool) {
     }
 
     if (typeof name !== 'string' || typeof email !== 'string' ||
-        typeof seniorName !== 'string') {
+        (seniorName !== undefined && seniorName !== null && typeof seniorName !== 'string')) {
       throw new AuthError(400, 'Complétez tous les champs du formulaire.');
     }
 
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedName = name.trim();
-    const normalizedSeniorName = seniorName.trim();
-    if (!normalizedName || normalizedName.length > 120 ||
-        !normalizedSeniorName || normalizedSeniorName.length > 120) {
+    if (!normalizedName || normalizedName.length > 120) {
       throw new AuthError(400, 'Vérifiez les noms saisis.');
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) || normalizedEmail.length > 254) {
@@ -571,6 +598,15 @@ function createAuthService(pool) {
     }
     if (!roles.has(role)) {
       throw new AuthError(400, 'Sélectionnez un rôle valide.');
+    }
+    if (typeof isLegalGuardian !== 'boolean' || (isLegalGuardian && role !== 'aidant')) {
+      throw new AuthError(400, 'Le statut de tuteur légal est réservé aux comptes aidants.');
+    }
+    const normalizedSeniorName = role === 'senior'
+      ? normalizedName
+      : typeof seniorName === 'string' ? seniorName.trim() : '';
+    if (normalizedSeniorName.length > 120) {
+      throw new AuthError(400, 'Vérifiez les noms saisis.');
     }
     if (typeof emailNotificationsEnabled !== 'boolean' || typeof smsNotificationsEnabled !== 'boolean' ||
         (notificationPhone !== undefined && notificationPhone !== null && typeof notificationPhone !== 'string')) {
@@ -601,20 +637,23 @@ function createAuthService(pool) {
       await client.query('BEGIN');
       await client.query(
         'INSERT INTO senior_profiles (id, name) VALUES ($1, $2)',
-        [seniorId, normalizedSeniorName]
+        [seniorId, normalizedSeniorName || normalizedName]
       );
       const { rows } = await client.query(
         `INSERT INTO app_users
            (id, senior_id, name, email, role, home_latitude, home_longitude, service_radius_km,
             password_salt, password_hash, verification_status, notification_phone,
-            email_notifications_enabled, sms_notifications_enabled,
+            email_notifications_enabled, sms_notifications_enabled, is_legal_guardian,
+            guardian_verification_status,
             email_notifications_consent_at, sms_notifications_consent_at, terms_accepted_at, terms_version)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+                 CASE WHEN $15 THEN 'pending' ELSE 'not_required' END,
                  CASE WHEN $13 THEN CURRENT_TIMESTAMP ELSE NULL END,
                  CASE WHEN $14 THEN CURRENT_TIMESTAMP ELSE NULL END,
-                 CURRENT_TIMESTAMP, $15)
+                 CURRENT_TIMESTAMP, $16)
          RETURNING id, senior_id, name, email, role, verification_status,
-                   home_latitude, home_longitude, service_radius_km`,
+                   home_latitude, home_longitude, service_radius_km,
+                   is_legal_guardian, guardian_verification_status`,
         [
           userId,
           seniorId,
@@ -630,10 +669,11 @@ function createAuthService(pool) {
           smsNotificationsEnabled ? normalizedPhone : null,
           emailNotificationsEnabled,
           smsNotificationsEnabled,
+          isLegalGuardian,
           TERMS_VERSION
         ]
       );
-      rows[0].senior_name = normalizedSeniorName;
+      rows[0].senior_name = normalizedSeniorName || null;
       const token = await createSession(client, userId);
       await client.query('COMMIT');
       return { token, user: publicUser(rows[0]) };
@@ -658,6 +698,7 @@ function createAuthService(pool) {
     const { rows } = await pool.query(
       `SELECT u.id, u.senior_id, u.name, u.email, u.role, u.is_active,
               u.verification_status,
+              u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.password_salt, u.password_hash,
@@ -690,6 +731,7 @@ function createAuthService(pool) {
     const { rows } = await pool.query(
       `SELECT u.id, u.senior_id, u.name, u.email, u.role, u.is_active,
               u.verification_status,
+              u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
               u.premium_status, u.premium_until,
               u.profile_photo_url, s.name AS senior_name

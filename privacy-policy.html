@@ -137,6 +137,7 @@
           <li>Coordonnées de domicile approximatives et rayon d’intervention, uniquement si un professionnel les renseigne ;</li>
           <li>Rendez-vous, demandes de services, interventions, évaluations et notes de suivi que vous saisissez ;</li>
           <li>Justificatifs professionnels transmis pour vérification ;</li>
+          <li>Pour les tuteurs légaux, pièce d’identité et justificatif officiel de tutelle, statut de vérification et associations de profils seniors effectuées par l’administration ;</li>
           <li>Messages adressés à l’assistant IA ou à l’équipe, si vous utilisez ces fonctions ;</li>
           <li>Réponse quotidienne de bien-être, réponse de l’assistant IA, résultat indicatif de détection d’un risque, réponse du senior à la vérification et choix des aidants destinataires, si vous utilisez le check-in ;</li>
           <li>Notifications d’urgence adressées aux aidants actifs enregistrés par le senior, si celui-ci confirme une demande d’appel au 15 ou au 112 ;</li>
@@ -152,6 +153,7 @@
           <li>Créer et gérer les comptes et les espaces correspondant aux différents rôles ;</li>
           <li>Organiser les services, rendez-vous, interventions et échanges avec l’équipe ;</li>
           <li>Vérifier les justificatifs des professionnels ;</li>
+          <li>Vérifier manuellement les justificatifs d’identité et de tutelle, puis permettre à l’administration d’associer des profils seniors aux aidants autorisés ;</li>
           <li>Envoyer les notifications demandées et, si vous l’activez, synchroniser les disponibilités avec Google Calendar ;</li>
           <li>Permettre les visioconférences demandées ;</li>
           <li>Répondre aux questions d’utilisation avec l’assistant IA, si vous choisissez de l’utiliser ;</li>
@@ -188,6 +190,15 @@
           de contact humain et les conversations concernées sont accessibles aux administrateurs autorisés.
         </p>
         <p>
+          Les justificatifs d’identité et de tutelle sont accessibles uniquement aux administrateurs chargés de
+          leur vérification. La pièce d’identité et la preuve officielle de tutelle sont requises avant validation.
+          Après validation, les fichiers justificatifs sont supprimés ; le statut et les associations de profils
+          restent enregistrés pour gérer les accès. En cas de refus, les justificatifs restent disponibles à
+          l’administration jusqu’à leur remplacement ou à la clôture du compte ; leur durée maximale de conservation
+          reste à préciser. Seule l’administration peut associer ou retirer les profils seniors. Une tutelle vérifiée
+          autorise l’accès aux profils associés sans demande de consentement séparée dans l’application.
+        </p>
+        <p>
           Pour le check-in de bien-être, le texte de votre réponse est transmis à OpenAI afin de générer une
           réponse empathique et une indication automatisée signalant éventuellement des propos préoccupants
           (avec le paramètre de non-stockage de l’API). Cette indication peut être erronée ou ne pas détecter une
@@ -195,7 +206,8 @@
           choix de partage sont conservés dans l’application pendant 30 jours au maximum. Vous pouvez choisir,
           pour chaque check-in, un ou plusieurs de vos contacts actifs ayant le rôle d’aidant. Seul le texte de
           votre réponse leur est alors accessible après connexion ; la réponse IA ne leur est pas transmise.
-          Ils reçoivent une notification neutre qui ne contient pas votre réponse. Ce check-in n’est ni un service
+          Un tuteur légal vérifié peut également consulter les check-ins du profil senior qui lui est associé.
+          Les destinataires des partages reçoivent une notification neutre qui ne contient pas votre réponse. Ce check-in n’est ni un service
           d’urgence ni un dispositif de surveillance ou d’alerte automatique.
         </p>
         <p>

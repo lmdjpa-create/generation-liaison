@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Génération Liaison - Espace Aidant</title>
+    <script src="/language.js"></script>
     <style>
         body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #f0f4f8; margin: 0; padding: 20px; }
         .dashboard { max-width: 800px; margin: 0 auto; }
@@ -113,7 +114,7 @@
 
             logs.forEach(log => {
                 let auteur = log.author_id === 3 ? "🩺 Soignant" : log.author_id === 2 ? "👨‍👩‍👧 Famille" : `👴 ${seniorName}`;
-                let dateStr = new Date(log.created_at).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'});
+                let dateStr = new Date(log.created_at).toLocaleTimeString(window.generationLiaisonLocale(), {hour: '2-digit', minute:'2-digit'});
 
                 const item = document.createElement('div');
                 const contentContainer = document.createElement('div');
@@ -169,7 +170,7 @@
                         </div>
                         <div>
                             <div class="price">${plat.price.toFixed(2)} €</div>
-                            <button class="btn-order" onclick="commanderPlat('${plat.title.replace(/'/g, "\\'")}')">Commander</button>
+                            <button class="btn-order" onclick="commanderPlat('${plat.title.replace(/'/g, "\\'")}')">${window.generationLiaisonTranslate('Commander')}</button>
                         </div>
                     </div>
                 `;

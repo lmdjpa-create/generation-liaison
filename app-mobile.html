@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Génération Liaison - Mobile</title>
+    <script src="/language.js"></script>
 
     <!-- 📲 CONFIGURATION DU RACCOURCI MOBILE -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -232,7 +233,19 @@
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Créez votre accès Génération Liaison</p>
             <input type="text" id="reg-name" placeholder="Prénom et Nom">
             <input type="email" id="reg-email" placeholder="Adresse e-mail">
-            <input type="text" id="reg-senior-name" placeholder="Nom du senior suivi">
+            <div id="reg-senior-fields">
+                <input type="text" id="reg-senior-name" placeholder="Nom du senior suivi (facultatif)" aria-label="Nom du senior suivi (facultatif)">
+                <p class="helper-text">Vous pouvez créer votre compte même si aucun senior n’est encore inscrit. Le suivi apparaîtra lorsqu’un senior rejoindra l’application et partagera son profil.</p>
+                <label class="notification-choice"><input id="reg-legal-guardian" type="checkbox"> Je suis tuteur légal et souhaite accéder aux profils seniors qui me seront associés par l’administration.</label>
+                <section id="legal-guardian-registration-fields" class="form-card" style="display:none; text-align:left;">
+                    <h3>Vérification de la tutelle</h3>
+                    <p class="helper-text">L’accès aux profils seniors sera activé après vérification manuelle par l’administration. Seuls les administrateurs autorisés peuvent consulter ces justificatifs.</p>
+                    <label for="reg-guardian-identity">Pièce d’identité (PDF, JPEG ou PNG, 10 Mo max.)</label>
+                    <input id="reg-guardian-identity" type="file" accept="application/pdf,image/jpeg,image/png" data-guardian-document-type="identity">
+                    <label for="reg-guardian-proof">Jugement ou attestation officielle de tutelle (PDF, JPEG ou PNG, 10 Mo max.)</label>
+                    <input id="reg-guardian-proof" type="file" accept="application/pdf,image/jpeg,image/png" data-guardian-document-type="guardianship">
+                </section>
+            </div>
             <input type="password" id="reg-password" placeholder="Mot de passe (12 caractères min)">
             <select id="reg-role">
                 <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
@@ -268,6 +281,23 @@
         </div>
     </div>
 
+    <section class="form-card" id="legal-guardian-verification-panel" style="display:none;">
+        <h3>Vérification de votre tutelle légale</h3>
+        <p id="legal-guardian-verification-message" class="helper-text" aria-live="polite">L’accès aux profils seniors sera activé après validation par l’administration.</p>
+        <p id="legal-guardian-documents-status" class="helper-text" aria-live="polite">Chargement des justificatifs…</p>
+        <form id="legal-guardian-documents-form" class="form-grid">
+            <label for="pending-guardian-identity">Pièce d’identité (PDF, JPEG ou PNG, 10 Mo max.)</label>
+            <input id="pending-guardian-identity" type="file" accept="application/pdf,image/jpeg,image/png" data-guardian-document-type="identity">
+            <label for="pending-guardian-proof">Jugement ou attestation officielle de tutelle (PDF, JPEG ou PNG, 10 Mo max.)</label>
+            <input id="pending-guardian-proof" type="file" accept="application/pdf,image/jpeg,image/png" data-guardian-document-type="guardianship">
+            <button type="submit">Envoyer / remplacer les justificatifs</button>
+        </form>
+        <button type="button" id="legal-guardian-logout">Déconnexion</button>
+    </section>
+    <section class="form-card" id="aidant-no-senior-panel" style="display:none;">
+        <h3>Aucun profil senior associé</h3>
+        <p>Votre compte est actif, mais l’administration doit associer un ou plusieurs profils seniors avant que vous puissiez consulter leur espace.</p>
+    </section>
     <!-- TABLEAU DE BORD LAZ -->
     <div id="main-app-senior" style="display: none; text-align: center;">
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! 👴</h1>
@@ -397,6 +427,10 @@
         <h3 style="margin:0;">Espace Proches 👨‍👩‍👧‍👦</h3>
         <span style="font-size:0.85rem; opacity:0.9;">Suivi de : <span id="senior-name-aidant">Senior</span></span>
     </div>
+    <section class="form-card" id="aidant-senior-selector" style="display:none;">
+        <label for="aidant-senior-select">Profil senior</label>
+        <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
+    </section>
     <section class="form-card">
         <h4>Check-ins de bien-être partagés</h4>
         <p class="helper-text">Vous ne voyez ici que les réponses que la personne a choisi de vous transmettre. Ce partage n’est pas un service d’urgence ni une surveillance automatique.</p>
@@ -674,6 +708,7 @@
     const USER_KEY = 'generation-liaison-mobile-user';
     const PUSH_TOKEN_KEY = 'generation-liaison-push-token';
     let connectedUser = null;
+    let activeSeniorProfileId = localStorage.getItem('generation-liaison-active-senior') || '';
     let wellbeingLoadedDate = null;
     let currentWellbeingCheckin = null;
     let wellbeingSafetyTimer = null;
@@ -689,18 +724,18 @@
     let directoryOffset = 0;
     const serviceFamilyLoadIds = { senior: 0, aidant: 0 };
     const serviceLabels = {
-        meal_delivery: 'Livraison de repas',
-        hairdresser: 'Coiffure à domicile',
-        housekeeping: 'Ménage à domicile'
+        meal_delivery: window.generationLiaisonTranslate('Livraison de repas'),
+        hairdresser: window.generationLiaisonTranslate('Coiffure à domicile'),
+        housekeeping: window.generationLiaisonTranslate('Ménage à domicile')
     };
     const serviceBillingLabels = {
-        subscription: 'Abonnement · tarif à définir',
-        per_completed_booking: 'Participation après prestation réalisée · tarif à définir'
+        subscription: window.generationLiaisonTranslate('Abonnement · tarif à définir'),
+        per_completed_booking: window.generationLiaisonTranslate('Participation après prestation réalisée · tarif à définir')
     };
 
     function showToast(message, isSuccess = true) {
         const toast = document.getElementById('toast');
-        toast.textContent = message;
+        toast.textContent = window.generationLiaisonTranslate(message);
         toast.style.background = isSuccess ? '#2ecc71' : '#e74c3c';
         toast.style.display = 'block';
         clearTimeout(showToast.timer);
@@ -1011,7 +1046,8 @@
         const directoryAllowed = screenName === 'directory' &&
             ['senior', 'aidant'].includes(connectedUser?.role);
         if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed) ||
-            (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved')) {
+            (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
+            (connectedUser.role === 'aidant' && screenName !== 'directory' && !activeSeniorProfileId)) {
             return;
         }
 
@@ -1055,12 +1091,22 @@
     }
 
     function afficherChampsInscriptionProfessionnel() {
-        const isProfessional = document.getElementById('reg-role').value === 'pro';
+        const role = document.getElementById('reg-role').value;
+        const isProfessional = role === 'pro';
         document.getElementById('professional-registration-fields').style.display = isProfessional ? 'block' : 'none';
+        document.getElementById('reg-senior-fields').style.display = role === 'aidant' ? 'block' : 'none';
+        afficherChampsTutelle();
         if (!isProfessional) {
             registrationHomeCoordinates = null;
             document.getElementById('reg-home-location-status').textContent = 'Position du domicile non enregistrée.';
         }
+    }
+
+    function afficherChampsTutelle() {
+        const isGuardian = document.getElementById('reg-role').value === 'aidant' &&
+            document.getElementById('reg-legal-guardian').checked;
+        document.getElementById('legal-guardian-registration-fields').style.display =
+            isGuardian ? 'block' : 'none';
     }
 
     function obtenirPositionActuelle() {
@@ -1101,35 +1147,41 @@
         }
     }
 
-    function setAuthenticatedView(user) {
+    async function setAuthenticatedView(user) {
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         if (connectedUser?.id !== user.id) wellbeingLoadedDate = null;
         connectedUser = user;
         currentUser = user;
         const pendingProfessional = user.role === 'pro' && user.verificationStatus !== 'approved';
+        const pendingGuardian = user.role === 'aidant' && user.isLegalGuardian &&
+            user.guardianVerificationStatus !== 'approved';
+        const pendingAccess = pendingProfessional || pendingGuardian;
         document.getElementById('auth-box').style.display = 'none';
         document.getElementById('professional-verification-panel').style.display =
             pendingProfessional ? 'block' : 'none';
+        document.getElementById('legal-guardian-verification-panel').style.display =
+            pendingGuardian ? 'block' : 'none';
+        document.getElementById('aidant-no-senior-panel').style.display = 'none';
         document.getElementById('professional-workspace').style.display =
-            pendingProfessional ? 'none' : 'block';
+            pendingAccess ? 'none' : 'block';
         ['senior', 'aidant', 'pro'].forEach(role => {
             document.getElementById(`notifications-panel-${role}`).style.display =
-                role === user.role && !pendingProfessional ? 'block' : 'none';
+                role === user.role && !pendingAccess ? 'block' : 'none';
             document.getElementById(`notification-settings-${role}`).style.display =
-                role === user.role ? 'block' : 'none';
+                role === user.role && !pendingAccess ? 'block' : 'none';
         });
         document.getElementById('main-app-senior').style.display = user.role === 'senior' ? 'block' : 'none';
         document.getElementById('nav-bar').style.display = 'flex';
 
         ['senior', 'aidant', 'pro'].forEach(role => {
             document.getElementById(`nav-${role}`).style.display =
-                role === user.role && !pendingProfessional ? 'flex' : 'none';
+                role === user.role && !pendingAccess ? 'flex' : 'none';
         });
         document.getElementById('nav-directory').style.display =
-            ['senior', 'aidant'].includes(user.role) && !pendingProfessional ? 'flex' : 'none';
+            ['senior', 'aidant'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
         document.getElementById('nav-contacts').style.display =
-            ['senior', 'aidant', 'pro'].includes(user.role) && !pendingProfessional ? 'flex' : 'none';
+            ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
 
         if (pendingProfessional) {
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
@@ -1139,10 +1191,32 @@
             chargerPreferencesNotification();
             return;
         }
+        if (pendingGuardian) {
+            document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
+            document.getElementById('screen-senior').classList.add('active');
+            document.getElementById('nav-logout').style.display = 'flex';
+            chargerLegalGuardianDocuments();
+            return;
+        }
 
-        const seniorName = user.seniorName || 'Senior';
+        if (user.role === 'aidant') {
+            document.getElementById('aidant-senior-selector').style.display = 'block';
+            if (!await chargerAidantSeniors()) {
+                document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
+                document.getElementById('screen-senior').classList.add('active');
+                document.getElementById('aidant-no-senior-panel').style.display = 'block';
+                document.getElementById('nav-logout').style.display = 'flex';
+                chargerNotifications();
+                chargerPreferencesNotification();
+                return;
+            }
+        } else {
+            document.getElementById('aidant-senior-selector').style.display = 'none';
+        }
+
+        const seniorName = user.seniorName || window.generationLiaisonTranslate('Aucun senior associé pour le moment');
         afficherAccueilSenior(user);
-        document.getElementById('senior-name-aidant').textContent = seniorName;
+        document.getElementById('senior-name-aidant').textContent = window.generationLiaisonTranslate(seniorName);
         document.getElementById('coordinator-panel').style.display = user.isCoordinator ? 'block' : 'none';
         chargerNotifications();
         chargerPreferencesNotification();
@@ -1185,11 +1259,39 @@
         updatePlanningDateTitle();
     }
 
+    async function chargerAidantSeniors() {
+        try {
+            const response = await fetch(`${SERVER_URL}/api/aidant/seniors`, {
+                headers: authHeaders(false)
+            });
+            const result = await readResponse(response);
+            const select = document.getElementById('aidant-senior-select');
+            select.replaceChildren(...result.seniors.map(senior => new Option(senior.name, senior.id)));
+            if (!result.seniors.length) {
+                activeSeniorProfileId = '';
+                localStorage.removeItem('generation-liaison-active-senior');
+                return false;
+            }
+
+            if (!result.seniors.some(senior => senior.id === activeSeniorProfileId)) {
+                activeSeniorProfileId = result.seniors[0].id;
+            }
+            select.value = activeSeniorProfileId;
+            localStorage.setItem('generation-liaison-active-senior', activeSeniorProfileId);
+            document.getElementById('senior-name-aidant').textContent =
+                result.seniors.find(senior => senior.id === activeSeniorProfileId).name;
+            return true;
+        } catch (error) {
+            showToast(error.message || 'Impossible de charger les profils seniors associés.', false);
+            return false;
+        }
+    }
+
     function afficherAccueilSenior(user) {
         const displayName = user.name || user.seniorName || 'Senior';
         const firstName = displayName.trim().split(/\s+/)[0] || 'Senior';
         document.getElementById('welcome-senior-name').textContent = firstName;
-        document.getElementById('date-senior').textContent = new Date().toLocaleDateString('fr-FR', {
+        document.getElementById('date-senior').textContent = new Date().toLocaleDateString(window.generationLiaisonLocale(), {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
@@ -1210,9 +1312,14 @@
         return `${parts.year}-${parts.month}-${parts.day}`;
     }
 
-    function authHeaders() {
+    function authHeaders(includeSenior = true) {
         const token = localStorage.getItem(SESSION_KEY);
-        return token ? { Authorization: `Bearer ${token}` } : {};
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        if (includeSenior && connectedUser?.role === 'aidant' && activeSeniorProfileId &&
+            (!connectedUser.isLegalGuardian || connectedUser.guardianVerificationStatus === 'approved')) {
+            headers['X-Senior-Profile-Id'] = activeSeniorProfileId;
+        }
+        return headers;
     }
 
     async function readResponse(response) {
@@ -1348,7 +1455,7 @@
         }
         try {
             const recognition = new Recognition();
-            recognition.lang = 'fr-FR';
+            recognition.lang = window.generationLiaisonLocale();
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
             button.disabled = true;
@@ -1387,7 +1494,7 @@
         }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(texte);
-        utterance.lang = 'fr-FR';
+        utterance.lang = window.generationLiaisonLocale();
         window.speechSynthesis.speak(utterance);
     }
 
@@ -1590,7 +1697,7 @@
             result.checkins.forEach(checkin => {
                 const item = document.createElement('article');
                 item.className = 'progress-item';
-                const createdAt = new Date(checkin.createdAt).toLocaleString('fr-FR');
+                const createdAt = new Date(checkin.createdAt).toLocaleString(window.generationLiaisonLocale());
                 item.append(makeTextElement('strong', `${checkin.seniorName} · ${createdAt}`));
                 item.append(makeTextElement('p', checkin.response));
                 container.append(item);
@@ -1629,7 +1736,7 @@
         }
         try {
             const recognition = new Recognition();
-            recognition.lang = 'fr-FR';
+            recognition.lang = window.generationLiaisonLocale();
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
             button.disabled = true;
@@ -2016,7 +2123,7 @@
                 return;
             }
             result.slots.forEach(slot => {
-                const slotButton = makeTextElement('button', new Intl.DateTimeFormat('fr-FR', {
+                const slotButton = makeTextElement('button', new Intl.DateTimeFormat(window.generationLiaisonLocale(), {
                     hour: '2-digit',
                     minute: '2-digit',
                     timeZone: result.timeZone
@@ -2073,7 +2180,7 @@
                 }[booking.status] || booking.status;
                 item.append(
                     makeTextElement('strong', otherPerson),
-                    makeTextElement('p', `${new Intl.DateTimeFormat('fr-FR', {
+                    makeTextElement('p', `${new Intl.DateTimeFormat(window.generationLiaisonLocale(), {
                         dateStyle: 'medium',
                         timeStyle: 'short',
                         timeZone: booking.timeZone
@@ -2163,6 +2270,52 @@
             input.value = '';
         }
         await chargerProfessionalVerificationDocuments();
+    }
+
+    async function chargerLegalGuardianDocuments() {
+        const status = document.getElementById('legal-guardian-documents-status');
+        const message = document.getElementById('legal-guardian-verification-message');
+        const translate = window.generationLiaisonTranslate;
+        try {
+            const result = await planningRequest('/api/legal-guardian/documents');
+            const uploaded = new Set(result.documents.map(document => document.type));
+            status.textContent =
+                `${translate('Justificatifs reçus :')} ${translate('Identité')} ${uploaded.has('identity') ? '✓' : translate('à fournir')} · ${translate('Tutelle')} ${uploaded.has('guardianship') ? '✓' : translate('à fournir')}.`;
+            message.textContent = result.verificationStatus === 'rejected'
+                ? translate('Les justificatifs doivent être complétés. Contactez l’administration après leur remplacement.')
+                : translate('Votre dossier est en attente de vérification manuelle. L’accès aux profils seniors sera ouvert après validation.');
+        } catch (error) {
+            status.textContent = error.message || 'Impossible de charger l’état des justificatifs de tutelle.';
+        }
+    }
+
+    async function envoyerJustificatifsTutelle(container, requireBoth = false) {
+        const inputs = [...container.querySelectorAll('[data-guardian-document-type]')];
+        const selected = inputs.filter(input => input.files?.[0]);
+        if (requireBoth && selected.length !== 2) {
+            throw new Error(window.generationLiaisonTranslate('Ajoutez la pièce d’identité et le justificatif de tutelle avant de créer le compte.'));
+        }
+        if (!selected.length) {
+            throw new Error(window.generationLiaisonTranslate('Sélectionnez au moins un justificatif de tutelle à envoyer.'));
+        }
+        for (const input of selected) {
+            const file = input.files[0];
+            if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+                throw new Error(window.generationLiaisonTranslate('Chaque justificatif doit être un PDF, JPEG ou PNG de 10 Mo maximum.'));
+            }
+            const response = await fetch(
+                `${SERVER_URL}/api/legal-guardian/documents/${encodeURIComponent(input.dataset.guardianDocumentType)}`,
+                {
+                    method: 'PUT',
+                    headers: { ...authHeaders(), 'Content-Type': file.type },
+                    body: file
+                }
+            );
+            await readResponse(response);
+            input.value = '';
+        }
+        await chargerLegalGuardianDocuments();
+        showToast(window.generationLiaisonTranslate('Justificatifs transmis. Votre dossier est en attente de vérification.'));
     }
 
     async function chargerPreferencesNotification() {
@@ -2476,7 +2629,7 @@
     }
 
     function formatDateTime(value) {
-        return new Date(value).toLocaleString('fr-FR', {
+        return new Date(value).toLocaleString(window.generationLiaisonLocale(), {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
@@ -2501,7 +2654,7 @@
         const selectedDate = new Date(`${dateValue}T12:00:00`);
         const title = dateValue === dateInputValue(new Date())
             ? 'Visites du jour'
-            : `Agenda du ${selectedDate.toLocaleDateString('fr-FR', {
+            : `${window.generationLiaisonTranslate('Agenda du')} ${selectedDate.toLocaleDateString(window.generationLiaisonLocale(), {
                 weekday: 'long',
                 day: 'numeric',
                 month: 'long',
@@ -2598,7 +2751,7 @@
             item.className = 'progress-item';
             const title = typeLabels[note.type] || 'Transmission';
             const source = note.sourceName
-                ? ` · Source indiquée : ${note.sourceName}${note.sourceDate ? ` · datée du ${new Date(`${note.sourceDate}T00:00:00`).toLocaleDateString('fr-FR')}` : ''}`
+                ? ` · Source indiquée : ${note.sourceName}${note.sourceDate ? ` · datée du ${new Date(`${note.sourceDate}T00:00:00`).toLocaleDateString(window.generationLiaisonLocale())}` : ''}`
                 : '';
             const importance = importanceLabels[note.importance] || importanceLabels.information;
             item.append(makeTextElement('span', importance.label, `importance-badge ${importance.className}`));
@@ -3314,6 +3467,25 @@
 
     function configurerFormulairesCoordination() {
         document.getElementById('reg-role').addEventListener('change', afficherChampsInscriptionProfessionnel);
+        document.getElementById('reg-legal-guardian').addEventListener('change', afficherChampsTutelle);
+        document.getElementById('aidant-senior-select').addEventListener('change', event => {
+            activeSeniorProfileId = event.currentTarget.value;
+            localStorage.setItem('generation-liaison-active-senior', activeSeniorProfileId);
+            if (activeSeniorProfileId) switchScreen('aidant');
+        });
+        document.getElementById('legal-guardian-logout').addEventListener('click', () => deconnecterUtilisateur());
+        document.getElementById('legal-guardian-documents-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const button = event.currentTarget.querySelector('button[type="submit"]');
+            button.disabled = true;
+            try {
+                await envoyerJustificatifsTutelle(event.currentTarget);
+            } catch (error) {
+                showToast(error.message || 'Impossible d’envoyer les justificatifs de tutelle.', false);
+            } finally {
+                button.disabled = false;
+            }
+        });
         document.getElementById('professional-verification-documents-form').addEventListener('submit', async event => {
             event.preventDefault();
             const button = event.currentTarget.querySelector('button[type="submit"]');
@@ -3521,7 +3693,7 @@
         const result = await readResponse(response);
         localStorage.setItem(SESSION_KEY, result.token);
         localStorage.removeItem(USER_KEY);
-        setAuthenticatedView(result.user);
+        await setAuthenticatedView(result.user);
     }
 
     async function deconnecterUtilisateur({
@@ -3570,6 +3742,8 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
+        activeSeniorProfileId = '';
+        localStorage.removeItem('generation-liaison-active-senior');
         directoryLocation = null;
         document.getElementById('directory-location-button').textContent =
             'Trier par proximité (position utilisée uniquement pour ce tri)';
@@ -3579,6 +3753,9 @@
             document.getElementById(`notifications-panel-${role}`).style.display = 'none';
             document.getElementById(`notification-settings-${role}`).style.display = 'none';
         });
+        document.getElementById('legal-guardian-verification-panel').style.display = 'none';
+        document.getElementById('aidant-no-senior-panel').style.display = 'none';
+        document.getElementById('aidant-senior-selector').style.display = 'none';
         if (headers.Authorization && !sessionAlreadyRevoked) {
             try {
                 const response = await fetch(`${SERVER_URL}/api/auth/logout`, { method: 'POST', headers });
@@ -3602,6 +3779,7 @@
         document.getElementById('reg-password').value = '';
         document.querySelectorAll('[id^="close-account-password-"]').forEach(input => { input.value = ''; });
         document.getElementById('reg-terms-accepted').checked = false;
+        document.getElementById('reg-legal-guardian').checked = false;
         document.getElementById('reg-terms-error').hidden = true;
         document.getElementById('reg-notification-phone').value = '';
         document.getElementById('reg-email-notifications').checked = false;
@@ -3660,13 +3838,14 @@
         const seniorName = document.getElementById('reg-senior-name').value.trim();
         const password = document.getElementById('reg-password').value;
         const role = document.getElementById('reg-role').value;
+        const isLegalGuardian = role === 'aidant' && document.getElementById('reg-legal-guardian').checked;
         const emailNotificationsEnabled = role === 'pro' &&
             document.getElementById('reg-email-notifications').checked;
         const smsNotificationsEnabled = role === 'pro' &&
             document.getElementById('reg-sms-notifications').checked;
         const notificationPhone = document.getElementById('reg-notification-phone').value.trim();
 
-        if (!name || !email || !seniorName || password.length < 12) {
+        if (!name || !email || password.length < 12) {
             showToast('Complétez les champs et choisissez un mot de passe de 12 caractères minimum.', false);
             return;
         }
@@ -3675,6 +3854,13 @@
             !document.querySelector('#professional-registration-fields [data-document-type="kbis"]').files?.[0]
         )) {
             showToast('Ajoutez la pièce d’identité et le Kbis pour soumettre votre dossier.', false);
+            return;
+        }
+        if (isLegalGuardian && (
+            !document.querySelector('#legal-guardian-registration-fields [data-guardian-document-type="identity"]').files?.[0] ||
+            !document.querySelector('#legal-guardian-registration-fields [data-guardian-document-type="guardianship"]').files?.[0]
+        )) {
+            showToast(window.generationLiaisonTranslate('Ajoutez votre pièce d’identité et le justificatif officiel de tutelle.'), false);
             return;
         }
         if (smsNotificationsEnabled && !/^\+[1-9]\d{7,14}$/.test(notificationPhone)) {
@@ -3686,9 +3872,10 @@
             const credentials = {
                 name,
                 email,
-                seniorName,
+                seniorName: role === 'senior' ? name : seniorName,
                 password,
                 role,
+                isLegalGuardian,
                 notificationPhone,
                 emailNotificationsEnabled,
                 smsNotificationsEnabled,
@@ -3710,7 +3897,13 @@
                 credentials.serviceRadiusKm = serviceRadiusKm;
             }
             await requestSession('/api/auth/register', credentials);
-            if (role === 'pro') {
+            if (isLegalGuardian) {
+                await envoyerJustificatifsTutelle(
+                    document.getElementById('legal-guardian-registration-fields'),
+                    true
+                );
+                showToast(window.generationLiaisonTranslate('Compte créé. Votre dossier est en attente de vérification.'));
+            } else if (role === 'pro') {
                 await envoyerJustificatifsProfessionnels(
                     document.getElementById('professional-registration-fields'),
                     true
@@ -3748,7 +3941,7 @@
                         : log.author_id === 2
                             ? '👨‍👩‍👧 Famille'
                             : `👴 ${connectedUser.seniorName}`;
-                    const time = new Date(log.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    const time = new Date(log.created_at).toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' });
                     const item = document.createElement('div');
                     const body = document.createElement('div');
                     const authorLabel = document.createElement('strong');
@@ -3877,7 +4070,7 @@
                 headers: { Authorization: `Bearer ${token}` }
             });
             const result = await readResponse(response);
-            setAuthenticatedView(result.user);
+            await setAuthenticatedView(result.user);
         } catch (error) {
             console.error('Restauration de session impossible :', error);
             document.getElementById('nav-bar').style.display = 'none';

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Espace administrateur sécurisé de Génération Liaison.">
   <title>Administration — Génération Liaison</title>
+  <script src="/language.js"></script>
   <style>
     :root {
       color-scheme: light;
@@ -207,7 +208,7 @@
             <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
           </div>
           <div class="table-wrap"><table>
-            <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Profil</th><th>Équipes</th><th>Créé le</th><th>Dossier intervenant</th><th>Accès</th></tr></thead>
+            <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Profil</th><th>Équipes</th><th>Créé le</th><th>Vérification et profils seniors</th><th>Accès</th></tr></thead>
             <tbody id="accounts-body"></tbody>
           </table></div>
         </section>
@@ -230,45 +231,49 @@
     const adminView = document.getElementById('admin-view');
     let overviewRefreshTimer = null;
     const statusLabels = {
-      requested: 'À confirmer',
-      confirmed: 'Confirmé',
-      completed: 'Réalisé',
-      cancelled: 'Annulé'
+      requested: window.generationLiaisonTranslate('À confirmer'),
+      confirmed: window.generationLiaisonTranslate('Confirmé'),
+      completed: window.generationLiaisonTranslate('Réalisé'),
+      cancelled: window.generationLiaisonTranslate('Annulé')
     };
     const serviceLabels = {
-      meal_delivery: 'Livraison de repas',
-      hairdresser: 'Coiffure à domicile',
-      housekeeping: 'Ménage à domicile'
+      meal_delivery: window.generationLiaisonTranslate('Livraison de repas'),
+      hairdresser: window.generationLiaisonTranslate('Coiffure à domicile'),
+      housekeeping: window.generationLiaisonTranslate('Ménage à domicile')
     };
     const billingLabels = {
-      subscription: 'Abonnement · tarif à définir',
-      per_completed_booking: 'Après prestation · tarif à définir'
+      subscription: window.generationLiaisonTranslate('Abonnement · tarif à définir'),
+      per_completed_booking: window.generationLiaisonTranslate('Après prestation · tarif à définir')
     };
-    const roleLabels = { senior: 'Senior', aidant: 'Aidant', pro: 'Intervenant' };
+    const roleLabels = {
+      senior: window.generationLiaisonTranslate('Senior'),
+      aidant: window.generationLiaisonTranslate('Aidant'),
+      pro: window.generationLiaisonTranslate('Intervenant')
+    };
     const closureJudgmentLabels = {
-      simple_to_review: 'Dossier apparemment simple à examiner',
-      shared_data_requires_review: 'Données partagées à examiner',
-      extra_checks_required: 'Vérifications supplémentaires recommandées'
+      simple_to_review: window.generationLiaisonTranslate('Dossier apparemment simple à examiner'),
+      shared_data_requires_review: window.generationLiaisonTranslate('Données partagées à examiner'),
+      extra_checks_required: window.generationLiaisonTranslate('Vérifications supplémentaires recommandées')
     };
     const closureInventoryLabels = {
-      professionalDocuments: 'Justificatifs professionnels',
-      notifications: 'Notifications',
-      notificationDeliveries: 'Envois de notifications',
-      pushSubscriptions: 'Abonnements push',
-      directoryBookings: 'Réservations annuaire',
-      accountComplianceRecords: 'Traces d’acceptation des conditions',
-      organizations: 'Organisations',
-      teamMemberships: 'Associations aux équipes',
-      servicePartners: 'Partenariats de services',
-      liaisonLogs: 'Journal de liaison',
-      planningRecipients: 'Personnes suivies dans les équipes',
-      sharedNotes: 'Notes partagées',
-      careVisits: 'Visites',
-      serviceBookings: 'Services',
-      visitEvents: 'Événements de visite',
-      visitEvaluations: 'Évaluations de visite',
-      planningAccessAudits: 'Traces d’accès au suivi',
-      aiMessages: 'Messages assistant IA'
+      professionalDocuments: window.generationLiaisonTranslate('Justificatifs professionnels'),
+      notifications: window.generationLiaisonTranslate('Notifications'),
+      notificationDeliveries: window.generationLiaisonTranslate('Envois de notifications'),
+      pushSubscriptions: window.generationLiaisonTranslate('Abonnements push'),
+      directoryBookings: window.generationLiaisonTranslate('Réservations annuaire'),
+      accountComplianceRecords: window.generationLiaisonTranslate('Traces d’acceptation des conditions'),
+      organizations: window.generationLiaisonTranslate('Organisations'),
+      teamMemberships: window.generationLiaisonTranslate('Associations aux équipes'),
+      servicePartners: window.generationLiaisonTranslate('Partenariats de services'),
+      liaisonLogs: window.generationLiaisonTranslate('Journal de liaison'),
+      planningRecipients: window.generationLiaisonTranslate('Personnes suivies dans les équipes'),
+      sharedNotes: window.generationLiaisonTranslate('Notes partagées'),
+      careVisits: window.generationLiaisonTranslate('Visites'),
+      serviceBookings: window.generationLiaisonTranslate('Services'),
+      visitEvents: window.generationLiaisonTranslate('Événements de visite'),
+      visitEvaluations: window.generationLiaisonTranslate('Évaluations de visite'),
+      planningAccessAudits: window.generationLiaisonTranslate('Traces d’accès au suivi'),
+      aiMessages: window.generationLiaisonTranslate('Messages assistant IA')
     };
 
     function authHeaders() {
@@ -313,7 +318,7 @@
     }
 
     function formatDate(value) {
-      return new Date(value).toLocaleString('fr-FR', {
+      return new Date(value).toLocaleString(window.generationLiaisonLocale(), {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
@@ -772,7 +777,7 @@
         addCell(row, `${roleLabels[account.role] || account.role}${account.administrator ? ' · Admin' : ''}`);
         addCell(row, account.profileName);
         addCell(row, String(account.teamCount));
-        addCell(row, new Date(account.createdAt).toLocaleDateString('fr-FR'));
+        addCell(row, new Date(account.createdAt).toLocaleDateString(window.generationLiaisonLocale()));
         const verification = document.createElement('td');
         if (account.role === 'pro') {
           const verificationState = document.createElement('span');
@@ -787,7 +792,7 @@
             button.className = 'button secondary';
             button.style.margin = '6px 4px 0 0';
             button.type = 'button';
-            button.textContent = `${documents[type] ? 'Télécharger' : 'Manquant'} · ${label}`;
+            button.textContent = `${window.generationLiaisonTranslate(documents[type] ? 'Télécharger' : 'Manquant')} · ${window.generationLiaisonTranslate(label)}`;
             button.disabled = !documents[type];
             button.addEventListener('click', async () => {
               button.disabled = true;
@@ -819,6 +824,96 @@
             reject.addEventListener('click', () => reviewProfessional(account, 'rejected', reject));
             verification.append(reject);
           }
+        } else if (account.role === 'aidant') {
+          if (account.isLegalGuardian) {
+            const guardianState = document.createElement('p');
+            guardianState.textContent = `${window.generationLiaisonTranslate('Tuteur légal')} · ${
+              window.generationLiaisonTranslate(
+                account.guardianVerificationStatus === 'approved' ? 'Validé' :
+                  account.guardianVerificationStatus === 'rejected' ? 'À compléter' : 'En attente'
+              )
+            }`;
+            verification.append(guardianState);
+            const documents = account.guardianVerificationDocuments || {};
+            for (const [type, label] of [['identity', 'Identité'], ['guardianship', 'Tutelle']]) {
+              const button = document.createElement('button');
+              button.className = 'button secondary';
+              button.style.margin = '4px';
+              button.type = 'button';
+              button.textContent = `${documents[type] ? 'Télécharger' : 'Manquant'} · ${label}`;
+              button.disabled = !documents[type];
+              button.addEventListener('click', async () => {
+                button.disabled = true;
+                try {
+                  await downloadGuardianDocument(account.id, type);
+                } catch (error) {
+                  setStatus(error.message || 'Téléchargement impossible.', true);
+                } finally {
+                  button.disabled = !documents[type];
+                }
+              });
+              verification.append(button);
+            }
+            if (account.guardianVerificationStatus === 'pending') {
+              for (const [status, label] of [['approved', 'Valider la tutelle'], ['rejected', 'Refuser']]) {
+                const button = document.createElement('button');
+                button.className = status === 'approved' ? 'button' : 'button secondary';
+                button.style.margin = '4px';
+                button.type = 'button';
+                button.textContent = window.generationLiaisonTranslate(label);
+                button.disabled = status === 'approved' &&
+                  (!documents.identity || !documents.guardianship);
+                button.addEventListener('click', () => reviewGuardian(account, status, button));
+                verification.append(button);
+              }
+            }
+          }
+
+          const linked = document.createElement('div');
+          (account.linkedSeniors || []).forEach(senior => {
+            const item = document.createElement('div');
+            item.className = 'control-group';
+            const name = document.createElement('span');
+            name.textContent = senior.name;
+            const remove = document.createElement('button');
+            remove.className = 'button secondary';
+            remove.type = 'button';
+            remove.textContent = window.generationLiaisonTranslate('Retirer');
+            remove.addEventListener('click', () => unlinkSenior(account, senior, remove));
+            item.append(name, remove);
+            linked.append(item);
+          });
+          verification.append(linked);
+
+          const availableSeniors = accounts.filter(candidate =>
+            candidate.role === 'senior' && candidate.active &&
+            !(account.linkedSeniors || []).some(senior => senior.id === candidate.seniorProfileId)
+          );
+          const canLink = !account.isLegalGuardian || account.guardianVerificationStatus === 'approved';
+          if (availableSeniors.length && canLink) {
+            const linkControls = document.createElement('div');
+            linkControls.className = 'control-group';
+            const select = document.createElement('select');
+            select.setAttribute('aria-label', window.generationLiaisonTranslate('Associer un profil senior au compte aidant'));
+            select.add(new Option(window.generationLiaisonTranslate('Choisir un profil senior'), ''));
+            availableSeniors.forEach(senior => {
+              select.add(new Option(`${senior.profileName} · ${senior.email}`, senior.id));
+            });
+            const link = document.createElement('button');
+            link.className = 'button secondary';
+            link.type = 'button';
+            link.textContent = window.generationLiaisonTranslate('Associer');
+            link.disabled = true;
+            select.addEventListener('change', () => { link.disabled = !select.value; });
+            link.addEventListener('click', () => linkSenior(account, select.value, link));
+            linkControls.append(select, link);
+            verification.append(linkControls);
+          } else if (account.isLegalGuardian && !canLink) {
+            const hint = document.createElement('p');
+            hint.className = 'hint';
+            hint.textContent = window.generationLiaisonTranslate('Vérifiez la tutelle avant d’associer des seniors.');
+            verification.append(hint);
+          }
         } else {
           verification.textContent = '—';
         }
@@ -841,7 +936,72 @@
         tbody.append(row);
       });
       document.getElementById('account-limit').textContent =
-        `Les ${accounts.length} comptes les plus récents sont affichés (maximum ${limits.accounts}). Les mots de passe ne sont jamais accessibles. Les justificatifs de vérification restent accessibles uniquement aux administrateurs.`;
+        window.generationLiaisonTranslate('Les justificatifs de vérification et de tutelle sont accessibles uniquement aux administrateurs.');
+    }
+
+    async function downloadGuardianDocument(accountId, documentType) {
+      const response = await fetch(
+        `/api/admin/accounts/${encodeURIComponent(accountId)}/guardian-documents/${encodeURIComponent(documentType)}`,
+        { headers: authHeaders() }
+      );
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Téléchargement impossible.');
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${documentType}.${blob.type === 'application/pdf' ? 'pdf' : blob.type === 'image/png' ? 'png' : 'jpg'}`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function reviewGuardian(account, verificationStatus, button) {
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/accounts/${encodeURIComponent(account.id)}/guardian-verification`, {
+          method: 'PATCH',
+          body: { verificationStatus }
+        });
+        setStatus(window.generationLiaisonTranslate(
+          verificationStatus === 'approved' ? 'Tutelle vérifiée.' : 'Justificatifs de tutelle refusés.'
+        ));
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message || 'Impossible de vérifier la tutelle.', true);
+        button.disabled = false;
+      }
+    }
+
+    async function linkSenior(account, seniorUserId, button) {
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/accounts/${encodeURIComponent(account.id)}/senior-links`, {
+          method: 'POST',
+          body: { seniorUserId }
+        });
+        setStatus(window.generationLiaisonTranslate('Profil senior associé au compte aidant.'));
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message || 'Impossible d’associer ce profil senior.', true);
+        button.disabled = false;
+      }
+    }
+
+    async function unlinkSenior(account, senior, button) {
+      button.disabled = true;
+      try {
+        await adminRequest(
+          `/api/admin/accounts/${encodeURIComponent(account.id)}/senior-links/${encodeURIComponent(senior.id)}`,
+          { method: 'DELETE' }
+        );
+        setStatus(window.generationLiaisonTranslate('Profil senior retiré du compte aidant.'));
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message || 'Impossible de retirer ce profil senior.', true);
+        button.disabled = false;
+      }
     }
 
     function renderAccountClosureRequests(requests) {
@@ -986,7 +1146,7 @@
         renderAccounts(result.accounts, result.limits);
         await loadAccountClosureRequests();
         await loadAssistantHandoffs();
-        setStatus(`Données actualisées à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`);
+        setStatus(`${window.generationLiaisonTranslate('Données actualisées à')} ${new Date().toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' })}.`);
       } catch (error) {
         setStatus(error.message || 'Impossible de charger le tableau de bord.', true);
       }
@@ -994,7 +1154,7 @@
 
     function setStatus(message, isError = false) {
       const status = document.getElementById('page-status');
-      status.textContent = message;
+      status.textContent = window.generationLiaisonTranslate(message);
       status.style.color = isError ? 'var(--danger)' : 'var(--green)';
     }
 

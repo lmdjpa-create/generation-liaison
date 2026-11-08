@@ -139,6 +139,12 @@ function redirectCalendarResult(res, status) {
   return res.redirect(target.toString());
 }
 
+function canPendingLegalGuardianAccess(req) {
+  return (['/api/auth/me', '/api/auth/logout'].includes(req.path)) ||
+    (req.method === 'GET' && req.path === '/api/legal-guardian/documents') ||
+    (req.method === 'PUT' && /^\/api\/legal-guardian\/documents\/(identity|guardianship)$/.test(req.path));
+}
+
 function requireAuth(req, res, next) {
   const authorization = req.get('authorization') || '';
   const match = authorization.match(/^Bearer ([a-f0-9]{64})$/i);
@@ -158,6 +164,14 @@ function requireAuth(req, res, next) {
         isAdmin: adminEmails.has(user.email.toLowerCase())
       };
       req.authToken = match[1];
+      if (user.role === 'aidant' && user.isLegalGuardian &&
+          user.guardianVerificationStatus !== 'approved' && !canPendingLegalGuardianAccess(req)) {
+        return res.status(403).json({
+          error: user.guardianVerificationStatus === 'rejected'
+            ? 'Votre justificatif de tutelle doit être complété avant l’accès aux profils.'
+            : 'Votre tutelle doit être vérifiée par l’administration avant l’accès aux profils.'
+        });
+      }
       if (user.role === 'pro' && user.verificationStatus !== 'approved' && !canPendingProfessionalAccess(req)) {
         return res.status(403).json({
           error: user.verificationStatus === 'rejected'
@@ -165,9 +179,40 @@ function requireAuth(req, res, next) {
             : 'Votre dossier est en cours de vérification. L’accès intervenant sera ouvert après validation.'
         });
       }
-      return next();
+      if (user.role !== 'aidant') return next();
+      const selectedSeniorId = req.get('x-senior-profile-id');
+      if (!selectedSeniorId) {
+        req.authUser.seniorId = null;
+        return next();
+      }
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(selectedSeniorId)) {
+        return res.status(400).json({ error: 'Profil senior sélectionné invalide.' });
+      }
+      pool.query(
+        `SELECT link.senior_profile_id
+         FROM app_aidant_senior_links link
+         JOIN app_users senior ON senior.senior_id = link.senior_profile_id
+         WHERE link.aidant_user_id = $1
+           AND link.senior_profile_id = $2
+           AND senior.role = 'senior'
+           AND senior.is_active = TRUE`,
+        [user.id, selectedSeniorId]
+      ).then(({ rows }) => {
+        if (!rows[0]) {
+          return res.status(403).json({ error: 'Ce profil senior n’est pas associé à votre compte.' });
+        }
+        req.authUser.seniorId = rows[0].senior_profile_id;
+        return next();
+      }).catch(error => sendApiError(res, error, 'Impossible de vérifier l’accès au profil senior.'));
     })
     .catch(error => sendApiError(res, error, 'Impossible de vérifier la session.'));
+}
+
+function requireAidantSeniorContext(req, res, next) {
+  if (req.authUser.role === 'aidant' && !req.authUser.seniorId) {
+    return res.status(409).json({ error: 'Aucun senior associé ou sélectionné pour cette action.' });
+  }
+  return next();
 }
 
 function addUserAccessFlags(user) {
@@ -578,7 +623,7 @@ app.post('/api/wellbeing/check-in/:checkinId/emergency-alert', requireAuth, asyn
   }
 });
 
-app.get('/api/wellbeing/shared-check-ins', requireAuth, async (req, res) => {
+app.get('/api/wellbeing/shared-check-ins', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (req.authUser.role !== 'aidant') {
     return res.status(403).json({ error: 'Ces check-ins partagés sont réservés au compte aidant.' });
   }
@@ -586,21 +631,33 @@ app.get('/api/wellbeing/shared-check-ins', requireAuth, async (req, res) => {
     const { rows } = await pool.query(
       `SELECT checkin.id, checkin.response, checkin.created_at,
               owner.name AS senior_name
-       FROM app_wellbeing_checkin_shares share
-       JOIN app_wellbeing_checkins checkin ON checkin.id = share.checkin_id
+       FROM app_wellbeing_checkins checkin
+       LEFT JOIN app_wellbeing_checkin_shares share
+         ON share.checkin_id = checkin.id AND share.recipient_user_id = $1
        JOIN app_users owner ON owner.id = checkin.user_id
-       WHERE share.recipient_user_id = $1
+       WHERE owner.senior_id = $2
          AND checkin.expires_at > CURRENT_TIMESTAMP
          AND owner.is_active = TRUE
-         AND EXISTS (
-           SELECT 1
-           FROM app_user_contacts contact
-           WHERE contact.user_id = owner.id
-             AND contact.contact_user_id = share.recipient_user_id
+         AND (
+           (share.checkin_id IS NOT NULL AND EXISTS (
+             SELECT 1
+             FROM app_user_contacts contact
+             WHERE contact.user_id = owner.id
+               AND contact.contact_user_id = $1
+           ))
+           OR EXISTS (
+             SELECT 1
+             FROM app_aidant_senior_links link
+             JOIN app_users guardian ON guardian.id = link.aidant_user_id
+             WHERE link.aidant_user_id = $1
+               AND link.senior_profile_id = owner.senior_id
+               AND guardian.is_legal_guardian = TRUE
+               AND guardian.guardian_verification_status = 'approved'
+           )
          )
        ORDER BY checkin.created_at DESC
        LIMIT 30`,
-      [req.authUser.id]
+      [req.authUser.id, req.authUser.seniorId]
     );
     res.set('Cache-Control', 'private, no-store');
     res.json({
@@ -1260,6 +1317,8 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
       pool.query(
         `SELECT user_account.id, user_account.name, user_account.email, user_account.role,
                 user_account.is_active, user_account.verification_status,
+                user_account.senior_id, user_account.is_legal_guardian,
+                user_account.guardian_verification_status,
                 (SELECT COUNT(*)::int
                  FROM app_professional_verification_documents document
                  WHERE document.user_id = user_account.id
@@ -1268,6 +1327,20 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
                  FROM app_professional_verification_documents document
                  WHERE document.user_id = user_account.id
                    AND document.document_type = 'kbis') AS has_kbis_document,
+                (SELECT COUNT(*)::int
+                 FROM app_legal_guardian_verification_documents document
+                 WHERE document.user_id = user_account.id
+                   AND document.document_type = 'identity') AS has_guardian_identity_document,
+                (SELECT COUNT(*)::int
+                 FROM app_legal_guardian_verification_documents document
+                 WHERE document.user_id = user_account.id
+                   AND document.document_type = 'guardianship') AS has_guardianship_document,
+                (SELECT COALESCE(json_agg(json_build_object(
+                   'id', profile.id, 'name', profile.name
+                 ) ORDER BY profile.name), '[]'::json)
+                 FROM app_aidant_senior_links link
+                 JOIN senior_profiles profile ON profile.id = link.senior_profile_id
+                 WHERE link.aidant_user_id = user_account.id) AS linked_seniors,
                 user_account.created_at, senior.name AS profile_name,
                 COUNT(DISTINCT member.organization_id)::int AS team_count
          FROM app_users user_account
@@ -1410,6 +1483,14 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
           identity: row.has_identity_document > 0,
           kbis: row.has_kbis_document > 0
         },
+        isLegalGuardian: row.is_legal_guardian,
+        guardianVerificationStatus: row.guardian_verification_status,
+        guardianVerificationDocuments: {
+          identity: row.has_guardian_identity_document > 0,
+          guardianship: row.has_guardianship_document > 0
+        },
+        seniorProfileId: row.senior_id,
+        linkedSeniors: row.linked_seniors || [],
         administrator: adminEmails.has(row.email.toLowerCase()),
         profileName: row.profile_name,
         teamCount: row.team_count,
@@ -1526,6 +1607,158 @@ app.get('/api/admin/accounts/:accountId/verification-documents/:documentType', r
     res.type(rows[0].content_type).send(rows[0].file_data);
   } catch (error) {
     sendApiError(res, error, 'Impossible de télécharger le justificatif.');
+  }
+});
+
+app.get('/api/admin/accounts/:accountId/guardian-documents/:documentType', requireAuth, requireAdmin, async (req, res) => {
+  if (!['identity', 'guardianship'].includes(req.params.documentType)) {
+    return res.status(400).json({ error: 'Type de justificatif invalide.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `SELECT document.content_type, document.file_data
+       FROM app_legal_guardian_verification_documents document
+       JOIN app_users account ON account.id = document.user_id
+       WHERE account.id = $1 AND account.role = 'aidant'
+         AND account.is_legal_guardian = TRUE
+         AND document.document_type = $2`,
+      [req.params.accountId, req.params.documentType]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Justificatif introuvable.' });
+    const extension = rows[0].content_type === 'application/pdf'
+      ? 'pdf'
+      : rows[0].content_type === 'image/png' ? 'png' : 'jpg';
+    res.set({
+      'Cache-Control': 'private, no-store',
+      'Content-Disposition': `attachment; filename="${req.params.documentType}.${extension}"`,
+      'X-Content-Type-Options': 'nosniff'
+    });
+    res.type(rows[0].content_type).send(rows[0].file_data);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de télécharger le justificatif de tutelle.');
+  }
+});
+
+app.patch('/api/admin/accounts/:accountId/guardian-verification', requireAuth, requireAdmin, async (req, res) => {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const { verificationStatus } = req.body || {};
+  if (!uuidPattern.test(req.params.accountId) ||
+      !['approved', 'rejected'].includes(verificationStatus)) {
+    return res.status(400).json({ error: 'Décision de vérification invalide.' });
+  }
+
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: targetRows } = await client.query(
+      `SELECT id, name, guardian_verification_status
+       FROM app_users
+       WHERE id = $1 AND role = 'aidant' AND is_legal_guardian = TRUE
+       FOR UPDATE`,
+      [req.params.accountId]
+    );
+    if (!targetRows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Compte tuteur légal introuvable.' });
+    }
+    if (targetRows[0].guardian_verification_status !== 'pending') {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Seuls les dossiers de tutelle en attente peuvent être examinés.' });
+    }
+    if (verificationStatus === 'approved') {
+      const { rows: documents } = await client.query(
+        `SELECT COUNT(DISTINCT document_type)::int AS count
+         FROM app_legal_guardian_verification_documents
+         WHERE user_id = $1 AND document_type IN ('identity', 'guardianship')`,
+        [req.params.accountId]
+      );
+      if (documents[0].count !== 2) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'La pièce d’identité et le justificatif de tutelle sont requis.' });
+      }
+    }
+    const { rows } = await client.query(
+      `UPDATE app_users
+       SET guardian_verification_status = $2,
+           guardian_reviewed_at = CURRENT_TIMESTAMP,
+           guardian_reviewed_by = $3
+       WHERE id = $1
+       RETURNING id, guardian_verification_status`,
+      [req.params.accountId, verificationStatus, req.authUser.id]
+    );
+    const approved = verificationStatus === 'approved';
+    await insertAppNotification(
+      client,
+      rows[0].id,
+      approved ? 'guardian_verification_approved' : 'guardian_verification_rejected',
+      approved ? 'Tutelle légale vérifiée' : 'Justificatifs de tutelle à compléter',
+      approved
+        ? 'Vos justificatifs ont été vérifiés. L’administration peut maintenant associer des profils seniors à votre compte.'
+        : 'Vos justificatifs de tutelle n’ont pas été validés. Veuillez contacter l’administration pour les compléter.',
+      'guardian_verification',
+      null
+    );
+    if (approved) {
+      await client.query(
+        'DELETE FROM app_legal_guardian_verification_documents WHERE user_id = $1',
+        [rows[0].id]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ accountId: rows[0].id, verificationStatus: rows[0].guardian_verification_status });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’enregistrer la décision sur la tutelle.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/admin/accounts/:accountId/senior-links', requireAuth, requireAdmin, async (req, res) => {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const seniorUserId = req.body?.seniorUserId;
+  if (!uuidPattern.test(req.params.accountId) || typeof seniorUserId !== 'string' || !uuidPattern.test(seniorUserId)) {
+    return res.status(400).json({ error: 'Compte aidant ou compte senior invalide.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+       SELECT aidant.id, senior.senior_id, $3
+       FROM app_users aidant
+       JOIN app_users senior ON senior.id = $2 AND senior.role = 'senior' AND senior.is_active = TRUE
+       WHERE aidant.id = $1
+         AND aidant.role = 'aidant'
+         AND aidant.is_active = TRUE
+         AND (aidant.is_legal_guardian = FALSE OR aidant.guardian_verification_status = 'approved')
+       ON CONFLICT (aidant_user_id, senior_profile_id) DO NOTHING
+       RETURNING senior_profile_id`,
+      [req.params.accountId, seniorUserId, req.authUser.id]
+    );
+    if (!rows[0]) {
+      return res.status(409).json({ error: 'Le compte doit être un aidant actif et la tutelle vérifiée avant toute association.' });
+    }
+    res.status(201).json({ seniorProfileId: rows[0].senior_profile_id });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’associer ce profil senior.');
+  }
+});
+
+app.delete('/api/admin/accounts/:accountId/senior-links/:seniorProfileId', requireAuth, requireAdmin, async (req, res) => {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(req.params.accountId) || !uuidPattern.test(req.params.seniorProfileId)) {
+    return res.status(400).json({ error: 'Compte aidant ou profil senior invalide.' });
+  }
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM app_aidant_senior_links
+       WHERE aidant_user_id = $1 AND senior_profile_id = $2`,
+      [req.params.accountId, req.params.seniorProfileId]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Association de profil introuvable.' });
+    res.json({ removed: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de retirer cette association.');
   }
 });
 
@@ -2947,6 +3180,109 @@ app.put(
   }
 );
 
+app.get('/api/legal-guardian/documents', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'aidant' || !req.authUser.isLegalGuardian) {
+    return res.status(403).json({ error: 'Cette vérification est réservée aux tuteurs légaux.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `SELECT document_type, content_type, uploaded_at
+       FROM app_legal_guardian_verification_documents
+       WHERE user_id = $1
+       ORDER BY document_type`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({
+      verificationStatus: req.authUser.guardianVerificationStatus,
+      requiredDocuments: ['identity', 'guardianship'],
+      documents: rows.map(row => ({
+        type: row.document_type,
+        contentType: row.content_type,
+        uploadedAt: row.uploaded_at
+      }))
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger l’état de vos justificatifs de tutelle.');
+  }
+});
+
+app.put(
+  '/api/legal-guardian/documents/:documentType',
+  requireAuth,
+  express.raw({ type: ['application/pdf', 'image/jpeg', 'image/png'], limit: '10mb' }),
+  async (req, res) => {
+    if (req.authUser.role !== 'aidant' || !req.authUser.isLegalGuardian) {
+      return res.status(403).json({ error: 'Cette vérification est réservée aux tuteurs légaux.' });
+    }
+    if (!['identity', 'guardianship'].includes(req.params.documentType)) {
+      return res.status(400).json({ error: 'Type de justificatif invalide.' });
+    }
+    if (req.authUser.guardianVerificationStatus === 'approved') {
+      return res.status(409).json({ error: 'Votre tutelle est déjà vérifiée.' });
+    }
+    const contentType = req.get('content-type')?.split(';')[0].trim().toLowerCase();
+    if (!matchesDocumentSignature(req.body, contentType)) {
+      return res.status(400).json({ error: 'Utilisez un fichier PDF, JPEG ou PNG valide (10 Mo maximum).' });
+    }
+
+    let client;
+    try {
+      client = await pool.connect();
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO app_legal_guardian_verification_documents
+           (id, user_id, document_type, content_type, file_data)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (user_id, document_type) DO UPDATE
+         SET content_type = EXCLUDED.content_type,
+             file_data = EXCLUDED.file_data,
+             uploaded_at = CURRENT_TIMESTAMP`,
+        [randomUUID(), req.authUser.id, req.params.documentType, contentType, req.body]
+      );
+      await client.query(
+        `UPDATE app_users
+         SET guardian_verification_status = 'pending',
+             guardian_reviewed_at = NULL,
+             guardian_reviewed_by = NULL
+         WHERE id = $1 AND guardian_verification_status = 'rejected'`,
+        [req.authUser.id]
+      );
+      await client.query('COMMIT');
+      res.json({ documentType: req.params.documentType, uploaded: true });
+    } catch (error) {
+      if (client) await client.query('ROLLBACK');
+      sendApiError(res, error, 'Impossible d’enregistrer ce justificatif de tutelle.');
+    } finally {
+      if (client) client.release();
+    }
+  }
+);
+
+app.get('/api/aidant/seniors', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'aidant') {
+    return res.status(403).json({ error: 'Cette liste est réservée aux comptes aidants.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `SELECT profile.id, profile.name
+       FROM app_aidant_senior_links link
+       JOIN app_users senior
+         ON senior.senior_id = link.senior_profile_id
+        AND senior.role = 'senior'
+        AND senior.is_active = TRUE
+       JOIN senior_profiles profile ON profile.id = link.senior_profile_id
+       WHERE link.aidant_user_id = $1
+       ORDER BY profile.name`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ seniors: rows.map(row => ({ id: row.id, name: row.name })) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les profils seniors associés.');
+  }
+});
+
 app.get('/api/notifications', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -2991,7 +3327,7 @@ app.get('/api/notifications', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/planning/visits/:visitId/evaluation', requireAuth, async (req, res) => {
+app.post('/api/planning/visits/:visitId/evaluation', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Seule la personne accompagnée ou son aidant peut évaluer la visite.' });
   }
@@ -3276,7 +3612,7 @@ app.post('/api/auth/logout', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/planning/consents', requireAuth, async (req, res) => {
+app.get('/api/planning/consents', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Cette page est réservée à la personne accompagnée et à son aidant.' });
   }
@@ -3305,7 +3641,7 @@ app.get('/api/planning/consents', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/planning/consents/:recipientId', requireAuth, async (req, res) => {
+app.post('/api/planning/consents/:recipientId', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Cette action est réservée à la personne accompagnée et à son aidant.' });
   }
@@ -3548,7 +3884,7 @@ app.post('/api/planning/services/partners', requireAuth, requireCoordinator, asy
   }
 });
 
-app.get('/api/planning/services/catalog', requireAuth, async (req, res) => {
+app.get('/api/planning/services/catalog', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Le catalogue est réservé à la personne accompagnée et à son aidant.' });
   }
@@ -3593,7 +3929,7 @@ app.get('/api/planning/services/catalog', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/planning/services/bookings', requireAuth, async (req, res) => {
+app.post('/api/planning/services/bookings', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Seule la personne accompagnée ou son aidant peut demander un service.' });
   }
@@ -3667,7 +4003,7 @@ app.post('/api/planning/services/bookings', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/planning/services/bookings', requireAuth, async (req, res) => {
+app.get('/api/planning/services/bookings', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Accès au planning des services non autorisé.' });
   }
@@ -3792,7 +4128,7 @@ app.get('/api/planning/services/bookings', requireAuth, async (req, res) => {
   }
 });
 
-app.patch('/api/planning/services/bookings/:bookingId', requireAuth, async (req, res) => {
+app.patch('/api/planning/services/bookings/:bookingId', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Modification du rendez-vous non autorisée.' });
   }
@@ -4216,7 +4552,7 @@ app.post('/api/planning/visits/:visitId/response', requireAuth, async (req, res)
   }
 });
 
-app.get('/api/planning/today', requireAuth, async (req, res) => {
+app.get('/api/planning/today', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (req.authUser.role !== 'pro') {
     return res.status(403).json({ error: 'Le planning est réservé aux comptes professionnels.' });
   }
@@ -4339,7 +4675,7 @@ app.get('/api/planning/today', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/planning/following', requireAuth, async (req, res) => {
+app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Le suivi est réservé à la personne accompagnée et à son aidant.' });
   }
@@ -4414,7 +4750,7 @@ app.get('/api/planning/following', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/planning/visits/:visitId/notes', requireAuth, async (req, res) => {
+app.get('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (req.authUser.role !== 'pro') {
     return res.status(403).json({ error: 'Ces transmissions sont réservées à l’équipe professionnelle autorisée.' });
   }
@@ -4495,7 +4831,7 @@ app.get('/api/planning/visits/:visitId/notes', requireAuth, async (req, res) => 
   }
 });
 
-app.post('/api/planning/visits/:visitId/notes', requireAuth, async (req, res) => {
+app.post('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (req.authUser.role !== 'pro') {
     return res.status(403).json({ error: 'Seuls les comptes professionnels autorisés peuvent ajouter une transmission d’équipe.' });
   }
@@ -4584,7 +4920,7 @@ app.post('/api/planning/visits/:visitId/notes', requireAuth, async (req, res) =>
   }
 });
 
-app.post('/api/planning/recipients/:recipientId/notes', requireAuth, async (req, res) => {
+app.post('/api/planning/recipients/:recipientId/notes', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Cette transmission est réservée à la personne accompagnée et à son aidant.' });
   }
@@ -4734,7 +5070,7 @@ app.post('/api/planning/visits/:visitId/progress', requireAuth, async (req, res)
   }
 });
 
-app.post('/api/logs', requireAuth, async (req, res) => {
+app.post('/api/logs', requireAuth, requireAidantSeniorContext, async (req, res) => {
   const { content, log_type: logType } = req.body || {};
   const authorIds = { senior: 1, aidant: 2, pro: 3 };
   const allowedTypes = {
@@ -4788,7 +5124,7 @@ app.get('/api/meals/today', (req, res) => {
   ]);
 });
 
-app.get('/api/logs/all', requireAuth, async (req, res) => {
+app.get('/api/logs/all', requireAuth, requireAidantSeniorContext, async (req, res) => {
   try {
     await authService.ensureSchema();
     const { rows } = await pool.query(
@@ -4805,7 +5141,7 @@ app.get('/api/logs/all', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/video/urgency', requireAuth, async (req, res) => {
+app.post('/api/video/urgency', requireAuth, requireAidantSeniorContext, async (req, res) => {
   const videoUrl = `https://meet.jit.si/GenerationLiaison_Urgence_${randomBytes(12).toString('hex')}`;
   const authorId = { senior: 1, aidant: 2, pro: 3 }[req.authUser.role];
 
