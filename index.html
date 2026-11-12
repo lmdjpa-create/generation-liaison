@@ -666,12 +666,14 @@
     .landing {
       min-height: 100vh;
       display: grid;
-      place-items: center;
+      justify-items: center;
+      align-content: center;
+      gap: 20px;
       padding: 32px 20px;
     }
 
     .landing-card {
-      width: min(100%, 760px);
+      width: min(100%, 960px);
       padding: clamp(30px, 7vw, 68px);
       border: 1px solid rgba(225, 233, 228, 0.9);
       border-radius: 28px;
@@ -789,6 +791,61 @@
       font-size: 0.78rem;
     }
 
+    .landing-info {
+      width: min(100%, 960px);
+      padding: clamp(24px, 5vw, 48px);
+      border: 1px solid var(--border);
+      border-radius: 28px;
+      background: var(--panel);
+      box-shadow: 0 14px 38px rgba(25, 57, 42, 0.055);
+    }
+
+    .landing-info h2 {
+      margin: 0 0 12px;
+      font-size: clamp(1.45rem, 3vw, 1.8rem);
+    }
+
+    .landing-info > p {
+      max-width: 700px;
+      margin: 0 0 24px;
+      color: #53665c;
+      line-height: 1.7;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .info-card {
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #f7faf8;
+    }
+
+    .info-card h3 {
+      margin: 0 0 8px;
+      color: var(--primary-dark);
+      font-size: 1.05rem;
+    }
+
+    .info-card p {
+      margin: 0;
+      color: #53665c;
+      line-height: 1.6;
+    }
+
+    .landing-info a {
+      color: var(--primary-dark);
+    }
+
+    .landing-info .info-note {
+      margin: 22px 0 0;
+      font-size: 0.9rem;
+    }
+
     .admin-link {
       display: none;
       margin-top: 20px;
@@ -858,6 +915,7 @@
       <a class="landing-app-link" href="/app-mobile.html">
         Ouvrir l’application en ligne
       </a>
+      <a class="landing-app-link" href="#presentation">Découvrir Génération Liaison</a>
       <a class="landing-download-link" href="/app-generation-liaison.apk" download>
         Télécharger l’application Android
       </a>
@@ -871,6 +929,50 @@
         <a href="/cgv.html">Projet de tarifs et CGV</a> ·
         <a href="/privacy-policy.html">Confidentialité</a>
       </p>
+    </section>
+
+    <section class="landing-info" id="presentation" aria-labelledby="presentation-title">
+      <h2 id="presentation-title">Un lien pour mieux accompagner le quotidien</h2>
+      <p>Génération Liaison réunit des outils pour faciliter la communication et l’organisation entre les personnes concernées, dans le respect des accès autorisés.</p>
+      <div class="info-grid">
+        <article class="info-card">
+          <h3>Pour les seniors</h3>
+          <p>Retrouvez un espace pour échanger avec vos proches et les professionnels autorisés, consulter vos rendez-vous et accéder aux services du quotidien.</p>
+        </article>
+        <article class="info-card">
+          <h3>Pour les proches et aidants</h3>
+          <p>Gardez le lien grâce au carnet de liaison et aux informations partagées avec vous, et suivez les rendez-vous et les notifications selon vos accès.</p>
+        </article>
+        <article class="info-card">
+          <h3>Pour les professionnels</h3>
+          <p>Échangez avec les personnes autorisées, contribuez au suivi du quotidien et gérez les demandes et rendez-vous qui vous concernent.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="landing-info" aria-labelledby="features-title">
+      <h2 id="features-title">Des outils pour rester en lien</h2>
+      <div class="info-grid">
+        <article class="info-card">
+          <h3>Carnet de liaison</h3>
+          <p>Partagez des notes et des informations utiles au quotidien avec les personnes autorisées.</p>
+        </article>
+        <article class="info-card">
+          <h3>Rendez-vous et services</h3>
+          <p>Consultez les rendez-vous et découvrez les services du quotidien, séparés du suivi des soins. Une demande de service doit être acceptée par le prestataire.</p>
+        </article>
+        <article class="info-card">
+          <h3>Notifications et assistance</h3>
+          <p>Choisissez vos notifications et utilisez l’assistant pour vous orienter dans l’application. Ses réponses peuvent être inexactes ou incomplètes.</p>
+        </article>
+      </div>
+      <p class="info-note">Génération Liaison ne remplace ni un professionnel de santé ni un service d’urgence. En cas de danger immédiat en France, appelez le 15 ou le 112.</p>
+    </section>
+
+    <section class="landing-info" aria-labelledby="contact-title">
+      <h2 id="contact-title">Une question ?</h2>
+      <p>Contactez l’équipe à <a href="mailto:support@generationliaison.fr">support@generationliaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
+      <a class="landing-login" href="/app-mobile.html">Accéder à l’application <span aria-hidden="true">→</span></a>
     </section>
   </main>
 
