@@ -52,8 +52,8 @@
         .btn-order { background: #3498db; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; }
         .btn-mic { background: #e84118; color: white; border: none; width: 70px; height: 70px; border-radius: 50%; font-size: 1.8rem; display: block; margin: 15px auto; cursor: pointer; }
         @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.02);} 100% {transform: scale(1);} }
-        .nav-bar { display: flex; background: white; border-top: 1px solid #e0e0e0; height: 65px; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); }
-        .nav-item { display: flex; flex-direction: column; align-items: center; background: none; border: none; color: #8e8e93; font-size: 0.75rem; cursor: pointer; width: 20%; }
+        .nav-bar { display: flex; background: white; border-top: 1px solid #e0e0e0; min-height: 65px; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); overflow-x: auto; }
+        .nav-item { display: flex; flex: 1 0 64px; flex-direction: column; align-items: center; background: none; border: none; color: #8e8e93; font-size: 0.75rem; cursor: pointer; }
         .nav-item.active { color: #3498db; font-weight: bold; }
         .nav-icon { font-size: 1.6rem; margin-bottom: 2px; }
         .log-item { padding: 10px 0; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; font-size: 0.9rem; text-align: left; }
@@ -193,30 +193,9 @@
         <h3>Notifications</h3>
         <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
     </section>
-    <section class="form-card notification-settings" id="notification-settings-senior" style="display:none;">
-        <h3>Mes préférences de notification</h3>
-        <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
-        <form class="notification-preferences-form form-grid" data-role="senior">
-            <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
-            <label class="notification-choice"><input type="checkbox" data-sms-enabled> Recevoir les notifications par SMS</label>
-            <input type="tel" data-notification-phone autocomplete="tel" placeholder="Téléphone au format +33612345678" aria-label="Téléphone pour les SMS">
-            <button type="submit">Enregistrer mes choix SMS et e-mail</button>
-        </form>
-        <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="senior">Activer les notifications push sur cet appareil</button>
-        <button type="button" class="disable-push-button" data-role="senior">Désactiver les notifications push sur cet appareil</button>
-        <p class="helper-text push-status" aria-live="polite"></p>
-        <div class="account-closure">
-            <h4>Clôturer mon compte</h4>
-            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
-            <label for="close-account-password-senior">Confirmez avec votre mot de passe</label>
-            <input id="close-account-password-senior" type="password" autocomplete="current-password">
-            <button type="button" data-close-account="senior">Demander la clôture</button>
-            <p class="helper-text" data-close-account-status="senior" role="status" aria-live="polite"></p>
-        </div>
-    </section>
+
     <div id="auth-box" class="card">
-        
+
         <!-- Bloc Connexion -->
         <form id="login-section" autocomplete="on" onsubmit="event.preventDefault(); connecterUtilisateur();">
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Connexion Sécurisée</h2>
@@ -300,13 +279,7 @@
     <div id="main-app-senior" style="display: none; text-align: center;">
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! 👴</h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
-        <section class="form-card" style="text-align:left;">
-            <h2>Accès des aidants à mon profil</h2>
-            <p class="helper-text">Vous pouvez accepter ou refuser les demandes. Pour retirer un accès, il sera suspendu immédiatement ; l’administration vous enverra ensuite un code de confirmation par e-mail.</p>
-            <p class="helper-text">Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées.</p>
-            <div id="senior-link-management" aria-live="polite">Chargement des demandes…</div>
-            <button type="button" id="senior-links-refresh">Actualiser</button>
-        </section>
+
         <section class="form-card emergency-call-card" aria-labelledby="emergency-call-heading">
             <h2 id="emergency-call-heading" style="margin-top:0; color:#8b1e25;">Besoin d’appeler les secours ?</h2>
             <p>En cas de danger immédiat en France, vous pouvez appeler le 15 ou le 112. Après votre choix, une deuxième confirmation est obligatoire. Les aidants actifs enregistrés seront informés ; les SMS et e-mails dépendent de leurs préférences. L’application ouvre le composeur du téléphone, mais ne peut pas vérifier que l’appel a été passé ou abouti.</p>
@@ -406,44 +379,12 @@
         <h3>Notifications</h3>
         <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
     </section>
-    <section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
-        <h3>Mes préférences de notification</h3>
-        <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
-        <form class="notification-preferences-form form-grid" data-role="aidant">
-            <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
-            <label class="notification-choice"><input type="checkbox" data-sms-enabled> Recevoir les notifications par SMS</label>
-            <input type="tel" data-notification-phone autocomplete="tel" placeholder="Téléphone au format +33612345678" aria-label="Téléphone pour les SMS">
-            <button type="submit">Enregistrer mes choix SMS et e-mail</button>
-        </form>
-        <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="aidant">Activer les notifications push sur cet appareil</button>
-        <button type="button" class="disable-push-button" data-role="aidant">Désactiver les notifications push sur cet appareil</button>
-        <p class="helper-text push-status" aria-live="polite"></p>
-        <div class="account-closure">
-            <h4>Clôturer mon compte</h4>
-            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
-            <label for="close-account-password-aidant">Confirmez avec votre mot de passe</label>
-            <input id="close-account-password-aidant" type="password" autocomplete="current-password">
-            <button type="button" data-close-account="aidant">Demander la clôture</button>
-            <p class="helper-text" data-close-account-status="aidant" role="status" aria-live="polite"></p>
-        </div>
-    </section>
+
     <div class="header-mobile">
         <h3 style="margin:0;">Espace Proches 👨‍👩‍👧‍👦</h3>
         <span style="font-size:0.85rem; opacity:0.9;">Suivi de : <span id="senior-name-aidant">Senior</span></span>
     </div>
-    <section class="form-card" style="text-align:left;">
-        <h3>Mes profils seniors</h3>
-        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior. Il devra accepter votre demande avant que vous puissiez consulter son profil.</p>
-        <form id="aidant-link-form" class="form-grid">
-            <label for="aidant-link-email">Adresse e-mail du senior</label>
-            <input id="aidant-link-email" type="email" autocomplete="off" maxlength="254" required>
-            <button type="submit">Demander l’accès</button>
-        </form>
-        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie et associe les profils seniors.</p>
-        <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
-        <button type="button" id="aidant-links-refresh">Actualiser</button>
-    </section>
+
     <section class="form-card" id="aidant-senior-selector" style="display:none;">
         <label for="aidant-senior-select">Profil senior</label>
         <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
@@ -452,6 +393,7 @@
         <h3>Aucun profil senior associé</h3>
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.</p>
         <button type="button" id="aidant-refresh-seniors">Actualiser les profils seniors</button>
+        <button type="button" onclick="switchScreen('settings')">Gérer mes profils seniors</button>
     </section>
     <div id="aidant-senior-content" style="display:none;">
     <section class="form-card">
@@ -492,28 +434,7 @@
         <h3>Notifications et demandes à traiter</h3>
         <div id="notifications-pro" aria-live="polite">Chargement des notifications…</div>
     </section>
-    <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
-        <h3>Mes préférences de notification</h3>
-        <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
-        <form class="notification-preferences-form form-grid" data-role="pro">
-            <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
-            <label class="notification-choice"><input type="checkbox" data-sms-enabled> Recevoir les notifications par SMS</label>
-            <input type="tel" data-notification-phone autocomplete="tel" placeholder="Téléphone au format +33612345678" aria-label="Téléphone pour les SMS">
-            <button type="submit">Enregistrer mes choix SMS et e-mail</button>
-        </form>
-        <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="pro">Activer les notifications push sur cet appareil</button>
-        <button type="button" class="disable-push-button" data-role="pro">Désactiver les notifications push sur cet appareil</button>
-        <p class="helper-text push-status" aria-live="polite"></p>
-        <div class="account-closure">
-            <h4>Clôturer mon compte</h4>
-            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
-            <label for="close-account-password-pro">Confirmez avec votre mot de passe</label>
-            <input id="close-account-password-pro" type="password" autocomplete="current-password">
-            <button type="button" data-close-account="pro">Demander la clôture</button>
-            <p class="helper-text" data-close-account-status="pro" role="status" aria-live="polite"></p>
-        </div>
-    </section>
+
     <section class="form-card" id="professional-verification-panel" style="display:none;">
         <h3>Vérification de votre dossier intervenant</h3>
         <p id="professional-verification-message" class="helper-text" aria-live="polite">Votre dossier est en attente de vérification manuelle. L’accès à l’espace intervenant sera ouvert après validation.</p>
@@ -531,38 +452,7 @@
         <h3 style="margin:0;">Espace intervenants 🩺</h3>
         <span style="font-size:0.85rem; opacity:0.9;">Espaces séparés : soins et services du quotidien</span>
     </div>
-    <section class="form-card" id="directory-profile-panel">
-        <h3>Annuaire national et rendez-vous</h3>
-        <p class="helper-text">Seuls les intervenants dont le dossier est validé peuvent publier un profil. Votre activité est publique ; votre adresse, votre position et vos coordonnées ne le sont pas. Les demandes sont confirmées par vous.</p>
-        <div class="form-grid">
-            <p id="directory-calendar-status" class="helper-text" aria-live="polite">Vérification de Google Calendar…</p>
-            <button id="directory-calendar-connect" type="button">Connecter mon agenda Google</button>
-        </div>
-        <form id="directory-profile-form" class="form-grid" style="margin-top:16px;">
-            <label class="notification-choice"><input id="directory-listed" type="checkbox"> Publier mon profil dans l’annuaire</label>
-            <label for="directory-activity">Activité professionnelle</label>
-            <input id="directory-activity" type="text" maxlength="160" placeholder="Ex. aide à domicile, kinésithérapie">
-            <label for="directory-description">Présentation publique (facultatif)</label>
-            <textarea id="directory-description" maxlength="500" placeholder="Présentez votre activité, sans coordonnées personnelles"></textarea>
-            <label for="directory-photo-url">Photo de profil (URL http(s))</label>
-            <input id="directory-photo-url" type="url" maxlength="2000" placeholder="https://example.com/photo.jpg">
-            <div class="directory-profile-preview">
-                <img id="directory-photo-image" class="directory-profile-photo" alt="Aperçu de la photo de profil" hidden>
-                <span id="directory-photo-label" class="helper-text">Aucune photo enregistrée pour l’instant.</span>
-            </div>
-            <label for="directory-duration">Durée habituelle du rendez-vous</label>
-            <select id="directory-duration">
-                <option value="15">15 minutes</option><option value="30">30 minutes</option>
-                <option value="45">45 minutes</option><option value="60">1 heure</option>
-                <option value="90">1 h 30</option><option value="120">2 heures</option>
-            </select>
-            <label for="directory-timezone">Fuseau horaire</label>
-            <input id="directory-timezone" type="text" maxlength="64" value="Europe/Paris" required>
-            <h4>Mes horaires de rendez-vous</h4>
-            <div id="directory-weekly-hours" class="form-grid"></div>
-            <p class="helper-text">Les créneaux sont proposés selon ces horaires et les disponibilités réelles de votre agenda Google.</p>
-            <button type="submit">Enregistrer mon profil annuaire</button>
-        </form>
+        <section class="form-card">
         <h4>Demandes reçues</h4>
         <div id="directory-professional-bookings" aria-live="polite">Chargement des demandes…</div>
     </section>
@@ -580,17 +470,7 @@
         <p class="helper-text">Repas, coiffure et ménage : seuls vos rendez-vous vous sont affichés, avec les coordonnées utiles à leur réalisation. Aucun dossier ni renseignement médical n’est accessible ici.</p>
         <div id="pro-service-planning" aria-live="polite">Chargement de votre agenda…</div>
     </section>
-        <section class="form-card" id="professional-location-card">
-            <h3>Mon domicile et mon rayon d’intervention</h3>
-            <p class="helper-text">La position sert uniquement à calculer la distance approximative jusqu’aux rendez-vous qui vous sont affectés. Elle n’est pas communiquée aux seniors ni envoyée à un service cartographique.</p>
-            <form id="professional-location-form" class="form-grid">
-                <label for="pro-service-radius">Rayon d’intervention (1 à 500 km)</label>
-                <input id="pro-service-radius" type="number" min="1" max="500" step="1" value="30" required>
-                <button id="pro-home-location-button" type="button">Mettre à jour ma position depuis mon domicile</button>
-                <p id="pro-home-location-status" class="helper-text" aria-live="polite">Position du domicile non enregistrée.</p>
-                <button type="submit">Enregistrer le rayon et la position</button>
-            </form>
-        </section>
+
         <section id="coordinator-panel" class="form-card" style="display:none;">
         <h3 style="margin-top:0;">Coordination de l’équipe</h3>
         <p class="helper-text">Les coordonnées ne sont accessibles qu’après consentement et uniquement aux intervenants affectés.</p>
@@ -659,6 +539,153 @@
     </div>
 </div>
 
+
+<div id="screen-settings" class="screen-container">
+    <h1>Réglages</h1>
+    <section class="form-card" id="settings-agenda">
+        <h2>Mon agenda</h2>
+        <p>Consultez les rendez-vous et les disponibilités correspondant à votre compte.</p>
+        <button type="button" onclick="ouvrirAgenda()">Accéder à mon agenda</button>
+    </section>
+<section class="form-card notification-settings" id="notification-settings-senior" style="display:none;">
+        <h3>Mes préférences de notification</h3>
+        <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
+        <form class="notification-preferences-form form-grid" data-role="senior">
+            <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
+            <label class="notification-choice"><input type="checkbox" data-sms-enabled> Recevoir les notifications par SMS</label>
+            <input type="tel" data-notification-phone autocomplete="tel" placeholder="Téléphone au format +33612345678" aria-label="Téléphone pour les SMS">
+            <button type="submit">Enregistrer mes choix SMS et e-mail</button>
+        </form>
+        <p class="helper-text channel-status" aria-live="polite"></p>
+        <button type="button" class="enable-push-button" data-role="senior">Activer les notifications push sur cet appareil</button>
+        <button type="button" class="disable-push-button" data-role="senior">Désactiver les notifications push sur cet appareil</button>
+        <p class="helper-text push-status" aria-live="polite"></p>
+        <div class="account-closure">
+            <h4>Clôturer mon compte</h4>
+            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
+            <label for="close-account-password-senior">Confirmez avec votre mot de passe</label>
+            <input id="close-account-password-senior" type="password" autocomplete="current-password">
+            <button type="button" data-close-account="senior">Demander la clôture</button>
+            <p class="helper-text" data-close-account-status="senior" role="status" aria-live="polite"></p>
+        </div>
+    </section>
+<section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
+        <h3>Mes préférences de notification</h3>
+        <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
+        <form class="notification-preferences-form form-grid" data-role="aidant">
+            <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
+            <label class="notification-choice"><input type="checkbox" data-sms-enabled> Recevoir les notifications par SMS</label>
+            <input type="tel" data-notification-phone autocomplete="tel" placeholder="Téléphone au format +33612345678" aria-label="Téléphone pour les SMS">
+            <button type="submit">Enregistrer mes choix SMS et e-mail</button>
+        </form>
+        <p class="helper-text channel-status" aria-live="polite"></p>
+        <button type="button" class="enable-push-button" data-role="aidant">Activer les notifications push sur cet appareil</button>
+        <button type="button" class="disable-push-button" data-role="aidant">Désactiver les notifications push sur cet appareil</button>
+        <p class="helper-text push-status" aria-live="polite"></p>
+        <div class="account-closure">
+            <h4>Clôturer mon compte</h4>
+            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
+            <label for="close-account-password-aidant">Confirmez avec votre mot de passe</label>
+            <input id="close-account-password-aidant" type="password" autocomplete="current-password">
+            <button type="button" data-close-account="aidant">Demander la clôture</button>
+            <p class="helper-text" data-close-account-status="aidant" role="status" aria-live="polite"></p>
+        </div>
+    </section>
+<section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
+        <h3>Mes préférences de notification</h3>
+        <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
+        <form class="notification-preferences-form form-grid" data-role="pro">
+            <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
+            <label class="notification-choice"><input type="checkbox" data-sms-enabled> Recevoir les notifications par SMS</label>
+            <input type="tel" data-notification-phone autocomplete="tel" placeholder="Téléphone au format +33612345678" aria-label="Téléphone pour les SMS">
+            <button type="submit">Enregistrer mes choix SMS et e-mail</button>
+        </form>
+        <p class="helper-text channel-status" aria-live="polite"></p>
+        <button type="button" class="enable-push-button" data-role="pro">Activer les notifications push sur cet appareil</button>
+        <button type="button" class="disable-push-button" data-role="pro">Désactiver les notifications push sur cet appareil</button>
+        <p class="helper-text push-status" aria-live="polite"></p>
+        <div class="account-closure">
+            <h4>Clôturer mon compte</h4>
+            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
+            <label for="close-account-password-pro">Confirmez avec votre mot de passe</label>
+            <input id="close-account-password-pro" type="password" autocomplete="current-password">
+            <button type="button" data-close-account="pro">Demander la clôture</button>
+            <p class="helper-text" data-close-account-status="pro" role="status" aria-live="polite"></p>
+        </div>
+    </section>
+<section class="form-card" style="text-align:left;" id="settings-senior-links">
+            <h2>Accès des aidants à mon profil</h2>
+            <p class="helper-text">Vous pouvez accepter ou refuser les demandes. Pour retirer un accès, il sera suspendu immédiatement ; l’administration vous enverra ensuite un code de confirmation par e-mail.</p>
+            <p class="helper-text">Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées.</p>
+            <div id="senior-link-management" aria-live="polite">Chargement des demandes…</div>
+            <button type="button" id="senior-links-refresh">Actualiser</button>
+        </section>
+<section class="form-card" style="text-align:left;" id="settings-aidant-links">
+        <h3>Mes profils seniors</h3>
+        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior. Il devra accepter votre demande avant que vous puissiez consulter son profil.</p>
+        <form id="aidant-link-form" class="form-grid">
+            <label for="aidant-link-email">Adresse e-mail du senior</label>
+            <input id="aidant-link-email" type="email" autocomplete="off" maxlength="254" required>
+            <button type="submit">Demander l’accès</button>
+        </form>
+        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie et associe les profils seniors.</p>
+        <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
+        <button type="button" id="aidant-links-refresh">Actualiser</button>
+    </section>
+<div id="settings-pro-area">
+<section class="form-card" id="directory-profile-panel">
+        <h3>Annuaire national et rendez-vous</h3>
+        <p class="helper-text">Seuls les intervenants dont le dossier est validé peuvent publier un profil. Votre activité est publique ; votre adresse, votre position et vos coordonnées ne le sont pas. Les demandes sont confirmées par vous.</p>
+        <div class="form-grid">
+            <p id="directory-calendar-status" class="helper-text" aria-live="polite">Vérification de Google Calendar…</p>
+            <button id="directory-calendar-connect" type="button">Connecter mon agenda Google</button>
+        </div>
+        <form id="directory-profile-form" class="form-grid" style="margin-top:16px;">
+            <label class="notification-choice"><input id="directory-listed" type="checkbox"> Publier mon profil dans l’annuaire</label>
+            <label for="directory-activity">Activité professionnelle</label>
+            <input id="directory-activity" type="text" maxlength="160" placeholder="Ex. aide à domicile, kinésithérapie">
+            <label for="directory-description">Présentation publique (facultatif)</label>
+            <textarea id="directory-description" maxlength="500" placeholder="Présentez votre activité, sans coordonnées personnelles"></textarea>
+            <label for="directory-photo-url">Photo de profil (URL http(s))</label>
+            <input id="directory-photo-url" type="url" maxlength="2000" placeholder="https://example.com/photo.jpg">
+            <div class="directory-profile-preview">
+                <img id="directory-photo-image" class="directory-profile-photo" alt="Aperçu de la photo de profil" hidden>
+                <span id="directory-photo-label" class="helper-text">Aucune photo enregistrée pour l’instant.</span>
+            </div>
+            <label for="directory-duration">Durée habituelle du rendez-vous</label>
+            <select id="directory-duration">
+                <option value="15">15 minutes</option><option value="30">30 minutes</option>
+                <option value="45">45 minutes</option><option value="60">1 heure</option>
+                <option value="90">1 h 30</option><option value="120">2 heures</option>
+            </select>
+            <label for="directory-timezone">Fuseau horaire</label>
+            <input id="directory-timezone" type="text" maxlength="64" value="Europe/Paris" required>
+            <h4>Mes horaires de rendez-vous</h4>
+            <div id="directory-weekly-hours" class="form-grid"></div>
+            <p class="helper-text">Les créneaux sont proposés selon ces horaires et les disponibilités réelles de votre agenda Google.</p>
+            <button type="submit">Enregistrer mon profil annuaire</button>
+        </form>
+    </section>
+<section class="form-card" id="professional-location-card">
+            <h3>Mon domicile et mon rayon d’intervention</h3>
+            <p class="helper-text">La position sert uniquement à calculer la distance approximative jusqu’aux rendez-vous qui vous sont affectés. Elle n’est pas communiquée aux seniors ni envoyée à un service cartographique.</p>
+            <form id="professional-location-form" class="form-grid">
+                <label for="pro-service-radius">Rayon d’intervention (1 à 500 km)</label>
+                <input id="pro-service-radius" type="number" min="1" max="500" step="1" value="30" required>
+                <button id="pro-home-location-button" type="button">Mettre à jour ma position depuis mon domicile</button>
+                <p id="pro-home-location-status" class="helper-text" aria-live="polite">Position du domicile non enregistrée.</p>
+                <button type="submit">Enregistrer le rayon et la position</button>
+            </form>
+        </section>
+</div>
+    <section class="form-card">
+        <h2>Options payantes envisagées</h2>
+        <p>Visio : cette fonction nécessite actuellement un accès premium actif.</p>
+        <p>Pour l’agenda, il est envisagé d’inclure gratuitement un intervenant par catégorie de service ; des intervenants supplémentaires pourraient devenir payants.</p>
+        <p class="helper-text">Projet uniquement : aucune limite n’est appliquée, les tarifs ne sont pas définis et aucun paiement ni abonnement ne peut être souscrit actuellement.</p>
+    </section>
+</div>
+
 <div id="screen-directory" class="screen-container" style="background-color:var(--senior-bg);">
     <div class="header-mobile">
         <h3 style="margin:0;">Annuaire des professionnels</h3>
@@ -720,6 +747,12 @@
     </button>
     <button id="nav-contacts" class="nav-item" onclick="switchScreen('contacts')" style="display:none;">
         <span class="nav-icon">📞</span><span>Contacts</span>
+    </button>
+    <button id="nav-agenda" class="nav-item" onclick="ouvrirAgenda()" style="display:none;">
+        <span class="nav-icon">🗓️</span><span>Agenda</span>
+    </button>
+    <button id="nav-settings" class="nav-item" onclick="switchScreen('settings')" style="display:none;">
+        <span class="nav-icon">⚙️</span><span>Réglages</span>
     </button>
     <button id="nav-logout" class="nav-item" onclick="deconnecterUtilisateur()">
         <span class="nav-icon">↪</span><span>Déconnexion</span>
@@ -1067,23 +1100,36 @@
     document.getElementById('end-call-button')?.addEventListener('click', terminerAppelVideo);
 
     function switchScreen(screenName) {
+        const pendingProfessional = connectedUser?.role === 'pro' && connectedUser.verificationStatus !== 'approved';
+        const pendingGuardian = connectedUser?.role === 'aidant' && connectedUser.isLegalGuardian &&
+            connectedUser.guardianVerificationStatus !== 'approved';
+        const pendingAccess = pendingProfessional || pendingGuardian;
         const directoryAllowed = screenName === 'directory' &&
             ['senior', 'aidant'].includes(connectedUser?.role);
         const contactsAllowed = screenName === 'contacts' &&
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
-        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed) ||
-            (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved')) {
+        const settingsAllowed = screenName === 'settings' &&
+            ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
+        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed) ||
+            (pendingAccess && screenName !== connectedUser.role && !settingsAllowed)) {
             return;
         }
 
         document.querySelectorAll('.screen-container').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        document.getElementById(`screen-${screenName}`).classList.add('active');
+        const screenId = pendingGuardian && screenName === 'aidant' ? 'senior' : screenName;
+        document.getElementById(`screen-${screenId}`).classList.add('active');
         document.getElementById(`nav-${screenName}`).classList.add('active');
         document.getElementById('nav-logout').classList.remove('active');
-        chargerNotifications();
 
-        if (screenName === 'aidant' || screenName === 'senior') chargerGestionAssociations();
+        if (screenName === 'settings') {
+            chargerPreferencesNotification();
+            if (!pendingAccess && ['senior', 'aidant'].includes(connectedUser.role)) chargerGestionAssociations();
+            if (!pendingAccess && connectedUser.role === 'pro') chargerDirectoryProfile();
+            return;
+        }
+        if (pendingAccess) return;
+        chargerNotifications();
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerLogs();
             chargerCheckinsPartages();
@@ -1107,6 +1153,16 @@
         } else if (screenName === 'contacts') {
             chargerContacts();
         }
+    }
+
+    function ouvrirAgenda() {
+        if (!connectedUser ||
+            (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
+            (connectedUser.role === 'aidant' && connectedUser.isLegalGuardian &&
+             connectedUser.guardianVerificationStatus !== 'approved')) return;
+        switchScreen(connectedUser.role === 'pro' ? 'pro' : 'directory');
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        document.getElementById('nav-agenda').classList.add('active');
     }
 
     function basculerFormulaire(estInscription) {
@@ -1195,18 +1251,27 @@
             document.getElementById(`notifications-panel-${role}`).style.display =
                 role === user.role && !pendingAccess ? 'block' : 'none';
             document.getElementById(`notification-settings-${role}`).style.display =
-                role === user.role && !pendingAccess ? 'block' : 'none';
+                role === user.role ? 'block' : 'none';
         });
+        document.getElementById('settings-senior-links').style.display = user.role === 'senior' ? 'block' : 'none';
+        document.getElementById('settings-aidant-links').style.display =
+            user.role === 'aidant' && !pendingAccess ? 'block' : 'none';
+        document.getElementById('settings-pro-area').style.display =
+            user.role === 'pro' && !pendingAccess ? 'block' : 'none';
+        document.getElementById('settings-agenda').style.display = pendingAccess ? 'none' : 'block';
         document.getElementById('main-app-senior').style.display = user.role === 'senior' ? 'block' : 'none';
         document.getElementById('nav-bar').style.display = 'flex';
 
         ['senior', 'aidant', 'pro'].forEach(role => {
             document.getElementById(`nav-${role}`).style.display =
-                role === user.role && !pendingAccess ? 'flex' : 'none';
+                role === user.role ? 'flex' : 'none';
         });
+        document.getElementById('nav-settings').style.display = 'flex';
         document.getElementById('nav-directory').style.display =
             ['senior', 'aidant'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
         document.getElementById('nav-contacts').style.display =
+            ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
+        document.getElementById('nav-agenda').style.display =
             ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
 
         if (pendingProfessional) {
@@ -1218,6 +1283,7 @@
             return;
         }
         if (pendingGuardian) {
+            activeSeniorProfileId = '';
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
             document.getElementById('screen-senior').classList.add('active');
             document.getElementById('nav-logout').style.display = 'flex';
@@ -3639,6 +3705,7 @@
         document.getElementById('senior-links-refresh').addEventListener('click', chargerGestionAssociations);
         document.getElementById('aidant-links-refresh').addEventListener('click', async () => {
             await setAuthenticatedView(connectedUser);
+            switchScreen('settings');
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
             activeSeniorProfileId = event.currentTarget.value;
@@ -4210,7 +4277,8 @@
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' &&
                 connectedUser?.role === 'pro' &&
-                document.getElementById('screen-pro').classList.contains('active')) {
+                (document.getElementById('screen-pro').classList.contains('active') ||
+                 document.getElementById('screen-settings').classList.contains('active'))) {
                 chargerDirectoryProfile();
                 chargerDirectoryBookings(true);
             }

@@ -34,6 +34,20 @@
     'Confidentialité': 'Privacy',
     'Fonctionnalités': 'Features',
     'Langue': 'Language',
+    'Réglages': 'Settings',
+    'Agenda': 'Calendar',
+    'Mon agenda': 'My calendar',
+    'Consultez les rendez-vous et les disponibilités correspondant à votre compte.':
+      'View appointments and availability for your account.',
+    'Accéder à mon agenda': 'Open my calendar',
+    'Gérer mes profils seniors': 'Manage my senior profiles',
+    'Options payantes envisagées': 'Proposed paid options',
+    'Visio : cette fonction nécessite actuellement un accès premium actif.':
+      'Video calls currently require active premium access.',
+    'Pour l’agenda, il est envisagé d’inclure gratuitement un intervenant par catégorie de service ; des intervenants supplémentaires pourraient devenir payants.':
+      'For the calendar, one professional per service category is proposed to be included free of charge; additional professionals may become paid options.',
+    'Projet uniquement : aucune limite n’est appliquée, les tarifs ne sont pas définis et aucun paiement ni abonnement ne peut être souscrit actuellement.':
+      'Proposal only: no limit is enforced, prices have not been set, and no payment or subscription is currently available.',
     'Français': 'French',
     'Nom du senior suivi (facultatif)': 'Name of the senior you support (optional)',
     'Vous pouvez créer votre compte même si aucun senior n’est encore inscrit. Le suivi apparaîtra lorsqu’un senior rejoindra l’application et partagera son profil.':

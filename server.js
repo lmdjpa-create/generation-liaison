@@ -58,12 +58,18 @@ function sendApiError(res, error, fallbackMessage) {
   return res.status(500).json({ error: fallbackMessage });
 }
 
+function canAccessAccountSettings(req) {
+  return (req.method === 'GET' && req.path === '/api/notifications/config') ||
+    (['GET', 'PUT'].includes(req.method) && req.path === '/api/notifications/preferences') ||
+    (['POST', 'DELETE'].includes(req.method) && req.path === '/api/notifications/push-subscriptions') ||
+    (req.method === 'POST' && req.path === '/api/account/closure-request');
+}
+
 function canPendingProfessionalAccess(req) {
   return req.path === '/api/auth/me' ||
     req.path === '/api/auth/logout' ||
     req.path === '/api/notifications' ||
-    req.path === '/api/notifications/preferences' ||
-    req.path === '/api/notifications/config' ||
+    canAccessAccountSettings(req) ||
     req.path.startsWith('/api/professional-verification/documents');
 }
 
@@ -142,6 +148,7 @@ function redirectCalendarResult(res, status) {
 
 function canPendingLegalGuardianAccess(req) {
   return (['/api/auth/me', '/api/auth/logout'].includes(req.path)) ||
+    canAccessAccountSettings(req) ||
     (req.method === 'GET' && req.path === '/api/legal-guardian/documents') ||
     (req.method === 'PUT' && /^\/api\/legal-guardian\/documents\/(identity|guardianship)$/.test(req.path));
 }

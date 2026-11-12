@@ -79,6 +79,9 @@ test('consent, suspension, administrator email and confirmation protect senior d
   const aidantUserId = aidant.user.id;
 
   const guardianLink = `/api/admin/accounts/${guardian.user.id}/senior-links`;
+  assert.equal((await request('/api/notifications/config', { user: guardian })).status, 200);
+  assert.equal((await request('/api/notifications/preferences', { user: guardian })).status, 200);
+  assert.equal((await request('/api/aidant/seniors', { user: guardian })).status, 403);
   assert.equal((await request(guardianLink, {
     user: admin, admin: true, body: { seniorUserId }
   })).status, 409);
