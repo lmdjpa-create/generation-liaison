@@ -51,6 +51,55 @@
       'Access to senior profiles will be enabled after administrator approval.',
     'Envoyer / remplacer les justificatifs': 'Submit / replace documents',
     'Aucun profil senior associé': 'No senior profile linked',
+    'Profils seniors indisponibles': 'Senior profiles unavailable',
+    'Impossible de charger les profils seniors. Vérifiez votre connexion et réessayez.':
+      'Unable to load senior profiles. Check your connection and try again.',
+    'Actualiser les profils seniors': 'Refresh senior profiles',
+    'Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.':
+      'No profile is available. Request access from a senior or contact the administrator if you are a legal guardian.',
+    'Accès des aidants à mon profil': 'Caregiver access to my profile',
+    'Vous pouvez accepter ou refuser les demandes. Pour retirer un accès, il sera suspendu immédiatement ; l’administration vous enverra ensuite un code de confirmation par e-mail.':
+      'You can accept or decline requests. Access is suspended immediately when you request removal; the administrator will then email you a confirmation code.',
+    'Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées.':
+      'Suspending access does not remove the caregiver from your contacts or stop emergency alerts sent to them.',
+    'Chargement des demandes…': 'Loading requests…',
+    'Actualiser': 'Refresh',
+    'Mes profils seniors': 'My senior profiles',
+    'Saisissez l’adresse e-mail du senior. Il devra accepter votre demande avant que vous puissiez consulter son profil.':
+      'Enter the senior’s email address. They must accept your request before you can access their profile.',
+    'Adresse e-mail du senior': 'Senior’s email address',
+    'Demander l’accès': 'Request access',
+    'Pour un tuteur légal, l’administration vérifie et associe les profils seniors.':
+      'For legal guardians, the administrator verifies and links senior profiles.',
+    'Chargement des profils…': 'Loading profiles…',
+    'Aucune association ou demande en cours.': 'No current links or requests.',
+    'Accepter': 'Accept',
+    'Accès suspendu ; confirmation par code attendue.': 'Access suspended; code confirmation pending.',
+    'Demande de retrait transmise à l’administration.': 'Removal request sent to the administrator.',
+    'Code reçu par e-mail': 'Code received by email',
+    'Confirmer le retrait': 'Confirm removal',
+    'Retrait confirmé.': 'Removal confirmed.',
+    'Demander le retrait': 'Request removal',
+    'Suspendre immédiatement l’accès de cet aidant et demander un code à l’administration ?':
+      'Immediately suspend this caregiver’s access and request a code from the administrator?',
+    'Demander à l’administration de retirer ce profil ?': 'Ask the administrator to remove this profile?',
+    'Impossible de charger les associations.': 'Unable to load links.',
+    'Si ce compte senior existe et peut recevoir la demande, elle lui sera présentée dans son espace.':
+      'If the senior account exists and can receive the request, it will appear in their account.',
+    'Demandes de retrait d’accès': 'Access removal requests',
+    'Pour une demande du senior, l’accès est suspendu : envoyez-lui le code de confirmation par e-mail. Pour une demande de l’aidant, retirez l’association depuis ce tableau.':
+      'For a senior’s request, access is suspended: send them a confirmation code by email. For a caregiver’s request, remove the link from this panel.',
+    'Le senior doit accepter la demande de l’aidant dans son espace.':
+      'The senior must accept the caregiver’s request in their account.',
+    'Aucune demande de retrait en cours.': 'No pending removal requests.',
+    'Demandé par le senior : accès suspendu.': 'Requested by the senior: access suspended.',
+    'Demandé par l’aidant.': 'Requested by the caregiver.',
+    'Envoyer le code par e-mail': 'Send code by email',
+    'Retirer l’association': 'Remove link',
+    'Envoyer un code au senior ?': 'Send the senior a code?',
+    'Retirer cette association ?': 'Remove this link?',
+    'Code envoyé au senior.': 'Code sent to the senior.',
+    'Association retirée.': 'Link removed.',
     'Votre compte est actif, mais l’administration doit associer un ou plusieurs profils seniors avant que vous puissiez consulter leur espace.':
       'Your account is active, but an administrator must link one or more senior profiles before you can access them.',
     'Profil senior associé': 'Linked senior profile',

@@ -31,6 +31,7 @@
     "web-push": "^3.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "esbuild": "^0.28.2"
   }
 }

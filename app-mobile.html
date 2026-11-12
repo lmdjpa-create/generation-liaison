@@ -296,14 +296,17 @@
         </form>
         <button type="button" id="legal-guardian-logout">Déconnexion</button>
     </section>
-    <section class="form-card" id="aidant-no-senior-panel" style="display:none;">
-        <h3>Aucun profil senior associé</h3>
-        <p>Votre compte est actif, mais l’administration doit associer un ou plusieurs profils seniors avant que vous puissiez consulter leur espace.</p>
-    </section>
     <!-- TABLEAU DE BORD LAZ -->
     <div id="main-app-senior" style="display: none; text-align: center;">
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! 👴</h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
+        <section class="form-card" style="text-align:left;">
+            <h2>Accès des aidants à mon profil</h2>
+            <p class="helper-text">Vous pouvez accepter ou refuser les demandes. Pour retirer un accès, il sera suspendu immédiatement ; l’administration vous enverra ensuite un code de confirmation par e-mail.</p>
+            <p class="helper-text">Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées.</p>
+            <div id="senior-link-management" aria-live="polite">Chargement des demandes…</div>
+            <button type="button" id="senior-links-refresh">Actualiser</button>
+        </section>
         <section class="form-card emergency-call-card" aria-labelledby="emergency-call-heading">
             <h2 id="emergency-call-heading" style="margin-top:0; color:#8b1e25;">Besoin d’appeler les secours ?</h2>
             <p>En cas de danger immédiat en France, vous pouvez appeler le 15 ou le 112. Après votre choix, une deuxième confirmation est obligatoire. Les aidants actifs enregistrés seront informés ; les SMS et e-mails dépendent de leurs préférences. L’application ouvre le composeur du téléphone, mais ne peut pas vérifier que l’appel a été passé ou abouti.</p>
@@ -429,10 +432,28 @@
         <h3 style="margin:0;">Espace Proches 👨‍👩‍👧‍👦</h3>
         <span style="font-size:0.85rem; opacity:0.9;">Suivi de : <span id="senior-name-aidant">Senior</span></span>
     </div>
+    <section class="form-card" style="text-align:left;">
+        <h3>Mes profils seniors</h3>
+        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior. Il devra accepter votre demande avant que vous puissiez consulter son profil.</p>
+        <form id="aidant-link-form" class="form-grid">
+            <label for="aidant-link-email">Adresse e-mail du senior</label>
+            <input id="aidant-link-email" type="email" autocomplete="off" maxlength="254" required>
+            <button type="submit">Demander l’accès</button>
+        </form>
+        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie et associe les profils seniors.</p>
+        <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
+        <button type="button" id="aidant-links-refresh">Actualiser</button>
+    </section>
     <section class="form-card" id="aidant-senior-selector" style="display:none;">
         <label for="aidant-senior-select">Profil senior</label>
         <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
     </section>
+    <section class="form-card" id="aidant-no-senior-panel" style="display:none;">
+        <h3>Aucun profil senior associé</h3>
+        <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.</p>
+        <button type="button" id="aidant-refresh-seniors">Actualiser les profils seniors</button>
+    </section>
+    <div id="aidant-senior-content" style="display:none;">
     <section class="form-card">
         <h4>Check-ins de bien-être partagés</h4>
         <p class="helper-text">Vous ne voyez ici que les réponses que la personne a choisi de vous transmettre. Ce partage n’est pas un service d’urgence ni une surveillance automatique.</p>
@@ -462,6 +483,7 @@
         <p class="helper-text">Repas, coiffure et ménage à domicile. Cet espace est distinct du suivi des soins et ne transmet aucune donnée médicale aux prestataires. Les demandes doivent être confirmées par le partenaire ; les tarifs et paiements restent à définir.</p>
         <div id="aidant-service-area" aria-live="polite">Chargement des services…</div>
     </section>
+    </div>
 </div>
 
 <!-- 🩺 3. INTERFACE PROFESSIONNEL -->
@@ -1047,9 +1069,10 @@
     function switchScreen(screenName) {
         const directoryAllowed = screenName === 'directory' &&
             ['senior', 'aidant'].includes(connectedUser?.role);
-        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed) ||
-            (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
-            (connectedUser.role === 'aidant' && screenName !== 'directory' && !activeSeniorProfileId)) {
+        const contactsAllowed = screenName === 'contacts' &&
+            ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
+        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed) ||
+            (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved')) {
             return;
         }
 
@@ -1060,7 +1083,8 @@
         document.getElementById('nav-logout').classList.remove('active');
         chargerNotifications();
 
-        if (screenName === 'aidant') {
+        if (screenName === 'aidant' || screenName === 'senior') chargerGestionAssociations();
+        if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerLogs();
             chargerCheckinsPartages();
             chargerSuiviPartage('aidant');
@@ -1202,21 +1226,35 @@
         }
 
         if (user.role === 'aidant') {
-            document.getElementById('aidant-senior-selector').style.display = 'block';
-            if (!await chargerAidantSeniors()) {
-                document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
-                document.getElementById('screen-senior').classList.add('active');
-                document.getElementById('aidant-no-senior-panel').style.display = 'block';
-                document.getElementById('nav-logout').style.display = 'flex';
-                chargerNotifications();
-                chargerPreferencesNotification();
-                return;
+            document.getElementById('aidant-link-form').style.display = user.isLegalGuardian ? 'none' : 'grid';
+            document.getElementById('aidant-link-help').style.display = user.isLegalGuardian ? 'none' : 'block';
+            document.getElementById('aidant-guardian-link-help').style.display = user.isLegalGuardian ? 'block' : 'none';
+            let hasSenior = false;
+            let loadError = null;
+            try {
+                hasSenior = await chargerAidantSeniors();
+            } catch (error) {
+                loadError = error;
+                console.error('Chargement des profils seniors impossible :', error);
             }
+            document.getElementById('aidant-senior-selector').style.display = hasSenior ? 'block' : 'none';
+            document.getElementById('aidant-no-senior-panel').style.display = hasSenior ? 'none' : 'block';
+            document.getElementById('aidant-senior-content').style.display = hasSenior ? 'block' : 'none';
+            document.querySelector('#aidant-no-senior-panel h3').textContent = window.generationLiaisonTranslate(
+                loadError ? 'Profils seniors indisponibles' : 'Aucun profil senior associé'
+            );
+            document.getElementById('aidant-senior-status').textContent = window.generationLiaisonTranslate(
+                loadError
+                    ? 'Impossible de charger les profils seniors. Vérifiez votre connexion et réessayez.'
+                    : 'Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.'
+            );
         } else {
             document.getElementById('aidant-senior-selector').style.display = 'none';
         }
 
-        const seniorName = user.seniorName || window.generationLiaisonTranslate('Aucun senior associé pour le moment');
+        const seniorName = user.role === 'aidant' && activeSeniorProfileId
+            ? document.getElementById('aidant-senior-select').selectedOptions[0].text
+            : user.seniorName || window.generationLiaisonTranslate('Aucun senior associé pour le moment');
         afficherAccueilSenior(user);
         document.getElementById('senior-name-aidant').textContent = window.generationLiaisonTranslate(seniorName);
         document.getElementById('coordinator-panel').style.display = user.isCoordinator ? 'block' : 'none';
@@ -1237,11 +1275,11 @@
                 chargerPlanningServices();
                 chargerDirectoryBookings(true);
             }
-            if (connectedUser.role === 'senior' || connectedUser.role === 'aidant') {
+            if (connectedUser.role === 'senior' || (connectedUser.role === 'aidant' && activeSeniorProfileId)) {
                 chargerSuiviPartage(connectedUser.role);
                 chargerServicesFamiliaux(connectedUser.role);
             }
-            if (connectedUser.role === 'aidant') {
+            if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
                 chargerCheckinsPartages();
             }
             if (connectedUser.role === 'senior') {
@@ -1284,8 +1322,8 @@
                 result.seniors.find(senior => senior.id === activeSeniorProfileId).name;
             return true;
         } catch (error) {
-            showToast(error.message || 'Impossible de charger les profils seniors associés.', false);
-            return false;
+            activeSeniorProfileId = '';
+            throw error;
         }
     }
 
@@ -1341,6 +1379,118 @@
         }
         const response = await fetch(`${SERVER_URL}${path}`, requestOptions);
         return readResponse(response);
+    }
+
+    async function seniorLinksRequest(path, options = {}) {
+        const headers = { ...authHeaders(false) };
+        const requestOptions = { ...options, headers };
+        if (options.body !== undefined) {
+            headers['Content-Type'] = 'application/json';
+            requestOptions.body = JSON.stringify(options.body);
+        }
+        return readResponse(await fetch(`${SERVER_URL}${path}`, requestOptions));
+    }
+
+    async function chargerGestionAssociations() {
+        if (!connectedUser || !['senior', 'aidant'].includes(connectedUser.role)) return;
+        const role = connectedUser.role;
+        const container = document.getElementById(`${role}-link-management`);
+        container.textContent = window.generationLiaisonTranslate('Chargement des profils…');
+        try {
+            const result = await seniorLinksRequest('/api/senior-links');
+            container.replaceChildren();
+            if (!result.links.length && !result.requests.length) {
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune association ou demande en cours.')));
+            }
+            for (const request of result.requests) {
+                const item = document.createElement('div');
+                item.className = 'consent-item';
+                item.append(makeTextElement('strong', `${request.aidant_name} (${request.aidant_email})`));
+                for (const [decision, label] of [['accept', 'Accepter'], ['decline', 'Refuser']]) {
+                    const button = makeTextElement('button', window.generationLiaisonTranslate(label));
+                    button.type = 'button';
+                    button.addEventListener('click', async () => {
+                        button.disabled = true;
+                        try {
+                            await seniorLinksRequest(`/api/senior-links/requests/${encodeURIComponent(request.id)}/decision`, {
+                                method: 'POST', body: { decision }
+                            });
+                            await chargerGestionAssociations();
+                        } catch (error) {
+                            button.disabled = false;
+                            showToast(error.message || 'Impossible de traiter la demande.', false);
+                        }
+                    });
+                    item.append(button);
+                }
+                container.append(item);
+            }
+            for (const link of result.links) {
+                const item = document.createElement('div');
+                item.className = 'consent-item';
+                item.append(makeTextElement('strong', role === 'senior' ? link.aidant_name : link.senior_name));
+                if (link.removal_id) {
+                    const status = link.requested_by === 'senior'
+                        ? 'Accès suspendu ; confirmation par code attendue.'
+                        : 'Demande de retrait transmise à l’administration.';
+                    item.append(makeTextElement('p', window.generationLiaisonTranslate(status), 'helper-text'));
+                }
+                if (role === 'senior' && link.requested_by === 'senior') {
+                    const form = document.createElement('form');
+                    form.className = 'form-grid';
+                    const label = makeTextElement('label', window.generationLiaisonTranslate('Code reçu par e-mail'));
+                    const input = document.createElement('input');
+                    input.type = 'text';
+                    input.autocomplete = 'off';
+                    input.required = true;
+                    input.maxLength = 32;
+                    label.append(input);
+                    const button = makeTextElement('button', window.generationLiaisonTranslate('Confirmer le retrait'));
+                    button.type = 'submit';
+                    form.append(label, button);
+                    form.addEventListener('submit', async event => {
+                        event.preventDefault();
+                        button.disabled = true;
+                        try {
+                            await seniorLinksRequest(`/api/senior-links/removals/${encodeURIComponent(link.removal_id)}/confirm`, {
+                                method: 'POST', body: { code: input.value }
+                            });
+                            input.value = '';
+                            await chargerGestionAssociations();
+                            showToast(window.generationLiaisonTranslate('Retrait confirmé.'));
+                        } catch (error) {
+                            button.disabled = false;
+                            showToast(error.message || 'Impossible de confirmer le retrait.', false);
+                        }
+                    });
+                    item.append(form);
+                } else if (!link.removal_id || (role === 'senior' && link.requested_by === 'aidant')) {
+                    const button = makeTextElement('button', window.generationLiaisonTranslate('Demander le retrait'));
+                    button.type = 'button';
+                    button.addEventListener('click', async () => {
+                        const message = role === 'senior'
+                            ? 'Suspendre immédiatement l’accès de cet aidant et demander un code à l’administration ?'
+                            : 'Demander à l’administration de retirer ce profil ?';
+                        if (!window.confirm(window.generationLiaisonTranslate(message))) return;
+                        button.disabled = true;
+                        try {
+                            await seniorLinksRequest('/api/senior-links/removals', {
+                                method: 'POST',
+                                body: { otherUserId: role === 'senior' ? link.aidant_user_id : link.senior_user_id }
+                            });
+                            await chargerGestionAssociations();
+                        } catch (error) {
+                            button.disabled = false;
+                            showToast(error.message || 'Impossible de demander le retrait.', false);
+                        }
+                    });
+                    item.append(button);
+                }
+                container.append(item);
+            }
+        } catch (error) {
+            container.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger les associations.');
+        }
     }
 
     let emergencyNumberSelected = null;
@@ -3470,10 +3620,40 @@
     function configurerFormulairesCoordination() {
         document.getElementById('reg-role').addEventListener('change', afficherChampsInscriptionProfessionnel);
         document.getElementById('reg-legal-guardian').addEventListener('change', afficherChampsTutelle);
+        document.getElementById('aidant-link-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const button = event.currentTarget.querySelector('button[type="submit"]');
+            button.disabled = true;
+            try {
+                const result = await seniorLinksRequest('/api/senior-links/requests', {
+                    method: 'POST', body: { email: document.getElementById('aidant-link-email').value }
+                });
+                document.getElementById('aidant-link-email').value = '';
+                showToast(window.generationLiaisonTranslate(result.message));
+            } catch (error) {
+                showToast(error.message || 'Impossible d’envoyer la demande.', false);
+            } finally {
+                button.disabled = false;
+            }
+        });
+        document.getElementById('senior-links-refresh').addEventListener('click', chargerGestionAssociations);
+        document.getElementById('aidant-links-refresh').addEventListener('click', async () => {
+            await setAuthenticatedView(connectedUser);
+        });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
             activeSeniorProfileId = event.currentTarget.value;
             localStorage.setItem('generation-liaison-active-senior', activeSeniorProfileId);
+            document.getElementById('senior-name-aidant').textContent =
+                event.currentTarget.selectedOptions[0]?.text || '';
             if (activeSeniorProfileId) switchScreen('aidant');
+        });
+        document.getElementById('aidant-refresh-seniors').addEventListener('click', async event => {
+            event.currentTarget.disabled = true;
+            try {
+                await setAuthenticatedView(connectedUser);
+            } finally {
+                event.currentTarget.disabled = false;
+            }
         });
         document.getElementById('legal-guardian-logout').addEventListener('click', () => deconnecterUtilisateur());
         document.getElementById('legal-guardian-documents-form').addEventListener('submit', async event => {

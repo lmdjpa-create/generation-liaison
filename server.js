@@ -43,6 +43,7 @@ const adminAccessCodeHash = adminAccessCode.length >= 32
   ? createHash('sha256').update(adminAccessCode).digest()
   : null;
 const assistantMessageTimes = new Map();
+const seniorLinkRequestTimes = new Map();
 
 app.use(cors());
 app.use(express.json());
@@ -194,6 +195,7 @@ function requireAuth(req, res, next) {
          JOIN app_users senior ON senior.senior_id = link.senior_profile_id
          WHERE link.aidant_user_id = $1
            AND link.senior_profile_id = $2
+           AND link.suspended_at IS NULL
            AND senior.role = 'senior'
            AND senior.is_active = TRUE`,
         [user.id, selectedSeniorId]
@@ -651,6 +653,7 @@ app.get('/api/wellbeing/shared-check-ins', requireAuth, requireAidantSeniorConte
              JOIN app_users guardian ON guardian.id = link.aidant_user_id
              WHERE link.aidant_user_id = $1
                AND link.senior_profile_id = owner.senior_id
+               AND link.suspended_at IS NULL
                AND guardian.is_legal_guardian = TRUE
                AND guardian.guardian_verification_status = 'approved'
            )
@@ -1730,13 +1733,14 @@ app.post('/api/admin/accounts/:accountId/senior-links', requireAuth, requireAdmi
        WHERE aidant.id = $1
          AND aidant.role = 'aidant'
          AND aidant.is_active = TRUE
-         AND (aidant.is_legal_guardian = FALSE OR aidant.guardian_verification_status = 'approved')
+         AND aidant.is_legal_guardian = TRUE
+         AND aidant.guardian_verification_status = 'approved'
        ON CONFLICT (aidant_user_id, senior_profile_id) DO NOTHING
        RETURNING senior_profile_id`,
       [req.params.accountId, seniorUserId, req.authUser.id]
     );
     if (!rows[0]) {
-      return res.status(409).json({ error: 'Le compte doit être un aidant actif et la tutelle vérifiée avant toute association.' });
+      return res.status(409).json({ error: 'Seuls les tuteurs légaux vérifiés peuvent être associés par l’administration ; les autres aidants doivent obtenir l’accord du senior.' });
     }
     res.status(201).json({ seniorProfileId: rows[0].senior_profile_id });
   } catch (error) {
@@ -1749,16 +1753,35 @@ app.delete('/api/admin/accounts/:accountId/senior-links/:seniorProfileId', requi
   if (!uuidPattern.test(req.params.accountId) || !uuidPattern.test(req.params.seniorProfileId)) {
     return res.status(400).json({ error: 'Compte aidant ou profil senior invalide.' });
   }
+  let client;
   try {
-    const { rowCount } = await pool.query(
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rowCount } = await client.query(
       `DELETE FROM app_aidant_senior_links
-       WHERE aidant_user_id = $1 AND senior_profile_id = $2`,
+       WHERE aidant_user_id = $1 AND senior_profile_id = $2 AND suspended_at IS NULL`,
       [req.params.accountId, req.params.seniorProfileId]
     );
-    if (!rowCount) return res.status(404).json({ error: 'Association de profil introuvable.' });
+    if (!rowCount) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Association introuvable ou suspendue en attente de confirmation du senior.' });
+    }
+    await client.query(
+      `UPDATE app_aidant_unlink_requests request
+       SET status = 'completed', resolved_at = CURRENT_TIMESTAMP
+       FROM app_users senior
+       WHERE request.aidant_user_id = $1 AND request.senior_user_id = senior.id
+         AND senior.senior_id = $2 AND request.status = 'pending'
+         AND request.requested_by = 'aidant'`,
+      [req.params.accountId, req.params.seniorProfileId]
+    );
+    await client.query('COMMIT');
     res.json({ removed: true });
   } catch (error) {
+    if (client) await client.query('ROLLBACK');
     sendApiError(res, error, 'Impossible de retirer cette association.');
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -3306,6 +3329,7 @@ app.get('/api/aidant/seniors', requireAuth, async (req, res) => {
         AND senior.is_active = TRUE
        JOIN senior_profiles profile ON profile.id = link.senior_profile_id
        WHERE link.aidant_user_id = $1
+         AND link.suspended_at IS NULL
        ORDER BY profile.name`,
       [req.authUser.id]
     );
@@ -3313,6 +3337,282 @@ app.get('/api/aidant/seniors', requireAuth, async (req, res) => {
     res.json({ seniors: rows.map(row => ({ id: row.id, name: row.name })) });
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger les profils seniors associés.');
+  }
+});
+
+app.get('/api/senior-links', requireAuth, async (req, res) => {
+  const { id, role } = req.authUser;
+  if (!['aidant', 'senior'].includes(role)) {
+    return res.status(403).json({ error: 'Cette fonction est réservée aux seniors et aux aidants.' });
+  }
+  try {
+    const [links, requests] = await Promise.all([
+      pool.query(
+        `SELECT link.senior_profile_id, link.aidant_user_id, senior.id AS senior_user_id, senior.name AS senior_name,
+                aidant.name AS aidant_name, link.suspended_at,
+                removal.id AS removal_id, removal.requested_by, removal.code_sent_at
+         FROM app_aidant_senior_links link
+         JOIN app_users senior ON senior.senior_id = link.senior_profile_id AND senior.role = 'senior'
+         JOIN app_users aidant ON aidant.id = link.aidant_user_id
+         LEFT JOIN app_aidant_unlink_requests removal
+           ON removal.aidant_user_id = aidant.id AND removal.senior_user_id = senior.id
+          AND removal.status = 'pending'
+         WHERE ($2 = 'senior' AND senior.id = $1) OR ($2 = 'aidant' AND aidant.id = $1)
+         ORDER BY senior.name, aidant.name`,
+        [id, role]
+      ),
+      pool.query(
+        `SELECT request.id, aidant.name AS aidant_name, aidant.email AS aidant_email,
+                request.created_at
+         FROM app_aidant_link_requests request
+         JOIN app_users aidant ON aidant.id = request.aidant_user_id
+         WHERE request.senior_user_id = $1 AND request.status = 'pending'
+           AND aidant.is_active = TRUE AND aidant.is_legal_guardian = FALSE
+         ORDER BY request.created_at`,
+        [id]
+      )
+    ]);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ links: links.rows, requests: role === 'senior' ? requests.rows : [] });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les associations.');
+  }
+});
+
+app.post('/api/senior-links/requests', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'aidant' || req.authUser.isLegalGuardian) {
+    return res.status(403).json({ error: 'Les tuteurs légaux doivent contacter l’administration pour associer un profil.' });
+  }
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Saisissez une adresse e-mail valide.' });
+  }
+  const now = Date.now();
+  const recent = (seniorLinkRequestTimes.get(req.authUser.id) || []).filter(time => now - time < 60_000);
+  if (recent.length >= 5) return res.status(429).json({ error: 'Trop de demandes. Réessayez dans une minute.' });
+  recent.push(now);
+  seniorLinkRequestTimes.set(req.authUser.id, recent);
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `INSERT INTO app_aidant_link_requests (id, aidant_user_id, senior_user_id)
+       SELECT $1, $2, senior.id FROM app_users senior
+       WHERE lower(senior.email) = $3 AND senior.role = 'senior' AND senior.is_active = TRUE
+         AND NOT EXISTS (
+           SELECT 1 FROM app_aidant_senior_links link
+           WHERE link.aidant_user_id = $2 AND link.senior_profile_id = senior.senior_id
+         )
+       ON CONFLICT (aidant_user_id, senior_user_id) WHERE status = 'pending' DO NOTHING
+       RETURNING id, senior_user_id`,
+      [randomUUID(), req.authUser.id, email]
+    );
+    if (rows[0]) {
+      await insertAppNotification(client, rows[0].senior_user_id, 'senior_link_request',
+        'Demande de partage', 'Une demande d’accès à votre profil vous attend dans votre espace senior.',
+        'senior_link', rows[0].id);
+    }
+    await client.query('COMMIT');
+    res.status(202).json({ message: 'Si ce compte senior existe et peut recevoir la demande, elle lui sera présentée dans son espace.' });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’envoyer la demande.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Action réservée au senior concerné.' });
+  if (!isValidUuid(req.params.id) || !['accept', 'decline'].includes(req.body?.decision)) {
+    return res.status(400).json({ error: 'Demande ou décision invalide.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT request.id, request.aidant_user_id FROM app_aidant_link_requests request
+       JOIN app_users aidant ON aidant.id = request.aidant_user_id
+       WHERE request.id = $1 AND request.senior_user_id = $2 AND request.status = 'pending'
+         AND aidant.is_active = TRUE AND aidant.is_legal_guardian = FALSE
+       FOR UPDATE OF request`,
+      [req.params.id, req.authUser.id]
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
+    }
+    if (req.body.decision === 'accept') {
+      const link = await client.query(
+        `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING senior_profile_id`,
+        [rows[0].aidant_user_id, req.authUser.seniorId, req.authUser.id]
+      );
+      if (!link.rowCount) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Une association existe déjà ou est suspendue.' });
+      }
+    }
+    await client.query(
+      `UPDATE app_aidant_link_requests SET status = $2, resolved_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [req.params.id, req.body.decision === 'accept' ? 'accepted' : 'declined']
+    );
+    await insertAppNotification(client, rows[0].aidant_user_id, 'senior_link_decision',
+      'Réponse à votre demande', 'La personne a répondu à votre demande d’accès. Consultez votre espace.',
+      'senior_link', req.params.id);
+    await client.query('COMMIT');
+    res.json({ accepted: req.body.decision === 'accept' });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de traiter la demande.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/senior-links/removals', requireAuth, async (req, res) => {
+  const otherId = req.body?.otherUserId;
+  if (!['senior', 'aidant'].includes(req.authUser.role) || !isValidUuid(otherId)) {
+    return res.status(400).json({ error: 'Association invalide.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const seniorId = req.authUser.role === 'senior' ? req.authUser.id : otherId;
+    const aidantId = req.authUser.role === 'aidant' ? req.authUser.id : otherId;
+    const { rows } = await client.query(
+      `SELECT link.senior_profile_id FROM app_aidant_senior_links link
+       JOIN app_users senior ON senior.senior_id = link.senior_profile_id AND senior.role = 'senior'
+       WHERE senior.id = $1 AND link.aidant_user_id = $2 FOR UPDATE OF link`,
+      [seniorId, aidantId]
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Association introuvable.' });
+    }
+    if (req.authUser.role === 'senior') {
+      await client.query(
+        `UPDATE app_aidant_senior_links SET suspended_at = COALESCE(suspended_at, CURRENT_TIMESTAMP)
+         WHERE aidant_user_id = $1 AND senior_profile_id = $2`,
+        [aidantId, rows[0].senior_profile_id]
+      );
+    }
+    await client.query(
+      `INSERT INTO app_aidant_unlink_requests (id, aidant_user_id, senior_user_id, requested_by)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT (aidant_user_id, senior_user_id) WHERE status = 'pending'
+       DO UPDATE SET requested_by = CASE WHEN EXCLUDED.requested_by = 'senior' THEN 'senior'
+                                        ELSE app_aidant_unlink_requests.requested_by END`,
+      [randomUUID(), aidantId, seniorId, req.authUser.role]
+    );
+    await client.query('COMMIT');
+    res.status(202).json({ suspended: req.authUser.role === 'senior' });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de demander le retrait.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/admin/senior-link-removals', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT request.id, request.requested_by, request.created_at, request.code_sent_at,
+              aidant.name AS aidant_name, senior.name AS senior_name,
+              aidant.id AS aidant_id, senior.senior_id
+       FROM app_aidant_unlink_requests request
+       JOIN app_users aidant ON aidant.id = request.aidant_user_id
+       JOIN app_users senior ON senior.id = request.senior_user_id
+       WHERE request.status = 'pending' ORDER BY request.created_at`
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ requests: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les demandes de retrait.');
+  }
+});
+
+app.post('/api/admin/senior-link-removals/:id/send-code', requireAuth, requireAdmin, async (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Demande invalide.' });
+  if (!notificationDelivery.isConfigured().email) {
+    return res.status(503).json({ error: 'L’envoi d’e-mails n’est pas configuré.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT request.id, request.code_sent_at, senior.email
+       FROM app_aidant_unlink_requests request
+       JOIN app_users senior ON senior.id = request.senior_user_id
+       WHERE request.id = $1 AND request.requested_by = 'senior'
+         AND request.status = 'pending' AND senior.is_active = TRUE
+       FOR UPDATE OF request`,
+      [req.params.id]
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Demande de senior introuvable.' });
+    }
+    if (rows[0].code_sent_at && Date.now() - new Date(rows[0].code_sent_at).getTime() < 60_000) {
+      await client.query('ROLLBACK');
+      return res.status(429).json({ error: 'Patientez une minute avant de renvoyer un code.' });
+    }
+    const code = randomBytes(16).toString('hex');
+    await notificationDelivery.sendSeniorUnlinkCode(rows[0].email, code);
+    await client.query(
+      `UPDATE app_aidant_unlink_requests SET code_hash = $2, code_sent_at = CURRENT_TIMESTAMP,
+         code_expires_at = CURRENT_TIMESTAMP + INTERVAL '30 minutes' WHERE id = $1`,
+      [req.params.id, createHash('sha256').update(code).digest('hex')]
+    );
+    await client.query('COMMIT');
+    res.json({ sent: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’envoyer le code de confirmation.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/senior-links/removals/:id/confirm', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Action réservée au senior concerné.' });
+  const code = typeof req.body?.code === 'string' ? req.body.code.trim().toLowerCase() : '';
+  if (!isValidUuid(req.params.id) || !/^[0-9a-f]{32}$/.test(code)) {
+    return res.status(400).json({ error: 'Code de confirmation invalide.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const hash = createHash('sha256').update(code).digest('hex');
+    const { rows } = await client.query(
+      `UPDATE app_aidant_unlink_requests SET status = 'completed', resolved_at = CURRENT_TIMESTAMP,
+         code_hash = NULL, code_expires_at = NULL
+       WHERE id = $1 AND senior_user_id = $2 AND requested_by = 'senior' AND status = 'pending'
+         AND code_hash = $3 AND code_expires_at > CURRENT_TIMESTAMP
+       RETURNING aidant_user_id`,
+      [req.params.id, req.authUser.id, hash]
+    );
+    if (!rows[0]) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Code invalide, expiré ou déjà utilisé.' });
+    }
+    await client.query(
+      `DELETE FROM app_aidant_senior_links WHERE aidant_user_id = $1 AND senior_profile_id = $2`,
+      [rows[0].aidant_user_id, req.authUser.seniorId]
+    );
+    await client.query('COMMIT');
+    res.json({ removed: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de confirmer le retrait.');
+  } finally {
+    if (client) client.release();
   }
 });
 

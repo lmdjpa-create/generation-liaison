@@ -207,6 +207,12 @@
         </section>
         <section class="panel">
           <div class="panel-head">
+            <div><h2>Demandes de retrait d’accès</h2><p>Pour une demande du senior, l’accès est suspendu : envoyez-lui le code de confirmation par e-mail. Pour une demande de l’aidant, retirez l’association depuis ce tableau.</p></div>
+          </div>
+          <div id="senior-link-removals" aria-live="polite">Chargement des demandes…</div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
             <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
           </div>
           <div class="table-wrap"><table>
@@ -891,7 +897,7 @@
             candidate.role === 'senior' && candidate.active &&
             !(account.linkedSeniors || []).some(senior => senior.id === candidate.seniorProfileId)
           );
-          const canLink = !account.isLegalGuardian || account.guardianVerificationStatus === 'approved';
+          const canLink = account.isLegalGuardian && account.guardianVerificationStatus === 'approved';
           if (availableSeniors.length && canLink) {
             const linkControls = document.createElement('div');
             linkControls.className = 'control-group';
@@ -914,6 +920,11 @@
             const hint = document.createElement('p');
             hint.className = 'hint';
             hint.textContent = window.generationLiaisonTranslate('Vérifiez la tutelle avant d’associer des seniors.');
+            verification.append(hint);
+          } else if (!account.isLegalGuardian) {
+            const hint = document.createElement('p');
+            hint.className = 'hint';
+            hint.textContent = window.generationLiaisonTranslate('Le senior doit accepter la demande de l’aidant dans son espace.');
             verification.append(hint);
           }
         } else {
@@ -1135,6 +1146,60 @@
       }
     }
 
+    async function loadSeniorLinkRemovals() {
+      const container = document.getElementById('senior-link-removals');
+      try {
+        const { requests } = await adminRequest('/api/admin/senior-link-removals');
+        container.replaceChildren();
+        if (!requests.length) {
+          container.textContent = window.generationLiaisonTranslate('Aucune demande de retrait en cours.');
+          return;
+        }
+        for (const request of requests) {
+          const item = document.createElement('div');
+          item.className = 'assistant-handoff';
+          const description = document.createElement('p');
+          description.textContent = `${request.senior_name} · ${request.aidant_name} — ${
+            window.generationLiaisonTranslate(request.requested_by === 'senior'
+              ? 'Demandé par le senior : accès suspendu.'
+              : 'Demandé par l’aidant.')
+          }`;
+          const button = document.createElement('button');
+          button.className = 'button secondary';
+          button.type = 'button';
+          button.textContent = window.generationLiaisonTranslate(request.requested_by === 'senior'
+            ? 'Envoyer le code par e-mail' : 'Retirer l’association');
+          button.addEventListener('click', async () => {
+            if (!window.confirm(window.generationLiaisonTranslate(request.requested_by === 'senior'
+              ? 'Envoyer un code au senior ?' : 'Retirer cette association ?'))) return;
+            button.disabled = true;
+            try {
+              if (request.requested_by === 'senior') {
+                await adminRequest(`/api/admin/senior-link-removals/${encodeURIComponent(request.id)}/send-code`, {
+                  method: 'POST'
+                });
+                setStatus('Code envoyé au senior.');
+                await loadSeniorLinkRemovals();
+              } else {
+                await adminRequest(`/api/admin/accounts/${encodeURIComponent(request.aidant_id)}/senior-links/${encodeURIComponent(request.senior_id)}`, {
+                  method: 'DELETE'
+                });
+                await loadOverview();
+                setStatus('Association retirée.');
+              }
+            } catch (error) {
+              setStatus(error.message || 'Impossible de traiter la demande.', true);
+              button.disabled = false;
+            }
+          });
+          item.append(description, button);
+          container.append(item);
+        }
+      } catch (error) {
+        container.textContent = error.message || 'Impossible de charger les demandes de retrait.';
+      }
+    }
+
     async function loadOverview() {
       setStatus('Chargement du tableau de bord…');
       try {
@@ -1146,6 +1211,7 @@
         renderVisits(result.careVisits);
         renderRedEvaluations(result.redEvaluations || []);
         renderAccounts(result.accounts, result.limits);
+        await loadSeniorLinkRemovals();
         await loadAccountClosureRequests();
         await loadAssistantHandoffs();
         setStatus(`${window.generationLiaisonTranslate('Données actualisées à')} ${new Date().toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' })}.`);

@@ -150,8 +150,37 @@ function createAuthService(pool) {
           linked_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           PRIMARY KEY (aidant_user_id, senior_profile_id)
         );
+        ALTER TABLE app_aidant_senior_links
+          ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
         CREATE INDEX IF NOT EXISTS app_aidant_senior_links_profile_idx
           ON app_aidant_senior_links (senior_profile_id, aidant_user_id);
+        CREATE TABLE IF NOT EXISTS app_aidant_link_requests (
+          id UUID PRIMARY KEY,
+          aidant_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          senior_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          status VARCHAR(16) NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'accepted', 'declined')),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          resolved_at TIMESTAMPTZ
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS app_aidant_link_requests_pending_idx
+          ON app_aidant_link_requests (aidant_user_id, senior_user_id)
+          WHERE status = 'pending';
+        CREATE TABLE IF NOT EXISTS app_aidant_unlink_requests (
+          id UUID PRIMARY KEY,
+          aidant_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          senior_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          requested_by VARCHAR(16) NOT NULL CHECK (requested_by IN ('aidant', 'senior')),
+          status VARCHAR(16) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
+          code_hash CHAR(64),
+          code_expires_at TIMESTAMPTZ,
+          code_sent_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          resolved_at TIMESTAMPTZ
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS app_aidant_unlink_requests_pending_idx
+          ON app_aidant_unlink_requests (aidant_user_id, senior_user_id)
+          WHERE status = 'pending';
         CREATE TABLE IF NOT EXISTS app_notifications (
           id UUID PRIMARY KEY,
           user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,

@@ -53,6 +53,16 @@ async function sendPasswordResetEmail(email, url) {
   if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
 }
 
+async function sendSeniorUnlinkCode(email, code) {
+  const result = await getResendClient().emails.send({
+    from: process.env.NOTIFICATIONS_FROM_EMAIL,
+    to: email,
+    subject: 'Confirmation du retrait d’un accès Génération Liaison',
+    text: `Vous avez demandé le retrait de l’accès d’un aidant. Son accès est déjà suspendu.\n\nSaisissez ce code dans votre espace senior dans les 30 minutes :\n\n${code}\n\nSi vous n’avez pas demandé ce retrait, contactez l’administration.`
+  });
+  if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
+}
+
 function configureWebPush() {
   const { WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY, WEB_PUSH_SUBJECT } = process.env;
   if (!WEB_PUSH_PUBLIC_KEY && !WEB_PUSH_PRIVATE_KEY && !WEB_PUSH_SUBJECT) return;
@@ -297,5 +307,6 @@ module.exports = {
   isConfigured,
   publicConfiguration,
   sendPasswordResetEmail,
+  sendSeniorUnlinkCode,
   startDeliveryWorker
 };

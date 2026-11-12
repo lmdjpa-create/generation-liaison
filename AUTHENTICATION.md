@@ -54,6 +54,10 @@ Search and availability checks use the professional's declared hours, Google Cal
 
 Set `ADMIN_EMAILS` on the server to a comma-separated list of existing account e-mail addresses allowed to open `/admin.html`. Also set `ADMIN_ACCESS_CODE` to a separate, randomly generated secret of at least 32 characters. Register the account first, then add its e-mail address and the access code to the server configuration and restart the service. The administrator signs in with that account's existing password and the separate code; the public registration form cannot grant administrator access.
 
+Aidants without a linked senior can use their account and request access using the senior's email; the senior must accept the request. Administrators link verified legal guardians instead. Aidants can ask administrators to remove a link. Seniors can suspend access immediately and ask for removal; an administrator sends a 30-minute, one-use email code for the senior to confirm it. Email delivery requires the Resend configuration described above. Requests and decisions remain stored pending a defined retention policy.
+
+Suspending or removing profile access does not remove independently registered contacts or stop emergency alerts sent to them. Data already displayed on a device may remain visible until the screen is refreshed.
+
 The desktop console can view accounts and operational appointment schedules, create or reschedule care appointments, suspend/reactivate non-administrator accounts, manage daily-service partners and booking statuses, and choose a partner's billing model. Suspending an account revokes its active sessions. It does not expose care notes, medical transmissions, emergency contacts, or client addresses and phone numbers. Access to administrator API routes is checked on the server for every request; the public link alone grants no permissions.
 
 The live visit follow-up records arrival, start, completion, and an optional practical note. It is not a medical record and must not contain clinical observations, health measurements, or emergency details. The person can authorize or revoke sharing in their account. Status access is limited to the account/profile used when the coordinator created the sharing request.
@@ -62,7 +66,7 @@ Each assigned visit has a button to view recommendations and team transmissions 
 
 Every transmission has an author-selected importance: blue for information, orange for follow-up, and red for priority. Priority is only an organizational signal and must not be interpreted as a medical emergency or replace emergency procedures.
 
-At present, each registration creates a separate senior profile, including family caregiver accounts. Linking multiple family accounts to one person's profile is not implemented, so this version does not yet provide shared family-account access. Do not enter real personal or health information until identity verification, account association, hosting, security, and legal requirements have been reviewed.
+Do not enter real personal or health information until identity verification, account association, hosting, security, and legal requirements have been reviewed.
 
 ## Configure the mobile API URL
 
