@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://generation-liaison.fr/sitemap.xml

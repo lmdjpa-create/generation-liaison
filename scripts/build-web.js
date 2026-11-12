@@ -41,6 +41,9 @@ if (buildAndroid) {
 fs.mkdirSync(output, { recursive: true });
 
 fs.copyFileSync(path.join(root, 'language.js'), path.join(output, 'language.js'));
+for (const file of ['robots.txt', 'sitemap.xml']) {
+  fs.copyFileSync(path.join(root, file), path.join(output, file));
+}
 
 for (const page of pages) {
   const sourcePath = path.join(root, page);
