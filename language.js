@@ -52,6 +52,18 @@
     'La recherche a changé. Relancez-la.': 'The search changed. Please run it again.',
     'Choisissez un rayon entier compris entre 1 et 500 km.': 'Choose a whole-number radius between 1 and 500 km.',
     'Centre approximatif sélectionné': 'Approximate centre selected',
+    'Autorisez la localisation dans les paramètres de l’application, puis réessayez.':
+      'Allow location access in the app settings, then try again.',
+    'Activez les services de localisation sur votre téléphone, puis réessayez.':
+      'Turn on location services on your phone, then try again.',
+    'Position indisponible. Activez les services de localisation et réessayez.':
+      'Position unavailable. Turn on location services and try again.',
+    'La recherche de position a expiré. Réessayez à l’extérieur ou utilisez une commune.':
+      'The location request timed out. Try again outdoors or use a municipality.',
+    'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.':
+      'Unable to get your location. Check app permissions and location services.',
+    'Le module GPS de l’application est indisponible. Réinstallez sa dernière version.':
+      'The app GPS module is unavailable. Reinstall the latest version.',
     'Mon point de départ et mon rayon d’intervention': 'My starting point and service radius',
     'Choisissez votre position GPS ou le centre approximatif d’une commune française comme point de départ. Pour rechercher une commune, sa ville ou son code postal est transmis au service public geo.api.gouv.fr. Les distances sont calculées à vol d’oiseau.':
       'Choose your GPS location or the approximate centre of a French municipality as your starting point. The city or postal code is sent to the public service geo.api.gouv.fr to find the municipality. Distances are straight-line estimates.',

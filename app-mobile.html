@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Génération Liaison - Mobile</title>
     <script src="/language.js"></script>
+    <script src="/geolocation-client.js"></script>
 
     <!-- 📲 CONFIGURATION DU RACCOURCI MOBILE -->
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -86,6 +87,28 @@
         .form-card input, .form-card select, .form-card textarea { margin-bottom: 10px; }
         .form-card textarea { height: 76px; }
         .form-grid { display: grid; gap: 8px; }
+        #reg-service-radius, #reg-home-city, #reg-home-postcode,
+        #pro-service-radius, #directory-search-city, #directory-search-postcode, #directory-search-radius {
+            display: block;
+            width: min(100%, 360px);
+            min-height: 46px;
+            padding: 10px 16px;
+            border-radius: 999px;
+        }
+        #professional-registration-fields > label[for="reg-service-radius"],
+        #professional-registration-fields > label[for="reg-home-city"],
+        #professional-registration-fields > label[for="reg-home-postcode"] {
+            display: block;
+            margin-top: 8px;
+        }
+        #reg-home-location-button, #reg-city-search, #pro-home-location-button,
+        #directory-location-button, #contact-home-location-button {
+            display: block;
+            width: fit-content;
+            max-width: 100%;
+            min-height: 44px;
+            border-radius: 999px;
+        }
         .helper-text { color: #62736d; font-size: 0.82rem; line-height: 1.45; }
         .consent-item, .progress-item { padding: 12px 0; border-bottom: 1px solid #e8ecef; text-align: left; }
         .visit-evaluation { margin-top: 12px; padding: 12px; border-radius: 10px; background: #f7f9fa; }
@@ -1208,11 +1231,53 @@
             isGuardian ? 'block' : 'none';
     }
 
-    function obtenirPositionActuelle() {
-        if (!navigator.geolocation) {
-            return Promise.reject(new Error('La localisation GPS n’est pas disponible sur cet appareil.'));
+    function messageErreurPosition(error) {
+        const message = String(error?.message || '');
+        if (error?.code === 1 || /permission|denied/i.test(message)) {
+            return 'Autorisez la localisation dans les paramètres de l’application, puis réessayez.';
+        }
+        if (/location services.*(?:disabled|not enabled)/i.test(message)) {
+            return 'Activez les services de localisation sur votre téléphone, puis réessayez.';
+        }
+        if (error?.code === 2) {
+            return 'Position indisponible. Activez les services de localisation et réessayez.';
+        }
+        if (error?.code === 3) {
+            return 'La recherche de position a expiré. Réessayez à l’extérieur ou utilisez une commune.';
+        }
+        if (message) return message;
+        return 'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.';
+    }
+
+    async function obtenirPositionActuelle() {
+        const options = { enableHighAccuracy: true, timeout: 30000, maximumAge: 60000 };
+        if (window.Capacitor?.isNativePlatform?.()) {
+            const geolocation = window.GenerationLiaisonGeolocation;
+            if (!geolocation) {
+                throw new Error('Le module GPS de l’application est indisponible. Réinstallez sa dernière version.');
+            }
+            try {
+                const permissions = await geolocation.checkPermissions();
+                if (permissions.location !== 'granted' && permissions.coarseLocation !== 'granted') {
+                    const requested = await geolocation.requestPermissions();
+                    if (requested.location !== 'granted' && requested.coarseLocation !== 'granted') {
+                        throw new Error('Autorisez la localisation dans les paramètres de l’application, puis réessayez.');
+                    }
+                }
+                const position = await geolocation.getCurrentPosition(options);
+                return {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy
+                };
+            } catch (error) {
+                throw new Error(messageErreurPosition(error));
+            }
         }
 
+        if (!navigator.geolocation) {
+            throw new Error('La localisation GPS n’est pas disponible sur cet appareil.');
+        }
         return new Promise((resolve, reject) => {
             navigator.geolocation.getCurrentPosition(
                 position => resolve({
@@ -1220,8 +1285,8 @@
                     longitude: position.coords.longitude,
                     accuracy: position.coords.accuracy
                 }),
-                () => reject(new Error('Position inaccessible. Autorisez la localisation et vérifiez que la page utilise HTTPS.')),
-                { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+                error => reject(new Error(messageErreurPosition(error))),
+                options
             );
         });
     }

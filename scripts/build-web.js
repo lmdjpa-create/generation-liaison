@@ -73,6 +73,14 @@ esbuild.buildSync({
   platform: 'browser',
   target: ['es2020']
 });
+esbuild.buildSync({
+  entryPoints: [path.join(root, 'scripts', 'geolocation-client.js')],
+  outfile: path.join(output, 'geolocation-client.js'),
+  bundle: true,
+  format: 'iife',
+  platform: 'browser',
+  target: ['es2020']
+});
 fs.copyFileSync(
   path.join(root, 'push-service-worker.js'),
   path.join(output, 'push-service-worker.js')
