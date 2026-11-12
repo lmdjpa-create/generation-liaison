@@ -2800,23 +2800,28 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
   const longitude = req.body?.longitude === undefined || req.body.longitude === null
     ? null
     : Number(req.body.longitude);
+  const radiusKm = req.body?.radiusKm === undefined || req.body.radiusKm === null
+    ? null
+    : req.body.radiusKm;
   const limit = Math.min(30, Math.max(1, Number.parseInt(req.body?.limit, 10) || 20));
   const offset = Math.max(0, Number.parseInt(req.body?.offset, 10) || 0);
   if (query.length > 120 || offset > 10000 ||
       ((latitude === null) !== (longitude === null)) ||
-      (latitude !== null && !hasValidCoordinates(latitude, longitude))) {
+      (latitude !== null && !hasValidCoordinates(latitude, longitude)) ||
+      (radiusKm !== null && (!Number.isInteger(radiusKm) || radiusKm < 1 || radiusKm > 500 || latitude === null))) {
     return res.status(400).json({ error: 'Vérifiez le filtre ou la position de recherche.' });
   }
   try {
     const { rows } = await pool.query(
-      `SELECT id, name, directory_activity, directory_description, profile_photo_url, service_radius_km,
+      `WITH matches AS (
+       SELECT id, name, directory_activity, directory_description, profile_photo_url, service_radius_km, created_at,
               CASE WHEN $2::double precision IS NULL THEN NULL ELSE
-                round((6371 * 2 * asin(sqrt(LEAST(1,
+                6371 * 2 * asin(sqrt(LEAST(1,
                   power(sin(radians(home_latitude - $2) / 2), 2) +
                   cos(radians($2)) * cos(radians(home_latitude)) *
                   power(sin(radians(home_longitude - $3) / 2), 2)
-                ))))::numeric)::integer
-              END AS distance_km
+                )))
+              END AS exact_distance_km
        FROM app_users
        WHERE role = 'pro'
          AND is_active = TRUE
@@ -2827,10 +2832,13 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
          AND ($1 = '' OR name ILIKE '%' || $1 || '%'
               OR directory_activity ILIKE '%' || $1 || '%'
               OR directory_description ILIKE '%' || $1 || '%')
-       ORDER BY CASE WHEN verification_status = 'approved' THEN 0 ELSE 1 END,
-                distance_km ASC NULLS LAST, created_at DESC
+       )
+       SELECT *, round(exact_distance_km::numeric)::integer AS distance_km
+       FROM matches
+       WHERE $6::double precision IS NULL OR exact_distance_km <= $6
+       ORDER BY exact_distance_km ASC NULLS LAST, created_at DESC, id ASC
        LIMIT $4 OFFSET $5`,
-      [query, latitude, longitude, limit + 1, offset]
+      [query, latitude, longitude, limit + 1, offset, radiusKm]
     );
     const hasMore = rows.length > limit;
     res.set('Cache-Control', 'private, no-store');

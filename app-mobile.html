@@ -246,10 +246,17 @@
                 <input id="reg-notification-phone" type="tel" autocomplete="tel" placeholder="Téléphone au format +33612345678" aria-label="Téléphone pour les SMS">
                 <p class="helper-text">Ces choix couvrent la décision sur votre dossier et, après validation, les notifications liées aux rendez-vous. Les SMS nécessitent un numéro au format international et le consentement ci-dessus. Les fournisseurs d’envoi doivent être configurés par l’administrateur.</p>
                 <h3>Zone d’intervention</h3>
-                <p class="helper-text">Inscrivez-vous depuis votre domicile et autorisez la localisation pour enregistrer votre point de départ. La position GPS reste dans l’application ; une distance approximative à vol d’oiseau sera calculée, sans service cartographique externe.</p>
+                <p class="helper-text">Choisissez votre position GPS ou le centre approximatif d’une commune française comme point de départ. Pour rechercher une commune, sa ville ou son code postal est transmis au service public geo.api.gouv.fr. Les distances sont calculées à vol d’oiseau.</p>
                 <label for="reg-service-radius">Rayon d’intervention (km)</label>
                 <input id="reg-service-radius" type="number" min="1" max="500" step="1" value="30">
                 <button id="reg-home-location-button" type="button">Utiliser ma position actuelle comme domicile</button>
+                <label for="reg-home-city">Ville</label>
+                <input id="reg-home-city" type="text" maxlength="120" autocomplete="address-level2">
+                <label for="reg-home-postcode">Code postal</label>
+                <input id="reg-home-postcode" type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code">
+                <button id="reg-city-search" type="button">Rechercher la commune</button>
+                <label for="reg-city-select" id="reg-city-label" hidden>Choisissez une commune</label>
+                <select id="reg-city-select" hidden></select>
                 <p id="reg-home-location-status" class="helper-text" aria-live="polite">Position du domicile non enregistrée.</p>
             </section>
             <label class="terms-consent" for="reg-terms-accepted">
@@ -667,7 +674,7 @@
         </form>
     </section>
 <section class="form-card" id="professional-location-card">
-            <h3>Mon domicile et mon rayon d’intervention</h3>
+            <h3>Mon point de départ et mon rayon d’intervention</h3>
             <p class="helper-text">La position sert uniquement à calculer la distance approximative jusqu’aux rendez-vous qui vous sont affectés. Elle n’est pas communiquée aux seniors ni envoyée à un service cartographique.</p>
             <form id="professional-location-form" class="form-grid">
                 <label for="pro-service-radius">Rayon d’intervention (1 à 500 km)</label>
@@ -694,10 +701,16 @@
     <form id="directory-search-form" class="form-card form-grid">
         <label for="directory-search-query">Nom, activité ou service</label>
         <input id="directory-search-query" type="search" maxlength="120" placeholder="Ex. aide à domicile">
-        <label for="directory-search-date">Date souhaitée</label>
-        <input id="directory-search-date" type="date" required>
-        <button id="directory-location-button" type="button">Trier par proximité (position utilisée uniquement pour ce tri)</button>
-        <p id="directory-location-status" class="helper-text" aria-live="polite">La recherche nationale fonctionne sans position.</p>
+        <label for="directory-search-city">Ville</label>
+        <input id="directory-search-city" type="text" maxlength="120" autocomplete="address-level2">
+        <label for="directory-search-postcode">Code postal</label>
+        <input id="directory-search-postcode" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code">
+        <label for="directory-search-radius">Rayon de recherche (km)</label>
+        <input id="directory-search-radius" type="number" min="1" max="500" step="1" value="30" required>
+        <label for="directory-city-select" id="directory-city-label" hidden>Choisissez une commune</label>
+        <select id="directory-city-select" hidden></select>
+        <button id="directory-location-button" type="button">Utiliser ma position GPS pour la recherche</button>
+        <p id="directory-location-status" class="helper-text" aria-live="polite">La ville ou le code postal est transmis au service public geo.api.gouv.fr pour trouver le centre de la commune. Le rayon est calculé à vol d’oiseau. Sans lieu, la recherche est nationale.</p>
         <button type="submit">Rechercher des professionnels</button>
     </form>
     <div id="directory-results" aria-live="polite">Recherchez un professionnel pour voir les profils disponibles.</div>
@@ -778,6 +791,10 @@
     let planningLoadId = 0;
     let servicePlanningLoadId = 0;
     let directoryLocation = null;
+    const communeSearches = {
+        directory: { key: '', communes: [] },
+        registration: { key: '', communes: [] }
+    };
     let directoryOffset = 0;
     const serviceFamilyLoadIds = { senior: 0, aidant: 0 };
     const serviceLabels = {
@@ -1213,11 +1230,57 @@
         return `Position relevée sur cet appareil (précision indicative : ${Math.round(position.accuracy)} m).`;
     }
 
+    async function rechercherCommunes(city, postalCode) {
+        if (!city && !postalCode) throw new Error('Saisissez une ville ou un code postal.');
+        if (postalCode && !/^\d{5}$/.test(postalCode)) throw new Error('Saisissez un code postal français à cinq chiffres.');
+        const params = new URLSearchParams({ fields: 'nom,code,codesPostaux,centre', geometry: 'centre', format: 'json' });
+        if (city) params.set('nom', city);
+        if (postalCode) params.set('codePostal', postalCode);
+        const response = await fetch(`https://geo.api.gouv.fr/communes?${params}`);
+        if (!response.ok) throw new Error('Le service de recherche des communes est indisponible.');
+        const communes = await response.json();
+        if (!Array.isArray(communes)) throw new Error('Réponse invalide du service de recherche des communes.');
+        const valid = communes.filter(commune => typeof commune.code === 'string' &&
+            typeof commune.nom === 'string' && Array.isArray(commune.codesPostaux) &&
+            Array.isArray(commune.centre?.coordinates) && commune.centre.coordinates.length === 2 &&
+            commune.centre.coordinates.every(Number.isFinite));
+        if (!valid.length) throw new Error('Aucune commune trouvée avec cette ville et ce code postal.');
+        return valid;
+    }
+
+    async function choisirCommune(kind, cityId, postcodeId, selectId, labelId) {
+        const city = document.getElementById(cityId).value.trim();
+        const postcode = document.getElementById(postcodeId).value.trim();
+        const key = JSON.stringify([city, postcode]);
+        const state = communeSearches[kind];
+        const select = document.getElementById(selectId);
+        if (state.key !== key) {
+            state.key = '';
+            const communes = await rechercherCommunes(city, postcode);
+            if (document.getElementById(cityId).value.trim() !== city ||
+                document.getElementById(postcodeId).value.trim() !== postcode) {
+                throw new Error('La recherche a changé. Relancez-la.');
+            }
+            state.communes = communes;
+            select.replaceChildren(new Option(window.generationLiaisonTranslate('Choisir une commune'), ''),
+                ...state.communes.map(commune => new Option(
+                    `${commune.nom} (${commune.codesPostaux.join(', ')})`, commune.code
+                )));
+            state.key = key;
+            if (state.communes.length === 1) select.value = state.communes[0].code;
+        }
+        select.hidden = state.communes.length === 1;
+        document.getElementById(labelId).hidden = select.hidden;
+        const selected = state.communes.find(commune => commune.code === select.value);
+        if (!selected) throw new Error('Choisissez une commune dans la liste, puis relancez la recherche.');
+        return { latitude: selected.centre.coordinates[1], longitude: selected.centre.coordinates[0], name: selected.nom };
+    }
+
     function ajouterDistanceAuRendezVous(card, distanceKm, outsideServiceRadius) {
         if (!Number.isInteger(distanceKm)) return;
         card.append(makeTextElement(
             'p',
-            `À environ ${distanceKm} km de votre domicile (distance à vol d’oiseau).`,
+            `À environ ${distanceKm} km de votre point de départ enregistré (distance à vol d’oiseau).`,
             'visit-kind'
         ));
         if (outsideServiceRadius) {
@@ -2122,24 +2185,35 @@
             const button = document.getElementById('directory-location-button');
             if (directoryLocation) {
                 directoryLocation = null;
-                button.textContent = 'Trier par proximité (position utilisée uniquement pour ce tri)';
+                button.textContent = 'Utiliser ma position GPS pour la recherche';
                 status.textContent = 'Position effacée. La recherche nationale fonctionne sans position.';
                 chargerAnnuaire();
                 return;
             }
             try {
                 directoryLocation = await obtenirPositionActuelle();
+                document.getElementById('directory-search-city').value = '';
+                document.getElementById('directory-search-postcode').value = '';
+                document.getElementById('directory-city-select').hidden = true;
+                document.getElementById('directory-city-label').hidden = true;
                 button.textContent = 'Effacer ma position de recherche';
                 status.textContent = `Position relevée pour cette recherche uniquement (précision indicative : ${Math.round(directoryLocation.accuracy)} m). Elle ne sera pas enregistrée.`;
                 chargerAnnuaire();
             } catch (error) {
                 directoryLocation = null;
-                button.textContent = 'Trier par proximité (position utilisée uniquement pour ce tri)';
+                button.textContent = 'Utiliser ma position GPS pour la recherche';
                 status.textContent = error.message || 'Impossible de relever la position.';
                 showToast(status.textContent, false);
             }
         });
-        document.getElementById('directory-search-date').value = dateInputValue(new Date());
+        ['directory-search-city', 'directory-search-postcode'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                directoryLocation = null;
+                document.getElementById('directory-location-button').textContent = 'Utiliser ma position GPS pour la recherche';
+                document.getElementById('directory-city-select').hidden = true;
+                document.getElementById('directory-city-label').hidden = true;
+            });
+        });
         document.getElementById('directory-photo-url').addEventListener('input', mettreAJourApercuPhotoAnnuaire);
     }
 
@@ -2184,7 +2258,7 @@
                 }
             });
             status.textContent = calendar.connected
-                ? `Agenda Google connecté${profile.hasHomeLocation ? '' : ' · position de votre domicile à renseigner avant publication'}.`
+                ? `Agenda Google connecté${profile.hasHomeLocation ? '' : ' · point de départ à renseigner avant publication'}.`
                 : calendar.configured
                     ? 'Agenda Google non connecté. Connectez-le pour afficher et réserver vos disponibilités.'
                     : 'Google Calendar doit être configuré par l’administrateur avant la publication.';
@@ -2247,15 +2321,25 @@
             directoryOffset = 0;
         }
         try {
+            const city = document.getElementById('directory-search-city').value.trim();
+            const postcode = document.getElementById('directory-search-postcode').value.trim();
+            const location = city || postcode
+                ? await choisirCommune('directory', 'directory-search-city', 'directory-search-postcode', 'directory-city-select', 'directory-city-label')
+                : directoryLocation;
+            const radiusKm = Number(document.getElementById('directory-search-radius').value);
+            if (!Number.isInteger(radiusKm) || radiusKm < 1 || radiusKm > 500) {
+                throw new Error('Choisissez un rayon entier compris entre 1 et 500 km.');
+            }
             const result = await planningRequest('/api/directory/search', {
                 method: 'POST',
                 body: {
                     q: document.getElementById('directory-search-query').value.trim(),
                     offset,
                     limit: 20,
-                    ...(directoryLocation ? {
-                        latitude: directoryLocation.latitude,
-                        longitude: directoryLocation.longitude
+                    ...(location ? {
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        radiusKm
                     } : {})
                 }
             });
@@ -2311,16 +2395,21 @@
         }
 
         const slots = document.createElement('div');
+        const dateLabel = makeTextElement('label', window.generationLiaisonTranslate('Date du rendez-vous'));
+        const date = document.createElement('input');
+        date.type = 'date';
+        date.value = dateInputValue(new Date());
+        dateLabel.append(date);
         const availability = makeTextElement('button', 'Voir les créneaux disponibles');
         availability.type = 'button';
         availability.className = 'btn-submit';
         availability.addEventListener('click', () => chargerCreneauxAnnuaire(
             professional,
-            document.getElementById('directory-search-date').value,
+            date.value,
             slots,
             availability
         ));
-        card.append(availability, slots);
+        card.append(dateLabel, availability, slots);
         return card;
     }
 
@@ -3754,12 +3843,46 @@
             status.textContent = 'Localisation en cours…';
             try {
                 registrationHomeCoordinates = await obtenirPositionActuelle();
+                document.getElementById('reg-home-city').value = '';
+                document.getElementById('reg-home-postcode').value = '';
+                document.getElementById('reg-city-select').hidden = true;
+                document.getElementById('reg-city-label').hidden = true;
                 status.textContent = messagePositionEnregistree(registrationHomeCoordinates);
             } catch (error) {
                 status.textContent = 'Position du domicile non enregistrée.';
                 showToast(error.message, false);
             }
         });
+        const afficherStatutCentreInscription = () => {
+            const select = document.getElementById('reg-city-select');
+            if (!registrationHomeCoordinates || select.hidden) return;
+            document.getElementById('reg-home-location-status').textContent =
+                `${window.generationLiaisonTranslate('Centre approximatif sélectionné')} : ${registrationHomeCoordinates.name}`;
+        };
+        window.addEventListener('generationliaisonlanguagechange', afficherStatutCentreInscription);
+        ['reg-home-city', 'reg-home-postcode'].forEach(id => {
+            document.getElementById(id).addEventListener('input', () => {
+                registrationHomeCoordinates = null;
+                document.getElementById('reg-city-select').hidden = true;
+                document.getElementById('reg-city-label').hidden = true;
+                document.getElementById('reg-home-location-status').textContent =
+                    'Recherchez et choisissez une commune, ou utilisez votre position GPS.';
+            });
+        });
+        const choisirCommuneInscription = async () => {
+            const status = document.getElementById('reg-home-location-status');
+            registrationHomeCoordinates = null;
+            try {
+                registrationHomeCoordinates = await choisirCommune(
+                    'registration', 'reg-home-city', 'reg-home-postcode', 'reg-city-select', 'reg-city-label'
+                );
+                afficherStatutCentreInscription();
+            } catch (error) {
+                status.textContent = error.message || 'Impossible de rechercher la commune.';
+            }
+        };
+        document.getElementById('reg-city-search').addEventListener('click', choisirCommuneInscription);
+        document.getElementById('reg-city-select').addEventListener('change', choisirCommuneInscription);
         document.getElementById('pro-home-location-button').addEventListener('click', async () => {
             const status = document.getElementById('pro-home-location-status');
             professionalHomeCoordinates = null;
@@ -4037,6 +4160,20 @@
             .forEach(input => { input.value = ''; });
         document.getElementById('reg-role').value = 'aidant';
         registrationHomeCoordinates = null;
+        document.getElementById('reg-home-city').value = '';
+        document.getElementById('reg-home-postcode').value = '';
+        document.getElementById('reg-city-select').replaceChildren();
+        document.getElementById('reg-city-select').hidden = true;
+        document.getElementById('reg-city-label').hidden = true;
+        document.getElementById('directory-search-city').value = '';
+        document.getElementById('directory-search-postcode').value = '';
+        document.getElementById('directory-city-select').replaceChildren();
+        document.getElementById('directory-city-select').hidden = true;
+        document.getElementById('directory-city-label').hidden = true;
+        for (const search of Object.values(communeSearches)) {
+            search.key = '';
+            search.communes = [];
+        }
         professionalHomeCoordinates = null;
         recipientHomeCoordinates = null;
         document.getElementById('contact-location-consent').checked = false;
@@ -4134,7 +4271,7 @@
             if (role === 'pro') {
                 const serviceRadiusKm = Number(document.getElementById('reg-service-radius').value);
                 if (!registrationHomeCoordinates) {
-                    showToast('Relevez votre position GPS depuis votre domicile avant de créer le compte intervenant.', false);
+                    showToast('Choisissez une commune ou relevez votre position GPS avant de créer le compte intervenant.', false);
                     return;
                 }
                 if (!Number.isInteger(serviceRadiusKm) || serviceRadiusKm < 1 || serviceRadiusKm > 500) {

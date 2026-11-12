@@ -658,7 +658,7 @@ test('captures home positions with consent and shows approximate intervention di
   assert.match(source, /navigator\.geolocation\.getCurrentPosition/);
   assert.match(source, /La personne \(ou son aidant autorisé\) a donné son accord/);
   assert.match(source, /locationConsent: document\.getElementById\('contact-location-consent'\)\.checked/);
-  assert.match(source, /À environ \$\{distanceKm\} km de votre domicile/);
+  assert.match(source, /À environ \$\{distanceKm\} km de votre point de départ enregistré/);
   assert.match(source, /hors de votre rayon déclaré/);
   assert.match(serverSource, /app\.put\('\/api\/planning\/professional-location'/);
   assert.match(distanceSource, /6371 \* 2 \* Math\.atan2/);

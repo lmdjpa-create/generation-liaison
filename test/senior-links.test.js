@@ -101,6 +101,7 @@ test('consent, suspension, administrator email and confirmation protect senior d
   const missing = await request('/api/senior-links/requests', {
     user: aidant, body: { email: 'unknown@example.test' }
   });
+
   const submitted = await request('/api/senior-links/requests', {
     user: aidant, body: { email: 'senior@example.test' }
   });
@@ -166,4 +167,37 @@ test('consent, suspension, administrator email and confirmation protect senior d
   assert.equal((await request(confirm, { user: senior, body: { code: sentCode.code } })).status, 200);
   assert.equal((await request(confirm, { user: senior, body: { code: sentCode.code } })).status, 400);
   assert.equal((await request('/api/logs/all', { user: aidant, seniorId })).status, 403);
+});
+
+test('directory radius filters exact distances before pagination', async () => {
+  const searcher = await register('directory-searcher@example.test', 'senior');
+  for (const [email, longitude] of [
+    ['near@example.test', 0.04],
+    ['inside@example.test', 0.089],
+    ['outside@example.test', 0.092]
+  ]) {
+    const account = await register(email, 'aidant');
+    await db.query(
+      `UPDATE app_users SET role = 'pro', verification_status = 'approved',
+         directory_listed = TRUE, directory_activity = 'Service test',
+         google_calendar_refresh_token = 'test', home_latitude = 0, home_longitude = $2
+       WHERE id = $1`,
+      [account.user.id, longitude]
+    );
+  }
+  const body = { q: 'Service test', latitude: 0, longitude: 0, radiusKm: 10, limit: 1 };
+  const first = await request('/api/directory/search', { user: searcher, body });
+  assert.equal(first.status, 200);
+  assert.equal(first.data.professionals[0].name, 'near@example.test');
+  assert.equal(first.data.hasMore, true);
+  const second = await request('/api/directory/search', {
+    user: searcher, body: { ...body, offset: first.data.nextOffset }
+  });
+  assert.equal(second.data.professionals[0].name, 'inside@example.test');
+  assert.equal(second.data.hasMore, false);
+  const all = await request('/api/directory/search', { user: searcher, body: { q: 'Service test' } });
+  assert.equal(all.data.professionals.length, 3);
+  for (const invalid of [{ radiusKm: 10 }, { ...body, radiusKm: 0 }, { ...body, radiusKm: 501 }]) {
+    assert.equal((await request('/api/directory/search', { user: searcher, body: invalid })).status, 400);
+  }
 });
