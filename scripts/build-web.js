@@ -45,6 +45,12 @@ for (const file of ['robots.txt', 'sitemap.xml']) {
   fs.copyFileSync(path.join(root, file), path.join(output, file));
 }
 
+const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg'];
+fs.mkdirSync(path.join(output, 'homepage-images'), { recursive: true });
+for (const image of homepageImages) {
+  fs.copyFileSync(path.join(root, 'homepage-images', image), path.join(output, 'homepage-images', image));
+}
+
 for (const page of pages) {
   const sourcePath = path.join(root, page);
   let content = fs.readFileSync(sourcePath, 'utf8');

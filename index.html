@@ -744,6 +744,15 @@
       font-weight: 600;
     }
 
+    .landing-photo {
+      display: block;
+      width: 100%;
+      max-height: 380px;
+      margin: 0 0 22px;
+      border-radius: 18px;
+      object-fit: cover;
+    }
+
     .landing-login {
       display: inline-flex;
       min-height: 48px;
@@ -837,6 +846,15 @@
       line-height: 1.6;
     }
 
+    .info-card img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      margin-bottom: 16px;
+      border-radius: 12px;
+      object-fit: cover;
+    }
+
     .landing-info a {
       color: var(--primary-dark);
     }
@@ -904,31 +922,15 @@
       <p class="landing-description">
         Un espace simple pour faciliter les échanges entre les seniors, leurs proches et les professionnels, avec un accès séparé aux services du quotidien.
       </p>
+      <img class="landing-photo" src="/homepage-images/famille.jpg" width="1200" height="800" alt="Un couple de seniors partage un moment avec une proche." />
       <ul class="landing-features" aria-label="Fonctionnalités">
         <li>Suivi partagé</li>
         <li>Carnet de liaison</li>
         <li>Alertes et assistance</li>
         <li>Services du quotidien</li>
       </ul>
-      <p class="landing-note" id="connection-status" role="status" aria-live="polite">Vérification de la connexion...</p>
-      <a class="landing-login" id="login-link" href="/app-mobile.html">Se connecter <span aria-hidden="true">→</span></a>
-      <a class="landing-app-link" href="/app-mobile.html">
-        Ouvrir l’application en ligne
-      </a>
       <a class="landing-app-link" href="#presentation">Découvrir Génération Liaison</a>
-      <a class="landing-download-link" href="/app-generation-liaison.apk" download>
-        Télécharger l’application Android
-      </a>
-      <p class="landing-note">Fichier APK Android. L’installation peut demander l’autorisation d’installer des applications provenant de cette source.</p>
-      <a class="landing-download-link" href="/app-generation-liaison.aab" download>
-        Télécharger le bundle AAB pour la Play Console
-      </a>
-      <a class="admin-link" href="/admin.html">Espace administrateur</a>
-      <p class="landing-note">
-        <a href="/cgu.html">Conditions d’utilisation</a> ·
-        <a href="/cgv.html">Projet de tarifs et CGV</a> ·
-        <a href="/privacy-policy.html">Confidentialité</a>
-      </p>
+      <a class="landing-app-link" href="#connexion">Se connecter</a>
     </section>
 
     <section class="landing-info" id="presentation" aria-labelledby="presentation-title">
@@ -969,10 +971,50 @@
       <p class="info-note">Génération Liaison ne remplace ni un professionnel de santé ni un service d’urgence. En cas de danger immédiat en France, appelez le 15 ou le 112.</p>
     </section>
 
+    <section class="landing-info" aria-labelledby="daily-life-title">
+      <h2 id="daily-life-title">Accompagnement et services du quotidien</h2>
+      <p>Les échanges autour du suivi et les services du quotidien disposent d’espaces séparés dans l’application.</p>
+      <div class="info-grid">
+        <article class="info-card">
+          <img src="/homepage-images/soins.jpg" width="900" height="700" loading="lazy" alt="Une professionnelle prend la tension d’un senior." />
+          <h3>Échanges avec les professionnels</h3>
+          <p>Le carnet de liaison facilite le partage d’informations avec les professionnels de santé autorisés, notamment les infirmiers et infirmières.</p>
+        </article>
+        <article class="info-card">
+          <img src="/homepage-images/coiffure.jpg" width="900" height="700" loading="lazy" alt="Une coiffeuse coupe les cheveux d’une personne âgée." />
+          <h3>Services à domicile</h3>
+          <p>Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins. Les demandes restent soumises à l’acceptation du prestataire.</p>
+        </article>
+      </div>
+      <p class="info-note">Photos d’illustration : <a href="https://www.pexels.com/photo/young-woman-and-elderly-couple-talking-and-smiling-6148866/">RDNE Stock project</a>, <a href="https://www.pexels.com/photo/woman-measuring-the-blood-pressure-of-an-elderly-man-with-a-blood-pressure-monitor-7345476/">Antoni Shkraba</a> et <a href="https://www.pexels.com/photo/elderly-woman-getting-a-haircut-8834079/">Kampus Production</a> sur Pexels.</p>
+    </section>
+
     <section class="landing-info" aria-labelledby="contact-title">
       <h2 id="contact-title">Une question ?</h2>
       <p>Contactez l’équipe à <a href="mailto:support@generationliaison.fr">support@generationliaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
-      <a class="landing-login" href="/app-mobile.html">Accéder à l’application <span aria-hidden="true">→</span></a>
+    </section>
+
+    <section class="landing-card" id="connexion" aria-labelledby="connexion-title">
+      <h2 id="connexion-title">Accéder à Génération Liaison</h2>
+      <p class="landing-description">Connectez-vous ou ouvrez l’application directement en ligne.</p>
+      <p class="landing-note" id="connection-status" role="status" aria-live="polite">Vérification de la connexion...</p>
+      <a class="landing-login" id="login-link" href="/app-mobile.html">Se connecter <span aria-hidden="true">→</span></a>
+      <a class="landing-app-link" href="/app-mobile.html">
+        Ouvrir l’application en ligne
+      </a>
+      <a class="landing-download-link" href="/app-generation-liaison.apk" download>
+        Télécharger l’application Android
+      </a>
+      <p class="landing-note">Fichier APK Android. L’installation peut demander l’autorisation d’installer des applications provenant de cette source.</p>
+      <a class="landing-download-link" href="/app-generation-liaison.aab" download>
+        Télécharger le bundle AAB pour la Play Console
+      </a>
+      <a class="admin-link" href="/admin.html">Espace administrateur</a>
+      <p class="landing-note">
+        <a href="/cgu.html">Conditions d’utilisation</a> ·
+        <a href="/cgv.html">Projet de tarifs et CGV</a> ·
+        <a href="/privacy-policy.html">Confidentialité</a>
+      </p>
     </section>
   </main>
 
