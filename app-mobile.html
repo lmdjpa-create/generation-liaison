@@ -218,22 +218,23 @@
     <div id="auth-box" class="card">
         
         <!-- Bloc Connexion -->
-        <div id="login-section">
+        <form id="login-section" autocomplete="on" onsubmit="event.preventDefault(); connecterUtilisateur();">
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Connexion Sécurisée</h2>
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Entrez vos identifiants Génération Liaison</p>
-            <input type="email" id="auth-email" placeholder="Adresse e-mail">
-            <input type="password" id="auth-password" placeholder="Mot de passe">
-            <button class="btn-submit" onclick="connecterUtilisateur()">Se connecter</button>
+            <input type="email" id="auth-email" name="username" autocomplete="username" placeholder="Adresse e-mail" required>
+            <input type="password" id="auth-password" name="password" autocomplete="current-password" placeholder="Mot de passe" required>
+            <button class="btn-submit" type="submit">Se connecter</button>
+            <p class="helper-text">Après connexion, votre navigateur peut proposer d’enregistrer vos identifiants. Le site ne conserve pas votre mot de passe.</p>
             <p><a href="/reset-password.html">Mot de passe oublié ?</a></p>
             <p style="margin-top: 20px; font-size: 0.95rem; color: #7f8c8d;">Pas encore de compte ? <a href="#" onclick="basculerFormulaire(true)" style="color: #3498db; font-weight: bold; text-decoration: none;">S'inscrire</a></p>
-        </div>
+        </form>
 
         <!-- Bloc Inscription -->
         <div id="register-section" style="display: none;">
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Créer un Compte</h2>
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Créez votre accès Génération Liaison</p>
             <input type="text" id="reg-name" placeholder="Prénom et Nom">
-            <input type="email" id="reg-email" placeholder="Adresse e-mail">
+            <input type="email" id="reg-email" name="username" autocomplete="username" placeholder="Adresse e-mail">
             <div id="reg-senior-fields">
                 <input type="text" id="reg-senior-name" placeholder="Nom du senior suivi (facultatif)" aria-label="Nom du senior suivi (facultatif)">
                 <p class="helper-text">Vous pouvez créer votre compte même si aucun senior n’est encore inscrit. Le suivi apparaîtra lorsqu’un senior rejoindra l’application et partagera son profil.</p>
@@ -247,7 +248,7 @@
                     <input id="reg-guardian-proof" type="file" accept="application/pdf,image/jpeg,image/png" data-guardian-document-type="guardianship">
                 </section>
             </div>
-            <input type="password" id="reg-password" placeholder="Mot de passe (12 caractères min)">
+            <input type="password" id="reg-password" name="password" autocomplete="new-password" placeholder="Mot de passe (12 caractères min)">
             <select id="reg-role">
                 <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
                 <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>

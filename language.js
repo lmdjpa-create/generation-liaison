@@ -90,6 +90,12 @@
     'Demander la clôture': 'Request account closure',
     'Connexion Sécurisée': 'Secure sign-in',
     'Entrez vos identifiants Génération Liaison': 'Enter your Generation Liaison credentials',
+    'Après connexion, votre navigateur peut proposer d’enregistrer vos identifiants. Le site ne conserve pas votre mot de passe.':
+      'After sign-in, your browser may offer to save your credentials. The site does not store your password.',
+    'Afficher': 'Show',
+    'Masquer': 'Hide',
+    'Afficher le mot de passe': 'Show password',
+    'Masquer le mot de passe': 'Hide password',
     'Pas encore de compte ?': 'Don’t have an account yet?',
     'Créer un Compte': 'Create an account',
     'Créez votre accès Génération Liaison': 'Create your Generation Liaison account',
@@ -609,8 +615,75 @@
         outline: 2px solid #2563eb;
         outline-offset: 2px;
       }
+      .gl-password-field {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+        width: 100%;
+        margin-bottom: 15px;
+      }
+      .gl-password-field input {
+        flex: 1;
+        min-width: 0;
+        width: 100%;
+        margin-bottom: 0;
+      }
+      .gl-password-toggle {
+        flex: 0 0 auto;
+        min-height: 44px;
+        padding: 8px 10px;
+        border: 1px solid #64748b;
+        border-radius: 8px;
+        background: #fff;
+        color: #1f2937;
+        font: inherit;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+      .gl-password-toggle:focus-visible {
+        outline: 2px solid #2563eb;
+        outline-offset: 2px;
+      }
     `;
     document.head.append(style);
+
+    const passwordToggles = [];
+    for (const input of document.querySelectorAll('input[type="password"]')) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'gl-password-field';
+      input.before(wrapper);
+      wrapper.append(input);
+
+      const toggle = document.createElement('button');
+      toggle.className = 'gl-password-toggle';
+      toggle.type = 'button';
+      toggle.textContent = translated('Afficher');
+      toggle.setAttribute('aria-label', translated('Afficher le mot de passe'));
+      toggle.setAttribute('aria-pressed', 'false');
+      toggle.addEventListener('click', () => {
+        const isVisible = input.type === 'text';
+        input.type = isVisible ? 'password' : 'text';
+        toggle.textContent = translated(isVisible ? 'Afficher' : 'Masquer');
+        toggle.setAttribute(
+          'aria-label',
+          translated(isVisible ? 'Afficher le mot de passe' : 'Masquer le mot de passe')
+        );
+        toggle.setAttribute('aria-pressed', String(!isVisible));
+      });
+      wrapper.append(toggle);
+      passwordToggles.push({ input, toggle });
+    }
+
+    window.addEventListener('generationliaisonlanguagechange', () => {
+      for (const { input, toggle } of passwordToggles) {
+        const isVisible = input.type === 'text';
+        toggle.textContent = translated(isVisible ? 'Masquer' : 'Afficher');
+        toggle.setAttribute(
+          'aria-label',
+          translated(isVisible ? 'Masquer le mot de passe' : 'Afficher le mot de passe')
+        );
+      }
+    });
 
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
     while (walker.nextNode()) {
