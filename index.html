@@ -672,6 +672,21 @@
       padding: 32px 20px;
     }
 
+    @media (prefers-reduced-motion: no-preference) {
+      html {
+        scroll-behavior: smooth;
+      }
+
+      .landing > section {
+        transition: opacity 500ms ease, transform 500ms ease;
+      }
+
+      .landing > section.reveal-pending:not(:focus-within) {
+        opacity: 0;
+        transform: translateY(24px);
+      }
+    }
+
     .landing-card {
       width: min(100%, 960px);
       padding: clamp(30px, 7vw, 68px);
@@ -1027,6 +1042,23 @@
 
     redirectLegacyDashboard();
     window.addEventListener('hashchange', redirectLegacyDashboard);
+
+    if ('IntersectionObserver' in window) {
+      const sections = document.querySelectorAll('.landing-info, #connexion');
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.remove('reveal-pending');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0 });
+
+      sections.forEach((section) => {
+        section.classList.add('reveal-pending');
+        observer.observe(section);
+      });
+    }
 
     const connectionStatus = document.getElementById('connection-status');
 
