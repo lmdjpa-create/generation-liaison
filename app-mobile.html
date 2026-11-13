@@ -920,6 +920,9 @@
     <button id="nav-agenda" class="nav-item" onclick="ouvrirAgenda()" style="display:none;">
         <span class="nav-icon">🗓️</span><span>Agenda</span>
     </button>
+    <button id="nav-notifications" class="nav-item" onclick="ouvrirNotifications()" style="display:none;">
+        <span class="nav-icon">🔔</span><span>Messages</span>
+    </button>
     <button id="nav-settings" class="nav-item" onclick="switchScreen('settings')" style="display:none;">
         <span class="nav-icon">☰</span><span>Plus</span>
     </button>
@@ -1360,6 +1363,13 @@
         }
     }
 
+    function ouvrirNotifications() {
+        if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
+        switchScreen(connectedUser.role);
+        const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
+        if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+    }
+
     function ouvrirAgenda() {
         if (!connectedUser ||
             (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
@@ -1561,6 +1571,8 @@
         document.getElementById('nav-directory').style.display =
             ['senior', 'aidant'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
         document.getElementById('nav-contacts').style.display =
+            ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
+        document.getElementById('nav-notifications').style.display =
             ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
         document.getElementById('nav-agenda').style.display =
             ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
