@@ -53,6 +53,7 @@ async function postToken(parameters) {
   const config = configuration();
   const response = await fetch(GOOGLE_TOKEN_URL, {
     method: 'POST',
+    signal: AbortSignal.timeout(10000),
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       client_id: config.clientId,
@@ -125,6 +126,7 @@ function decryptRefreshToken(encryptedToken) {
 async function calendarRequest(path, accessToken, options = {}) {
   const response = await fetch(`${GOOGLE_CALENDAR_API}${path}`, {
     ...options,
+    signal: options.signal || AbortSignal.timeout(10000),
     headers: {
       Authorization: `Bearer ${accessToken}`,
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
@@ -132,8 +134,10 @@ async function calendarRequest(path, accessToken, options = {}) {
     }
   });
   if (!response.ok) {
-    if (response.status === 404 && options.allowMissing) return null;
-    throw new Error(`Google Calendar a refusé la requête (HTTP ${response.status}).`);
+    if ([404, 410].includes(response.status) && options.allowMissing) return null;
+    const error = new Error(`Google Calendar a refusé la requête (HTTP ${response.status}).`);
+    error.status = response.status;
+    throw error;
   }
   if (response.status === 204) return null;
   return response.json();
@@ -193,15 +197,98 @@ async function deleteHoldEvent(accessToken, eventId) {
   );
 }
 
+async function getPlanningEvent(accessToken, eventId) {
+  return calendarRequest(`/calendars/primary/events/${encodeURIComponent(eventId)}`, accessToken, {
+    allowMissing: true
+  });
+}
+
+async function hasOtherBusyEvents(accessToken, start, end, excludedEventId) {
+  const seenTokens = new Set();
+  let pageToken;
+  for (let page = 0; page < 100; page++) {
+    const params = new URLSearchParams({
+      timeMin: start.toISOString(),
+      timeMax: end.toISOString(),
+      singleEvents: 'true',
+      showDeleted: 'false',
+      showHiddenInvitations: 'true',
+      maxResults: '2500',
+      fields: 'nextPageToken,items(id,status,transparency)'
+    });
+    if (pageToken) params.set('pageToken', pageToken);
+    const result = await calendarRequest(`/calendars/primary/events?${params}`, accessToken);
+    if (!Array.isArray(result?.items)) {
+      throw new Error('Impossible de vérifier les événements de l’agenda Google principal.');
+    }
+    for (const event of result.items) {
+      if (!event?.id) throw new Error('Événement Google incomplet : vérification impossible.');
+      if (event.id !== excludedEventId && event.status !== 'cancelled' && event.transparency !== 'transparent') {
+        return true;
+      }
+    }
+    pageToken = result.nextPageToken;
+    if (!pageToken) return false;
+    if (typeof pageToken !== 'string' || seenTokens.has(pageToken)) {
+      throw new Error('Pagination Google Calendar invalide.');
+    }
+    seenTokens.add(pageToken);
+  }
+  throw new Error('Trop d’événements Google pour vérifier le créneau.');
+}
+
+async function createPlanningEvent(accessToken, { eventId, syncId, start, end }) {
+  return calendarRequest('/calendars/primary/events?sendUpdates=none', accessToken, {
+    method: 'POST',
+    body: JSON.stringify({
+      id: eventId,
+      summary: 'Rendez-vous — Génération Liaison',
+      visibility: 'private',
+      transparency: 'opaque',
+      start: { dateTime: start.toISOString() },
+      end: { dateTime: end.toISOString() },
+      extendedProperties: { private: { generationLiaisonSyncId: syncId } }
+    })
+  });
+}
+
+async function updatePlanningEvent(accessToken, eventId, etag, { start, end }) {
+  if (!etag) throw new Error('La version de l’événement Google est absente.');
+  return calendarRequest(`/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=none`, accessToken, {
+    method: 'PATCH',
+    headers: { 'If-Match': etag },
+    body: JSON.stringify({
+      status: 'confirmed',
+      visibility: 'private',
+      start: { dateTime: start.toISOString() },
+      end: { dateTime: end.toISOString() }
+    })
+  });
+}
+
+async function deletePlanningEvent(accessToken, eventId, etag) {
+  if (!etag) throw new Error('La version de l’événement Google est absente.');
+  return calendarRequest(`/calendars/primary/events/${encodeURIComponent(eventId)}?sendUpdates=none`, accessToken, {
+    method: 'DELETE',
+    headers: { 'If-Match': etag },
+    allowMissing: true
+  });
+}
+
 module.exports = {
   authorizationUrl,
   confirmHoldEvent,
   createHoldEvent,
+  createPlanningEvent,
   decryptRefreshToken,
   deleteHoldEvent,
+  deletePlanningEvent,
   encryptRefreshToken,
   exchangeAuthorizationCode,
   getAccessToken,
   getBusyIntervals,
+  hasOtherBusyEvents,
+  getPlanningEvent,
+  updatePlanningEvent,
   isConfigured
 };

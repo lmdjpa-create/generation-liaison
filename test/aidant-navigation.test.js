@@ -62,7 +62,8 @@ function createView(response) {
       'chargerContacts', 'chargerGestionAssociations', 'chargerDirectoryProfile',
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
-      'chargerAssistantConversation'
+      'chargerAssistantConversation', 'chargerCalendrier', 'chargerModificationsGoogle',
+      'chargerParametresGooglePlanning'
     ].map(name => [name, () => { calls.push(name); }]))
   };
   const screenStart = source.indexOf('    function switchScreen(screenName)');
@@ -120,7 +121,7 @@ test('settings are separate and only the current role’s account panels are sho
     assert.ok(element('screen-settings').classList.contains('active'));
     assert.ok(calls.slice(priorCalls).includes('chargerPreferencesNotification'));
     context.openAgenda();
-    assert.ok(element(role === 'pro' ? 'screen-pro' : 'screen-directory').classList.contains('active'));
+    assert.ok(element('screen-agenda').classList.contains('active'));
     assert.ok(element('nav-agenda').classList.contains('active'));
   }
 });

@@ -104,6 +104,8 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS email_notifications_consent_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS sms_notifications_consent_at TIMESTAMPTZ;
         ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS planning_google_sync_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS premium_status VARCHAR(16) NOT NULL DEFAULT 'inactive'
           CHECK (premium_status IN ('inactive', 'active', 'trial', 'expired')),
           ADD COLUMN IF NOT EXISTS premium_until TIMESTAMPTZ;
@@ -268,6 +270,13 @@ function createAuthService(pool) {
           CHECK ((status = 'pending' AND hold_expires_at IS NOT NULL) OR
                  (status != 'pending' AND hold_expires_at IS NULL))
         );
+        ALTER TABLE app_directory_bookings
+          ADD COLUMN IF NOT EXISTS senior_profile_id UUID REFERENCES senior_profiles(id) ON DELETE SET NULL;
+        UPDATE app_directory_bookings booking
+        SET senior_profile_id = requester.senior_id
+        FROM app_users requester
+        WHERE booking.requester_user_id = requester.id AND requester.role = 'senior'
+          AND booking.senior_profile_id IS NULL AND requester.senior_id IS NOT NULL;
         CREATE INDEX IF NOT EXISTS app_notifications_user_date_idx
           ON app_notifications (user_id, created_at DESC);
         CREATE TABLE IF NOT EXISTS app_push_subscriptions (
@@ -417,7 +426,7 @@ function createAuthService(pool) {
           status VARCHAR(16) NOT NULL DEFAULT 'scheduled'
             CHECK (status IN ('scheduled', 'completed')),
           acceptance_status VARCHAR(16) NOT NULL DEFAULT 'accepted'
-            CHECK (acceptance_status IN ('pending', 'accepted', 'declined')),
+            CHECK (acceptance_status IN ('pending', 'accepted', 'declined', 'cancelled')),
           completed_at TIMESTAMPTZ,
           created_by UUID NOT NULL REFERENCES app_users(id),
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -427,6 +436,11 @@ function createAuthService(pool) {
         ALTER TABLE planning_visits
           ADD COLUMN IF NOT EXISTS acceptance_status VARCHAR(16) NOT NULL DEFAULT 'accepted'
           CHECK (acceptance_status IN ('pending', 'accepted', 'declined'));
+        ALTER TABLE planning_visits
+          DROP CONSTRAINT IF EXISTS planning_visits_acceptance_status_check;
+        ALTER TABLE planning_visits
+          ADD CONSTRAINT planning_visits_acceptance_status_check
+          CHECK (acceptance_status IN ('pending', 'accepted', 'declined', 'cancelled'));
         CREATE TABLE IF NOT EXISTS planning_service_partners (
           id UUID PRIMARY KEY,
           organization_id UUID NOT NULL REFERENCES planning_organizations(id) ON DELETE CASCADE,
@@ -457,6 +471,28 @@ function createAuthService(pool) {
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS planning_google_events (
+          id UUID PRIMARY KEY,
+          professional_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          senior_id UUID,
+          entity_kind VARCHAR(16) NOT NULL CHECK (entity_kind IN ('visit', 'service')),
+          entity_id UUID NOT NULL,
+          google_event_id VARCHAR(256) NOT NULL,
+          connection_key CHAR(64) NOT NULL,
+          snapshot_start TIMESTAMPTZ NOT NULL,
+          snapshot_duration SMALLINT NOT NULL,
+          state VARCHAR(16) NOT NULL DEFAULT 'new'
+            CHECK (state IN ('new', 'active', 'restore', 'retired')),
+          proposal JSONB,
+          last_error TEXT,
+          last_checked_at TIMESTAMPTZ,
+          UNIQUE (professional_id, entity_kind, entity_id),
+          UNIQUE (professional_id, google_event_id)
+        );
+        ALTER TABLE planning_google_events ADD COLUMN IF NOT EXISTS connection_key CHAR(64);
+        ALTER TABLE planning_google_events ALTER COLUMN senior_id DROP NOT NULL;
+        CREATE INDEX IF NOT EXISTS planning_google_events_due_idx
+          ON planning_google_events (professional_id, last_checked_at);
         CREATE TABLE IF NOT EXISTS planning_visit_events (
           id UUID PRIMARY KEY,
           visit_id UUID NOT NULL REFERENCES planning_visits(id) ON DELETE CASCADE,

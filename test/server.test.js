@@ -46,6 +46,28 @@ test('reports server status', async () => {
   assert.equal((await response.json()).status, 'En ligne');
 });
 
+test('calendar periods cover complete Monday-to-Sunday weeks and use Paris dates', () => {
+  const html = fs.readFileSync(path.join(projectRoot, 'app-mobile.html'), 'utf8');
+  const source = html.slice(html.indexOf('    function dateInputValue(date) {'),
+    html.indexOf('    function updatePlanningDateTitle() {'));
+  const context = vm.createContext({ Intl, Date });
+  vm.runInContext(`let calendarDate; let calendarView;\n${source}`, context);
+  const bounds = (date, view) => vm.runInContext(
+    `calendarDate = ${JSON.stringify(date)}; calendarView = ${JSON.stringify(view)};
+     [dateInputValue(calendarBounds().start), dateInputValue(calendarBounds().end)].join(',')`,
+    context
+  );
+  assert.equal(bounds('2026-03-29', 'month'), '2026-02-23,2026-04-06');
+  assert.equal(bounds('2026-08-31', 'month'), '2026-07-27,2026-09-07');
+  assert.equal(bounds('2026-12-31', 'week'), '2026-12-28,2027-01-04');
+  assert.equal(vm.runInContext("calendarEventDate('2026-03-28T23:30:00Z')", context), '2026-03-29');
+});
+
+test('calendar requires authentication', async () => {
+  const response = await fetch(`${baseUrl}/api/planning/calendar?start=2026-03-23&end=2026-03-30`);
+  assert.equal(response.status, 401);
+});
+
 test('serves the application pages and legal documents', async () => {
   for (const page of [
     '/',

@@ -65,6 +65,18 @@
         .schedule-controls button, .schedule-controls input { min-width: 0; padding: 10px 8px; border: 1px solid #d5dce2; border-radius: 8px; background: white; color: var(--primary); font-weight: 700; }
         .schedule-controls button { cursor: pointer; }
         .schedule-controls #planning-today { grid-column: 1 / -1; }
+        .calendar-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
+        .calendar-toolbar button { padding: 10px 12px; border: 1px solid #2c3e50; border-radius: 8px; background: white; color: #2c3e50; font-weight: 700; cursor: pointer; }
+        .calendar-toolbar button[aria-pressed="true"] { background: #2c3e50; color: white; }
+        .calendar-scroll { overflow-x: auto; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 3px; min-width: 700px; }
+        .calendar-weekday { padding: 8px; text-align: center; font-weight: 700; }
+        .calendar-day { min-height: 100px; padding: 6px; border: 1px solid #d5dce2; border-radius: 6px; background: white; text-align: left; }
+        .calendar-day.outside { background: #f0f3f5; }
+        .calendar-day > button { border: 0; background: transparent; color: #18352e; font-weight: 700; cursor: pointer; }
+        .calendar-day > button[aria-pressed="true"] { border-radius: 50%; background: #2c3e50; color: white; }
+        .calendar-event { display: block; margin-top: 5px; padding: 4px; border-radius: 4px; background: #e8f4ee; color: #18352e; font-size: .8rem; overflow-wrap: anywhere; }
+        .calendar-event.pending { background: #fff3d6; color: #684f16; }
         .visit-card { margin: 12px 0; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.05); text-align: left; }
         .visit-heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
         .visit-time { color: #2471a3; font-weight: 800; white-space: nowrap; }
@@ -716,11 +728,45 @@
     </section>
 </div>
 
+<div id="screen-agenda" class="screen-container" style="background-color:var(--senior-bg);">
+    <div class="header-mobile"><h3 style="margin:0;">Agenda</h3><span>Vos rendez-vous autorisés, heure de Paris</span></div>
+    <p id="agenda-senior-context" class="helper-text" hidden></p>
+    <button id="agenda-change-senior" type="button" onclick="switchScreen('aidant')" hidden>Changer de personne accompagnée</button>
+    <p class="helper-text">Les demandes de l’annuaire en attente sont indiquées séparément des rendez-vous confirmés. Les services sont affichés sur 30 minutes.</p>
+    <p class="helper-text">Une validation est refusée si elle chevauche un rendez-vous confirmé ou un créneau d’annuaire déjà réservé dans l’application.</p>
+    <p class="helper-text">Si l’intervenant l’active, les visites et services confirmés sont synchronisés avec un titre privé et sans nom. Une modification depuis Google nécessite l’accord de l’intervenant et de la personne accompagnée ou de son aidant.</p>
+    <section id="calendar-google-settings" class="form-card" hidden>
+        <h3>Synchronisation du planning avec Google</h3>
+        <p class="helper-text">L’activation copie les dates et durées des prochains rendez-vous confirmés dans votre agenda Google, avec un titre générique et sans nom. La mise en pause ne supprime pas les événements déjà copiés.</p>
+        <p id="calendar-google-sync-status" class="helper-text" aria-live="polite">Vérification de la synchronisation…</p>
+        <button id="calendar-google-sync-toggle" type="button" disabled>Modifier la synchronisation</button>
+        <button id="calendar-google-same" type="button" hidden>J’ai reconnecté le même agenda</button>
+        <button id="calendar-google-new" type="button" hidden>J’ai connecté un autre agenda</button>
+    </section>
+    <div class="calendar-toolbar" aria-label="Vue de l’agenda">
+        <button id="calendar-week" type="button" aria-pressed="true">Semaine</button>
+        <button id="calendar-month" type="button" aria-pressed="false">Mois</button>
+        <button id="calendar-previous" type="button" aria-label="Période précédente">←</button>
+        <button id="calendar-today" type="button">Aujourd’hui</button>
+        <button id="calendar-next" type="button" aria-label="Période suivante">→</button>
+    </div>
+    <h3 id="calendar-title" aria-live="polite"></h3>
+    <p id="calendar-message" class="helper-text" aria-live="polite"></p>
+    <div class="calendar-scroll"><div id="calendar-grid" class="calendar-grid"></div></div>
+    <section class="form-card" id="calendar-selected-day" aria-live="polite"></section>
+    <section class="form-card">
+        <h3>Modifications depuis Google</h3>
+        <div id="calendar-google-requests" aria-live="polite">Chargement des demandes…</div>
+    </section>
+</div>
+
 <div id="screen-directory" class="screen-container" style="background-color:var(--senior-bg);">
     <div class="header-mobile">
         <h3 style="margin:0;">Annuaire des professionnels</h3>
         <span style="font-size:0.85rem;opacity:0.9;">Les professionnels dont le dossier est vérifié apparaissent en priorité.</span>
     </div>
+    <p id="directory-senior-context" class="helper-text" hidden></p>
+    <button id="directory-change-senior" type="button" onclick="switchScreen('aidant')" hidden>Changer de personne accompagnée</button>
     <form id="directory-search-form" class="form-card form-grid">
         <label for="directory-search-query">Nom, activité ou service</label>
         <input id="directory-search-query" type="search" maxlength="120" placeholder="Ex. aide à domicile">
@@ -813,6 +859,13 @@
     let planningRefreshTimer = null;
     let planningLoadId = 0;
     let servicePlanningLoadId = 0;
+    let calendarView = 'week';
+    let calendarDate = '';
+    let calendarEvents = [];
+    let calendarLoadId = 0;
+    let calendarRequestsLoadId = 0;
+    let calendarSettingsLoadId = 0;
+    let directoryBookingsLoadId = 0;
     let directoryLocation = null;
     const communeSearches = {
         directory: { key: '', communes: [] },
@@ -1150,7 +1203,9 @@
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
         const settingsAllowed = screenName === 'settings' &&
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
-        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed) ||
+        const agendaAllowed = screenName === 'agenda' &&
+            ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
+        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed && !agendaAllowed) ||
             (pendingAccess && screenName !== connectedUser.role && !settingsAllowed)) {
             return;
         }
@@ -1161,6 +1216,19 @@
         document.getElementById(`screen-${screenId}`).classList.add('active');
         document.getElementById(`nav-${screenName}`).classList.add('active');
         document.getElementById('nav-logout').classList.remove('active');
+        if (screenName === 'agenda' || screenName === 'directory') {
+            const isAidant = connectedUser.role === 'aidant';
+            const context = document.getElementById(`${screenName}-senior-context`);
+            const changeButton = document.getElementById(`${screenName}-change-senior`);
+            context.hidden = !isAidant;
+            changeButton.hidden = !isAidant;
+            if (isAidant) {
+                const selected = document.getElementById('aidant-senior-select').selectedOptions[0];
+                context.textContent = activeSeniorProfileId && selected?.value === activeSeniorProfileId
+                    ? `Personne accompagnée : ${selected.text}`
+                    : 'Sélectionnez une personne accompagnée dans votre espace aidant.';
+            }
+        }
 
         if (screenName === 'settings') {
             chargerPreferencesNotification();
@@ -1190,6 +1258,10 @@
         } else if (screenName === 'directory') {
             chargerAnnuaire();
             chargerDirectoryBookings(false);
+        } else if (screenName === 'agenda') {
+            chargerCalendrier();
+            chargerModificationsGoogle();
+            chargerParametresGooglePlanning();
         } else if (screenName === 'contacts') {
             chargerContacts();
         }
@@ -1200,9 +1272,7 @@
             (connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
             (connectedUser.role === 'aidant' && connectedUser.isLegalGuardian &&
              connectedUser.guardianVerificationStatus !== 'approved')) return;
-        switchScreen(connectedUser.role === 'pro' ? 'pro' : 'directory');
-        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
-        document.getElementById('nav-agenda').classList.add('active');
+        switchScreen('agenda');
     }
 
     function basculerFormulaire(estInscription) {
@@ -1485,6 +1555,11 @@
             }
             if (document.getElementById('screen-directory').classList.contains('active')) {
                 chargerDirectoryBookings(false);
+            }
+            if (document.getElementById('screen-agenda').classList.contains('active')) {
+                chargerCalendrier();
+                chargerModificationsGoogle();
+                chargerParametresGooglePlanning();
             }
             chargerNotifications();
         }, 30000);
@@ -2513,6 +2588,14 @@
     }
 
     async function reserverCreneauAnnuaire(professional, start, button) {
+        if (connectedUser?.role === 'aidant') {
+            const selected = document.getElementById('aidant-senior-select').selectedOptions[0];
+            if (!activeSeniorProfileId || selected?.value !== activeSeniorProfileId) {
+                showToast('Sélectionnez d’abord une personne accompagnée.', false);
+                return;
+            }
+            if (!window.confirm(`Réserver ce créneau pour ${selected.text} ?`)) return;
+        }
         button.disabled = true;
         try {
             await planningRequest(`/api/directory/${encodeURIComponent(professional.id)}/bookings`, {
@@ -2533,8 +2616,13 @@
             forProfessional ? 'directory-professional-bookings' : 'directory-requester-bookings'
         );
         if (!container) return;
+        const loadId = ++directoryBookingsLoadId;
+        const userId = connectedUser?.id;
+        const seniorId = activeSeniorProfileId;
         try {
             const result = await planningRequest('/api/directory/bookings');
+            if (loadId !== directoryBookingsLoadId || connectedUser?.id !== userId ||
+                activeSeniorProfileId !== seniorId) return;
             container.replaceChildren();
             if (!result.bookings.length) {
                 container.append(makeTextElement('p', 'Aucune demande de rendez-vous.', 'helper-text'));
@@ -2547,6 +2635,7 @@
                 const status = {
                     pending: 'En attente · blocage provisoire de 15 minutes',
                     confirmed: 'Confirmé',
+                    occupied: 'Créneau occupé',
                     declined: 'Refusé',
                     expired: 'Expiré'
                 }[booking.status] || booking.status;
@@ -2574,6 +2663,8 @@
                 container.append(item);
             });
         } catch (error) {
+            if (loadId !== directoryBookingsLoadId || connectedUser?.id !== userId ||
+                activeSeniorProfileId !== seniorId) return;
             container.replaceChildren(makeTextElement(
                 'p',
                 error.message || 'Impossible de charger les demandes de rendez-vous.',
@@ -3019,6 +3110,301 @@
 
     function dateTimeInputValue(date) {
         return `${dateInputValue(date)}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function calendarBounds() {
+        const selected = new Date(`${calendarDate}T12:00:00`);
+        const start = new Date(selected);
+        if (calendarView === 'month') start.setDate(1);
+        start.setDate(start.getDate() - (start.getDay() + 6) % 7);
+        const end = new Date(start);
+        if (calendarView === 'week') {
+            end.setDate(end.getDate() + 7);
+        } else {
+            const last = new Date(selected.getFullYear(), selected.getMonth() + 1, 0, 12);
+            const days = (Date.UTC(last.getFullYear(), last.getMonth(), last.getDate()) -
+                Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / 86400000;
+            end.setDate(end.getDate() + (Math.floor(days / 7) + 1) * 7);
+        }
+        return { start, end };
+    }
+
+    function calendarEventDate(value) {
+        const parts = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit'
+        }).formatToParts(new Date(value));
+        const fields = Object.fromEntries(parts.filter(part => part.type !== 'literal').map(part => [part.type, part.value]));
+        return `${fields.year}-${fields.month}-${fields.day}`;
+    }
+
+    function calendarEventLabel(event) {
+        const time = new Intl.DateTimeFormat('fr-FR', {
+            timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit'
+        }).format(new Date(event.scheduledAt));
+        const type = { visit: 'Visite', service: 'Service', directory: 'Annuaire' }[event.kind];
+        return `${time} · ${type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ' (en attente)' : ''}`;
+    }
+
+    function renderCalendar() {
+        const { start, end } = calendarBounds();
+        const grid = document.getElementById('calendar-grid');
+        const selected = new Date(`${calendarDate}T12:00:00`);
+        document.getElementById('calendar-title').textContent = calendarView === 'month'
+            ? selected.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+            : `Semaine du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        grid.replaceChildren();
+        ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'].forEach(day => {
+            grid.append(makeTextElement('div', day, 'calendar-weekday'));
+        });
+        for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+            const dayValue = dateInputValue(date);
+            const outsideMonth = calendarView === 'month' && date.getMonth() !== selected.getMonth();
+            const cell = document.createElement('div');
+            cell.className = 'calendar-day';
+            if (outsideMonth) cell.classList.add('outside');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = String(date.getDate());
+            button.setAttribute('aria-label', date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+            button.setAttribute('aria-pressed', String(dayValue === calendarDate));
+            button.addEventListener('click', () => {
+                calendarDate = dayValue;
+                if (outsideMonth) chargerCalendrier();
+                else renderCalendar();
+            });
+            cell.append(button);
+            calendarEvents.filter(event => calendarEventDate(event.scheduledAt) === dayValue).forEach(event => {
+                cell.append(makeTextElement('span', calendarEventLabel(event), `calendar-event${event.status === 'pending' ? ' pending' : ''}`));
+            });
+            grid.append(cell);
+        }
+        const details = document.getElementById('calendar-selected-day');
+        details.replaceChildren(makeTextElement('h4', selected.toLocaleDateString('fr-FR', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        })));
+        const events = calendarEvents.filter(event => calendarEventDate(event.scheduledAt) === calendarDate);
+        if (!events.length) details.append(makeTextElement('p', 'Aucun rendez-vous pour cette date.', 'helper-text'));
+        events.forEach(event => details.append(makeTextElement('p', `${calendarEventLabel(event)} · ${event.durationMinutes} min`, 'calendar-event')));
+        if (connectedUser.role === 'pro') {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = 'Voir mon planning détaillé';
+            button.addEventListener('click', () => {
+                document.getElementById('planning-date').value = calendarDate;
+                switchScreen('pro');
+                document.getElementById('schedule-day-title').scrollIntoView();
+            });
+            details.append(button);
+        }
+    }
+
+    async function chargerCalendrier() {
+        if (!connectedUser) return;
+        if (!calendarDate) calendarDate = dateCheckinBienEtre();
+        const { start, end } = calendarBounds();
+        const loadId = ++calendarLoadId;
+        const userId = connectedUser.id;
+        const message = document.getElementById('calendar-message');
+        message.textContent = 'Chargement de l’agenda…';
+        document.getElementById('calendar-grid').replaceChildren();
+        document.getElementById('calendar-selected-day').replaceChildren();
+        try {
+            const result = await planningRequest(`/api/planning/calendar?start=${dateInputValue(start)}&end=${dateInputValue(end)}`);
+            if (loadId !== calendarLoadId || connectedUser?.id !== userId) return;
+            calendarEvents = result.events;
+            message.textContent = '';
+            renderCalendar();
+        } catch (error) {
+            if (loadId !== calendarLoadId || connectedUser?.id !== userId) return;
+            message.textContent = error.message || 'Impossible de charger l’agenda.';
+        }
+    }
+
+    async function chargerModificationsGoogle() {
+        if (!connectedUser) return;
+        const container = document.getElementById('calendar-google-requests');
+        const loadId = ++calendarRequestsLoadId;
+        const userId = connectedUser.id;
+        if (container.dataset.owner !== userId) {
+            container.dataset.owner = userId;
+            container.replaceChildren(makeTextElement('p', 'Chargement des demandes…', 'helper-text'));
+        }
+        try {
+            const result = await planningRequest('/api/calendar/planning/requests');
+            if (loadId !== calendarRequestsLoadId || connectedUser?.id !== userId) return;
+            container.replaceChildren();
+            if (!result.requests.length) {
+                container.append(makeTextElement('p', 'Aucune modification en attente.', 'helper-text'));
+                return;
+            }
+            const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
+                timeZone: 'Europe/Paris', dateStyle: 'medium', timeStyle: 'short'
+            });
+            result.requests.forEach(request => {
+                const card = document.createElement('article');
+                card.className = 'notification-card';
+                card.append(makeTextElement('strong',
+                    `${request.kind === 'visit' ? 'Visite' : 'Service'} · ${dateFormatter.format(new Date(request.scheduledAt))}`));
+                if (request.error) card.append(makeTextElement('p', request.error, 'visit-status'));
+                if (request.paused) {
+                    card.append(makeTextElement('p', 'Synchronisation mise en pause par l’intervenant.', 'helper-text'));
+                } else if (request.state === 'restore') {
+                    card.append(makeTextElement('p', 'Modification refusée : restauration de Google en cours.', 'helper-text'));
+                } else if (request.proposal) {
+                    const proposal = request.proposal;
+                    card.append(makeTextElement('p', proposal.action === 'cancel'
+                        ? 'Annulation demandée depuis Google.'
+                        : `Déplacement demandé : ${dateFormatter.format(new Date(proposal.start))} · ${proposal.duration} min.`, 'helper-text'));
+                    card.append(makeTextElement('p',
+                        `Intervenant : ${proposal.professionalApproved ? 'accord donné' : 'en attente'} · Personne ou aidant : ${proposal.familyApproved ? 'accord donné' : 'en attente'}`,
+                        'helper-text'));
+                    const actions = document.createElement('div');
+                    actions.className = 'notification-actions';
+                    const alreadyApproved = connectedUser.role === 'pro'
+                        ? proposal.professionalApproved : proposal.familyApproved;
+                    if (!alreadyApproved) {
+                        const approve = document.createElement('button');
+                        approve.type = 'button';
+                        approve.textContent = 'Valider';
+                        approve.addEventListener('click', () => repondreModificationGoogle(request.id, 'approve', approve));
+                        actions.append(approve);
+                    }
+                    const reject = document.createElement('button');
+                    reject.type = 'button';
+                    reject.className = 'decline';
+                    reject.textContent = 'Refuser';
+                    reject.addEventListener('click', () => repondreModificationGoogle(request.id, 'reject', reject));
+                    actions.append(reject);
+                    card.append(actions);
+                }
+                container.append(card);
+            });
+        } catch (error) {
+            if (loadId !== calendarRequestsLoadId || connectedUser?.id !== userId) return;
+            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les modifications Google.', 'helper-text'));
+        }
+    }
+
+    async function chargerParametresGooglePlanning() {
+        const panel = document.getElementById('calendar-google-settings');
+        panel.hidden = !connectedUser || connectedUser.role !== 'pro';
+        if (panel.hidden) return;
+        const loadId = ++calendarSettingsLoadId;
+        const userId = connectedUser.id;
+        const status = document.getElementById('calendar-google-sync-status');
+        const toggle = document.getElementById('calendar-google-sync-toggle');
+        const same = document.getElementById('calendar-google-same');
+        const different = document.getElementById('calendar-google-new');
+        if (panel.dataset.owner !== userId) {
+            panel.dataset.owner = userId;
+            status.textContent = 'Vérification de la synchronisation…';
+            toggle.disabled = true;
+            same.hidden = different.hidden = true;
+        }
+        try {
+            const result = await planningRequest('/api/calendar/planning/status');
+            if (loadId !== calendarSettingsLoadId || connectedUser?.id !== userId) return;
+            status.textContent = result.workerError || (result.needsReconnect
+                ? 'La connexion a changé. Mettez en pause puis précisez si vous avez reconnecté le même agenda ou un autre.'
+                : !result.connected
+                ? 'Connectez d’abord Google dans votre espace intervenant.'
+                : result.enabled ? 'Synchronisation du planning activée.' : 'Synchronisation du planning en pause.');
+            toggle.disabled = (!result.connected && !result.enabled) || (result.needsReconnect && !result.enabled);
+            toggle.dataset.enabled = String(result.enabled);
+            toggle.textContent = result.enabled ? 'Mettre en pause' : 'Activer la synchronisation';
+            same.hidden = different.hidden = !result.needsReconnect || result.enabled;
+        } catch (error) {
+            if (loadId !== calendarSettingsLoadId || connectedUser?.id !== userId) return;
+            status.textContent = error.message || 'Impossible de vérifier la synchronisation.';
+            toggle.disabled = true;
+            same.hidden = different.hidden = true;
+        }
+    }
+
+    async function modifierSynchronisationGoogle() {
+        const button = document.getElementById('calendar-google-sync-toggle');
+        const enabled = button.dataset.enabled !== 'true';
+        const message = enabled
+            ? 'Autoriser la copie des dates et durées de vos prochains rendez-vous confirmés dans Google, avec un titre générique sans nom ?'
+            : 'Mettre en pause la synchronisation ? Les événements déjà copiés resteront dans Google.';
+        if (!window.confirm(message)) return;
+        button.disabled = true;
+        try {
+            await planningRequest('/api/calendar/planning/status', { method: 'POST', body: { enabled } });
+            showToast(enabled ? 'Synchronisation activée.' : 'Synchronisation mise en pause.');
+            await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
+        } catch (error) {
+            showToast(error.message || 'Impossible de modifier la synchronisation.', false);
+            await chargerParametresGooglePlanning();
+        }
+    }
+
+    async function repondreModificationGoogle(id, decision, button) {
+        const message = decision === 'approve'
+            ? 'Confirmer votre accord pour cette modification ? Le rendez-vous ne changera qu’après les deux accords.'
+            : 'Refuser cette modification et conserver le rendez-vous actuel ?';
+        if (!window.confirm(message)) return;
+        button.disabled = true;
+        try {
+            const result = await planningRequest(`/api/calendar/planning/requests/${encodeURIComponent(id)}`, {
+                method: 'POST', body: { decision }
+            });
+            showToast({
+                waiting: 'Votre accord est enregistré ; l’autre accord est attendu.',
+                applied: 'Modification validée et appliquée.',
+                restoring: 'Modification refusée ; restauration Google en cours.'
+            }[result.status]);
+            await Promise.all([chargerCalendrier(), chargerModificationsGoogle()]);
+        } catch (error) {
+            showToast(error.message || 'Impossible de répondre à la modification.', false);
+            await chargerModificationsGoogle();
+        }
+    }
+
+    async function confirmerReconnexionGoogle(button) {
+        if (!window.confirm('Confirmez uniquement si vous avez reconnecté exactement le même compte et le même agenda Google. Sinon, les changements ne correspondent pas aux rendez-vous enregistrés.')) return;
+        button.disabled = true;
+        try {
+            await planningRequest('/api/calendar/planning/confirm-reconnect', {
+                method: 'POST', body: { sameCalendar: true }
+            });
+            showToast('Connexion confirmée. Vous pouvez réactiver la synchronisation.');
+            await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
+        } catch (error) {
+            showToast(error.message || 'Impossible de confirmer la connexion.', false);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    async function changerAgendaGoogle(button) {
+        if (!window.confirm('Confirmez-vous avoir connecté un autre agenda ? Les événements copiés dans l’ancien agenda y resteront. Les demandes Google en attente seront abandonnées, sans changer les rendez-vous de l’application.')) return;
+        button.disabled = true;
+        try {
+            await planningRequest('/api/calendar/planning/change-calendar', {
+                method: 'POST', body: { newCalendar: true }
+            });
+            showToast('Nouvel agenda confirmé. Vous pouvez activer la synchronisation.');
+            await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
+        } catch (error) {
+            showToast(error.message || 'Impossible de changer d’agenda Google.', false);
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function decalerCalendrier(offset) {
+        const date = new Date(`${calendarDate}T12:00:00`);
+        if (calendarView === 'week') {
+            date.setDate(date.getDate() + offset * 7);
+        } else {
+            const day = date.getDate();
+            date.setDate(1);
+            date.setMonth(date.getMonth() + offset);
+            date.setDate(Math.min(day, new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()));
+        }
+        calendarDate = dateInputValue(date);
+        chargerCalendrier();
     }
 
     function updatePlanningDateTitle() {
@@ -3862,6 +4248,14 @@
             switchScreen('settings');
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
+            calendarLoadId++;
+            calendarRequestsLoadId++;
+            directoryBookingsLoadId++;
+            calendarEvents = [];
+            document.getElementById('calendar-grid').replaceChildren();
+            document.getElementById('calendar-selected-day').replaceChildren();
+            document.getElementById('calendar-google-requests').replaceChildren();
+            document.getElementById('directory-requester-bookings').replaceChildren();
             activeSeniorProfileId = event.currentTarget.value;
             localStorage.setItem('generation-liaison-active-senior', activeSeniorProfileId);
             document.getElementById('senior-name-aidant').textContent =
@@ -4488,7 +4882,7 @@
         const calendarResult = new URLSearchParams(window.location.search).get('calendar');
         if (calendarResult) {
             const calendarMessages = {
-                connected: 'Agenda Google connecté. Revenez dans l’application pour terminer le profil.',
+                connected: 'Agenda Google connecté. Réactivez la synchronisation du planning dans l’Agenda si vous le souhaitez.',
                 denied: 'L’autorisation Google Calendar a été refusée.',
                 error: 'La connexion Google Calendar a échoué.'
             };
@@ -4510,6 +4904,24 @@
             chargerPlanningPro();
             chargerPlanningServices();
         });
+        ['week', 'month'].forEach(view => {
+            document.getElementById(`calendar-${view}`).addEventListener('click', () => {
+                calendarView = view;
+                ['week', 'month'].forEach(item => {
+                    document.getElementById(`calendar-${item}`).setAttribute('aria-pressed', String(item === view));
+                });
+                chargerCalendrier();
+            });
+        });
+        document.getElementById('calendar-previous').addEventListener('click', () => decalerCalendrier(-1));
+        document.getElementById('calendar-next').addEventListener('click', () => decalerCalendrier(1));
+        document.getElementById('calendar-today').addEventListener('click', () => {
+            calendarDate = dateCheckinBienEtre();
+            chargerCalendrier();
+        });
+        document.getElementById('calendar-google-sync-toggle').addEventListener('click', modifierSynchronisationGoogle);
+        document.getElementById('calendar-google-same').addEventListener('click', event => confirmerReconnexionGoogle(event.currentTarget));
+        document.getElementById('calendar-google-new').addEventListener('click', event => changerAgendaGoogle(event.currentTarget));
         try {
             const token = localStorage.getItem(SESSION_KEY);
             localStorage.removeItem(USER_KEY);

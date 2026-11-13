@@ -9,6 +9,8 @@ const { getServiceDistance } = require('./distance');
 const notificationDelivery = require('./notification-delivery');
 const { isAllowedWebPushSubscription } = require('./push-subscriptions');
 const googleCalendar = require('./google-calendar');
+const { assertLegacyBookingsSafeForLink, assertScheduleAvailable, lockScheduleParticipants } = require('./schedule-conflicts');
+const { createPlanningGoogleSync } = require('./planning-google-sync');
 const { generateReply, generateWellbeingAssessment } = require('./ai-assistant');
 const {
   availableSlots,
@@ -105,6 +107,11 @@ async function getCalendarAccessToken(encryptedRefreshToken) {
   return googleCalendar.getAccessToken(googleCalendar.decryptRefreshToken(encryptedRefreshToken));
 }
 
+const planningGoogleSync = createPlanningGoogleSync({
+  pool, calendar: googleCalendar, getAccessToken: getCalendarAccessToken, notify: insertAppNotification
+});
+let planningSyncWorkerStarted = false;
+
 async function getProfessionalBusyIntervals(client, professionalId, start, end, accessToken) {
   const { rows } = await client.query(
     `SELECT scheduled_at AS start_at,
@@ -124,12 +131,12 @@ async function getProfessionalBusyIntervals(client, professionalId, start, end, 
        AND scheduled_at + duration_minutes * INTERVAL '1 minute' > $2
      UNION ALL
      SELECT booking.requested_at,
-            booking.requested_at + INTERVAL '60 minutes'
+            booking.requested_at + INTERVAL '30 minutes'
      FROM planning_service_bookings booking
      JOIN planning_service_partners partner ON partner.id = booking.partner_id
      WHERE partner.user_id = $1 AND booking.status IN ('requested', 'confirmed')
        AND booking.requested_at < $3
-       AND booking.requested_at + INTERVAL '60 minutes' > $2`,
+       AND booking.requested_at + INTERVAL '30 minutes' > $2`,
     [professionalId, start, end]
   );
   const externalBusy = await googleCalendar.getBusyIntervals(accessToken, start, end);
@@ -1731,8 +1738,21 @@ app.post('/api/admin/accounts/:accountId/senior-links', requireAuth, requireAdmi
   if (!uuidPattern.test(req.params.accountId) || typeof seniorUserId !== 'string' || !uuidPattern.test(seniorUserId)) {
     return res.status(400).json({ error: 'Compte aidant ou compte senior invalide.' });
   }
+  let client;
   try {
-    const { rows } = await pool.query(
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: seniors } = await client.query(
+      `SELECT senior_id FROM app_users WHERE id = $1 AND role = 'senior' AND is_active = TRUE`,
+      [seniorUserId]
+    );
+    if (!seniors[0]?.senior_id) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'Le profil senior est indisponible.' });
+    }
+    await lockScheduleParticipants(client, null, seniors[0].senior_id);
+    await assertLegacyBookingsSafeForLink(client, req.params.accountId, seniors[0].senior_id);
+    const { rows } = await client.query(
       `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
        SELECT aidant.id, senior.senior_id, $3
        FROM app_users aidant
@@ -1747,11 +1767,16 @@ app.post('/api/admin/accounts/:accountId/senior-links', requireAuth, requireAdmi
       [req.params.accountId, seniorUserId, req.authUser.id]
     );
     if (!rows[0]) {
+      await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Seuls les tuteurs légaux vérifiés peuvent être associés par l’administration ; les autres aidants doivent obtenir l’accord du senior.' });
     }
+    await client.query('COMMIT');
     res.status(201).json({ seniorProfileId: rows[0].senior_profile_id });
   } catch (error) {
+    if (client) await client.query('ROLLBACK');
     sendApiError(res, error, 'Impossible d’associer ce profil senior.');
+  } finally {
+    if (client) client.release();
   }
 });
 
@@ -1764,6 +1789,7 @@ app.delete('/api/admin/accounts/:accountId/senior-links/:seniorProfileId', requi
   try {
     client = await pool.connect();
     await client.query('BEGIN');
+    await lockScheduleParticipants(client, null, req.params.seniorProfileId);
     const { rowCount } = await client.query(
       `DELETE FROM app_aidant_senior_links
        WHERE aidant_user_id = $1 AND senior_profile_id = $2 AND suspended_at IS NULL`,
@@ -2311,7 +2337,7 @@ app.patch('/api/admin/care-visits/:visitId', requireAuth, requireAdmin, async (r
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows: currentRows } = await client.query(
-      `SELECT visit.id, visit.organization_id, visit.recipient_id, visit.assigned_user_id,
+      `SELECT visit.id, visit.organization_id, visit.recipient_id, visit.assigned_user_id, visit.scheduled_at,
               visit.visit_type, recipient.name AS recipient_name, recipient.senior_id,
               organization.coordinator_user_id
        FROM planning_visits visit
@@ -2323,6 +2349,7 @@ app.patch('/api/admin/care-visits/:visitId', requireAuth, requireAdmin, async (r
          AND recipient.consent_at IS NOT NULL
          AND recipient.consent_revoked_at IS NULL
          AND visit.status = 'scheduled'
+         AND visit.acceptance_status <> 'cancelled'
        FOR UPDATE OF visit, recipient`,
       [req.params.visitId]
     );
@@ -2443,7 +2470,7 @@ app.patch('/api/admin/service-bookings/:bookingId', requireAuth, requireAdmin, a
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT booking.id, booking.status, booking.organization_id, booking.recipient_id,
+      `SELECT booking.id, booking.status, booking.organization_id, booking.recipient_id, booking.requested_at,
               booking.created_by, partner.user_id, partner.display_name,
               recipient.senior_id, recipient.name AS recipient_name,
               organization.coordinator_user_id
@@ -2473,6 +2500,14 @@ app.patch('/api/admin/service-bookings/:bookingId', requireAuth, requireAdmin, a
     if (!allowed) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Ce changement n’est pas possible pour le statut actuel ou le consentement est retiré.' });
+    }
+    if (status === 'confirmed') {
+      await lockScheduleParticipants(client, booking.user_id, booking.senior_id);
+      await assertScheduleAvailable(client, {
+        professionalId: booking.user_id, seniorId: booking.senior_id,
+        start: booking.requested_at, durationMinutes: 30,
+        excludeKind: 'service', excludeId: booking.id
+      });
     }
     await client.query(
       `UPDATE planning_service_bookings
@@ -2627,7 +2662,8 @@ app.get('/api/calendar/google/callback', async (req, res) => {
     const { rows: updated } = await pool.query(
       `UPDATE app_users
        SET google_calendar_refresh_token = $2,
-           google_calendar_connected_at = CURRENT_TIMESTAMP
+           google_calendar_connected_at = CURRENT_TIMESTAMP,
+           planning_google_sync_enabled = FALSE
        WHERE id = $1 AND role = 'pro'
          AND verification_status = 'approved' AND is_active = TRUE
        RETURNING id`,
@@ -2682,6 +2718,78 @@ app.post('/api/calendar/google/connect', requireAuth, async (req, res) => {
     res.json({ authorizationUrl: googleCalendar.authorizationUrl(state) });
   } catch (error) {
     sendApiError(res, error, 'Impossible de démarrer la connexion Google Calendar.');
+  }
+});
+
+app.get('/api/calendar/planning/status', requireAuth, async (req, res) => {
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    const settings = await planningGoogleSync.getSettings(req.authUser);
+    res.json({
+      ...settings,
+      workerError: planningSyncWorkerStarted ? settings.workerError
+        : 'Le service de synchronisation du planning n’est pas démarré.'
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de vérifier la synchronisation du planning.');
+  }
+});
+
+app.post('/api/calendar/planning/status', requireAuth, async (req, res) => {
+  try {
+    res.json(await planningGoogleSync.setEnabled(req.authUser, req.body?.enabled));
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier la synchronisation du planning.');
+  }
+});
+
+app.get('/api/calendar/planning/requests', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Accès aux modifications de l’agenda refusé.' });
+  }
+  try {
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ requests: await planningGoogleSync.list(req.authUser) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les modifications Google.');
+  }
+});
+
+app.post('/api/calendar/planning/requests/:id', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Réponse à la modification non autorisée.' });
+  }
+  if (!isValidUuid(req.params.id)) {
+    return res.status(400).json({ error: 'Identifiant de modification invalide.' });
+  }
+  try {
+    res.json(await planningGoogleSync.respond(req.authUser, req.params.id, req.body?.decision));
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de répondre à la modification Google.');
+  }
+});
+
+app.post('/api/calendar/planning/confirm-reconnect', requireAuth, async (req, res) => {
+  if (req.body?.sameCalendar !== true) {
+    return res.status(400).json({ error: 'Confirmez que vous avez reconnecté le même agenda Google.' });
+  }
+  try {
+    await planningGoogleSync.confirmReconnect(req.authUser);
+    res.json({ confirmed: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de reprendre la synchronisation Google.');
+  }
+});
+
+app.post('/api/calendar/planning/change-calendar', requireAuth, async (req, res) => {
+  if (req.body?.newCalendar !== true) {
+    return res.status(400).json({ error: 'Confirmez que vous avez connecté un autre agenda Google.' });
+  }
+  try {
+    await planningGoogleSync.changeCalendar(req.authUser);
+    res.json({ confirmed: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de changer d’agenda Google.');
   }
 });
 
@@ -2914,7 +3022,7 @@ app.get('/api/directory/:professionalId/availability', requireAuth, async (req, 
   }
 });
 
-app.post('/api/directory/:professionalId/bookings', requireAuth, async (req, res) => {
+app.post('/api/directory/:professionalId/bookings', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'La réservation est réservée aux seniors et aux aidants.' });
   }
@@ -2932,6 +3040,23 @@ app.post('/api/directory/:professionalId/bookings', requireAuth, async (req, res
   try {
     client = await pool.connect();
     await client.query('BEGIN');
+    await lockScheduleParticipants(client, req.params.professionalId, req.authUser.seniorId);
+    if (req.authUser.role === 'aidant') {
+      const { rows: links } = await client.query(
+        `SELECT link.senior_profile_id FROM app_aidant_senior_links link
+         JOIN app_users aidant ON aidant.id = link.aidant_user_id
+         JOIN app_users senior ON senior.senior_id = link.senior_profile_id AND senior.role = 'senior'
+         WHERE link.aidant_user_id = $1 AND link.senior_profile_id = $2
+           AND link.suspended_at IS NULL AND senior.is_active = TRUE AND aidant.is_active = TRUE
+           AND (aidant.is_legal_guardian = FALSE OR aidant.guardian_verification_status = 'approved')
+         FOR SHARE OF link, aidant, senior`,
+        [req.authUser.id, req.authUser.seniorId]
+      );
+      if (!links[0]) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Ce profil senior n’est plus associé à votre compte.' });
+      }
+    }
     const { rows } = await client.query(
       `SELECT id, appointment_timezone, appointment_weekly_hours,
               appointment_duration_minutes, google_calendar_refresh_token
@@ -2980,6 +3105,12 @@ app.post('/api/directory/:professionalId/bookings', requireAuth, async (req, res
       return res.status(409).json({ error: 'Ce créneau vient d’être pris ou n’est plus disponible.' });
     }
 
+    await assertScheduleAvailable(client, {
+      professionalId: professional.id,
+      seniorId: req.authUser.seniorId,
+      start: selectedSlot.start,
+      durationMinutes: professional.appointment_duration_minutes
+    });
     bookingId = randomUUID();
     createdEventId = await googleCalendar.createHoldEvent(accessToken, {
       start: new Date(selectedSlot.start),
@@ -2989,15 +3120,16 @@ app.post('/api/directory/:professionalId/bookings', requireAuth, async (req, res
     await client.query(
       `INSERT INTO app_directory_bookings
          (id, requester_user_id, professional_user_id, scheduled_at,
-          duration_minutes, google_event_id, hold_expires_at)
-       VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP + INTERVAL '15 minutes')`,
+          duration_minutes, google_event_id, senior_profile_id, hold_expires_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP + INTERVAL '15 minutes')`,
       [
         bookingId,
         req.authUser.id,
         professional.id,
         selectedSlot.start,
         professional.appointment_duration_minutes,
-        createdEventId
+        createdEventId,
+        req.authUser.seniorId
       ]
     );
     await insertAppNotification(
@@ -3039,7 +3171,7 @@ app.post('/api/directory/:professionalId/bookings', requireAuth, async (req, res
   }
 });
 
-app.get('/api/directory/bookings', requireAuth, async (req, res) => {
+app.get('/api/directory/bookings', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Accès aux demandes de rendez-vous refusé.' });
   }
@@ -3049,30 +3181,46 @@ app.get('/api/directory/bookings', requireAuth, async (req, res) => {
               booking.scheduled_at, booking.duration_minutes, booking.status,
               booking.hold_expires_at, booking.created_at,
               requester.name AS requester_name, professional.name AS professional_name,
-              professional.appointment_timezone
+              professional.appointment_timezone, booking.senior_profile_id, requester.role AS requester_role
        FROM app_directory_bookings booking
        JOIN app_users requester ON requester.id = booking.requester_user_id
        JOIN app_users professional ON professional.id = booking.professional_user_id
-       WHERE ($1 = 'pro' AND booking.professional_user_id = $2)
-          OR ($1 IN ('senior', 'aidant') AND booking.requester_user_id = $2)
+       WHERE (($1 = 'pro' AND booking.professional_user_id = $2)
+          OR ($1 IN ('senior', 'aidant') AND (
+            booking.senior_profile_id = $3 OR
+            (booking.senior_profile_id IS NULL AND requester.role = 'aidant'
+              AND (booking.status = 'confirmed' OR
+                (booking.status = 'pending' AND booking.hold_expires_at > CURRENT_TIMESTAMP))
+              AND EXISTS (
+              SELECT 1 FROM app_aidant_senior_links link
+              WHERE link.aidant_user_id = requester.id AND link.senior_profile_id = $3)))))
+         AND ($1 <> 'aidant' OR EXISTS (
+           SELECT 1 FROM app_aidant_senior_links access_link
+           JOIN app_users access_user ON access_user.id = access_link.aidant_user_id
+           JOIN app_users senior ON senior.senior_id = access_link.senior_profile_id
+             AND senior.role = 'senior' AND senior.is_active = TRUE
+           WHERE access_link.aidant_user_id = $2 AND access_link.senior_profile_id = $3
+             AND access_link.suspended_at IS NULL AND access_user.is_active = TRUE
+             AND (access_user.is_legal_guardian = FALSE OR access_user.guardian_verification_status = 'approved')))
        ORDER BY booking.scheduled_at DESC
        LIMIT 100`,
-      [req.authUser.role, req.authUser.id]
+      [req.authUser.role, req.authUser.id, req.authUser.seniorId]
     );
     res.set('Cache-Control', 'private, no-store');
     res.json({
       bookings: rows.map(row => ({
-        id: row.id,
-        professionalId: row.professional_user_id,
-        requesterId: row.requester_user_id,
-        professionalName: row.professional_name,
-        requesterName: row.requester_name,
-        timeZone: row.appointment_timezone,
+        id: req.authUser.role !== 'pro' && !row.senior_profile_id ? null : row.id,
+        professionalId: req.authUser.role !== 'pro' && !row.senior_profile_id ? null : row.professional_user_id,
+        requesterId: req.authUser.role === 'pro' ? row.requester_user_id : null,
+        professionalName: req.authUser.role !== 'pro' && !row.senior_profile_id
+          ? 'Créneau réservé : personne non identifiée' : row.professional_name,
+        requesterName: req.authUser.role === 'pro' ? row.requester_name : null,
+        timeZone: req.authUser.role !== 'pro' && !row.senior_profile_id ? 'Europe/Paris' : row.appointment_timezone,
         scheduledAt: row.scheduled_at,
         durationMinutes: row.duration_minutes,
-        status: row.status,
-        holdExpiresAt: row.hold_expires_at,
-        createdAt: row.created_at
+        status: req.authUser.role !== 'pro' && !row.senior_profile_id ? 'occupied' : row.status,
+        holdExpiresAt: req.authUser.role !== 'pro' && !row.senior_profile_id ? null : row.hold_expires_at,
+        createdAt: req.authUser.role !== 'pro' && !row.senior_profile_id ? null : row.created_at
       }))
     });
   } catch (error) {
@@ -3097,8 +3245,9 @@ app.patch('/api/directory/bookings/:bookingId', requireAuth, async (req, res) =>
     const { rows } = await client.query(
       `SELECT booking.id, booking.requester_user_id, booking.professional_user_id,
               booking.scheduled_at, booking.google_event_id, booking.status,
-              booking.hold_expires_at, professional.google_calendar_refresh_token,
-              requester.email AS requester_email
+              booking.duration_minutes, booking.hold_expires_at, professional.google_calendar_refresh_token,
+              requester.email AS requester_email, requester.role AS requester_role,
+              booking.senior_profile_id
        FROM app_directory_bookings booking
        JOIN app_users professional ON professional.id = booking.professional_user_id
        JOIN app_users requester ON requester.id = booking.requester_user_id
@@ -3137,6 +3286,40 @@ app.patch('/api/directory/bookings/:bookingId', requireAuth, async (req, res) =>
       return res.status(409).json({ error: 'La réservation provisoire a expiré. Le créneau doit être réservé à nouveau.' });
     }
 
+    if (req.body.decision === 'confirmed') {
+      let seniorIds = booking.senior_profile_id ? [booking.senior_profile_id] : [];
+      if (!booking.senior_profile_id && booking.requester_role === 'aidant') {
+        const { rows: links } = await client.query(
+          `SELECT senior_profile_id FROM app_aidant_senior_links
+           WHERE aidant_user_id = $1`,
+          [booking.requester_user_id]
+        );
+        seniorIds = links.map(link => link.senior_profile_id);
+      }
+      await lockScheduleParticipants(client, booking.professional_user_id, seniorIds);
+      if (!booking.senior_profile_id && booking.requester_role === 'aidant') {
+        const { rows: currentLinks } = await client.query(
+          `SELECT senior_profile_id FROM app_aidant_senior_links WHERE aidant_user_id = $1`,
+          [booking.requester_user_id]
+        );
+        const currentIds = currentLinks.map(link => link.senior_profile_id).sort();
+        if (JSON.stringify(currentIds) !== JSON.stringify([...seniorIds].sort())) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'Les profils liés ont changé. Actualisez la demande avant de répondre.' });
+        }
+      }
+      if (new Date(booking.hold_expires_at) <= new Date()) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'La réservation provisoire a expiré. Le créneau doit être réservé à nouveau.' });
+      }
+      for (const seniorId of seniorIds.length ? seniorIds : [null]) {
+        await assertScheduleAvailable(client, {
+          professionalId: booking.professional_user_id, seniorId,
+          start: booking.scheduled_at, durationMinutes: booking.duration_minutes,
+          excludeKind: 'directory', excludeId: booking.id
+        });
+      }
+    }
     accessToken = await getCalendarAccessToken(booking.google_calendar_refresh_token);
     if (req.body.decision === 'confirmed') {
       await googleCalendar.confirmHoldEvent(accessToken, booking.google_event_id, booking.requester_email);
@@ -3460,6 +3643,8 @@ app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res
       return res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
     }
     if (req.body.decision === 'accept') {
+      await lockScheduleParticipants(client, null, req.authUser.seniorId);
+      await assertLegacyBookingsSafeForLink(client, rows[0].aidant_user_id, req.authUser.seniorId);
       const link = await client.query(
         `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
          VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING senior_profile_id`,
@@ -3604,6 +3789,7 @@ app.post('/api/senior-links/removals/:id/confirm', requireAuth, async (req, res)
   try {
     client = await pool.connect();
     await client.query('BEGIN');
+    await lockScheduleParticipants(client, null, req.authUser.seniorId);
     const hash = createHash('sha256').update(code).digest('hex');
     const { rows } = await client.query(
       `UPDATE app_aidant_unlink_requests SET status = 'completed', resolved_at = CURRENT_TIMESTAMP,
@@ -4029,6 +4215,27 @@ app.post('/api/planning/consents/:recipientId', requireAuth, requireAidantSenior
     }
 
     if (!req.body.consented) {
+      await client.query(
+        `DELETE FROM app_notifications
+         WHERE entity_type = 'google_schedule_change' AND entity_id IN (
+           SELECT sync.id FROM planning_google_events sync
+           WHERE (sync.entity_kind = 'visit' AND sync.entity_id IN (
+             SELECT visit.id FROM planning_visits visit WHERE visit.recipient_id = $1
+           )) OR (sync.entity_kind = 'service' AND sync.entity_id IN (
+             SELECT booking.id FROM planning_service_bookings booking WHERE booking.recipient_id = $1
+           ))
+         )`,
+        [req.params.recipientId]
+      );
+      await client.query(
+        `UPDATE planning_google_events sync SET senior_id = NULL, proposal = NULL
+         WHERE (sync.entity_kind = 'visit' AND sync.entity_id IN (
+           SELECT visit.id FROM planning_visits visit WHERE visit.recipient_id = $1
+         )) OR (sync.entity_kind = 'service' AND sync.entity_id IN (
+           SELECT booking.id FROM planning_service_bookings booking WHERE booking.recipient_id = $1
+         ))`,
+        [req.params.recipientId]
+      );
       await client.query(
         `DELETE FROM app_notifications
          WHERE entity_id IN (
@@ -4494,7 +4701,7 @@ app.patch('/api/planning/services/bookings/:bookingId', requireAuth, requireAida
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `SELECT booking.id, booking.status, booking.organization_id, booking.recipient_id,
+      `SELECT booking.id, booking.status, booking.organization_id, booking.recipient_id, booking.requested_at,
               booking.created_by, partner.user_id, partner.display_name,
               recipient.senior_id, recipient.name AS recipient_name,
               organization.coordinator_user_id
@@ -4542,6 +4749,14 @@ app.patch('/api/planning/services/bookings/:bookingId', requireAuth, requireAida
     if (!allowed) {
       await client.query('ROLLBACK');
       return res.status(409).json({ error: 'Ce changement n’est pas possible pour le statut actuel du rendez-vous.' });
+    }
+    if (status === 'confirmed') {
+      await lockScheduleParticipants(client, booking.user_id, booking.senior_id);
+      await assertScheduleAvailable(client, {
+        professionalId: booking.user_id, seniorId: booking.senior_id,
+        start: booking.requested_at, durationMinutes: 30,
+        excludeKind: 'service', excludeId: booking.id
+      });
     }
     await client.query(
       `UPDATE planning_service_bookings
@@ -4836,12 +5051,14 @@ app.post('/api/planning/visits/:visitId/response', requireAuth, async (req, res)
     await client.query('BEGIN');
     const { rows } = await client.query(
       `SELECT visit.id, visit.organization_id, visit.recipient_id, visit.created_by,
-              visit.scheduled_at, visit.visit_type, recipient.senior_id, recipient.name AS recipient_name,
+              visit.scheduled_at, visit.duration_minutes, visit.visit_type, recipient.senior_id,
+              senior_account.id AS senior_user_id, recipient.name AS recipient_name,
               organization.coordinator_user_id
        FROM planning_visits visit
        JOIN planning_recipients recipient
          ON recipient.id = visit.recipient_id
         AND recipient.organization_id = visit.organization_id
+       LEFT JOIN app_users senior_account ON senior_account.senior_id = recipient.senior_id
        JOIN planning_organizations organization ON organization.id = visit.organization_id
        JOIN planning_org_members member
          ON member.organization_id = visit.organization_id
@@ -4865,6 +5082,14 @@ app.post('/api/planning/visits/:visitId/response', requireAuth, async (req, res)
       return res.status(404).json({ error: 'Demande introuvable, déjà traitée ou non affectée à votre compte.' });
     }
 
+    if (acceptanceStatus === 'accepted') {
+      await lockScheduleParticipants(client, req.authUser.id, visit.senior_id);
+      await assertScheduleAvailable(client, {
+        professionalId: req.authUser.id, seniorId: visit.senior_id,
+        start: visit.scheduled_at, durationMinutes: visit.duration_minutes,
+        excludeKind: 'visit', excludeId: visit.id
+      });
+    }
     await client.query(
       `UPDATE planning_visits
        SET acceptance_status = $2
@@ -4872,10 +5097,11 @@ app.post('/api/planning/visits/:visitId/response', requireAuth, async (req, res)
       [visit.id, acceptanceStatus]
     );
     const notificationTargets = new Set([
-      visit.senior_id,
+      visit.senior_user_id,
       visit.created_by,
       visit.coordinator_user_id
     ]);
+    notificationTargets.delete(null);
     notificationTargets.delete(req.authUser.id);
     for (const userId of notificationTargets) {
       await insertAppNotification(
@@ -4897,6 +5123,116 @@ app.post('/api/planning/visits/:visitId/response', requireAuth, async (req, res)
     sendApiError(res, error, 'Impossible d’enregistrer votre réponse au rendez-vous.');
   } finally {
     if (client) client.release();
+  }
+});
+
+app.get('/api/planning/calendar', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
+  }
+  const { start, end } = req.query;
+  const validDate = value => {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    const date = new Date(`${value}T00:00:00.000Z`);
+    return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+  };
+  if (!validDate(start) || !validDate(end) ||
+      Date.parse(`${end}T00:00:00Z`) <= Date.parse(`${start}T00:00:00Z`) ||
+      Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`) > 42 * 86400000) {
+    return res.status(400).json({ error: 'Choisissez une période valide de 42 jours maximum.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `WITH bounds AS (
+         SELECT $1::date::timestamp AT TIME ZONE 'Europe/Paris' AS start_at,
+                $2::date::timestamp AT TIME ZONE 'Europe/Paris' AS end_at,
+                ($3 <> 'aidant' OR EXISTS (
+                  SELECT 1 FROM app_aidant_senior_links access_link
+                  JOIN app_users access_user ON access_user.id = access_link.aidant_user_id
+                  JOIN app_users senior ON senior.senior_id = access_link.senior_profile_id
+                    AND senior.role = 'senior' AND senior.is_active = TRUE
+                  WHERE access_link.aidant_user_id = $4 AND access_link.senior_profile_id = $5
+                    AND access_link.suspended_at IS NULL AND access_user.is_active = TRUE
+                    AND (access_user.is_legal_guardian = FALSE OR access_user.guardian_verification_status = 'approved')
+                )) AS authorized
+       )
+       SELECT visit.id, 'visit' AS kind, visit.scheduled_at, visit.duration_minutes,
+              visit.visit_type AS title, visit.status,
+              CASE WHEN $3 = 'pro' THEN recipient.name ELSE NULL END AS person
+       FROM planning_visits visit
+       JOIN planning_recipients recipient ON recipient.id = visit.recipient_id
+         AND recipient.organization_id = visit.organization_id
+       JOIN planning_org_members member ON member.organization_id = visit.organization_id
+         AND member.user_id = visit.assigned_user_id AND member.role = 'professional'
+       JOIN app_users professional ON professional.id = visit.assigned_user_id
+         AND professional.is_active = TRUE AND professional.verification_status = 'approved'
+       CROSS JOIN bounds
+       WHERE bounds.authorized AND recipient.consent_at IS NOT NULL AND recipient.consent_revoked_at IS NULL
+         AND visit.acceptance_status = 'accepted'
+         AND visit.scheduled_at >= bounds.start_at AND visit.scheduled_at < bounds.end_at
+         AND (($3 IN ('senior', 'aidant') AND recipient.senior_id = $5)
+           OR ($3 = 'pro' AND (visit.assigned_user_id = $4 OR ($6 AND EXISTS (
+             SELECT 1 FROM planning_organizations org
+             WHERE org.id = visit.organization_id AND org.coordinator_user_id = $4
+           )))))
+       UNION ALL
+       SELECT booking.id, 'service', booking.requested_at, 30,
+              partner.display_name, booking.status,
+              CASE WHEN $3 = 'pro' THEN recipient.name ELSE NULL END
+       FROM planning_service_bookings booking
+       JOIN planning_service_partners partner ON partner.id = booking.partner_id
+         AND partner.organization_id = booking.organization_id
+       JOIN planning_recipients recipient ON recipient.id = booking.recipient_id
+         AND recipient.organization_id = booking.organization_id
+       CROSS JOIN bounds
+       WHERE bounds.authorized AND recipient.consent_at IS NOT NULL AND recipient.consent_revoked_at IS NULL
+         AND booking.status IN ('confirmed', 'completed')
+         AND booking.requested_at >= bounds.start_at AND booking.requested_at < bounds.end_at
+         AND (($3 IN ('senior', 'aidant') AND recipient.senior_id = $5)
+           OR ($3 = 'pro' AND ((partner.user_id = $4 AND EXISTS (
+             SELECT 1 FROM planning_org_members member
+             WHERE member.organization_id = booking.organization_id
+               AND member.user_id = $4 AND member.role = 'professional'
+           )) OR ($6 AND EXISTS (
+             SELECT 1 FROM planning_organizations org
+             WHERE org.id = booking.organization_id AND org.coordinator_user_id = $4
+           )))))
+       UNION ALL
+       SELECT CASE WHEN $3 <> 'pro' AND booking.senior_profile_id IS NULL THEN NULL ELSE booking.id END,
+              'directory', booking.scheduled_at, booking.duration_minutes,
+              CASE WHEN $3 = 'pro' THEN requester.name
+                   WHEN booking.senior_profile_id IS NULL THEN 'Créneau réservé : personne non identifiée'
+                   ELSE professional.name END,
+              CASE WHEN $3 <> 'pro' AND booking.senior_profile_id IS NULL THEN 'occupied' ELSE booking.status END, NULL
+       FROM app_directory_bookings booking
+       JOIN app_users requester ON requester.id = booking.requester_user_id
+       JOIN app_users professional ON professional.id = booking.professional_user_id
+       CROSS JOIN bounds
+       WHERE bounds.authorized AND booking.status IN ('pending', 'confirmed')
+         AND (booking.status <> 'pending' OR booking.hold_expires_at > CURRENT_TIMESTAMP)
+         AND booking.scheduled_at >= bounds.start_at AND booking.scheduled_at < bounds.end_at
+         AND (($3 = 'pro' AND booking.professional_user_id = $4)
+           OR ($3 IN ('senior', 'aidant') AND (
+             booking.senior_profile_id = $5 OR
+             (booking.senior_profile_id IS NULL AND requester.role = 'aidant'
+              AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
+                          WHERE link.aidant_user_id = booking.requester_user_id
+                            AND link.senior_profile_id = $5)))))
+       ORDER BY scheduled_at`,
+      [start, end, req.authUser.role, req.authUser.id, req.authUser.seniorId, req.authUser.isCoordinator]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ events: rows.map(row => ({
+      id: row.id,
+      kind: row.kind,
+      scheduledAt: row.scheduled_at,
+      durationMinutes: row.duration_minutes,
+      title: row.title,
+      person: row.person,
+      status: row.status
+    })) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger l’agenda.');
   }
 });
 
@@ -5554,6 +5890,25 @@ function startDirectoryBookingCleanup() {
   timer.unref();
 }
 
+function startPlanningGoogleSync() {
+  planningSyncWorkerStarted = true;
+  let running = false;
+  const synchronize = async () => {
+    if (running) return;
+    running = true;
+    try {
+      await planningGoogleSync.run();
+    } catch (error) {
+      console.error('Synchronisation du planning Google impossible :', error);
+    } finally {
+      running = false;
+    }
+  };
+  synchronize();
+  const timer = setInterval(synchronize, 30 * 1000);
+  timer.unref();
+}
+
 function startAssistantConversationCleanup() {
   const cleanExpiredConversations = async () => {
     try {
@@ -5599,6 +5954,7 @@ if (require.main === module) {
     .then(() => {
       notificationDelivery.startDeliveryWorker(pool);
       startDirectoryBookingCleanup();
+      startPlanningGoogleSync();
       startAssistantConversationCleanup();
       startWellbeingCheckinCleanup();
     })

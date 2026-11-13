@@ -4,6 +4,8 @@ const { PGlite } = require('@electric-sql/pglite');
 const pg = require('pg');
 const delivery = require('../notification-delivery');
 const { TERMS_VERSION } = require('../auth');
+const { assertScheduleAvailable, lockScheduleParticipants } = require('../schedule-conflicts');
+const { randomUUID } = require('node:crypto');
 
 const adminCode = 'test-administrator-code-at-least-32-characters';
 let db;
@@ -67,6 +69,134 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('calendar and conflicts isolate identified bookings and conservatively cover legacy multi-profile bookings', async () => {
+      const first = await register('calendar-first@example.test', 'senior');
+      const second = await register('calendar-second@example.test', 'senior');
+      const outsider = await register('calendar-outsider@example.test', 'senior');
+      const aidant = await register('calendar-aidant@example.test', 'aidant');
+      const pro = await register('calendar-pro@example.test', 'senior');
+      await db.query(`UPDATE app_users SET role = 'pro', verification_status = 'approved', verification_reviewed_at = CURRENT_TIMESTAMP
+        WHERE id = $1`, [pro.user.id]);
+      await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+        VALUES ($1, $2, $1), ($1, $3, $1)`, [aidant.user.id, first.user.seniorId, second.user.seniorId]);
+      const start = new Date(Date.now() + 5 * 86400000);
+      start.setUTCHours(10, 0, 0, 0);
+      const firstTime = new Date(start.getTime() + 2 * 3600000);
+      const secondTime = new Date(start.getTime() + 4 * 3600000);
+      const legacy = randomUUID();
+      const booking1 = randomUUID();
+      const booking2 = randomUUID();
+      await db.query(`INSERT INTO app_directory_bookings
+        (id, requester_user_id, professional_user_id, senior_profile_id, scheduled_at, duration_minutes, google_event_id, status)
+        VALUES ($1, $4, $5, NULL, $6, 60, 'legacy', 'confirmed'),
+               ($2, $4, $5, $7, $8, 60, 'first', 'confirmed'),
+               ($3, $4, $5, $9, $10, 60, 'second', 'confirmed')`,
+        [legacy, booking1, booking2, aidant.user.id, pro.user.id, start, first.user.seniorId,
+          firstTime, second.user.seniorId, secondTime]);
+      const from = new Date(start.getTime() - 86400000).toISOString().slice(0, 10);
+      const to = new Date(start.getTime() + 2 * 86400000).toISOString().slice(0, 10);
+      const path = `/api/planning/calendar?start=${from}&end=${to}`;
+      const firstView = await request(path, { user: aidant, seniorId: first.user.seniorId });
+      const secondView = await request(path, { user: aidant, seniorId: second.user.seniorId });
+      assert.equal(firstView.status, 200);
+      assert.deepEqual(firstView.data.events.map(event => event.id), [null, booking1]);
+      assert.deepEqual(secondView.data.events.map(event => event.id), [null, booking2]);
+      assert.match(firstView.data.events[0].title, /personne non identifiée/);
+      const directory = await request('/api/directory/bookings', { user: aidant, seniorId: first.user.seniorId });
+      assert.deepEqual(new Set(directory.data.bookings.map(booking => booking.id)), new Set([null, booking1]));
+      assert.equal(directory.data.bookings.find(booking => booking.id === null).professionalId, null);
+      assert.equal((await request(path, { user: aidant, seniorId: outsider.user.seniorId })).status, 403);
+      assert.equal((await request(path, { user: aidant })).status, 409);
+      assert.deepEqual((await request(path, { user: outsider })).data.events, []);
+      const client = { query: (sql, params) => db.query(sql, params) };
+      for (const seniorId of [first.user.seniorId, second.user.seniorId]) {
+        await assert.rejects(assertScheduleAvailable(client, {
+          professionalId: randomUUID(), seniorId, start, durationMinutes: 30
+        }), error => error.status === 409);
+      }
+      await assertScheduleAvailable(client, {
+        professionalId: randomUUID(), seniorId: outsider.user.seniorId, start, durationMinutes: 30
+      });
+      await assertScheduleAvailable(client, {
+        professionalId: randomUUID(), seniorId: second.user.seniorId, start: firstTime, durationMinutes: 30
+      });
+      const calendar = require('../google-calendar');
+      const methods = ['decryptRefreshToken', 'getAccessToken', 'getBusyIntervals', 'createHoldEvent'];
+      const originals = Object.fromEntries(methods.map(name => [name, calendar[name]]));
+      Object.assign(calendar, {
+        decryptRefreshToken: () => 'token',
+        getAccessToken: async () => 'access',
+        getBusyIntervals: async () => [],
+        createHoldEvent: async () => randomUUID()
+      });
+      try {
+        const weekly = Array.from({ length: 7 }, (_, dayOfWeek) => ({ dayOfWeek, startTime: '08:00', endTime: '20:00' }));
+        await db.query(`UPDATE app_users SET directory_listed = TRUE, home_latitude = 48,
+          home_longitude = 2, google_calendar_refresh_token = 'token', appointment_timezone = 'UTC',
+          appointment_weekly_hours = $2::jsonb, appointment_duration_minutes = 60 WHERE id = $1`,
+          [pro.user.id, JSON.stringify(weekly)]);
+        const newTime = new Date(start.getTime() + 6 * 3600000);
+        const route = `/api/directory/${pro.user.id}/bookings`;
+        assert.equal((await request(route, { user: aidant, body: { start: newTime.toISOString() } })).status, 409);
+        assert.equal((await request(route, { user: aidant, seniorId: outsider.user.seniorId,
+          body: { start: newTime.toISOString() } })).status, 403);
+        const created = await request(route, { user: aidant, seniorId: second.user.seniorId,
+          body: { start: newTime.toISOString() } });
+        assert.equal(created.status, 201, JSON.stringify(created.data));
+        const saved = await db.query('SELECT senior_profile_id FROM app_directory_bookings WHERE id = $1', [created.data.id]);
+        assert.equal(saved.rows[0].senior_profile_id, second.user.seniorId);
+      } finally {
+        Object.assign(calendar, originals);
+      }
+      const locks = new Map();
+      const makeClient = () => {
+        const held = [];
+        return {
+          async query(sql, params) {
+            if (!sql.includes('pg_advisory_xact_lock')) return db.query(sql, params);
+            const key = params[0];
+            const previous = locks.get(key) || Promise.resolve();
+            let release;
+            const own = new Promise(resolve => { release = resolve; });
+            locks.set(key, own);
+            await previous;
+            held.push(release);
+            return { rows: [] };
+          },
+          release() { held.reverse().forEach(release => release()); }
+        };
+      };
+      let firstLocked;
+      const locked = new Promise(resolve => { firstLocked = resolve; });
+      let finishFirst;
+      const pause = new Promise(resolve => { finishFirst = resolve; });
+      const raceTime = new Date(start.getTime() + 9 * 3600000);
+      const createConcurrent = async (professionalId, wait) => {
+        const tx = makeClient();
+        try {
+          await lockScheduleParticipants(tx, professionalId, first.user.seniorId);
+          if (wait) { firstLocked(); await pause; }
+          await assertScheduleAvailable(tx, { professionalId, seniorId: first.user.seniorId,
+            start: raceTime, durationMinutes: 60 });
+          await db.query(`INSERT INTO app_directory_bookings
+            (id, requester_user_id, professional_user_id, senior_profile_id, scheduled_at,
+             duration_minutes, google_event_id, status)
+            VALUES ($1, $2, $3, $4, $5, 60, $6, 'confirmed')`,
+            [randomUUID(), aidant.user.id, pro.user.id, first.user.seniorId, raceTime, randomUUID()]);
+        } finally {
+          tx.release();
+        }
+      };
+      const competingA = createConcurrent(randomUUID(), true);
+      await locked;
+      const competingB = createConcurrent(randomUUID(), false);
+      finishFirst();
+      const outcomes = await Promise.allSettled([competingA, competingB]);
+      assert.equal(outcomes.filter(outcome => outcome.status === 'fulfilled').length, 1,
+        outcomes.map(outcome => outcome.reason?.message).join('; '));
+      assert.equal(outcomes.find(outcome => outcome.status === 'rejected').reason.status, 409);
+});
 
 test('consent, suspension, administrator email and confirmation protect senior data', async () => {
   const senior = await register('senior@example.test', 'senior');
@@ -167,6 +297,86 @@ test('consent, suspension, administrator email and confirmation protect senior d
   assert.equal((await request(confirm, { user: senior, body: { code: sentCode.code } })).status, 200);
   assert.equal((await request(confirm, { user: senior, body: { code: sentCode.code } })).status, 400);
   assert.equal((await request('/api/logs/all', { user: aidant, seniorId })).status, 403);
+});
+
+test('association refuses an existing conflict with an unidentified legacy booking and removal releases it', async () => {
+  const senior = await register('link-conflict-senior@example.test', 'senior');
+  const aidant = await register('link-conflict-aidant@example.test', 'aidant');
+  const firstPro = await register('link-conflict-pro1@example.test', 'senior');
+  const secondPro = await register('link-conflict-pro2@example.test', 'senior');
+  const legacyId = randomUUID();
+  const occupiedId = randomUUID();
+  const start = new Date(Date.now() + 6 * 86400000);
+  await db.query(`INSERT INTO app_directory_bookings
+    (id, requester_user_id, professional_user_id, senior_profile_id, scheduled_at,
+     duration_minutes, google_event_id, status)
+    VALUES ($1, $3, $5, NULL, $7, 60, 'legacy-link', 'confirmed'),
+           ($2, $4, $6, $8, $7, 60, 'known-link', 'confirmed')`,
+    [legacyId, occupiedId, aidant.user.id, senior.user.id, firstPro.user.id,
+      secondPro.user.id, start, senior.user.seniorId]);
+  assert.equal((await request('/api/senior-links/requests', {
+    user: aidant, body: { email: 'link-conflict-senior@example.test' }
+  })).status, 202);
+  const requestId = (await request('/api/senior-links', { user: senior })).data.requests[0].id;
+  const decision = `/api/senior-links/requests/${requestId}/decision`;
+  const refused = await request(decision, { user: senior, body: { decision: 'accept' } });
+  assert.equal(refused.status, 409);
+  assert.match(refused.data.error, /ancienne réservation/);
+  assert.equal((await db.query('SELECT count(*)::int AS n FROM app_aidant_senior_links WHERE aidant_user_id = $1',
+    [aidant.user.id])).rows[0].n, 0);
+  await db.query("UPDATE app_directory_bookings SET status = 'declined' WHERE id = $1", [occupiedId]);
+  const secondLegacy = randomUUID();
+  await db.query(`INSERT INTO app_directory_bookings
+    (id, requester_user_id, professional_user_id, scheduled_at, duration_minutes, google_event_id, status)
+    VALUES ($1, $2, $3, $4, 60, 'legacy-link-2', 'confirmed')`,
+    [secondLegacy, aidant.user.id, secondPro.user.id, start]);
+  const overlappingLegacy = await request(decision, { user: senior, body: { decision: 'accept' } });
+  assert.equal(overlappingLegacy.status, 409);
+  assert.match(overlappingLegacy.data.error, /réservations de cet aidant se chevauchent/);
+  await db.query('DELETE FROM app_directory_bookings WHERE id = $1', [secondLegacy]);
+  assert.equal((await request(decision, { user: senior, body: { decision: 'accept' } })).status, 200);
+  const client = { query: (sql, params) => db.query(sql, params) };
+  const check = () => assertScheduleAvailable(client, {
+    professionalId: randomUUID(), seniorId: senior.user.seniorId, start, durationMinutes: 30
+  });
+  await assert.rejects(check(), error => error.status === 409);
+  const admin = await request('/api/auth/login', {
+    body: { email: 'admin@example.test', password: 'a-test-password-123' }
+  });
+  assert.equal(admin.status, 200);
+  assert.equal((await request(`/api/admin/accounts/${aidant.user.id}/senior-links/${senior.user.seniorId}`,
+    { user: admin.data, admin: true, method: 'DELETE' })).status, 200);
+  await check();
+});
+
+test('visit decisions notify the profile owner, or nobody when the profile has no account', async () => {
+  const senior = await register('visit-notification-senior@example.test', 'senior');
+  const pro = await register('visit-notification-pro@example.test', 'senior');
+  await db.query(`UPDATE app_users SET role = 'pro', verification_status = 'approved',
+    verification_reviewed_at = CURRENT_TIMESTAMP WHERE id = $1`, [pro.user.id]);
+  const organization = randomUUID();
+  const unowned = randomUUID();
+  await db.query('INSERT INTO senior_profiles (id, name) VALUES ($1, $2)', [unowned, 'Sans compte']);
+  await db.query(`INSERT INTO planning_organizations (id, name, coordinator_user_id)
+    VALUES ($1, 'Equipe', $2)`, [organization, pro.user.id]);
+  await db.query(`INSERT INTO planning_org_members (organization_id, user_id, role)
+    VALUES ($1, $2, 'professional')`, [organization, pro.user.id]);
+  for (const seniorId of [senior.user.seniorId, unowned]) {
+    const recipient = randomUUID();
+    const visit = randomUUID();
+    await db.query(`INSERT INTO planning_recipients (id, organization_id, senior_id, name, consent_at, created_by)
+      VALUES ($1, $2, $3, 'Personne', CURRENT_TIMESTAMP, $4)`, [recipient, organization, seniorId, pro.user.id]);
+    await db.query(`INSERT INTO planning_visits
+      (id, organization_id, recipient_id, assigned_user_id, scheduled_at, duration_minutes,
+       visit_type, created_by, acceptance_status)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + INTERVAL '5 days', 60, 'Visite', $4, 'pending')`,
+    [visit, organization, recipient, pro.user.id]);
+    const result = await request(`/api/planning/visits/${visit}/response`,
+      { user: pro, body: { acceptanceStatus: 'declined' } });
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    const { rows } = await db.query('SELECT user_id FROM app_notifications WHERE entity_id = $1', [visit]);
+    assert.deepEqual(rows.map(row => row.user_id), seniorId === unowned ? [] : [senior.user.id]);
+  }
 });
 
 test('directory radius filters exact distances before pagination', async () => {

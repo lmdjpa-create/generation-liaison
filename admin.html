@@ -656,11 +656,12 @@
         const acceptanceLabel = {
           pending: 'En attente de l’intervenant',
           accepted: 'Accepté et planifié',
-          declined: 'Refusé'
+          declined: 'Refusé',
+          cancelled: 'Annulé'
         }[visit.acceptanceStatus] || (visit.status === 'completed' ? 'Terminé' : 'Planifié');
         addCell(row, acceptanceLabel);
         const action = document.createElement('td');
-        if (visit.status === 'scheduled') {
+        if (visit.status === 'scheduled' && visit.acceptanceStatus !== 'cancelled') {
           const save = document.createElement('button');
           save.className = 'button secondary';
           save.type = 'button';
