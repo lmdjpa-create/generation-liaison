@@ -2507,8 +2507,8 @@
             status.textContent = calendar.connected
                 ? `Agenda Google connecté${profile.hasHomeLocation ? '' : ' · point de départ à renseigner avant publication'}.`
                 : calendar.configured
-                    ? 'Agenda Google non connecté. Connectez-le pour afficher et réserver vos disponibilités.'
-                    : 'Google Calendar doit être configuré par l’administrateur avant la publication.';
+                    ? 'Agenda Google facultatif : connectez-le pour éviter les doubles réservations avec votre agenda personnel.'
+                    : 'Agenda Google facultatif (non configuré pour le moment). Vos horaires suffisent pour publier.';
             document.getElementById('directory-calendar-connect').disabled = !calendar.configured;
         } catch (error) {
             status.textContent = error.message || 'Impossible de charger votre profil annuaire.';

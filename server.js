@@ -105,6 +105,7 @@ function hasValidCoordinates(latitude, longitude) {
 }
 
 async function getCalendarAccessToken(encryptedRefreshToken) {
+  if (!encryptedRefreshToken) return null;
   return googleCalendar.getAccessToken(googleCalendar.decryptRefreshToken(encryptedRefreshToken));
 }
 
@@ -140,7 +141,7 @@ async function getProfessionalBusyIntervals(client, professionalId, start, end, 
        AND booking.requested_at + INTERVAL '30 minutes' > $2`,
     [professionalId, start, end]
   );
-  const externalBusy = await googleCalendar.getBusyIntervals(accessToken, start, end);
+  const externalBusy = accessToken ? await googleCalendar.getBusyIntervals(accessToken, start, end) : [];
   return [
     ...externalBusy,
     ...rows.map(row => ({ start: new Date(row.start_at), end: new Date(row.end_at) }))
@@ -2893,7 +2894,6 @@ app.put('/api/directory/profile', requireAuth, async (req, res) => {
            AND is_active = TRUE
            AND home_latitude IS NOT NULL
            AND home_longitude IS NOT NULL
-           AND google_calendar_refresh_token IS NOT NULL
          ))
        RETURNING directory_listed` ,
       [
@@ -2909,7 +2909,7 @@ app.put('/api/directory/profile', requireAuth, async (req, res) => {
     );
     if (!rows[0]) {
       return res.status(409).json({
-        error: 'Pour publier l’annuaire, votre dossier doit être validé, votre domicile enregistré et votre agenda Google connecté.'
+        error: 'Pour publier l’annuaire, votre dossier doit être validé et votre domicile enregistré.'
       });
     }
     res.json({ listed: rows[0].directory_listed });
@@ -2956,7 +2956,6 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
          AND is_active = TRUE
          AND verification_status = 'approved'
          AND directory_listed = TRUE
-         AND google_calendar_refresh_token IS NOT NULL
          AND home_latitude IS NOT NULL AND home_longitude IS NOT NULL
          AND ($1 = '' OR name ILIKE '%' || $1 || '%'
               OR directory_activity ILIKE '%' || $1 || '%'
@@ -3008,7 +3007,7 @@ app.get('/api/directory/:professionalId/availability', requireAuth, async (req, 
       [req.params.professionalId]
     );
     const professional = rows[0];
-    if (!professional?.google_calendar_refresh_token) {
+    if (!professional) {
       return res.status(404).json({ error: 'Cet intervenant n’est plus disponible dans l’annuaire.' });
     }
     const range = getDailyRange(date, professional.appointment_timezone);
@@ -3089,7 +3088,7 @@ app.post('/api/directory/:professionalId/bookings', requireAuth, requireAidantSe
       [req.params.professionalId]
     );
     const professional = rows[0];
-    if (!professional?.google_calendar_refresh_token) {
+    if (!professional) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Cet intervenant n’est plus disponible dans l’annuaire.' });
     }
@@ -3133,11 +3132,13 @@ app.post('/api/directory/:professionalId/bookings', requireAuth, requireAidantSe
       durationMinutes: professional.appointment_duration_minutes
     });
     bookingId = randomUUID();
-    createdEventId = await googleCalendar.createHoldEvent(accessToken, {
-      start: new Date(selectedSlot.start),
-      end: new Date(selectedSlot.end),
-      bookingId
-    });
+    createdEventId = accessToken
+      ? await googleCalendar.createHoldEvent(accessToken, {
+        start: new Date(selectedSlot.start),
+        end: new Date(selectedSlot.end),
+        bookingId
+      })
+      : null;
     await client.query(
       `INSERT INTO app_directory_bookings
          (id, requester_user_id, professional_user_id, scheduled_at,
@@ -3299,8 +3300,10 @@ app.patch('/api/directory/bookings/:bookingId', requireAuth, async (req, res) =>
       );
       await client.query('COMMIT');
       try {
-        accessToken = await getCalendarAccessToken(booking.google_calendar_refresh_token);
-        await googleCalendar.deleteHoldEvent(accessToken, booking.google_event_id);
+        if (booking.google_event_id) {
+          accessToken = await getCalendarAccessToken(booking.google_calendar_refresh_token);
+          if (accessToken) await googleCalendar.deleteHoldEvent(accessToken, booking.google_event_id);
+        }
       } catch (cleanupError) {
         console.error(`Suppression du blocage expiré ${booking.id} impossible :`, cleanupError);
       }
@@ -3341,11 +3344,15 @@ app.patch('/api/directory/bookings/:bookingId', requireAuth, async (req, res) =>
         });
       }
     }
-    accessToken = await getCalendarAccessToken(booking.google_calendar_refresh_token);
-    if (req.body.decision === 'confirmed') {
-      await googleCalendar.confirmHoldEvent(accessToken, booking.google_event_id, booking.requester_email);
-    } else {
-      await googleCalendar.deleteHoldEvent(accessToken, booking.google_event_id);
+    accessToken = booking.google_event_id
+      ? await getCalendarAccessToken(booking.google_calendar_refresh_token)
+      : null;
+    if (accessToken) {
+      if (req.body.decision === 'confirmed') {
+        await googleCalendar.confirmHoldEvent(accessToken, booking.google_event_id, booking.requester_email);
+      } else {
+        await googleCalendar.deleteHoldEvent(accessToken, booking.google_event_id);
+      }
     }
     await client.query(
       `UPDATE app_directory_bookings
@@ -6069,7 +6076,7 @@ async function expireDirectoryBookingHolds() {
         `SELECT google_calendar_refresh_token FROM app_users WHERE id = $1`,
         [booking.professional_user_id]
       );
-      if (professionals[0]?.google_calendar_refresh_token) {
+      if (booking.google_event_id && professionals[0]?.google_calendar_refresh_token) {
         const accessToken = await getCalendarAccessToken(professionals[0].google_calendar_refresh_token);
         await googleCalendar.deleteHoldEvent(accessToken, booking.google_event_id);
       }
