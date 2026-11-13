@@ -138,8 +138,8 @@
         .notification-actions button.decline { background: #8d3939; }
         .notification-choice { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; color: #34495e; }
         .notification-choice input { width: auto; margin: 3px 0 0; }
-        .terms-consent { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; text-align: left; color: #34495e; line-height: 1.5; }
-        .terms-consent input { flex: 0 0 auto; width: auto; margin: 4px 0 0; }
+        .terms-consent { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; padding: 12px; border: 1px solid #b9c9c1; border-radius: 8px; background: #f0f7f3; text-align: left; color: #34495e; line-height: 1.5; }
+        .terms-consent input { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; margin: 2px 0 0; }
         .terms-error { margin: 0 0 12px; color: #b42318; font-weight: 700; text-align: left; }
         .account-closure { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e1e7eb; text-align: left; }
         .account-closure input { margin-top: 8px; }
@@ -294,6 +294,11 @@
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Créez votre accès Génération Liaison</p>
             <input type="text" id="reg-name" placeholder="Prénom et Nom">
             <input type="email" id="reg-email" name="username" autocomplete="username" placeholder="Adresse e-mail">
+            <label class="terms-consent" for="reg-terms-accepted">
+                <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
+                <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
+            </label>
+            <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
             <div id="reg-senior-fields">
                 <input type="text" id="reg-senior-name" placeholder="Nom du senior suivi (facultatif)" aria-label="Nom du senior suivi (facultatif)">
                 <p class="helper-text">Vous pouvez créer votre compte même si aucun senior n’est encore inscrit. Le suivi apparaîtra lorsqu’un senior rejoindra l’application et partagera son profil.</p>
@@ -339,11 +344,6 @@
                 <select id="reg-city-select" hidden></select>
                 <p id="reg-home-location-status" class="helper-text" aria-live="polite">Position du domicile non enregistrée.</p>
             </section>
-            <label class="terms-consent" for="reg-terms-accepted">
-                <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
-                <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
-            </label>
-            <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
             <button class="btn-submit" style="background: #2ecc71;" onclick="inscrireUtilisateur()">Créer mon compte</button>
             <p style="margin-top: 20px; font-size: 0.95rem; color: #7f8c8d;">Déjà inscrit ? <a href="#" onclick="basculerFormulaire(false)" style="color: #3498db; font-weight: bold; text-decoration: none;">Se connecter</a></p>
         </div>
