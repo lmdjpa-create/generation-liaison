@@ -143,6 +143,7 @@
         .terms-error { margin: 0 0 12px; color: #b42318; font-weight: 700; text-align: left; }
         .account-closure { margin-top: 20px; padding-top: 14px; border-top: 1px solid #e1e7eb; text-align: left; }
         .account-closure input { margin-top: 8px; }
+        .account-closure summary { cursor: pointer; font-weight: 700; color: #8b1e25; padding: 12px 0; font-size: 16px; }
         .account-closure button { padding: 10px 12px; border: 0; border-radius: 8px; background: #8b1e25; color: white; font-weight: 700; cursor: pointer; }
         .account-closure button:disabled { opacity: 0.6; cursor: wait; }
         .assistant-chat { display: grid; gap: 10px; text-align: left; }
@@ -688,14 +689,6 @@
         <button type="button" class="enable-push-button" data-role="senior">Activer les notifications push sur cet appareil</button>
         <button type="button" class="disable-push-button" data-role="senior">Désactiver les notifications push sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite"></p>
-        <div class="account-closure">
-            <h4>Clôturer mon compte</h4>
-            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
-            <label for="close-account-password-senior">Confirmez avec votre mot de passe</label>
-            <input id="close-account-password-senior" type="password" autocomplete="current-password">
-            <button type="button" data-close-account="senior">Demander la clôture</button>
-            <p class="helper-text" data-close-account-status="senior" role="status" aria-live="polite"></p>
-        </div>
     </section>
 <section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
         <h3>Mes préférences de notification</h3>
@@ -710,14 +703,6 @@
         <button type="button" class="enable-push-button" data-role="aidant">Activer les notifications push sur cet appareil</button>
         <button type="button" class="disable-push-button" data-role="aidant">Désactiver les notifications push sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite"></p>
-        <div class="account-closure">
-            <h4>Clôturer mon compte</h4>
-            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
-            <label for="close-account-password-aidant">Confirmez avec votre mot de passe</label>
-            <input id="close-account-password-aidant" type="password" autocomplete="current-password">
-            <button type="button" data-close-account="aidant">Demander la clôture</button>
-            <p class="helper-text" data-close-account-status="aidant" role="status" aria-live="polite"></p>
-        </div>
     </section>
 <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
         <h3>Mes préférences de notification</h3>
@@ -732,14 +717,6 @@
         <button type="button" class="enable-push-button" data-role="pro">Activer les notifications push sur cet appareil</button>
         <button type="button" class="disable-push-button" data-role="pro">Désactiver les notifications push sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite"></p>
-        <div class="account-closure">
-            <h4>Clôturer mon compte</h4>
-            <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
-            <label for="close-account-password-pro">Confirmez avec votre mot de passe</label>
-            <input id="close-account-password-pro" type="password" autocomplete="current-password">
-            <button type="button" data-close-account="pro">Demander la clôture</button>
-            <p class="helper-text" data-close-account-status="pro" role="status" aria-live="polite"></p>
-        </div>
     </section>
 <section class="form-card" style="text-align:left;" id="settings-senior-links">
             <h2>Accès des aidants à mon profil</h2>
@@ -800,6 +777,30 @@
         <p>Pour l’agenda, il est envisagé d’inclure gratuitement un intervenant par catégorie de service ; des intervenants supplémentaires pourraient devenir payants.</p>
         <p class="helper-text">Projet uniquement : aucune limite n’est appliquée, les tarifs ne sont pas définis et aucun paiement ni abonnement ne peut être souscrit actuellement.</p>
     </section>
+<section class="form-card" id="settings-account-closure" style="display:none;">
+    <details class="account-closure">
+        <summary>Clôturer mon compte</summary>
+        <p class="helper-text">La clôture désactive immédiatement votre accès et retire votre profil de l’annuaire. Une IA prépare un pré-jugement indicatif à partir du type de compte et de décomptes de dossiers, sans lire le contenu des notes ou transmissions. L’administration examine les données réelles et confirme seule la décision. Les rendez-vous en cours ne sont pas automatiquement annulés et les événements déjà copiés dans un agenda externe ne sont pas supprimés.</p>
+        <div id="close-account-senior" class="close-account-role" style="display:none;">
+            <label for="close-account-password-senior">Confirmez avec votre mot de passe</label>
+            <input id="close-account-password-senior" type="password" autocomplete="current-password">
+            <button type="button" data-close-account="senior">Demander la clôture</button>
+            <p class="helper-text" data-close-account-status="senior" role="status" aria-live="polite"></p>
+        </div>
+        <div id="close-account-aidant" class="close-account-role" style="display:none;">
+            <label for="close-account-password-aidant">Confirmez avec votre mot de passe</label>
+            <input id="close-account-password-aidant" type="password" autocomplete="current-password">
+            <button type="button" data-close-account="aidant">Demander la clôture</button>
+            <p class="helper-text" data-close-account-status="aidant" role="status" aria-live="polite"></p>
+        </div>
+        <div id="close-account-pro" class="close-account-role" style="display:none;">
+            <label for="close-account-password-pro">Confirmez avec votre mot de passe</label>
+            <input id="close-account-password-pro" type="password" autocomplete="current-password">
+            <button type="button" data-close-account="pro">Demander la clôture</button>
+            <p class="helper-text" data-close-account-status="pro" role="status" aria-live="polite"></p>
+        </div>
+    </details>
+</section>
 </div>
 
 <div id="screen-agenda" class="screen-container" style="background-color:var(--senior-bg);">
@@ -1560,7 +1561,10 @@
                 role === user.role && !pendingAccess ? 'block' : 'none';
             document.getElementById(`notification-settings-${role}`).style.display =
                 role === user.role ? 'block' : 'none';
+            document.getElementById(`close-account-${role}`).style.display =
+                role === user.role ? 'block' : 'none';
         });
+        document.getElementById('settings-account-closure').style.display = 'block';
         document.getElementById('settings-senior-links').style.display = user.role === 'senior' ? 'block' : 'none';
         document.getElementById('settings-aidant-links').style.display =
             user.role === 'aidant' && !pendingAccess ? 'block' : 'none';
@@ -4788,6 +4792,7 @@
             document.getElementById(`notifications-panel-${role}`).style.display = 'none';
             document.getElementById(`notification-settings-${role}`).style.display = 'none';
         });
+        document.getElementById('settings-account-closure').style.display = 'none';
         document.getElementById('legal-guardian-verification-panel').style.display = 'none';
         document.getElementById('aidant-no-senior-panel').style.display = 'none';
         document.getElementById('aidant-senior-selector').style.display = 'none';
