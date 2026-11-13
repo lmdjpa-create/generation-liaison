@@ -107,7 +107,10 @@ test('calendar and conflicts isolate identified bookings and conservatively cove
       assert.deepEqual(new Set(directory.data.bookings.map(booking => booking.id)), new Set([null, booking1]));
       assert.equal(directory.data.bookings.find(booking => booking.id === null).professionalId, null);
       assert.equal((await request(path, { user: aidant, seniorId: outsider.user.seniorId })).status, 403);
-      assert.equal((await request(path, { user: aidant })).status, 409);
+      const withoutSenior = await request(path, { user: aidant });
+      assert.equal(withoutSenior.status, 200);
+      assert.deepEqual(withoutSenior.data.events, []);
+      assert.deepEqual((await request('/api/calendar/planning/requests', { user: aidant })).data.requests, []);
       assert.deepEqual((await request(path, { user: outsider })).data.events, []);
       const client = { query: (sql, params) => db.query(sql, params) };
       for (const seniorId of [first.user.seniorId, second.user.seniorId]) {
