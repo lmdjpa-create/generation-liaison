@@ -216,6 +216,37 @@
         .importance-priority { color: #8b1e25; background: #fde9e8; border-color: #efb8b5; }
         .importance-legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #2ecc71; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: none; z-index: 100; }
+        /* Habillage inspiré de la maquette : vert apaisant, cartes arrondies, navigation douce */
+        :root { --brand: #2a9d78; --brand-dark: #1f7f61; --brand-soft: #e6f4ee; --blue-soft: #e8f1fb; --ink: #1f3a4d; --primary: #1f3a4d; --senior-bg: #f6faf8; --aidant-bg: #f6faf8; --pro-bg: #f6faf8; }
+        body { background: #f6faf8; color: var(--ink); }
+        .brand-logo { display: block; width: 76px; height: 76px; margin: 0 auto 6px; }
+        .brand-title { margin: 0 0 4px; text-align: center; font-size: 1.7rem; font-weight: 800; line-height: 1.05; color: var(--ink); }
+        .brand-title span { display: block; color: var(--brand); }
+        .brand-tagline { margin: 0 0 18px; text-align: center; color: #5d7385; font-size: 0.95rem; }
+        .card, .form-card, .visit-card, .notification-card { border-radius: 18px; box-shadow: 0 6px 18px rgba(31, 58, 77, 0.07); }
+        .notification-card { border: 1px solid #e3eee9; }
+        .notification-card.unread { border-left-color: var(--brand); }
+        input, select, textarea { border: 1.5px solid #d9e7e1; border-radius: 14px; background: #fbfdfc; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(42, 157, 120, 0.15); }
+        .btn-submit { background: linear-gradient(135deg, #34b087, var(--brand-dark)); border-radius: 14px; }
+        .btn-order { background: var(--brand); border-radius: 12px; }
+        .form-card button, .visit-progress button { background: var(--brand); border-radius: 12px; }
+        .visit-notes-button { border-color: var(--brand); color: var(--brand-dark); border-radius: 12px; }
+        .header-mobile { display: flex; flex-direction: column; gap: 2px; background: var(--brand-soft); color: var(--ink); border-radius: 18px; padding: 16px; box-shadow: 0 6px 18px rgba(31, 58, 77, 0.05); }
+        .header-mobile h3 { color: var(--ink); }
+        .header-mobile span { color: #3f6a5c; }
+        .nav-bar { border-top: 0; border-radius: 22px 22px 0 0; box-shadow: 0 -6px 18px rgba(31, 58, 77, 0.08); }
+        .nav-item { color: #7a8f9d; }
+        .nav-item.active { color: var(--brand-dark); font-weight: 700; }
+        .nav-item.active .nav-icon { background: var(--brand-soft); border-radius: 14px; padding: 2px 10px; }
+        .calendar-toolbar button { border-color: var(--brand); color: var(--brand-dark); border-radius: 12px; }
+        .calendar-toolbar button[aria-pressed="true"], .calendar-day > button[aria-pressed="true"] { background: var(--brand); color: white; }
+        .calendar-event { background: var(--brand-soft); border-radius: 8px; }
+        .visit-time { color: var(--brand-dark); }
+        .aidant-greeting { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; }
+        .aidant-avatar { display: grid; place-items: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-dark); font-size: 1.5rem; }
+        .aidant-greeting h2 { margin: 0; font-size: 1.25rem; color: var(--ink); }
+        .aidant-greeting p { margin: 2px 0 0; color: #3f6a5c; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -233,6 +264,12 @@
 
         <!-- Bloc Connexion -->
         <form id="login-section" autocomplete="on" onsubmit="event.preventDefault(); connecterUtilisateur();">
+            <svg class="brand-logo" viewBox="0 0 80 80" role="img" aria-label="Génération Liaison">
+                <circle cx="27" cy="12" r="7" fill="#2a9d78"/><circle cx="53" cy="12" r="7" fill="#3b82c4"/>
+                <path d="M40 70 C10 48 8 28 24 24 C32 22 38 28 40 34 C42 28 48 22 56 24 C72 28 70 48 40 70Z" fill="none" stroke="#2a9d78" stroke-width="9" stroke-linejoin="round"/>
+            </svg>
+            <p class="brand-title">Génération<span>Liaison</span></p>
+            <p class="brand-tagline">Mieux coordonner aujourd’hui pour demain</p>
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Connexion Sécurisée</h2>
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Entrez vos identifiants Génération Liaison</p>
             <input type="email" id="auth-email" name="username" autocomplete="username" placeholder="Adresse e-mail" required>
@@ -422,6 +459,13 @@
         <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
     </section>
 
+    <div class="aidant-greeting">
+        <div class="aidant-avatar" aria-hidden="true">🤝</div>
+        <div>
+            <h2>Bonjour <span id="welcome-aidant-name">!</span></h2>
+            <p>Tout est bien coordonné <span aria-hidden="true">💚</span></p>
+        </div>
+    </div>
     <div class="header-mobile">
         <h3 style="margin:0;">Espace Proches 👨‍👩‍👧‍👦</h3>
         <span style="font-size:0.85rem; opacity:0.9;">Suivi de : <span id="senior-name-aidant">Senior</span></span>
@@ -1622,6 +1666,7 @@
         const displayName = user.name || user.seniorName || 'Senior';
         const firstName = displayName.trim().split(/\s+/)[0] || 'Senior';
         document.getElementById('welcome-senior-name').textContent = firstName;
+        document.getElementById('welcome-aidant-name').textContent = firstName;
         document.getElementById('date-senior').textContent = new Date().toLocaleDateString(window.generationLiaisonLocale(), {
             weekday: 'long',
             day: 'numeric',
