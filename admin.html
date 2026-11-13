@@ -243,6 +243,10 @@
             <input id="ext-city" placeholder="Ville" maxlength="80">
             <button type="submit">Ajouter</button>
           </form>
+          <form id="external-pro-import" autocomplete="off">
+            <textarea id="ext-import" rows="4" placeholder="Import en masse : une ligne par intervenant, séparée par des points-virgules : nom;activité;téléphone;e-mail;adresse;code postal;ville (500 lignes max)"></textarea>
+            <button type="submit">Importer</button>
+          </form>
           <div class="table-wrap"><table>
             <thead><tr><th>Nom</th><th>Activité</th><th>Contact</th><th>Localisation</th><th>Action</th></tr></thead>
             <tbody id="external-pros-body"></tbody>
@@ -1283,6 +1287,22 @@
           }
         });
         event.currentTarget.reset();
+        await loadExternalPros();
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    });
+
+    document.getElementById('external-pro-import').addEventListener('submit', async event => {
+      event.preventDefault();
+      const fields = ['name', 'activity', 'phone', 'email', 'address', 'postalCode', 'city'];
+      const items = document.getElementById('ext-import').value.split('\n')
+        .map(line => line.trim()).filter(Boolean).slice(0, 500)
+        .map(line => Object.fromEntries(line.split(';').map((part, index) => [fields[index], part.trim()]).filter(([key]) => key)));
+      try {
+        const result = await adminRequest('/api/admin/external-professionals/import', { method: 'POST', body: { items } });
+        document.getElementById('ext-import').value = '';
+        setStatus(`${result.imported} intervenant(s) importé(s), ${result.rejected} ligne(s) refusée(s).`);
         await loadExternalPros();
       } catch (error) {
         setStatus(error.message, true);

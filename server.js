@@ -2979,6 +2979,29 @@ app.post('/api/admin/external-professionals', requireAuth, requireAdmin, async (
   }
 });
 
+app.post('/api/admin/external-professionals/import', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const items = Array.isArray(req.body?.items) ? req.body.items.slice(0, 500) : null;
+    if (!items) throw new AuthError(400, 'Liste invalide.');
+    let imported = 0;
+    for (const item of items) {
+      let value;
+      try { value = normalizeExternalProfessional(item); } catch { continue; }
+      await pool.query(
+        `INSERT INTO app_external_professionals
+           (id, name, activity, phone, email, address, city, postal_code)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [randomUUID(), value.name, value.activity, value.phone, value.email,
+          value.address, value.city, value.postalCode]
+      );
+      imported += 1;
+    }
+    res.status(201).json({ imported, rejected: items.length - imported });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’importer la liste.');
+  }
+});
+
 app.delete('/api/admin/external-professionals/:id', requireAuth, requireAdmin, async (req, res) => {
   if (!isValidUuid(req.params.id)) {
     return res.status(400).json({ error: 'Identifiant invalide.' });
