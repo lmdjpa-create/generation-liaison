@@ -2587,7 +2587,8 @@
                         latitude: location.latitude,
                         longitude: location.longitude,
                         radiusKm
-                    } : {})
+                    } : {}),
+                    ...(city || postcode ? { city, postalCode: postcode } : {})
                 }
             });
             if (!append) results.replaceChildren();
@@ -2632,10 +2633,31 @@
         const heading = document.createElement('div');
         heading.className = 'visit-heading';
         heading.append(makeTextElement('strong', professional.name));
-        heading.append(makeTextElement('span', '✓ Dossier vérifié', 'visit-status done'));
+        heading.append(professional.external
+            ? makeTextElement('span', 'Non vérifié', 'visit-status')
+            : makeTextElement('span', '✓ Dossier vérifié', 'visit-status done'));
         avatarWrap.append(heading);
         card.append(avatarWrap);
         card.append(makeTextElement('p', professional.activity, 'visit-kind'));
+        if (professional.external) {
+            if (professional.phone) {
+                const phoneLink = makeTextElement('a', `📞 ${professional.phone}`);
+                phoneLink.href = `tel:${professional.phone.replace(/[^\d+]/g, '')}`;
+                const phoneLine = document.createElement('p');
+                phoneLine.append(phoneLink);
+                card.append(phoneLine);
+            }
+            if (professional.email) {
+                const mailLink = makeTextElement('a', `✉️ ${professional.email}`);
+                mailLink.href = `mailto:${professional.email}`;
+                const mailLine = document.createElement('p');
+                mailLine.append(mailLink);
+                card.append(mailLine);
+            }
+            if (professional.address) card.append(makeTextElement('p', `📍 ${professional.address}`, 'helper-text'));
+            card.append(makeTextElement('p', 'Intervenant non vérifié par Génération Liaison : la réservation en ligne n’est pas disponible. Contactez-le directement.', 'helper-text'));
+            return card;
+        }
         if (professional.description) card.append(makeTextElement('p', professional.description, 'helper-text'));
         if (Number.isInteger(professional.distanceKm)) {
             card.append(makeTextElement('p', `À environ ${professional.distanceKm} km · rayon indiqué : ${professional.serviceRadiusKm} km.`, 'helper-text'));

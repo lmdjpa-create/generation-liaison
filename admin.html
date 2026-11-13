@@ -229,6 +229,25 @@
             <tbody id="account-closure-requests-body"></tbody>
           </table></div>
         </section>
+        <section class="panel">
+          <div class="panel-head">
+            <div><h2>Intervenants extérieurs</h2><p>Annuaire de professionnels non inscrits : leurs coordonnées sont visibles, mais ils restent « non vérifiés » et ne peuvent pas être réservés. Ne saisissez que des coordonnées professionnelles que la personne a accepté de rendre publiques.</p></div>
+          </div>
+          <form id="external-pro-form" class="form-grid" autocomplete="off">
+            <input id="ext-name" placeholder="Nom" maxlength="120" required>
+            <input id="ext-activity" placeholder="Activité (ex. infirmière)" maxlength="160" required>
+            <input id="ext-phone" placeholder="Téléphone" maxlength="32">
+            <input id="ext-email" type="email" placeholder="E-mail" maxlength="254">
+            <input id="ext-address" placeholder="Adresse" maxlength="200">
+            <input id="ext-postal" placeholder="Code postal" maxlength="10">
+            <input id="ext-city" placeholder="Ville" maxlength="80">
+            <button type="submit">Ajouter</button>
+          </form>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Nom</th><th>Activité</th><th>Contact</th><th>Localisation</th><th>Action</th></tr></thead>
+            <tbody id="external-pros-body"></tbody>
+          </table></div>
+        </section>
       </div>
     </section>
   </main>
@@ -1215,11 +1234,60 @@
         await loadSeniorLinkRemovals();
         await loadAccountClosureRequests();
         await loadAssistantHandoffs();
+        await loadExternalPros();
         setStatus(`${window.generationLiaisonTranslate('Données actualisées à')} ${new Date().toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' })}.`);
       } catch (error) {
         setStatus(error.message || 'Impossible de charger le tableau de bord.', true);
       }
     }
+
+    async function loadExternalPros() {
+      const body = document.getElementById('external-pros-body');
+      const { professionals } = await adminRequest('/api/admin/external-professionals');
+      if (!professionals.length) return renderEmpty(body, 5, 'Aucun intervenant extérieur.');
+      body.replaceChildren(...professionals.map(pro => {
+        const row = document.createElement('tr');
+        addCell(row, pro.name);
+        addCell(row, pro.activity);
+        addCell(row, pro.phone, pro.email);
+        addCell(row, [pro.postalCode, pro.city].filter(Boolean).join(' '), pro.address);
+        const cell = document.createElement('td');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = 'Supprimer';
+        button.addEventListener('click', async () => {
+          if (!confirm('Supprimer cet intervenant ?')) return;
+          try {
+            await adminRequest(`/api/admin/external-professionals/${pro.id}`, { method: 'DELETE' });
+            await loadExternalPros();
+          } catch (error) {
+            setStatus(error.message, true);
+          }
+        });
+        cell.append(button);
+        row.append(cell);
+        return row;
+      }));
+    }
+
+    document.getElementById('external-pro-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const value = id => document.getElementById(id).value;
+      try {
+        await adminRequest('/api/admin/external-professionals', {
+          method: 'POST',
+          body: {
+            name: value('ext-name'), activity: value('ext-activity'), phone: value('ext-phone'),
+            email: value('ext-email'), address: value('ext-address'),
+            postalCode: value('ext-postal'), city: value('ext-city')
+          }
+        });
+        event.currentTarget.reset();
+        await loadExternalPros();
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    });
 
     function setStatus(message, isError = false) {
       const status = document.getElementById('page-status');
