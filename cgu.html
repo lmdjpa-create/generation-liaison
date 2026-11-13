@@ -16,7 +16,7 @@
       .muted { color: var(--muted); }
       a { color: var(--primary); }
       @media (max-width: 640px) { main { margin: 12px; padding: 22px 18px; } }
-          body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.13; background: url(/logo-generation-liaison.jpg) center 35% / min(85vw, 560px) auto no-repeat; }
+          body::before { content: ""; display: block; width: 100%; flex: none; height: 130px; margin: 0 auto; background: url(logo-generation-liaison.jpg) center / contain no-repeat; }
   </style>
   </head>
   <body>
