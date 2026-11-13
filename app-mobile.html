@@ -209,6 +209,8 @@
         .directory-profile-photo { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 2px solid #dfe6ee; background: #eef3f8; }
         .directory-hours-day { display: grid; grid-template-columns: minmax(100px, 1fr) 1fr 1fr; gap: 8px; align-items: center; }
         .directory-hours-day input[type="checkbox"] { width: auto; margin: 0 6px 0 0; }
+        .checkbox-line { display: flex; align-items: center; gap: 10px; font-size: 16px; margin: 10px 0; }
+        .checkbox-line input[type="checkbox"] { width: 24px; height: 24px; margin: 0; flex-shrink: 0; }
         .directory-hours-day input[type="time"] { min-width: 0; padding: 8px; }
         .directory-booking { margin: 10px 0; padding: 12px; border-radius: 10px; background: #f7f9fa; text-align: left; }
         .importance-badge { display: inline-block; margin: 0 0 6px; padding: 4px 8px; border: 1px solid transparent; border-radius: 999px; font-size: 0.75rem; font-weight: 800; }
@@ -865,7 +867,7 @@
         <input id="directory-search-radius" type="number" min="1" max="500" step="1" value="30" required>
         <label for="directory-city-select" id="directory-city-label" hidden>Choisissez une commune</label>
         <select id="directory-city-select" hidden></select>
-        <button id="directory-location-button" type="button">Utiliser ma position GPS pour la recherche</button>
+        <label class="checkbox-line"><input id="directory-location-button" type="checkbox"> Utiliser ma position GPS pour la recherche</label>
         <p id="directory-location-status" class="helper-text" aria-live="polite">La ville ou le code postal est transmis au service public geo.api.gouv.fr pour trouver le centre de la commune. Le rayon est calculé à vol d’oiseau. Sans lieu, la recherche est nationale.</p>
         <button type="submit">Rechercher des professionnels</button>
     </form>
@@ -2430,12 +2432,11 @@
             event.preventDefault();
             chargerAnnuaire();
         });
-        document.getElementById('directory-location-button').addEventListener('click', async () => {
+        document.getElementById('directory-location-button').addEventListener('change', async () => {
             const status = document.getElementById('directory-location-status');
             const button = document.getElementById('directory-location-button');
-            if (directoryLocation) {
+            if (!button.checked) {
                 directoryLocation = null;
-                button.textContent = 'Utiliser ma position GPS pour la recherche';
                 status.textContent = 'Position effacée. La recherche nationale fonctionne sans position.';
                 chargerAnnuaire();
                 return;
@@ -2446,12 +2447,11 @@
                 document.getElementById('directory-search-postcode').value = '';
                 document.getElementById('directory-city-select').hidden = true;
                 document.getElementById('directory-city-label').hidden = true;
-                button.textContent = 'Effacer ma position de recherche';
                 status.textContent = `Position relevée pour cette recherche uniquement (précision indicative : ${Math.round(directoryLocation.accuracy)} m). Elle ne sera pas enregistrée.`;
                 chargerAnnuaire();
             } catch (error) {
                 directoryLocation = null;
-                button.textContent = 'Utiliser ma position GPS pour la recherche';
+                button.checked = false;
                 status.textContent = error.message || 'Impossible de relever la position.';
                 showToast(status.textContent, false);
             }
@@ -2459,7 +2459,7 @@
         ['directory-search-city', 'directory-search-postcode'].forEach(id => {
             document.getElementById(id).addEventListener('input', () => {
                 directoryLocation = null;
-                document.getElementById('directory-location-button').textContent = 'Utiliser ma position GPS pour la recherche';
+                document.getElementById('directory-location-button').checked = false;
                 document.getElementById('directory-city-select').hidden = true;
                 document.getElementById('directory-city-label').hidden = true;
             });
@@ -4780,8 +4780,7 @@
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');
         directoryLocation = null;
-        document.getElementById('directory-location-button').textContent =
-            'Trier par proximité (position utilisée uniquement pour ce tri)';
+        document.getElementById('directory-location-button').checked = false;
         document.getElementById('directory-location-status').textContent =
             'La recherche nationale fonctionne sans position.';
         ['senior', 'aidant', 'pro'].forEach(role => {
