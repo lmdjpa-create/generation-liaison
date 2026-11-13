@@ -243,6 +243,13 @@
         .calendar-toolbar button[aria-pressed="true"], .calendar-day > button[aria-pressed="true"] { background: var(--brand); color: white; }
         .calendar-event { background: var(--brand-soft); border-radius: 8px; }
         .visit-time { color: var(--brand-dark); }
+        .next-visit-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; margin: 0 0 16px; padding: 18px; border-radius: 20px; color: white; background: linear-gradient(135deg, #34b087, var(--brand-dark)); box-shadow: 0 8px 20px rgba(31, 127, 97, 0.25); }
+        .next-visit-label { margin: 0 0 4px; font-size: 1.1rem; font-weight: 800; }
+        .next-visit-text { margin: 0; font-size: 0.9rem; opacity: 0.95; }
+        .next-visit-card button { flex: 0 0 auto; border: 0; border-radius: 12px; padding: 10px 14px; background: white; color: var(--brand-dark); font-weight: 700; cursor: pointer; }
+        .action-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+        .action-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 8px; border: 1px solid #e3eee9; border-radius: 18px; background: white; color: var(--ink); font-size: 0.95rem; font-weight: 700; box-shadow: 0 6px 18px rgba(31, 58, 77, 0.07); cursor: pointer; }
+        .tile-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; font-size: 1.6rem; }
         .aidant-greeting { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; }
         .aidant-avatar { display: grid; place-items: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-dark); font-size: 1.5rem; }
         .aidant-greeting h2 { margin: 0; font-size: 1.25rem; color: var(--ink); }
@@ -358,6 +365,20 @@
     <div id="main-app-senior" style="display: none; text-align: center;">
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! 👴</h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
+
+        <section class="next-visit-card" aria-label="Prochaine visite">
+            <div>
+                <p class="next-visit-label">Prochaine visite</p>
+                <p class="next-visit-text">Retrouvez vos prochaines visites et rendez-vous dans l’agenda.</p>
+            </div>
+            <button type="button" onclick="switchScreen('agenda')">Voir l’agenda</button>
+        </section>
+        <div class="action-tiles">
+            <button type="button" class="action-tile" onclick="switchScreen('agenda')"><span class="tile-icon" style="background:#e6f4ee;">📅</span>Prendre un rendez-vous</button>
+            <button type="button" class="action-tile" onclick="document.getElementById('senior-person-note-form').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#e8f1fb;">💬</span>Partager un message</button>
+            <button type="button" class="action-tile" onclick="switchScreen('settings')"><span class="tile-icon" style="background:#fdf1dc;">📄</span>Mes documents</button>
+            <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" style="background:#f3e8fa;">🩺</span>Contacter un professionnel</button>
+        </div>
 
         <section class="form-card emergency-call-card" aria-labelledby="emergency-call-heading">
             <h2 id="emergency-call-heading" style="margin-top:0; color:#8b1e25;">Besoin d’appeler les secours ?</h2>
@@ -876,13 +897,13 @@
 <!-- 🧭 BARRE DE NAVIGATION -->
 <div class="nav-bar" id="nav-bar" style="display:none;">
     <button id="nav-senior" class="nav-item active" onclick="switchScreen('senior')">
-        <span class="nav-icon">👴</span><span>Sénior</span>
+        <span class="nav-icon">🏠</span><span>Accueil</span>
     </button>
     <button id="nav-aidant" class="nav-item" onclick="switchScreen('aidant')">
-        <span class="nav-icon">👨‍👩‍👧</span><span>Aidant</span>
+        <span class="nav-icon">💚</span><span>Proches</span>
     </button>
     <button id="nav-pro" class="nav-item" onclick="switchScreen('pro')">
-        <span class="nav-icon">👥</span><span>Intervenant</span>
+        <span class="nav-icon">🩺</span><span>Pro</span>
     </button>
     <button id="nav-directory" class="nav-item" onclick="switchScreen('directory')" style="display:none;">
         <span class="nav-icon">🔎</span><span>Annuaire</span>
@@ -894,7 +915,7 @@
         <span class="nav-icon">🗓️</span><span>Agenda</span>
     </button>
     <button id="nav-settings" class="nav-item" onclick="switchScreen('settings')" style="display:none;">
-        <span class="nav-icon">⚙️</span><span>Réglages</span>
+        <span class="nav-icon">☰</span><span>Plus</span>
     </button>
     <button id="nav-logout" class="nav-item" onclick="deconnecterUtilisateur()">
         <span class="nav-icon">↪</span><span>Déconnexion</span>
