@@ -20,7 +20,7 @@ before(async () => {
   for (const entry of [
     'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html', 'reset-password.html',
     'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html', 'language.js',
-    'robots.txt', 'sitemap.xml', 'push-service-worker.js', 'homepage-images', 'downloads', 'scripts'
+    'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'push-service-worker.js', 'homepage-images', 'downloads', 'scripts'
   ]) {
     fs.cpSync(path.join(projectRoot, entry), path.join(androidFixture, entry), { recursive: true });
   }

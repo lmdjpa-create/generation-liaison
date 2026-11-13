@@ -42,7 +42,7 @@ if (buildAndroid) {
 fs.mkdirSync(output, { recursive: true });
 
 fs.copyFileSync(path.join(root, 'language.js'), path.join(output, 'language.js'));
-for (const file of ['robots.txt', 'sitemap.xml']) {
+for (const file of ['robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg']) {
   fs.copyFileSync(path.join(root, file), path.join(output, file));
 }
 
