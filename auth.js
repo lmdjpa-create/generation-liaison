@@ -271,6 +271,8 @@ function createAuthService(pool) {
                  (status != 'pending' AND hold_expires_at IS NULL))
         );
         ALTER TABLE app_directory_bookings
+          ALTER COLUMN google_event_id DROP NOT NULL;
+        ALTER TABLE app_directory_bookings
           ADD COLUMN IF NOT EXISTS senior_profile_id UUID REFERENCES senior_profiles(id) ON DELETE SET NULL;
         UPDATE app_directory_bookings booking
         SET senior_profile_id = requester.senior_id
