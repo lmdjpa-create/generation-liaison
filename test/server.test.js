@@ -12,8 +12,37 @@ const { isAllowedWebPushSubscription } = require('../push-subscriptions');
 const projectRoot = path.join(__dirname, '..');
 let server;
 let baseUrl;
+let androidFixture;
+let androidPublic;
 
 before(async () => {
+  androidFixture = fs.mkdtempSync(path.join(projectRoot, 'node_modules', '.android-test-'));
+  for (const entry of [
+    'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html', 'reset-password.html',
+    'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html', 'language.js',
+    'robots.txt', 'sitemap.xml', 'push-service-worker.js', 'homepage-images', 'downloads', 'scripts'
+  ]) {
+    fs.cpSync(path.join(projectRoot, entry), path.join(androidFixture, entry), { recursive: true });
+  }
+  const androidBuild = spawnSync(process.execPath, [
+    path.join(androidFixture, 'scripts', 'build-web.js'), '--android'
+  ], {
+    cwd: androidFixture,
+    env: { ...process.env, CAPACITOR_API_URL: 'https://example.test' },
+    encoding: 'utf8'
+  });
+  if (androidBuild.status !== 0) {
+    throw new Error(`Android web build failed: ${androidBuild.stderr || androidBuild.stdout}`);
+  }
+  androidPublic = path.join(androidFixture, 'android', 'app', 'src', 'main', 'assets', 'public');
+  fs.cpSync(path.join(androidFixture, 'dist'), androidPublic, { recursive: true });
+  const androidEntry = spawnSync(process.execPath, [
+    path.join(androidFixture, 'scripts', 'prepare-android-entry.js')
+  ], { cwd: androidFixture, encoding: 'utf8' });
+  if (androidEntry.status !== 0) {
+    throw new Error(`Android entry preparation failed: ${androidEntry.stderr || androidEntry.stdout}`);
+  }
+
   const build = spawnSync(process.execPath, [
     path.join(projectRoot, 'scripts', 'build-web.js')
   ], {
@@ -38,6 +67,7 @@ after(async () => {
       server.close(error => error ? reject(error) : resolve());
     });
   }
+  if (androidFixture) fs.rmSync(androidFixture, { recursive: true, force: true });
 });
 
 test('reports server status', async () => {
@@ -75,7 +105,9 @@ test('serves the application pages and legal documents', async () => {
     '/aidant.html',
     '/pro.html',
     '/app-mobile.html',
+    '/aide-installation-android.html',
     '/reset-password.html',
+    '/admin',
     '/admin.html',
     '/privacy-policy.html',
     '/cgu.html',
@@ -147,9 +179,9 @@ test('privacy notice discloses draft status and pending verification items', () 
   const policy = fs.readFileSync(path.join(projectRoot, 'privacy-policy.html'), 'utf8')
     .replace(/\s+/g, ' ');
   assert.match(policy, /Version de travail — à compléter avant publication définitive/);
-  assert.match(policy, /activation effective en production n’a pas pu être vérifiée/);
+  assert.match(policy, /activation effective en production doit être vérifiée/);
   assert.match(policy, /M\. Pina Pierre, également éditeur, directeur de la publication et vendeur du service/);
-  assert.match(policy, /2627, route de l’Église de Fromentas, 32290 Aignan/);
+  assert.match(policy, /46 rue de l’Église, 32290 Sabazan/);
   assert.match(policy, /forme juridique et les numéros SIREN et SIRET restent à préciser/);
   assert.match(policy, /ne définit pas de durée automatique de suppression pour ce registre/);
   assert.match(policy, /identifiant de session dans le stockage local du navigateur/);
@@ -209,16 +241,39 @@ test('account closure has a tracked 30-day deadline and data-minimization policy
   assert.match(admin, /Avez-vous vérifié le pré-jugement IA et les données réelles/);
 });
 
-test('homepage exposes the Android APK download link', async () => {
+test('homepage exposes public downloads and legal links without developer tools', async () => {
   const response = await fetch(`${baseUrl}/`);
   const html = await response.text();
 
   assert.equal(response.status, 200);
   assert.match(html, /href="\/app-generation-liaison\.apk" download/);
-  assert.match(html, /href="\/app-generation-liaison\.aab" download/);
-  assert.match(html, /href="\/admin\.html">Espace administrateur/);
+  assert.match(html, /class="landing-login" href="\/app-mobile\.html">Ouvrir l’application en ligne/);
+  assert.match(html, /href="\/aide-installation-android\.html">Besoin d’aide/);
+  assert.doesNotMatch(html, /app-generation-liaison\.aab|Espace administrateur|href="\/admin(?:\.html)?"/);
+  assert.match(html, /id="connection-status"[^>]*\shidden(?:\s|>)/);
+  assert.match(html, /href="\/cgu\.html#mentions-legales">Mentions légales/);
   assert.match(html, /href="\/cgu\.html">Conditions d’utilisation/);
-  assert.match(html, /href="\/cgv\.html">Projet de tarifs et CGV/);
+  assert.match(html, /href="\/cgv\.html">Tarifs et CGV/);
+  const terms = await (await fetch(`${baseUrl}/cgu.html`)).text();
+  assert.match(terms, /id="mentions-legales"/);
+});
+
+test('public pages use the registered generation-liaison.fr domain for e-mail', () => {
+  for (const page of ['index.html', 'cgu.html', 'cgv.html', 'aide-installation-android.html']) {
+    assert.doesNotMatch(fs.readFileSync(path.join(projectRoot, page), 'utf8'), /generationliaison\.fr/, page);
+  }
+});
+
+test('Android installation guide is served with three steps and security advice', async () => {
+  const response = await fetch(`${baseUrl}/aide-installation-android.html`);
+  assert.equal(response.status, 200);
+  const guide = await response.text();
+  assert.equal((guide.match(/<li class="step">/g) || []).length, 3);
+  assert.match(guide, /site officiel/);
+  assert.match(guide, /désactiver.*autorisation/i);
+  assert.match(guide, /ne poursuivez pas/i);
+  assert.match(guide, /href="\/app-mobile\.html"/);
+  assert.ok(fs.existsSync(path.join(androidPublic, 'aide-installation-android.html')));
 });
 
 test('serves the Android APK download', async () => {
@@ -322,11 +377,11 @@ test('all application page scripts have valid JavaScript syntax', () => {
     'reset-password.html',
     'admin.html',
     path.join('dist', 'app-mobile.html'),
-    path.join('android', 'app', 'src', 'main', 'assets', 'public', 'index.html')
+    path.join(androidPublic, 'index.html')
   ];
 
   for (const page of pages) {
-    const source = fs.readFileSync(path.join(projectRoot, page), 'utf8');
+    const source = fs.readFileSync(path.isAbsolute(page) ? page : path.join(projectRoot, page), 'utf8');
     const scripts = [...source.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)];
 
     assert.ok(scripts.length > 0, `${page} should contain an application script`);
@@ -340,9 +395,9 @@ test('mobile profile placeholder styles are intact in source and built apps', ()
   for (const page of [
     'app-mobile.html',
     path.join('dist', 'app-mobile.html'),
-    path.join('android', 'app', 'src', 'main', 'assets', 'public', 'app-mobile.html')
+    path.join(androidPublic, 'app-mobile.html')
   ]) {
-    const source = fs.readFileSync(path.join(projectRoot, page), 'utf8');
+    const source = fs.readFileSync(path.isAbsolute(page) ? page : path.join(projectRoot, page), 'utf8');
     assert.match(source, /\.directory-photo\.placeholder\s*\{\s*display:\s*flex;/, page);
     assert.doesNotMatch(source, /\}\r?3f8;\s*\}\s*\.directory-photo\.placeholder/, page);
   }
@@ -387,12 +442,12 @@ test('emergency calls require a second confirmation and provide a phone dialer a
   assert.match(serverSource, /confirmationMethod === 'voice'/);
 });
 
-test('builds Android with the deployed HTTPS API origin', () => {
+test('builds Android with the configured HTTPS API origin', () => {
   const androidApp = fs.readFileSync(
-    path.join(projectRoot, 'android', 'app', 'src', 'main', 'assets', 'public', 'index.html'),
+    path.join(androidPublic, 'index.html'),
     'utf8'
   );
-  assert.match(androidApp, /const SERVER_URL = "https:\/\//);
+  assert.match(androidApp, /const SERVER_URL = "https:\/\/example\.test";/);
   assert.match(androidApp, /Agenda des services du quotidien/);
 });
 
@@ -643,7 +698,7 @@ test('requires authentication for shared planning and live visit updates', async
 
 test('keeps the admin console guarded and free of care-note content', async () => {
   const [page, api] = await Promise.all([
-    fetch(`${baseUrl}/admin.html`),
+    fetch(`${baseUrl}/admin`),
     fetch(`${baseUrl}/api/admin/overview`)
   ]);
   const html = await page.text();
