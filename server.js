@@ -3188,8 +3188,11 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
         );
         if (response.ok) {
           const data = await response.json();
-          externalProfessionals.push(...(data.results || []).map(company => {
-            const place = company.siege || {};
+          const found = (data.results || []).map(company => ({
+            company,
+            place: (company.matching_etablissements || []).find(item => item.etat_administratif === 'A')
+          })).filter(item => item.place);
+          externalProfessionals.push(...found.map(({ company, place }) => {
             return {
               id: `sirene-${place.siret || company.siren}`, name: company.nom_complet, activity: query,
               description: null, photoUrl: null, serviceRadiusKm: null, verified: false, external: true,
