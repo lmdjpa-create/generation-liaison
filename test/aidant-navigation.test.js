@@ -64,7 +64,9 @@ function createView(response) {
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
       'chargerAssistantConversation', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
       'chargerParametresGooglePlanning'
-    ].map(name => [name, () => { calls.push(name); }]))
+    ].map(name => [name, () => { calls.push(name); }])),
+    dateCheckinBienEtre: () => '2026-01-01',
+    calendarDate: ''
   };
   const screenStart = source.indexOf('    function switchScreen(screenName)');
   const screenEnd = source.indexOf('    function basculerFormulaire', screenStart);
