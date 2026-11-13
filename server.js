@@ -3002,6 +3002,22 @@ app.post('/api/admin/external-professionals/import', requireAuth, requireAdmin, 
   }
 });
 
+const PUBLIC_DIRECTORY_ACTIVITY_CODES = {
+  'coiff': '96.02A',
+  'esthetic|beaute|manucure': '96.02B',
+  'infirm': '86.90D',
+  'kine|masseur': '86.90E',
+  'ambulan': '86.90A',
+  'dentist': '86.23Z',
+  'medecin|generaliste': '86.21Z',
+  'pharmac': '47.73Z',
+  'aide a domicile|aide-menager|aide menager': '88.10A',
+  'taxi': '49.32Z',
+  'plombi': '43.22A',
+  'electricien': '43.21A',
+  'menage|nettoyage': '81.21Z'
+};
+
 app.get('/api/admin/external-professionals/lookup/:siret', requireAuth, requireAdmin, async (req, res) => {
   const siret = req.params.siret.replace(/\s/g, '');
   if (!/^\d{14}$/.test(siret)) {
@@ -3146,8 +3162,12 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
       try {
         const place = /^[0-9AB]{5}$/i.test(searchCommuneCode)
           ? `code_commune=${searchCommuneCode}` : `code_postal=${searchPostalCode}`;
+        const normalizedQuery = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const naf = Object.entries(PUBLIC_DIRECTORY_ACTIVITY_CODES)
+          .find(([pattern]) => new RegExp(pattern).test(normalizedQuery))?.[1];
+        const criteria = naf ? `activite_principale=${naf}` : `q=${encodeURIComponent(query)}`;
         const response = await fetch(
-          `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&${place}&etat_administratif=A&per_page=15`,
+          `https://recherche-entreprises.api.gouv.fr/search?${criteria}&${place}&etat_administratif=A&per_page=15`,
           { signal: AbortSignal.timeout(4000) }
         );
         if (response.ok) {
