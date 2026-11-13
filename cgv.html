@@ -19,7 +19,7 @@
       th { background: #edf5f1; }
       a { color: var(--primary); }
       @media (max-width: 640px) { main { margin: 12px; padding: 22px 18px; } }
-          body::before { content: ""; display: block; width: 100%; flex: none; box-sizing: border-box; height: 230px; padding-top: 44px; margin: 0 auto; background: url(logo-generation-liaison.jpg) center bottom / contain no-repeat; background-origin: content-box; }
+          html { padding-top: 230px; } body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; box-sizing: border-box; height: 230px; padding-top: 44px; background: url(logo-generation-liaison.jpg) center bottom / contain no-repeat; background-origin: content-box; }
   </style>
   </head>
   <body>
