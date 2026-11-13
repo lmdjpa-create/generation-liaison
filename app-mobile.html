@@ -686,8 +686,7 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="senior">Activer les notifications push sur cet appareil</button>
-        <button type="button" class="disable-push-button" data-role="senior">Désactiver les notifications push sur cet appareil</button>
+        <button type="button" class="enable-push-button" data-role="senior">Activer les notifications push</button>
         <p class="helper-text push-status" aria-live="polite"></p>
     </section>
 <section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
@@ -700,8 +699,7 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="aidant">Activer les notifications push sur cet appareil</button>
-        <button type="button" class="disable-push-button" data-role="aidant">Désactiver les notifications push sur cet appareil</button>
+        <button type="button" class="enable-push-button" data-role="aidant">Activer les notifications push</button>
         <p class="helper-text push-status" aria-live="polite"></p>
     </section>
 <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
@@ -714,8 +712,7 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="pro">Activer les notifications push sur cet appareil</button>
-        <button type="button" class="disable-push-button" data-role="pro">Désactiver les notifications push sur cet appareil</button>
+        <button type="button" class="enable-push-button" data-role="pro">Activer les notifications push</button>
         <p class="helper-text push-status" aria-live="polite"></p>
     </section>
 <section class="form-card" style="text-align:left;" id="settings-senior-links">
@@ -2947,10 +2944,12 @@
                 ? configuration.channels.nativePush
                 : configuration.channels.webPush;
             const pushRegistered = Boolean(localStorage.getItem(PUSH_TOKEN_KEY));
-            pushButton.disabled = !pushConfigured || pushRegistered;
+            pushButton.disabled = !pushConfigured && !pushRegistered;
             pushButton.textContent = pushRegistered
-                ? 'Notifications push déjà activées sur cet appareil'
-                : 'Activer les notifications push sur cet appareil';
+                ? 'Désactiver les notifications push'
+                : localStorage.getItem('pushWasDisabled')
+                    ? 'Réactiver les notifications push'
+                    : 'Activer les notifications push';
             status.textContent = pushRegistered
                 ? 'Cet appareil est inscrit pour les notifications push.'
                 : pushConfigured
@@ -3007,7 +3006,7 @@
             status.textContent = error.message || 'Impossible d’activer les notifications push.';
             showToast(status.textContent, false);
         } finally {
-            button.disabled = Boolean(localStorage.getItem(PUSH_TOKEN_KEY));
+            button.disabled = false;
         }
     }
 
@@ -3043,7 +3042,9 @@
             });
         });
         document.querySelectorAll('.enable-push-button').forEach(button => {
-            button.addEventListener('click', () => activerNotificationsPush(button));
+            button.addEventListener('click', () => localStorage.getItem(PUSH_TOKEN_KEY)
+                ? desactiverNotificationsPush(button)
+                : activerNotificationsPush(button));
         });
         document.querySelectorAll('.disable-push-button').forEach(button => {
             button.addEventListener('click', () => desactiverNotificationsPush(button));
@@ -3106,6 +3107,7 @@
                 }
                 localStorage.removeItem(PUSH_TOKEN_KEY);
             }
+            localStorage.setItem('pushWasDisabled', '1');
             status.textContent = 'Notifications push désactivées sur cet appareil.';
             await chargerPreferencesNotification();
             status.textContent = 'Notifications push désactivées sur cet appareil.';
