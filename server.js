@@ -3002,6 +3002,34 @@ app.post('/api/admin/external-professionals/import', requireAuth, requireAdmin, 
   }
 });
 
+app.get('/api/admin/external-professionals/lookup/:siret', requireAuth, requireAdmin, async (req, res) => {
+  const siret = req.params.siret.replace(/\s/g, '');
+  if (!/^\d{14}$/.test(siret)) {
+    return res.status(400).json({ error: 'Un SIRET contient 14 chiffres.' });
+  }
+  try {
+    const response = await fetch(
+      `https://recherche-entreprises.api.gouv.fr/search?q=${siret}&per_page=1`,
+      { signal: AbortSignal.timeout(8000) }
+    );
+    if (!response.ok) throw new Error('Service indisponible');
+    const data = await response.json();
+    const company = data.results?.[0];
+    const place = [company?.siege, ...(company?.matching_etablissements || [])]
+      .find(item => item?.siret === siret);
+    if (!company || !place) return res.status(404).json({ error: 'SIRET introuvable.' });
+    res.json({
+      name: company.nom_complet,
+      address: [place.numero_voie, place.type_voie, place.libelle_voie].filter(Boolean).join(' '),
+      postalCode: place.code_postal || '',
+      city: place.libelle_commune || '',
+      active: place.etat_administratif === 'A'
+    });
+  } catch (error) {
+    res.status(502).json({ error: 'Recherche SIRET indisponible pour le moment.' });
+  }
+});
+
 app.delete('/api/admin/external-professionals/:id', requireAuth, requireAdmin, async (req, res) => {
   if (!isValidUuid(req.params.id)) {
     return res.status(400).json({ error: 'Identifiant invalide.' });
