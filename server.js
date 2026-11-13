@@ -3074,6 +3074,22 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
         distanceKm: null
       }));
     }
+    if (offset === 0 && latitude === null) {
+      const { rows: pending } = await pool.query(
+        `SELECT id, name, email, directory_activity
+         FROM app_users
+         WHERE role = 'pro' AND is_active = TRUE AND verification_status <> 'approved'
+           AND directory_listed = TRUE AND COALESCE(directory_activity, '') <> ''
+           AND ($1 = '' OR name ILIKE '%' || $1 || '%' OR directory_activity ILIKE '%' || $1 || '%')
+         ORDER BY name ASC LIMIT 30`,
+        [query]
+      );
+      externalProfessionals.push(...pending.map(row => ({
+        id: row.id, name: row.name, activity: row.directory_activity, description: null,
+        photoUrl: null, serviceRadiusKm: null, verified: false, external: true,
+        phone: null, email: row.email, address: null, distanceKm: null
+      })));
+    }
     res.set('Cache-Control', 'private, no-store');
     res.json({
       professionals: [...rows.slice(0, limit).map(row => ({
