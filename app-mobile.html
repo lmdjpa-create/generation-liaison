@@ -1357,6 +1357,7 @@
             chargerAnnuaire();
             chargerDirectoryBookings(false);
         } else if (screenName === 'agenda') {
+            calendarDate = dateCheckinBienEtre();
             chargerCalendrier();
             chargerPartagesAgenda();
             chargerModificationsGoogle();
