@@ -234,6 +234,8 @@
             <div><h2>Intervenants extérieurs</h2><p>Annuaire de professionnels non inscrits : leurs coordonnées sont visibles, mais ils restent « non vérifiés » et ne peuvent pas être réservés. Ne saisissez que des coordonnées professionnelles que la personne a accepté de rendre publiques.</p></div>
           </div>
           <form id="external-pro-form" class="form-grid" autocomplete="off">
+            <input id="ext-siret" placeholder="SIRET (14 chiffres)" maxlength="17" inputmode="numeric">
+            <button type="button" id="ext-siret-button">Remplir depuis le SIRET</button>
             <input id="ext-name" placeholder="Nom" maxlength="120" required>
             <input id="ext-activity" placeholder="Activité (ex. infirmière)" maxlength="160" required>
             <input id="ext-phone" placeholder="Téléphone" maxlength="32">
@@ -1304,6 +1306,20 @@
         document.getElementById('ext-import').value = '';
         setStatus(`${result.imported} intervenant(s) importé(s), ${result.rejected} ligne(s) refusée(s).`);
         await loadExternalPros();
+      } catch (error) {
+        setStatus(error.message, true);
+      }
+    });
+
+    document.getElementById('ext-siret-button').addEventListener('click', async () => {
+      const siret = document.getElementById('ext-siret').value.replace(/\s/g, '');
+      try {
+        const found = await adminRequest(`/api/admin/external-professionals/lookup/${encodeURIComponent(siret)}`);
+        document.getElementById('ext-name').value = found.name || '';
+        document.getElementById('ext-address').value = found.address;
+        document.getElementById('ext-postal').value = found.postalCode;
+        document.getElementById('ext-city').value = found.city;
+        setStatus(found.active ? 'Entreprise trouvée : complétez l’activité et le contact.' : 'Attention : cet établissement est fermé.', !found.active);
       } catch (error) {
         setStatus(error.message, true);
       }
