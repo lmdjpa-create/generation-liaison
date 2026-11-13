@@ -62,7 +62,7 @@ function createView(response) {
       'chargerContacts', 'chargerGestionAssociations', 'chargerDirectoryProfile',
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
-      'chargerAssistantConversation', 'chargerCalendrier', 'chargerModificationsGoogle',
+      'chargerAssistantConversation', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
       'chargerParametresGooglePlanning'
     ].map(name => [name, () => { calls.push(name); }]))
   };

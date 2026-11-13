@@ -5127,6 +5127,80 @@ app.post('/api/planning/visits/:visitId/response', requireAuth, async (req, res)
   }
 });
 
+const AGENDA_ROLES = ['senior', 'aidant', 'pro'];
+
+async function listAgendaPartners(user) {
+  if (user.role === 'senior') {
+    const { rows } = await pool.query(
+      `SELECT aidant.id, aidant.name, 'aidant' AS role
+       FROM app_users me
+       JOIN app_aidant_senior_links link ON link.senior_profile_id = me.senior_id
+       JOIN app_users aidant ON aidant.id = link.aidant_user_id
+       WHERE me.id = $1 AND link.suspended_at IS NULL AND aidant.is_active = TRUE
+         AND (aidant.is_legal_guardian = FALSE OR aidant.guardian_verification_status = 'approved')`,
+      [user.id]
+    );
+    return rows;
+  }
+  if (user.role === 'aidant') {
+    const { rows } = await pool.query(
+      `SELECT senior.id, senior.name, 'senior' AS role
+       FROM app_aidant_senior_links link
+       JOIN app_users senior ON senior.senior_id = link.senior_profile_id
+         AND senior.role = 'senior' AND senior.is_active = TRUE
+       WHERE link.aidant_user_id = $1 AND link.suspended_at IS NULL`,
+      [user.id]
+    );
+    return rows;
+  }
+  return [];
+}
+
+async function loadPersonalAgenda(user, start, end, otherEvents) {
+  const bounds = `$2::date::timestamp AT TIME ZONE 'Europe/Paris'`;
+  const endBounds = `$3::date::timestamp AT TIME ZONE 'Europe/Paris'`;
+  const { rows: own } = await pool.query(
+    `SELECT id, title, starts_at, duration_minutes FROM app_personal_events
+     WHERE owner_user_id = $1 AND starts_at >= ${bounds} AND starts_at < ${endBounds}`,
+    [user.id, start, end]
+  );
+  const partners = await listAgendaPartners(user);
+  const partnerIds = partners.map(partner => partner.id);
+  const { rows: shared } = partnerIds.length ? await pool.query(
+    `SELECT event.id, event.title, event.starts_at, event.duration_minutes, owner.name AS owner_name
+     FROM app_agenda_share_requests share
+     JOIN app_personal_events event ON event.owner_user_id = share.owner_user_id
+     JOIN app_users owner ON owner.id = share.owner_user_id
+     WHERE share.requester_user_id = $1 AND share.status = 'accepted'
+       AND share.owner_user_id = ANY($4::uuid[])
+       AND event.starts_at >= ${bounds} AND event.starts_at < ${endBounds}`,
+    [user.id, start, end, partnerIds]
+  ) : { rows: [] };
+  const span = event => {
+    const from = new Date(event.scheduledAt || event.starts_at).getTime();
+    return [from, from + (event.durationMinutes || event.duration_minutes) * 60000];
+  };
+  const mine = [...otherEvents, ...own];
+  const overlaps = (event, list) => {
+    const [from, to] = span(event);
+    return list.some(item => {
+      const [otherFrom, otherTo] = span(item);
+      return from < otherTo && otherFrom < to;
+    });
+  };
+  return [
+    ...own.map(row => ({
+      id: row.id, kind: 'personal', scheduledAt: row.starts_at, durationMinutes: row.duration_minutes,
+      title: row.title, person: null, status: 'confirmed',
+      conflict: overlaps(row, [...otherEvents, ...own.filter(item => item.id !== row.id)].concat(shared))
+    })),
+    ...shared.map(row => ({
+      id: row.id, kind: 'shared', scheduledAt: row.starts_at, durationMinutes: row.duration_minutes,
+      title: row.title, person: row.owner_name, status: 'confirmed', conflict: overlaps(row, mine)
+    }))
+  ];
+}
+
 app.get('/api/planning/calendar', requireAuth, async (req, res) => {
   if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
@@ -5223,7 +5297,7 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
       [start, end, req.authUser.role, req.authUser.id, req.authUser.seniorId, req.authUser.isCoordinator]
     );
     res.set('Cache-Control', 'private, no-store');
-    res.json({ events: rows.map(row => ({
+    const planningEvents = rows.map(row => ({
       id: row.id,
       kind: row.kind,
       scheduledAt: row.scheduled_at,
@@ -5231,9 +5305,128 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
       title: row.title,
       person: row.person,
       status: row.status
-    })) });
+    }));
+    const personalEvents = await loadPersonalAgenda(req.authUser, start, end, planningEvents);
+    res.json({ events: [...planningEvents, ...personalEvents]
+      .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)) });
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger l’agenda.');
+  }
+});
+
+app.post('/api/agenda/events', requireAuth, async (req, res) => {
+  if (!AGENDA_ROLES.includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
+  }
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  const startsAt = new Date(req.body?.start);
+  const duration = Number(req.body?.durationMinutes);
+  if (!title || title.length > 120) {
+    return res.status(400).json({ error: 'Indiquez un titre de 120 caractères maximum.' });
+  }
+  if (typeof req.body?.start !== 'string' || !Number.isFinite(startsAt.getTime())) {
+    return res.status(400).json({ error: 'Choisissez une date et une heure valides.' });
+  }
+  if (!Number.isInteger(duration) || duration < 5 || duration > 1440) {
+    return res.status(400).json({ error: 'Choisissez une durée entre 5 minutes et 24 heures.' });
+  }
+  try {
+    const id = randomUUID();
+    await pool.query(
+      `INSERT INTO app_personal_events (id, owner_user_id, title, starts_at, duration_minutes)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, req.authUser.id, title, startsAt.toISOString(), duration]
+    );
+    res.status(201).json({ id });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer le rendez-vous.');
+  }
+});
+
+app.delete('/api/agenda/events/:id', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.id)) {
+    return res.status(400).json({ error: 'Identifiant de rendez-vous invalide.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      'DELETE FROM app_personal_events WHERE id = $1 AND owner_user_id = $2 RETURNING id',
+      [req.params.id, req.authUser.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
+    res.json({ deleted: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de supprimer le rendez-vous.');
+  }
+});
+
+app.get('/api/agenda/shares', requireAuth, async (req, res) => {
+  try {
+    const partners = await listAgendaPartners(req.authUser);
+    const partnerIds = partners.map(partner => partner.id);
+    const { rows } = partnerIds.length ? await pool.query(
+      `SELECT id, requester_user_id, owner_user_id, status FROM app_agenda_share_requests
+       WHERE status IN ('pending', 'accepted')
+         AND ((requester_user_id = $1 AND owner_user_id = ANY($2::uuid[]))
+           OR (owner_user_id = $1 AND requester_user_id = ANY($2::uuid[])))`,
+      [req.authUser.id, partnerIds]
+    ) : { rows: [] };
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ partners: partners.map(partner => {
+      const outgoing = rows.find(row => row.requester_user_id === req.authUser.id && row.owner_user_id === partner.id);
+      const incoming = rows.find(row => row.owner_user_id === req.authUser.id && row.requester_user_id === partner.id);
+      return {
+        userId: partner.id, name: partner.name, role: partner.role,
+        outgoing: outgoing ? { id: outgoing.id, status: outgoing.status } : null,
+        incoming: incoming ? { id: incoming.id, status: incoming.status } : null
+      };
+    }) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les partages d’agenda.');
+  }
+});
+
+app.post('/api/agenda/shares', requireAuth, async (req, res) => {
+  const ownerId = req.body?.ownerUserId;
+  if (!isValidUuid(ownerId)) {
+    return res.status(400).json({ error: 'Agenda demandé invalide.' });
+  }
+  try {
+    const partners = await listAgendaPartners(req.authUser);
+    if (!partners.some(partner => partner.id === ownerId)) {
+      return res.status(403).json({ error: 'Cet agenda n’est pas associé à votre compte.' });
+    }
+    const { rows } = await pool.query(
+      `INSERT INTO app_agenda_share_requests (id, requester_user_id, owner_user_id)
+       VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING id`,
+      [randomUUID(), req.authUser.id, ownerId]
+    );
+    if (!rows[0]) return res.status(409).json({ error: 'Une demande de partage existe déjà.' });
+    res.status(201).json({ id: rows[0].id });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’envoyer la demande de partage.');
+  }
+});
+
+app.post('/api/agenda/shares/:id', requireAuth, async (req, res) => {
+  const decision = req.body?.decision;
+  if (!isValidUuid(req.params.id) || !['accept', 'decline', 'revoke'].includes(decision)) {
+    return res.status(400).json({ error: 'Réponse à la demande invalide.' });
+  }
+  try {
+    const status = decision === 'accept' ? 'accepted' : decision === 'decline' ? 'declined' : 'revoked';
+    // Seul le propriétaire répond ; le demandeur peut seulement annuler son propre accès.
+    const { rows } = await pool.query(
+      `UPDATE app_agenda_share_requests SET status = $3, resolved_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+         AND (($4 IN ('accept', 'decline') AND owner_user_id = $2 AND status = 'pending')
+           OR ($4 = 'revoke' AND (owner_user_id = $2 OR requester_user_id = $2) AND status IN ('pending', 'accepted')))
+       RETURNING id`,
+      [req.params.id, req.authUser.id, status, decision]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
+    res.json({ status });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de répondre à la demande de partage.');
   }
 });
 
