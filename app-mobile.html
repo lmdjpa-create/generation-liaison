@@ -1223,10 +1223,15 @@
             context.hidden = !isAidant;
             changeButton.hidden = !isAidant;
             if (isAidant) {
-                const selected = document.getElementById('aidant-senior-select').selectedOptions[0];
+                const select = document.getElementById('aidant-senior-select');
+                const selected = select.selectedOptions[0];
+                const hasSenior = select.options.length > 0;
+                changeButton.hidden = !hasSenior;
                 context.textContent = activeSeniorProfileId && selected?.value === activeSeniorProfileId
                     ? `Personne accompagnée : ${selected.text}`
-                    : 'Sélectionnez une personne accompagnée dans votre espace aidant.';
+                    : hasSenior
+                        ? 'Sélectionnez une personne accompagnée dans votre espace aidant.'
+                        : 'Aucune personne accompagnée pour le moment : les rendez-vous apparaîtront ici dès qu’un senior sera associé à votre compte.';
             }
         }
 

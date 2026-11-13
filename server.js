@@ -2744,7 +2744,7 @@ app.post('/api/calendar/planning/status', requireAuth, async (req, res) => {
   }
 });
 
-app.get('/api/calendar/planning/requests', requireAuth, requireAidantSeniorContext, async (req, res) => {
+app.get('/api/calendar/planning/requests', requireAuth, async (req, res) => {
   if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Accès aux modifications de l’agenda refusé.' });
   }
@@ -5127,7 +5127,7 @@ app.post('/api/planning/visits/:visitId/response', requireAuth, async (req, res)
   }
 });
 
-app.get('/api/planning/calendar', requireAuth, requireAidantSeniorContext, async (req, res) => {
+app.get('/api/planning/calendar', requireAuth, async (req, res) => {
   if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
   }
