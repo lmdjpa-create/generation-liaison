@@ -484,9 +484,18 @@
             <p>Tout est bien coordonné <span aria-hidden="true">💚</span></p>
         </div>
     </div>
-    <div class="header-mobile">
-        <h3 style="margin:0;">Espace Proches 👨‍👩‍👧‍👦</h3>
-        <span style="font-size:0.85rem; opacity:0.9;">Suivi de : <span id="senior-name-aidant">Senior</span></span>
+    <div class="header-mobile next-visit-card" style="flex-direction:row;">
+        <div>
+            <p class="next-visit-label">Suivi de <span id="senior-name-aidant">Senior</span></p>
+            <p class="next-visit-text">Espace Proches 👨‍👩‍👧‍👦</p>
+        </div>
+        <button type="button" onclick="ouvrirAgenda()">Agenda</button>
+    </div>
+    <div class="action-tiles">
+        <button type="button" class="action-tile" onclick="document.getElementById('aidant-live-following').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#e6f4ee;">📍</span>Suivi des visites</button>
+        <button type="button" class="action-tile" onclick="document.getElementById('aidant-sharing-consents').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#e8f1fb;">🔐</span>Autorisation de partage</button>
+        <button type="button" class="action-tile" onclick="document.getElementById('aidant-service-area').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#fdf1dc;">🍽️</span>Repas du jour</button>
+        <button type="button" class="action-tile" onclick="document.getElementById('aidant-person-note-form').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#f3e8fa;">💬</span>Message à l’équipe</button>
     </div>
 
     <section class="form-card" id="aidant-senior-selector" style="display:none;">
