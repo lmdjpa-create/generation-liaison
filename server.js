@@ -49,6 +49,7 @@ const seniorLinkRequestTimes = new Map();
 
 app.use(cors());
 app.use(express.json());
+app.get('/admin', (req, res) => res.sendFile('admin.html', { root: path.join(__dirname, 'dist') }));
 app.use(express.static(path.join(__dirname, 'dist')));
 
 function sendApiError(res, error, fallbackMessage) {

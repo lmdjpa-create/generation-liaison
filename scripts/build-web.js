@@ -17,6 +17,7 @@ const pages = [
   'aidant.html',
   'pro.html',
   'app-mobile.html',
+  'aide-installation-android.html',
   'reset-password.html',
   'admin.html',
   'privacy-policy.html',

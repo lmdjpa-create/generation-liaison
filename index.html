@@ -879,15 +879,6 @@
       font-size: 0.9rem;
     }
 
-    .admin-link {
-      display: none;
-      margin-top: 20px;
-      color: var(--muted);
-      font-size: 0.85rem;
-      text-decoration: underline;
-      text-underline-offset: 3px;
-    }
-
     .return-home {
       display: inline-flex;
       align-items: center;
@@ -920,9 +911,6 @@
       }
     }
 
-    @media (min-width: 700px) {
-      .admin-link { display: inline-block; }
-    }
   </style>
 </head>
 <body>
@@ -1006,28 +994,24 @@
 
     <section class="landing-info" aria-labelledby="contact-title">
       <h2 id="contact-title">Une question ?</h2>
-      <p>Contactez l’équipe à <a href="mailto:support@generationliaison.fr">support@generationliaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
+      <p>Contactez l’équipe à <a href="mailto:support@generation-liaison.fr">support@generation-liaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
     </section>
 
     <section class="landing-card" id="connexion" aria-labelledby="connexion-title">
       <h2 id="connexion-title">Accéder à Génération Liaison</h2>
-      <p class="landing-description">Connectez-vous ou ouvrez l’application directement en ligne.</p>
-      <p class="landing-note" id="connection-status" role="status" aria-live="polite">Vérification de la connexion...</p>
-      <a class="landing-login" id="login-link" href="/app-mobile.html">Se connecter <span aria-hidden="true">→</span></a>
-      <a class="landing-app-link" href="/app-mobile.html">
-        Ouvrir l’application en ligne
-      </a>
+      <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
+      <p class="landing-note" id="connection-status" role="status" aria-live="polite" hidden>Vérification de la connexion...</p>
+      <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
+      <p class="landing-note">Sur votre téléphone, le menu de votre navigateur peut proposer « Ajouter à l’écran d’accueil » pour retrouver facilement le site.</p>
+      <p><a class="landing-app-link" id="login-link" href="/app-mobile.html">Se connecter</a></p>
       <a class="landing-download-link" href="/app-generation-liaison.apk" download>
         Télécharger l’application Android
       </a>
-      <p class="landing-note">Fichier APK Android. L’installation peut demander l’autorisation d’installer des applications provenant de cette source.</p>
-      <a class="landing-download-link" href="/app-generation-liaison.aab" download>
-        Télécharger le bundle AAB pour la Play Console
-      </a>
-      <a class="admin-link" href="/admin.html">Espace administrateur</a>
+      <p class="landing-note"><a href="/aide-installation-android.html">Besoin d’aide pour installer l’application Android ?</a></p>
       <p class="landing-note">
+        <a href="/cgu.html#mentions-legales">Mentions légales</a> ·
         <a href="/cgu.html">Conditions d’utilisation</a> ·
-        <a href="/cgv.html">Projet de tarifs et CGV</a> ·
+        <a href="/cgv.html">Tarifs et CGV</a> ·
         <a href="/privacy-policy.html">Confidentialité</a>
       </p>
     </section>

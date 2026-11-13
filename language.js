@@ -25,12 +25,14 @@
     'S’inscrire': 'Sign up',
     "S'inscrire": 'Sign up',
     'Ouvrir l’application en ligne': 'Open the app online',
+    'Utilisez l’application directement en ligne, sans installer de fichier.': 'Use the app online without installing a file.',
+    'Sur votre téléphone, le menu de votre navigateur peut proposer « Ajouter à l’écran d’accueil » pour retrouver facilement le site.':
+      'On your phone, your browser menu may offer “Add to home screen” so you can easily find the site again.',
+    'Besoin d’aide pour installer l’application Android ?': 'Need help installing the Android app?',
     'Télécharger l’application Android': 'Download the Android app',
-    'Fichier APK Android. L’installation peut demander l’autorisation d’installer des applications provenant de cette source.':
-      'Android APK file. You may need to allow installations from this source.',
-    'Télécharger le bundle AAB pour la Play Console': 'Download the AAB bundle for Play Console',
     'Conditions d’utilisation': 'Terms of use',
-    'Projet de tarifs et CGV': 'Pricing proposal and terms of sale',
+    'Mentions légales': 'Legal notice',
+    'Tarifs et CGV': 'Pricing and terms of sale',
     'Confidentialité': 'Privacy',
     'Fonctionnalités': 'Features',
     'Langue': 'Language',
