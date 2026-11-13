@@ -110,6 +110,18 @@ test('personal agenda events can be compared only after the linked owner accepts
   assert.equal((await request(`/api/agenda/events/${mine.id}`, { user: aidant, method: 'DELETE' })).status, 200);
 });
 
+test('free accounts keep one contact per role until premium', async () => {
+  const senior = await register('contacts-senior@example.test', 'senior');
+  const first = await register('contacts-aidant-1@example.test', 'aidant');
+  const second = await register('contacts-aidant-2@example.test', 'aidant');
+  const add = user => request('/api/contacts', { user: senior, body: { contactUserId: user.user.id } });
+  assert.equal((await add(first)).status, 201);
+  assert.equal((await add(first)).status, 201);
+  assert.equal((await add(second)).status, 402);
+  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
+  assert.equal((await add(second)).status, 201);
+});
+
 test('calendar and conflicts isolate identified bookings and conservatively cover legacy multi-profile bookings', async () => {
       const first = await register('calendar-first@example.test', 'senior');
       const second = await register('calendar-second@example.test', 'senior');
