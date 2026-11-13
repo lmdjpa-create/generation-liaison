@@ -754,6 +754,21 @@
     <p id="calendar-message" class="helper-text" aria-live="polite"></p>
     <div class="calendar-scroll"><div id="calendar-grid" class="calendar-grid"></div></div>
     <section class="form-card" id="calendar-selected-day" aria-live="polite"></section>
+    <section class="form-card" id="personal-event-card">
+        <h3>Ajouter un rendez-vous à mon agenda</h3>
+        <form id="personal-event-form">
+            <input id="personal-event-title" type="text" maxlength="120" placeholder="Titre du rendez-vous" aria-label="Titre du rendez-vous" required>
+            <input id="personal-event-start" type="datetime-local" aria-label="Date et heure" required>
+            <input id="personal-event-duration" type="number" min="5" max="1440" step="5" value="60" aria-label="Durée en minutes" required>
+            <button type="submit">Ajouter</button>
+        </form>
+        <p id="personal-event-message" class="helper-text" aria-live="polite"></p>
+    </section>
+    <section class="form-card" id="agenda-shares-card" hidden>
+        <h3>Comparer avec un agenda associé</h3>
+        <p class="helper-text">Demandez à voir l’agenda d’une personne associée. Il ne s’affiche qu’après son accord, et les chevauchements avec vos rendez-vous sont signalés.</p>
+        <div id="agenda-shares" aria-live="polite"></div>
+    </section>
     <section class="form-card">
         <h3>Modifications depuis Google</h3>
         <div id="calendar-google-requests" aria-live="polite">Chargement des demandes…</div>
@@ -1265,6 +1280,7 @@
             chargerDirectoryBookings(false);
         } else if (screenName === 'agenda') {
             chargerCalendrier();
+            chargerPartagesAgenda();
             chargerModificationsGoogle();
             chargerParametresGooglePlanning();
         } else if (screenName === 'contacts') {
@@ -3146,8 +3162,8 @@
         const time = new Intl.DateTimeFormat('fr-FR', {
             timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit'
         }).format(new Date(event.scheduledAt));
-        const type = { visit: 'Visite', service: 'Service', directory: 'Annuaire' }[event.kind];
-        return `${time} · ${type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ' (en attente)' : ''}`;
+        const type = { visit: 'Visite', service: 'Service', directory: 'Annuaire', personal: 'Mon rendez-vous', shared: 'Agenda associé' }[event.kind];
+        return `${time} · ${type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ' (en attente)' : ''}${event.conflict ? ' ⚠ chevauchement' : ''}`;
     }
 
     function renderCalendar() {
@@ -3189,7 +3205,23 @@
         })));
         const events = calendarEvents.filter(event => calendarEventDate(event.scheduledAt) === calendarDate);
         if (!events.length) details.append(makeTextElement('p', 'Aucun rendez-vous pour cette date.', 'helper-text'));
-        events.forEach(event => details.append(makeTextElement('p', `${calendarEventLabel(event)} · ${event.durationMinutes} min`, 'calendar-event')));
+        events.forEach(event => {
+            details.append(makeTextElement('p', `${calendarEventLabel(event)} · ${event.durationMinutes} min`, 'calendar-event'));
+            if (event.kind === 'personal') {
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.textContent = 'Supprimer ce rendez-vous';
+                remove.addEventListener('click', async () => {
+                    try {
+                        await planningRequest(`/api/agenda/events/${event.id}`, { method: 'DELETE' });
+                        chargerCalendrier();
+                    } catch (error) {
+                        document.getElementById('calendar-message').textContent = error.message;
+                    }
+                });
+                details.append(remove);
+            }
+        });
         if (connectedUser.role === 'pro') {
             const button = document.createElement('button');
             button.type = 'button';
@@ -3200,6 +3232,58 @@
                 document.getElementById('schedule-day-title').scrollIntoView();
             });
             details.append(button);
+        }
+    }
+
+    async function chargerPartagesAgenda() {
+        if (!connectedUser) return;
+        const card = document.getElementById('agenda-shares-card');
+        const container = document.getElementById('agenda-shares');
+        try {
+            const { partners } = await planningRequest('/api/agenda/shares');
+            card.hidden = !partners.length;
+            container.replaceChildren();
+            const act = (path, options) => async () => {
+                try {
+                    await planningRequest(path, options);
+                } catch (error) {
+                    document.getElementById('calendar-message').textContent = error.message;
+                }
+                chargerPartagesAgenda();
+                chargerCalendrier();
+            };
+            const addButton = (parent, label, handler) => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = label;
+                button.addEventListener('click', handler);
+                parent.append(button);
+            };
+            partners.forEach(partner => {
+                const row = document.createElement('article');
+                row.className = 'notification-card';
+                row.append(makeTextElement('strong', partner.name));
+                if (partner.incoming?.status === 'pending') {
+                    row.append(makeTextElement('p', 'Cette personne demande à voir votre agenda.', 'helper-text'));
+                    addButton(row, 'Accepter', act(`/api/agenda/shares/${partner.incoming.id}`, { method: 'POST', body: { decision: 'accept' } }));
+                    addButton(row, 'Refuser', act(`/api/agenda/shares/${partner.incoming.id}`, { method: 'POST', body: { decision: 'decline' } }));
+                } else if (partner.incoming?.status === 'accepted') {
+                    row.append(makeTextElement('p', 'Cette personne voit votre agenda.', 'helper-text'));
+                    addButton(row, 'Retirer son accès', act(`/api/agenda/shares/${partner.incoming.id}`, { method: 'POST', body: { decision: 'revoke' } }));
+                }
+                if (partner.outgoing?.status === 'accepted') {
+                    row.append(makeTextElement('p', 'Son agenda est affiché dans le vôtre.', 'helper-text'));
+                    addButton(row, 'Ne plus comparer', act(`/api/agenda/shares/${partner.outgoing.id}`, { method: 'POST', body: { decision: 'revoke' } }));
+                } else if (partner.outgoing?.status === 'pending') {
+                    row.append(makeTextElement('p', 'Demande envoyée, en attente de réponse.', 'helper-text'));
+                    addButton(row, 'Annuler ma demande', act(`/api/agenda/shares/${partner.outgoing.id}`, { method: 'POST', body: { decision: 'revoke' } }));
+                } else {
+                    addButton(row, 'Demander à comparer nos agendas', act('/api/agenda/shares', { method: 'POST', body: { ownerUserId: partner.userId } }));
+                }
+                container.append(row);
+            });
+        } catch (error) {
+            card.hidden = true;
         }
     }
 
@@ -4897,6 +4981,24 @@
             window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
         }
         document.getElementById('planning-previous-day').addEventListener('click', () => decalerJourPlanning(-1));
+        document.getElementById('personal-event-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const message = document.getElementById('personal-event-message');
+            try {
+                const startValue = document.getElementById('personal-event-start').value;
+                await planningRequest('/api/agenda/events', { method: 'POST', body: {
+                    title: document.getElementById('personal-event-title').value,
+                    start: new Date(startValue).toISOString(),
+                    durationMinutes: Number(document.getElementById('personal-event-duration').value)
+                } });
+                message.textContent = 'Rendez-vous ajouté.';
+                document.getElementById('personal-event-title').value = '';
+                calendarDate = startValue.slice(0, 10);
+                chargerCalendrier();
+            } catch (error) {
+                message.textContent = error.message || 'Impossible d’ajouter le rendez-vous.';
+            }
+        });
         document.getElementById('planning-next-day').addEventListener('click', () => decalerJourPlanning(1));
         document.getElementById('planning-today').addEventListener('click', () => {
             document.getElementById('planning-date').value = dateInputValue(new Date());

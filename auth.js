@@ -578,6 +578,28 @@ function createAuthService(pool) {
           WHERE role = 'pro' AND is_active = TRUE;
         CREATE INDEX IF NOT EXISTS planning_recipient_notes_recipient_date_idx
           ON planning_recipient_notes (recipient_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS app_personal_events (
+          id UUID PRIMARY KEY,
+          owner_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          title VARCHAR(120) NOT NULL,
+          starts_at TIMESTAMPTZ NOT NULL,
+          duration_minutes INTEGER NOT NULL CHECK (duration_minutes BETWEEN 5 AND 1440),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS app_personal_events_owner_date_idx
+          ON app_personal_events (owner_user_id, starts_at);
+        CREATE TABLE IF NOT EXISTS app_agenda_share_requests (
+          id UUID PRIMARY KEY,
+          requester_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          owner_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          status VARCHAR(16) NOT NULL DEFAULT 'pending'
+            CHECK (status IN ('pending', 'accepted', 'declined', 'revoked')),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          resolved_at TIMESTAMPTZ
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS app_agenda_share_requests_open_idx
+          ON app_agenda_share_requests (requester_user_id, owner_user_id)
+          WHERE status IN ('pending', 'accepted');
       `).catch(error => {
         schemaInitialization = undefined;
         throw error;

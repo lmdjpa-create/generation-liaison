@@ -70,6 +70,46 @@ async function register(email, role, isLegalGuardian = false) {
   return result.data;
 }
 
+test('personal agenda events can be compared only after the linked owner accepts', async () => {
+  const senior = await register('agenda-senior@example.test', 'senior');
+  const aidant = await register('agenda-aidant@example.test', 'aidant');
+  const stranger = await register('agenda-stranger@example.test', 'aidant');
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  const day = new Date(Date.now() + 3 * 86400000).toISOString().slice(0, 10);
+  const path = `/api/planning/calendar?start=${day}&end=${new Date(Date.parse(day) + 2 * 86400000).toISOString().slice(0, 10)}`;
+  const at = hour => `${day}T${hour}:00:00.000Z`;
+  const own = { title: 'Mon rendez-vous', start: at('10'), durationMinutes: 60 };
+  assert.equal((await request('/api/agenda/events', { user: aidant, body: { ...own, title: ' ' } })).status, 400);
+  assert.equal((await request('/api/agenda/events', { user: aidant, body: own })).status, 201);
+  const seniorEvent = await request('/api/agenda/events', {
+    user: senior, body: { title: 'Médecin', start: at('10'), durationMinutes: 30 }
+  });
+  assert.equal(seniorEvent.status, 201);
+
+  const before = await request(path, { user: aidant });
+  assert.deepEqual(before.data.events.map(event => event.kind), ['personal']);
+
+  assert.equal((await request('/api/agenda/shares', { user: stranger, body: { ownerUserId: senior.user.id } })).status, 403);
+  const shareRequest = await request('/api/agenda/shares', { user: aidant, body: { ownerUserId: senior.user.id } });
+  assert.equal(shareRequest.status, 201);
+  assert.equal((await request('/api/agenda/shares', { user: aidant, body: { ownerUserId: senior.user.id } })).status, 409);
+  assert.equal((await request(path, { user: aidant })).data.events.length, 1);
+  const shareId = shareRequest.data.id;
+  assert.equal((await request(`/api/agenda/shares/${shareId}`, { user: aidant, body: { decision: 'accept' } })).status, 404);
+  assert.equal((await request(`/api/agenda/shares/${shareId}`, { user: senior, body: { decision: 'accept' } })).status, 200);
+
+  const compared = await request(path, { user: aidant });
+  assert.deepEqual(compared.data.events.map(event => [event.kind, event.conflict]).sort(), [['personal', true], ['shared', true]]);
+  assert.deepEqual((await request(path, { user: senior })).data.events.map(event => event.kind), ['personal']);
+
+  assert.equal((await request(`/api/agenda/shares/${shareId}`, { user: aidant, body: { decision: 'revoke' } })).status, 200);
+  assert.equal((await request(path, { user: aidant })).data.events.length, 1);
+  const mine = compared.data.events.find(event => event.kind === 'personal');
+  assert.equal((await request(`/api/agenda/events/${mine.id}`, { user: stranger, method: 'DELETE' })).status, 404);
+  assert.equal((await request(`/api/agenda/events/${mine.id}`, { user: aidant, method: 'DELETE' })).status, 200);
+});
+
 test('calendar and conflicts isolate identified bookings and conservatively cover legacy multi-profile bookings', async () => {
       const first = await register('calendar-first@example.test', 'senior');
       const second = await register('calendar-second@example.test', 'senior');
