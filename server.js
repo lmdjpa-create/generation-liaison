@@ -1181,6 +1181,8 @@ async function notifyEmergencyAidants(client, senior, { type, title, message, ch
   return rows.length;
 }
 
+const FREE_CONTACTS_PER_ROLE = 1;
+
 app.get('/api/contacts', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -1217,6 +1219,24 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
   }
 
   try {
+    if (!hasActivePremium(req.authUser)) {
+      const { rows: [target] } = await pool.query(
+        'SELECT role FROM app_users WHERE id = $1 AND is_active = TRUE', [contactUserId]
+      );
+      if (target) {
+        const { rows: [existing] } = await pool.query(
+          `SELECT count(*)::int AS total FROM app_user_contacts c
+           JOIN app_users u ON u.id = c.contact_user_id
+           WHERE c.user_id = $1 AND u.role = $2 AND c.contact_user_id <> $3`,
+          [req.authUser.id, target.role, contactUserId]
+        );
+        if (existing.total >= FREE_CONTACTS_PER_ROLE) {
+          return res.status(402).json({
+            error: 'La version gratuite permet un aidant et un soignant en contact. Passez à la version payante pour en ajouter davantage.'
+          });
+        }
+      }
+    }
     const { rows } = await pool.query(
       `WITH target AS (
          SELECT id, name, notification_phone, profile_photo_url, role
