@@ -676,42 +676,63 @@
     const control = document.createElement('label');
     control.className = 'gl-language-switch';
 
-    const label = document.createElement('span');
-    label.textContent = 'Langue';
+    control.setAttribute('role', 'group');
+    control.setAttribute('aria-label', 'Langue');
+    const flagSvg = {
+      fr: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 20"><rect width="10" height="20" fill="#0055a4"/><rect x="10" width="10" height="20" fill="#fff"/><rect x="20" width="10" height="20" fill="#ef4135"/></svg>',
+      en: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 40"><rect width="60" height="40" fill="#012169"/><path d="M0 0l60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0l60 40M60 0L0 40" stroke="#c8102e" stroke-width="3"/><path d="M30 0v40M0 20h60" stroke="#fff" stroke-width="12"/><path d="M30 0v40M0 20h60" stroke="#c8102e" stroke-width="7"/></svg>'
+    };
+    const flags = [['fr', 'Français'], ['en', 'English']];
+    const buttons = flags.map(([code, name]) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.innerHTML = flagSvg[code];
+      button.title = name;
+      button.setAttribute('aria-label', name);
+      button.addEventListener('click', () => setLanguage(code));
+      return [code, button];
+    });
+    const refreshFlags = () => buttons.forEach(([code, button]) => {
+      button.setAttribute('aria-pressed', String(code === language));
+    });
+    refreshFlags();
+    window.addEventListener('generationliaisonlanguagechange', refreshFlags);
 
-    const select = document.createElement('select');
-    select.setAttribute('aria-label', 'Langue');
-    select.innerHTML = '<option value="fr">Français</option><option value="en">English</option>';
-    select.value = language;
-    select.addEventListener('change', () => setLanguage(select.value));
-
-    control.append(label, select);
+    control.append(...buttons.map(([, button]) => button));
     document.body.insertBefore(control, document.body.firstChild);
 
     const style = document.createElement('style');
     style.textContent = `
       .gl-language-switch {
-        position: relative;
+        position: absolute;
+        top: 0;
+        right: 0;
         z-index: 30;
         display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 8px;
-        min-height: 46px;
-        padding: 6px 12px;
-        color: #334155;
-        font: 14px/1.3 Arial, sans-serif;
+        gap: 6px;
+        padding: 8px 12px;
       }
-      .gl-language-switch select {
-        min-height: 32px;
-        padding: 4px 8px;
-        border: 1px solid #cbd5e1;
-        border-radius: 6px;
-        background: #fff;
-        color: inherit;
-        font: inherit;
+      .gl-language-switch button {
+        width: 38px;
+        height: 32px;
+        padding: 0;
+        border: 2px solid transparent;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, .85);
+        font-size: 20px;
+        line-height: 1;
+        cursor: pointer;
       }
-      .gl-language-switch select:focus-visible {
+      .gl-language-switch button svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+      }
+      .gl-language-switch button[aria-pressed="true"] {
+        border-color: #2a9d78;
+      }
+      .gl-language-switch button:focus-visible {
         outline: 2px solid #2563eb;
         outline-offset: 2px;
       }
