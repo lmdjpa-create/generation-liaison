@@ -658,6 +658,18 @@
 
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
+<section class="form-card" style="text-align:left;" id="settings-aidant-links">
+        <h3>Mes profils seniors</h3>
+        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior. Il devra accepter votre demande avant que vous puissiez consulter son profil.</p>
+        <form id="aidant-link-form" class="form-grid">
+            <label for="aidant-link-email">Adresse e-mail du senior</label>
+            <input id="aidant-link-email" type="email" autocomplete="off" maxlength="254" required>
+            <button type="submit">Demander l’accès</button>
+        </form>
+        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie et associe les profils seniors.</p>
+        <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
+        <button type="button" id="aidant-links-refresh">Actualiser</button>
+    </section>
     <section class="form-card" id="settings-agenda">
         <h2>Mon agenda</h2>
         <p>Consultez les rendez-vous et les disponibilités correspondant à votre compte.</p>
@@ -736,18 +748,6 @@
             <div id="senior-link-management" aria-live="polite">Chargement des demandes…</div>
             <button type="button" id="senior-links-refresh">Actualiser</button>
         </section>
-<section class="form-card" style="text-align:left;" id="settings-aidant-links">
-        <h3>Mes profils seniors</h3>
-        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior. Il devra accepter votre demande avant que vous puissiez consulter son profil.</p>
-        <form id="aidant-link-form" class="form-grid">
-            <label for="aidant-link-email">Adresse e-mail du senior</label>
-            <input id="aidant-link-email" type="email" autocomplete="off" maxlength="254" required>
-            <button type="submit">Demander l’accès</button>
-        </form>
-        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie et associe les profils seniors.</p>
-        <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
-        <button type="button" id="aidant-links-refresh">Actualiser</button>
-    </section>
 <div id="settings-pro-area">
 <section class="form-card" id="directory-profile-panel">
         <h3>Annuaire national et rendez-vous</h3>
