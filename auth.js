@@ -272,6 +272,17 @@ function createAuthService(pool) {
         );
         ALTER TABLE app_directory_bookings
           ALTER COLUMN google_event_id DROP NOT NULL;
+        CREATE TABLE IF NOT EXISTS app_external_professionals (
+          id UUID PRIMARY KEY,
+          name VARCHAR(120) NOT NULL,
+          activity VARCHAR(160) NOT NULL,
+          phone VARCHAR(32),
+          email VARCHAR(254),
+          address VARCHAR(200),
+          city VARCHAR(80),
+          postal_code VARCHAR(10),
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
         ALTER TABLE app_directory_bookings
           ADD COLUMN IF NOT EXISTS senior_profile_id UUID REFERENCES senior_profiles(id) ON DELETE SET NULL;
         UPDATE app_directory_bookings booking

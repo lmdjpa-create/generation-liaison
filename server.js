@@ -2918,6 +2918,83 @@ app.put('/api/directory/profile', requireAuth, async (req, res) => {
   }
 });
 
+const externalProfessionalFields = {
+  name: 120, activity: 160, phone: 32, email: 254, address: 200, city: 80, postalCode: 10
+};
+
+function normalizeExternalProfessional(body) {
+  const value = {};
+  for (const [field, max] of Object.entries(externalProfessionalFields)) {
+    const raw = body?.[field];
+    if (raw !== undefined && raw !== null && typeof raw !== 'string') {
+      throw new AuthError(400, 'Les champs doivent être du texte.');
+    }
+    const text = (raw || '').trim();
+    if (text.length > max) throw new AuthError(400, `Le champ « ${field} » est trop long.`);
+    value[field] = text || null;
+  }
+  if (!value.name || value.name.length < 2 || !value.activity) {
+    throw new AuthError(400, 'Indiquez au moins le nom et l’activité.');
+  }
+  if (!value.phone && !value.email) {
+    throw new AuthError(400, 'Indiquez au moins un téléphone ou un e-mail.');
+  }
+  if (value.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.email)) {
+    throw new AuthError(400, 'Adresse e-mail invalide.');
+  }
+  return value;
+}
+
+app.get('/api/admin/external-professionals', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, activity, phone, email, address, city, postal_code
+       FROM app_external_professionals ORDER BY name ASC LIMIT 500`
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({
+      professionals: rows.map(row => ({
+        id: row.id, name: row.name, activity: row.activity, phone: row.phone, email: row.email,
+        address: row.address, city: row.city, postalCode: row.postal_code
+      }))
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les intervenants extérieurs.');
+  }
+});
+
+app.post('/api/admin/external-professionals', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const value = normalizeExternalProfessional(req.body);
+    await pool.query(
+      `INSERT INTO app_external_professionals
+         (id, name, activity, phone, email, address, city, postal_code)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [randomUUID(), value.name, value.activity, value.phone, value.email,
+        value.address, value.city, value.postalCode]
+    );
+    res.status(201).json({ created: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’ajouter cet intervenant.');
+  }
+});
+
+app.delete('/api/admin/external-professionals/:id', requireAuth, requireAdmin, async (req, res) => {
+  if (!isValidUuid(req.params.id)) {
+    return res.status(400).json({ error: 'Identifiant invalide.' });
+  }
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM app_external_professionals WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rowCount) return res.status(404).json({ error: 'Intervenant introuvable.' });
+    res.json({ deleted: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de supprimer cet intervenant.');
+  }
+});
+
 app.post('/api/directory/search', requireAuth, async (req, res) => {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'L’annuaire est réservé aux seniors et aux aidants.' });
@@ -2969,9 +3046,37 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
       [query, latitude, longitude, limit + 1, offset, radiusKm]
     );
     const hasMore = rows.length > limit;
+    let externalProfessionals = [];
+    const searchCity = typeof req.body?.city === 'string' ? req.body.city.trim().slice(0, 80) : '';
+    const searchPostalCode = typeof req.body?.postalCode === 'string' ? req.body.postalCode.trim().slice(0, 10) : '';
+    if (offset === 0 && (latitude === null || searchCity || searchPostalCode)) {
+      const { rows: externals } = await pool.query(
+        `SELECT id, name, activity, phone, email, address, city, postal_code
+         FROM app_external_professionals
+         WHERE ($1 = '' OR name ILIKE '%' || $1 || '%' OR activity ILIKE '%' || $1 || '%')
+           AND (($2 = '' AND $3 = '') OR ($3 <> '' AND postal_code LIKE left($3, 2) || '%')
+                OR ($2 <> '' AND lower(city) = lower($2)))
+         ORDER BY name ASC LIMIT 30`,
+        [query, searchCity, searchPostalCode]
+      );
+      externalProfessionals = externals.map(row => ({
+        id: row.id,
+        name: row.name,
+        activity: row.activity,
+        description: null,
+        photoUrl: null,
+        serviceRadiusKm: null,
+        verified: false,
+        external: true,
+        phone: row.phone,
+        email: row.email,
+        address: [row.address, [row.postal_code, row.city].filter(Boolean).join(' ')].filter(Boolean).join(', ') || null,
+        distanceKm: null
+      }));
+    }
     res.set('Cache-Control', 'private, no-store');
     res.json({
-      professionals: rows.slice(0, limit).map(row => ({
+      professionals: [...rows.slice(0, limit).map(row => ({
         id: row.id,
         name: row.name,
         activity: row.directory_activity,
@@ -2980,7 +3085,7 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
         serviceRadiusKm: row.service_radius_km,
         verified: true,
         distanceKm: row.distance_km
-      })),
+      })), ...externalProfessionals],
       hasMore,
       nextOffset: hasMore ? offset + limit : null
     });
