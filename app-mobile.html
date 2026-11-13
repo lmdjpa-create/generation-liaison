@@ -217,15 +217,15 @@
         .importance-legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
         #toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #2ecc71; color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; display: none; z-index: 100; }
         /* Habillage inspiré de la maquette : vert apaisant, cartes arrondies, navigation douce */
-        :root { --brand: #2a9d78; --brand-dark: #1f7f61; --brand-soft: #e6f4ee; --blue-soft: #e8f1fb; --ink: #1f3a4d; --primary: #1f3a4d; --senior-bg: #f6faf8; --aidant-bg: #f6faf8; --pro-bg: #f6faf8; }
+        :root { --brand: #2a9d78; --brand-dark: #1f7f61; --brand-soft: #e6f4ee; --blue-soft: #e8f1fb; --ink: #1f3a4d; --primary: #1f3a4d; --senior-bg: transparent; --aidant-bg: transparent; --pro-bg: transparent; }
         body { background: #f6faf8; color: var(--ink); }
-        .app-banner { background: white; text-align: center; padding: 4px 0; box-shadow: 0 4px 14px rgba(31, 58, 77, 0.06); }
-        .app-banner img { display: block; margin: 0 auto; width: auto; height: 240px; max-width: 100%; object-fit: contain; }
+      body::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.22; background: url(logo-generation-liaison.jpg) center 88% / min(85vw, 560px) auto no-repeat; }
         .brand-logo { display: block; width: 76px; height: 76px; margin: 0 auto 6px; }
         .brand-title { margin: 0 0 4px; text-align: center; font-size: 1.7rem; font-weight: 800; line-height: 1.05; color: var(--ink); }
         .brand-title span { display: block; color: var(--brand); }
         .brand-tagline { margin: 0 0 18px; text-align: center; color: #5d7385; font-size: 0.95rem; }
         .card, .form-card, .visit-card, .notification-card { border-radius: 18px; box-shadow: 0 6px 18px rgba(31, 58, 77, 0.07); }
+        .card, .form-card { background: rgba(255, 255, 255, 0.9); }
         .notification-card { border: 1px solid #e3eee9; }
         .notification-card.unread { border-left-color: var(--brand); }
         input, select, textarea { border: 1.5px solid #d9e7e1; border-radius: 14px; background: #fbfdfc; }
@@ -259,7 +259,6 @@
     </style>
 </head>
 <body>
-<header class="app-banner"><img src="logo-generation-liaison.jpg" alt="Génération Liaison" width="300" height="300"></header>
 
 <div id="toast">✅ Action enregistrée !</div>
 
