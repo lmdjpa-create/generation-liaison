@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Génération Liaison - Mobile</title>
     <script src="/language.js"></script>
     <script src="/geolocation-client.js"></script>
@@ -32,6 +32,7 @@
             display: flex;
             flex-direction: column;
             height: 100vh;
+            height: 100dvh;
             overflow: hidden;
         }
         .screen-container {
@@ -53,7 +54,7 @@
         .btn-order { background: #3498db; color: white; border: none; padding: 10px; border-radius: 8px; font-weight: bold; width: 100%; cursor: pointer; }
         .btn-mic { background: #e84118; color: white; border: none; width: 70px; height: 70px; border-radius: 50%; font-size: 1.8rem; display: block; margin: 15px auto; cursor: pointer; }
         @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.02);} 100% {transform: scale(1);} }
-        .nav-bar { display: flex; background: white; border-top: 1px solid #e0e0e0; min-height: 65px; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); overflow-x: auto; }
+        .nav-bar { display: flex; background: white; border-top: 1px solid #e0e0e0; min-height: 65px; justify-content: space-around; align-items: center; padding-bottom: calc(env(safe-area-inset-bottom) + 12px); flex-shrink: 0; overflow-x: auto; }
         .nav-item { display: flex; flex: 1 0 64px; flex-direction: column; align-items: center; background: none; border: none; color: #8e8e93; font-size: 0.75rem; cursor: pointer; }
         .nav-item.active { color: #3498db; font-weight: bold; }
         .nav-icon { font-size: 1.6rem; margin-bottom: 2px; }
