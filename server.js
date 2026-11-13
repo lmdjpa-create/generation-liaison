@@ -3114,9 +3114,25 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
     );
     const hasMore = rows.length > limit;
     let externalProfessionals = [];
-    const searchCity = typeof req.body?.city === 'string' ? req.body.city.trim().slice(0, 80) : '';
-    const searchPostalCode = typeof req.body?.postalCode === 'string' ? req.body.postalCode.trim().slice(0, 10) : '';
-    const searchCommuneCode = typeof req.body?.communeCode === 'string' ? req.body.communeCode.trim().slice(0, 5) : '';
+    let searchCity = typeof req.body?.city === 'string' ? req.body.city.trim().slice(0, 80) : '';
+    let searchPostalCode = typeof req.body?.postalCode === 'string' ? req.body.postalCode.trim().slice(0, 10) : '';
+    let searchCommuneCode = typeof req.body?.communeCode === 'string' ? req.body.communeCode.trim().slice(0, 5) : '';
+    if (offset === 0 && latitude !== null && !searchCity && !searchPostalCode) {
+      try {
+        const geo = await fetch(
+          `https://geo.api.gouv.fr/communes?lat=${latitude}&lon=${longitude}&fields=code,nom,codesPostaux`,
+          { signal: AbortSignal.timeout(3000) }
+        );
+        const commune = geo.ok ? (await geo.json())[0] : null;
+        if (commune) {
+          searchCity = commune.nom;
+          searchCommuneCode = commune.code;
+          searchPostalCode = commune.codesPostaux?.[0] || '';
+        }
+      } catch {
+        // Sans commune, seuls les professionnels inscrits sont proposés.
+      }
+    }
     if (offset === 0 && (latitude === null || searchCity || searchPostalCode)) {
       const { rows: externals } = await pool.query(
         `SELECT id, name, activity, phone, email, address, city, postal_code
