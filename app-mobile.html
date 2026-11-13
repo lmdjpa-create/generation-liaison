@@ -1512,7 +1512,10 @@
         document.getElementById(labelId).hidden = select.hidden;
         const selected = state.communes.find(commune => commune.code === select.value);
         if (!selected) throw new Error('Choisissez une commune dans la liste, puis relancez la recherche.');
-        return { latitude: selected.centre.coordinates[1], longitude: selected.centre.coordinates[0], name: selected.nom };
+        return {
+            latitude: selected.centre.coordinates[1], longitude: selected.centre.coordinates[0], name: selected.nom,
+            communeCode: selected.code, postalCode: selected.codesPostaux?.[0] || ''
+        };
     }
 
     function ajouterDistanceAuRendezVous(card, distanceKm, outsideServiceRadius) {
@@ -2588,7 +2591,11 @@
                         longitude: location.longitude,
                         radiusKm
                     } : {}),
-                    ...(city || postcode ? { city, postalCode: postcode } : {})
+                    ...(city || postcode ? {
+                        city: city || location?.name || '',
+                        postalCode: postcode || location?.postalCode || '',
+                        communeCode: location?.communeCode || ''
+                    } : {})
                 }
             });
             if (!append) results.replaceChildren();

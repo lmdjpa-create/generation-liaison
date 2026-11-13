@@ -3100,6 +3100,7 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
     let externalProfessionals = [];
     const searchCity = typeof req.body?.city === 'string' ? req.body.city.trim().slice(0, 80) : '';
     const searchPostalCode = typeof req.body?.postalCode === 'string' ? req.body.postalCode.trim().slice(0, 10) : '';
+    const searchCommuneCode = typeof req.body?.communeCode === 'string' ? req.body.communeCode.trim().slice(0, 5) : '';
     if (offset === 0 && (latitude === null || searchCity || searchPostalCode)) {
       const { rows: externals } = await pool.query(
         `SELECT id, name, activity, phone, email, address, city, postal_code
@@ -3125,7 +3126,7 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
         distanceKm: null
       }));
     }
-    if (offset === 0 && latitude === null) {
+    if (offset === 0) {
       const { rows: pending } = await pool.query(
         `SELECT id, name, email, directory_activity
          FROM app_users
@@ -3141,10 +3142,12 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
         phone: null, email: row.email, address: null, distanceKm: null
       })));
     }
-    if (offset === 0 && query && /^\d{5}$/.test(searchPostalCode)) {
+    if (offset === 0 && query && (/^\d{5}$/.test(searchPostalCode) || /^[0-9AB]{5}$/i.test(searchCommuneCode))) {
       try {
+        const place = /^[0-9AB]{5}$/i.test(searchCommuneCode)
+          ? `code_commune=${searchCommuneCode}` : `code_postal=${searchPostalCode}`;
         const response = await fetch(
-          `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&code_postal=${searchPostalCode}&etat_administratif=A&per_page=15`,
+          `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&${place}&etat_administratif=A&per_page=15`,
           { signal: AbortSignal.timeout(4000) }
         );
         if (response.ok) {
