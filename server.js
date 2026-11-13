@@ -3141,6 +3141,29 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
         phone: null, email: row.email, address: null, distanceKm: null
       })));
     }
+    if (offset === 0 && query && /^\d{5}$/.test(searchPostalCode)) {
+      try {
+        const response = await fetch(
+          `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&code_postal=${searchPostalCode}&etat_administratif=A&per_page=15`,
+          { signal: AbortSignal.timeout(4000) }
+        );
+        if (response.ok) {
+          const data = await response.json();
+          externalProfessionals.push(...(data.results || []).map(company => {
+            const place = company.siege || {};
+            return {
+              id: `sirene-${place.siret || company.siren}`, name: company.nom_complet, activity: query,
+              description: null, photoUrl: null, serviceRadiusKm: null, verified: false, external: true,
+              phone: null, email: null,
+              address: [place.numero_voie, place.type_voie, place.libelle_voie, place.code_postal, place.libelle_commune].filter(Boolean).join(' ') || null,
+              distanceKm: null
+            };
+          }));
+        }
+      } catch {
+        // L'annuaire public est facultatif : on ignore son indisponibilité.
+      }
+    }
     res.set('Cache-Control', 'private, no-store');
     res.json({
       professionals: [...rows.slice(0, limit).map(row => ({
