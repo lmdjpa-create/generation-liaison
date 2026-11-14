@@ -4136,26 +4136,36 @@ app.post('/api/senior-links/removals/:id/confirm', requireAuth, async (req, res)
 app.get('/api/messages/contacts', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT other.id, other.name, other.premium_status, other.premium_until
+      `SELECT other.id, other.name, other.premium_status, other.premium_until, association.linked
        FROM app_users other
+       CROSS JOIN LATERAL (
+         SELECT EXISTS (
+           SELECT 1 FROM app_aidant_senior_links link
+           JOIN app_users senior ON senior.senior_id = link.senior_profile_id
+             AND senior.role = 'senior' AND senior.is_active = TRUE
+           JOIN app_users aidant ON aidant.id = link.aidant_user_id
+             AND aidant.role = 'aidant' AND aidant.is_active = TRUE
+             AND (aidant.is_legal_guardian = FALSE OR aidant.guardian_verification_status = 'approved')
+           WHERE link.suspended_at IS NULL AND
+             ((senior.id = $1 AND aidant.id = other.id) OR
+              (senior.id = other.id AND aidant.id = $1))
+         ) AS linked
+       ) association
        WHERE other.id <> $1 AND other.is_active = TRUE AND (
          (EXISTS (SELECT 1 FROM app_user_contacts contact
            WHERE contact.user_id = $1 AND contact.contact_user_id = other.id)
           AND EXISTS (SELECT 1 FROM app_user_contacts contact
            WHERE contact.user_id = other.id AND contact.contact_user_id = $1))
-         OR EXISTS (
-           SELECT 1 FROM app_aidant_senior_links link
-           JOIN app_users senior ON senior.senior_id = link.senior_profile_id AND senior.role = 'senior'
-           WHERE link.suspended_at IS NULL AND
-             ((senior.id = $1 AND link.aidant_user_id = other.id) OR
-              (senior.id = other.id AND link.aidant_user_id = $1))
-         )
+         OR association.linked
        )
        ORDER BY other.name, other.id`,
       [req.authUser.id]
     );
     res.set('Cache-Control', 'private, no-store');
-    res.json({ contacts: rows.map(row => ({ id: row.id, name: row.name, premium: hasActivePremium(row) })),
+    res.json({ contacts: rows.map(row => ({
+      id: row.id, name: row.name, premium: hasActivePremium(row),
+      canSend: row.linked || (hasActivePremium(req.authUser) && hasActivePremium(row))
+    })),
       premium: hasActivePremium(req.authUser) });
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger vos correspondants.');
@@ -4173,23 +4183,27 @@ async function findMessageLink(client, userId, contactId, lock = false) {
     [userId, contactId]
   );
   if (!rows[0]) return null;
+  const linked = await client.query(
+    `SELECT link.aidant_user_id FROM app_aidant_senior_links link
+     JOIN app_users senior ON senior.senior_id = link.senior_profile_id
+       AND senior.role = 'senior' AND senior.is_active = TRUE
+     JOIN app_users aidant ON aidant.id = link.aidant_user_id
+       AND aidant.role = 'aidant' AND aidant.is_active = TRUE
+       AND (aidant.is_legal_guardian = FALSE OR aidant.guardian_verification_status = 'approved')
+     WHERE link.suspended_at IS NULL AND
+       ((senior.id = $1 AND aidant.id = $2) OR
+        (senior.id = $2 AND aidant.id = $1))
+     ${lock ? 'FOR SHARE OF link' : ''}`,
+    [userId, contactId]
+  );
+  if (linked.rows.length) return { ...rows[0], linked: true };
   const saved = await client.query(
     `SELECT id FROM app_user_contacts
      WHERE (user_id = $1 AND contact_user_id = $2) OR (user_id = $2 AND contact_user_id = $1)
      ${lock ? 'FOR SHARE' : ''}`,
     [userId, contactId]
   );
-  if (saved.rows.length === 2) return rows[0];
-  const linked = await client.query(
-    `SELECT link.aidant_user_id FROM app_aidant_senior_links link
-     JOIN app_users senior ON senior.senior_id = link.senior_profile_id AND senior.role = 'senior'
-     WHERE link.suspended_at IS NULL AND
-       ((senior.id = $1 AND link.aidant_user_id = $2) OR
-        (senior.id = $2 AND link.aidant_user_id = $1))
-     ${lock ? 'FOR SHARE OF link' : ''}`,
-    [userId, contactId]
-  );
-  return linked.rows.length ? rows[0] : null;
+  return saved.rows.length === 2 ? { ...rows[0], linked: false } : null;
 }
 
 app.get('/api/messages/:contactId', requireAuth, async (req, res) => {
@@ -4241,8 +4255,9 @@ app.post('/api/messages/:contactId', requireAuth, async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Ce correspondant n’est pas associé à votre compte.' });
     }
-    if (!hasActivePremium({ premium_status: contact.own_premium_status, premium_until: contact.own_premium_until }) ||
-        !hasActivePremium(contact)) {
+    if (!contact.linked && (
+        !hasActivePremium({ premium_status: contact.own_premium_status, premium_until: contact.own_premium_until }) ||
+        !hasActivePremium(contact))) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Les deux personnes doivent disposer d’un accès premium actif pour envoyer un message.' });
     }

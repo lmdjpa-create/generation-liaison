@@ -157,11 +157,9 @@ test('private messages require an active senior link and confirm reading only to
   assert.equal((await request(messages, { user: aidant, body: { message: 'Bonjour' } })).status, 403);
   await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
     VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
-  assert.equal((await request('/api/messages/contacts', { user: senior })).data.contacts[0].id, aidant.user.id);
-  assert.equal((await request(messages, { user: aidant, body: { message: 'Bonjour' } })).status, 403);
-  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [aidant.user.id]);
-  assert.equal((await request(messages, { user: aidant, body: { message: 'Bonjour' } })).status, 403);
-  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
+  const contact = (await request('/api/messages/contacts', { user: senior })).data.contacts[0];
+  assert.equal(contact.id, aidant.user.id);
+  assert.equal(contact.canSend, true);
   assert.equal((await request(messages, { user: aidant, body: { message: '  ' } })).status, 400);
   assert.equal((await request(messages, { user: aidant, body: { message: 'x'.repeat(2001) } })).status, 400);
   const sent = await request(messages, { user: aidant, body: { message: ' Bonjour ! ' } });
@@ -195,8 +193,8 @@ test('private messages require an active senior link and confirm reading only to
   })).status, 200);
   assert.ok((await request(`${messages}?focus=${sent.data.id}`, { user: aidant })).data.messages.find(message => message.id === sent.data.id).readAt);
   assert.equal((await request('/api/notifications', { user: senior })).data.notifications.find(item => item.id === notification.id).read, true);
-  await db.query(`UPDATE app_users SET premium_until = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [senior.user.id]);
-  assert.equal((await request(messages, { user: aidant, body: { message: 'Premium expiré' } })).status, 403);
+  await db.query(`UPDATE app_users SET premium_status = 'active', premium_until = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [senior.user.id]);
+  assert.equal((await request(messages, { user: aidant, body: { message: 'Premium expiré' } })).status, 201);
   assert.equal((await request(`${messages}?focus=${sent.data.id}`, { user: aidant })).status, 200);
   await db.query(`UPDATE app_users SET premium_until = NULL WHERE id = $1`, [senior.user.id]);
   const reply = await request(`/api/messages/${aidant.user.id}`, { user: senior, body: { message: 'À bientôt' } });
@@ -211,13 +209,55 @@ test('private messages require an active senior link and confirm reading only to
   })).status, 403);
 });
 
+test('all associated aidants exchange freely even as mutual contacts, without bypassing restrictions', async () => {
+  const senior = await register('free-message-senior@example.test', 'senior');
+  const aidant = await register('free-message-aidant@example.test', 'aidant');
+  const second = await register('free-message-second@example.test', 'aidant');
+  const guardian = await register('free-message-guardian@example.test', 'aidant', true);
+  for (const person of [aidant, second, guardian]) {
+    await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+      VALUES ($1, $2, $1)`, [person.user.id, senior.user.seniorId]);
+  }
+  for (const [user, other] of [[senior, aidant], [aidant, senior]]) {
+    await db.query('INSERT INTO app_user_contacts (id, user_id, contact_user_id) VALUES ($1, $2, $3)',
+      [randomUUID(), user.user.id, other.user.id]);
+  }
+  const contacts = (await request('/api/messages/contacts', { user: senior })).data.contacts;
+  assert.deepEqual(new Set(contacts.map(item => item.id)), new Set([aidant.user.id, second.user.id]));
+  assert.ok(contacts.every(item => item.canSend));
+  for (const person of [aidant, second]) {
+    assert.equal((await request(`/api/messages/${person.user.id}`, {
+      user: senior, body: { message: 'Bonjour' }
+    })).status, 201);
+    assert.equal((await request(`/api/messages/${senior.user.id}`, {
+      user: person, body: { message: 'Bonjour' }
+    })).status, 201);
+  }
+  assert.equal((await request(`/api/messages/${senior.user.id}`, {
+    user: guardian, body: { message: 'Bonjour' }
+  })).status, 403);
+  assert.equal((await request(`/api/messages/${guardian.user.id}`, {
+    user: senior, body: { message: 'Bonjour' }
+  })).status, 403);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1', [aidant.user.id]);
+  const suspendedContact = (await request('/api/messages/contacts', { user: senior })).data.contacts.find(item => item.id === aidant.user.id);
+  assert.equal(suspendedContact.canSend, false);
+  assert.equal((await request(`/api/messages/${aidant.user.id}`, {
+    user: senior, body: { message: 'Lien suspendu' }
+  })).status, 403);
+  await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [second.user.id]);
+  assert.equal((await request(`/api/messages/${second.user.id}`, { user: senior })).status, 403);
+  assert.equal((await request(`/api/messages/${senior.user.id}`, {
+    user: second, body: { message: 'Compte désactivé' }
+  })).status, 401);
+});
+
 test('all contact roles can exchange premium messages only after mutually adding each other', async () => {
   const senior = await register('message-contact-senior@example.test', 'senior');
   const professional = await register('message-contact-pro@example.test', 'senior');
   const stranger = await register('message-contact-outsider@example.test', 'senior');
-  await db.query(`UPDATE app_users SET role = 'pro', verification_status = 'approved', premium_status = 'active'
+  await db.query(`UPDATE app_users SET role = 'pro', verification_status = 'approved'
     WHERE id = $1`, [professional.user.id]);
-  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
   assert.equal((await request('/api/contacts', {
     user: senior, body: { email: ' MESSAGE-CONTACT-PRO@EXAMPLE.TEST ' }
   })).status, 201);
@@ -227,10 +267,19 @@ test('all contact roles can exchange premium messages only after mutually adding
   assert.equal((await request('/api/contacts', {
     user: professional, body: { email: 'message-contact-senior@example.test' }
   })).status, 201);
-  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].id, senior.user.id);
+  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, false);
+  assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior, body: { message: 'Bonjour' } })).status, 403);
+  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [professional.user.id]);
+  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, false);
+  assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior, body: { message: 'Bonjour' } })).status, 403);
+  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
+  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, true);
   const sent = await request(`/api/messages/${professional.user.id}`, { user: senior, body: { message: 'Bonjour' } });
   assert.equal(sent.status, 201);
   assert.equal((await request(`/api/messages/${senior.user.id}`, { user: professional, body: { message: 'Bonjour également' } })).status, 201);
+  await db.query(`UPDATE app_users SET premium_until = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [senior.user.id]);
+  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, false);
+  assert.equal((await request(`/api/messages/${senior.user.id}`, { user: professional, body: { message: 'Premium expiré' } })).status, 403);
   assert.equal((await request(`/api/messages/${senior.user.id}`, { user: stranger })).status, 403);
   assert.equal((await request(`/api/contacts/${professional.user.id}`, { user: senior, method: 'DELETE' })).status, 200);
   assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior })).status, 403);

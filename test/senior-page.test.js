@@ -13,6 +13,34 @@ function extract(start, end) {
   return source.slice(first, last);
 }
 
+test('message contacts show premium requirements per contact instead of per account', async () => {
+  const select = {
+    value: '', options: [],
+    replaceChildren(option) { this.options = [option]; },
+    add(option) { this.options.push(option); }
+  };
+  const status = { textContent: '' };
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    document: { getElementById: id => id.startsWith('message-contact-') ? select : status },
+    Option: function(text, value) { this.text = text; this.value = value; },
+    seniorLinksRequest: async () => ({
+      premium: false, contacts: [
+        { id: 'aidant', name: 'Aidant', premium: false, canSend: true },
+        { id: 'autre', name: 'Autre', premium: true, canSend: false }
+      ]
+    })
+  };
+  vm.runInNewContext(
+    `${extract('    async function chargerCorrespondants(role)', '    async function ouvrirConversation(')}\n` +
+    'globalThis.loadContacts = chargerCorrespondants;', context
+  );
+  assert.equal(await context.loadContacts('senior'), true);
+  assert.equal(select.options[1].text, 'Aidant');
+  assert.match(select.options[2].text, /premium requis/);
+  assert.equal(status.textContent, '');
+});
+
 test('senior settings remain accessible from navigation without a dashboard shortcut', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   assert.doesNotMatch(dashboard, /switchScreen\('settings'\)/);

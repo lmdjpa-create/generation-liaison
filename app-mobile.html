@@ -508,7 +508,7 @@
                 <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
                 <details class="senior-disclosure senior-explanation">
                     <summary>Explications</summary>
-                    <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
+                    <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
                 </details>
                 <label for="message-contact-senior">Correspondant</label>
                 <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
@@ -623,7 +623,7 @@
         <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
         <div id="messages-aidant">
             <h3>Messages avec mes contacts</h3>
-            <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
+            <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
             <label for="message-contact-aidant">Correspondant</label>
             <select id="message-contact-aidant" aria-label="Choisir un correspondant"></select>
             <button type="button" onclick="ouvrirConversation('aidant')">Ouvrir les messages</button>
@@ -720,7 +720,7 @@
         <div id="notifications-pro" aria-live="polite">Chargement des notifications…</div>
         <div id="messages-pro">
             <h3>Messages avec mes contacts</h3>
-            <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
+            <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
             <label for="message-contact-pro">Correspondant</label>
             <select id="message-contact-pro" aria-label="Choisir un correspondant"></select>
             <button type="button" onclick="ouvrirConversation('pro')">Ouvrir les messages</button>
@@ -3466,12 +3466,10 @@
             const previous = select.value;
             select.replaceChildren(new Option('Choisissez un correspondant', ''));
             result.contacts.forEach(contact => select.add(new Option(
-                `${contact.name}${contact.premium ? '' : ' · premium requis pour envoyer'}`, contact.id
+                `${contact.name}${contact.canSend ? '' : ' · premium requis pour envoyer'}`, contact.id
             )));
             if (result.contacts.some(contact => contact.id === previous)) select.value = previous;
-            status.textContent = !result.premium
-                ? 'Un accès premium actif est nécessaire pour envoyer des messages.'
-                : result.contacts.length ? '' : 'Aucun contact pour le moment. Ajoutez-en dans Contacts.';
+            status.textContent = result.contacts.length ? '' : 'Aucun contact pour le moment. Ajoutez-en dans Contacts.';
             return true;
         } catch (error) {
             status.textContent = error.message || 'Impossible de charger les correspondants.';
