@@ -47,6 +47,7 @@
         input, select, textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
         textarea { height: 100px; resize: none; }
         .btn-submit { background: #3498db; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+        .register-button { width: 100%; min-height: 50px; padding: 12px; border: 2px solid #19785b; border-radius: 14px; background: white; color: #155e48; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
         .btn-gros { display: block; width: 100%; padding: 22px; font-size: 1.8rem; font-weight: bold; color: white; border: none; border-radius: 15px; margin: 15px 0; cursor: pointer; }
         .btn-success { background-color: #2ecc71; }
         .btn-danger { background-color: #e74c3c; }
@@ -283,9 +284,10 @@
             <input type="email" id="auth-email" name="username" autocomplete="username" placeholder="Adresse e-mail" required>
             <input type="password" id="auth-password" name="password" autocomplete="current-password" placeholder="Mot de passe" required>
             <button class="btn-submit" type="submit">Se connecter</button>
+            <p style="margin: 16px 0 8px;">Pas encore de compte ?</p>
+            <button id="register-open" class="register-button" type="button" onclick="basculerFormulaire(true)">S’inscrire</button>
             <p class="helper-text">Après connexion, votre navigateur peut proposer d’enregistrer vos identifiants. Le site ne conserve pas votre mot de passe.</p>
             <p><a href="/reset-password.html">Mot de passe oublié ?</a></p>
-            <p style="margin-top: 20px; font-size: 0.95rem; color: #7f8c8d;">Pas encore de compte ? <a href="#" onclick="basculerFormulaire(true)" style="color: #3498db; font-weight: bold; text-decoration: none;">S'inscrire</a></p>
         </form>
 
         <!-- Bloc Inscription -->

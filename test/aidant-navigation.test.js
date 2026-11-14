@@ -6,6 +6,23 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 
+test('the login screen offers a registration button that opens the registration form', () => {
+  const login = source.slice(source.indexOf('<form id="login-section"'), source.indexOf('<!-- Bloc Inscription -->'));
+  assert.match(login, /<button id="register-open"[^>]*type="button"[^>]*onclick="basculerFormulaire\(true\)"[^>]*>S’inscrire<\/button>/);
+  const start = source.indexOf('    function basculerFormulaire(estInscription)');
+  const end = source.indexOf('    function afficherChampsInscriptionProfessionnel()', start);
+  assert.ok(start >= 0 && end > start);
+  const elements = { 'login-section': { style: {} }, 'register-section': { style: {} } };
+  const context = { document: { getElementById: id => elements[id] } };
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.toggle = basculerFormulaire;`, context);
+  context.toggle(true);
+  assert.equal(elements['login-section'].style.display, 'none');
+  assert.equal(elements['register-section'].style.display, 'block');
+  context.toggle(false);
+  assert.equal(elements['login-section'].style.display, 'block');
+  assert.equal(elements['register-section'].style.display, 'none');
+});
+
 function createView(response) {
   const elements = new Map();
   const element = id => {
