@@ -1009,19 +1009,9 @@
     <div class="header-mobile"><h3 style="margin:0;">Agenda</h3><span>Vos rendez-vous autorisés, heure de Paris</span></div>
     <p id="agenda-senior-context" class="helper-text" hidden></p>
     <button id="agenda-change-senior" type="button" onclick="switchScreen('aidant')" hidden>Changer de personne accompagnée</button>
-    <p class="helper-text">Les demandes de l’annuaire en attente sont indiquées séparément des rendez-vous confirmés. Les services sont affichés sur 30 minutes.</p>
-    <p class="helper-text">Une validation est refusée si elle chevauche un rendez-vous confirmé ou un créneau d’annuaire déjà réservé dans l’application.</p>
-    <p class="helper-text">Si l’intervenant l’active, les visites et services confirmés sont synchronisés avec un titre privé et sans nom. Une modification depuis Google nécessite l’accord de l’intervenant et de la personne accompagnée ou de son aidant.</p>
-    <section id="calendar-google-settings" class="form-card" hidden>
-        <h3>Synchronisation du planning avec Google</h3>
-        <p class="helper-text">L’activation copie les dates et durées des prochains rendez-vous confirmés dans votre agenda Google, avec un titre générique et sans nom. La mise en pause ne supprime pas les événements déjà copiés.</p>
-        <p id="calendar-google-sync-status" class="helper-text" aria-live="polite">Vérification de la synchronisation…</p>
-        <button id="calendar-google-sync-toggle" type="button" disabled>Modifier la synchronisation</button>
-        <button id="calendar-google-same" type="button" hidden>J’ai reconnecté le même agenda</button>
-        <button id="calendar-google-new" type="button" hidden>J’ai connecté un autre agenda</button>
-    </section>
     <div class="calendar-toolbar" aria-label="Vue de l’agenda">
-        <button id="calendar-week" type="button" aria-pressed="true">Semaine</button>
+        <button id="calendar-day" type="button" aria-pressed="true">Jour</button>
+        <button id="calendar-week" type="button" aria-pressed="false">Semaine</button>
         <button id="calendar-month" type="button" aria-pressed="false">Mois</button>
         <button id="calendar-previous" type="button" aria-label="Période précédente">←</button>
         <button id="calendar-today" type="button">Aujourd’hui</button>
@@ -1029,8 +1019,14 @@
     </div>
     <h3 id="calendar-title" aria-live="polite"></h3>
     <p id="calendar-message" class="helper-text" aria-live="polite"></p>
-    <div class="calendar-scroll"><div id="calendar-grid" class="calendar-grid"></div></div>
+    <div id="calendar-scroll" class="calendar-scroll" hidden><div id="calendar-grid" class="calendar-grid"></div></div>
     <section class="form-card" id="calendar-selected-day" aria-live="polite"></section>
+    <details class="senior-disclosure senior-explanation">
+        <summary>Explications sur l’agenda</summary>
+        <p class="helper-text">Les demandes de l’annuaire en attente sont indiquées séparément des rendez-vous confirmés. Les services sont affichés sur 30 minutes.</p>
+        <p class="helper-text">Une validation est refusée si elle chevauche un rendez-vous confirmé ou un créneau d’annuaire déjà réservé dans l’application.</p>
+        <p class="helper-text">Si l’intervenant l’active, les visites et services confirmés sont synchronisés avec un titre privé et sans nom. Une modification depuis Google nécessite l’accord de l’intervenant et de la personne accompagnée ou de son aidant.</p>
+    </details>
     <section class="form-card" id="personal-event-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Ajouter un rendez-vous</summary>
@@ -1046,9 +1042,23 @@
     <section class="form-card" id="agenda-shares-card" hidden>
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👥</span>Comparer avec un agenda associé</summary>
-        <p class="helper-text">Demandez à voir l’agenda d’une personne associée. Il ne s’affiche qu’après son accord, et les chevauchements avec vos rendez-vous sont signalés.</p>
+        <details class="senior-disclosure senior-explanation">
+            <summary>Explications</summary>
+            <p class="helper-text">Demandez à voir l’agenda d’une personne associée. Il ne s’affiche qu’après son accord, et les chevauchements avec vos rendez-vous sont signalés.</p>
+        </details>
         <div id="agenda-shares" aria-live="polite"></div>
       </details>
+    </section>
+    <section id="calendar-google-settings" class="form-card" hidden>
+        <h3>Synchronisation du planning avec Google</h3>
+        <details class="senior-disclosure senior-explanation">
+            <summary>Explications</summary>
+            <p class="helper-text">L’activation copie les dates et durées des prochains rendez-vous confirmés dans votre agenda Google, avec un titre générique et sans nom. La mise en pause ne supprime pas les événements déjà copiés.</p>
+        </details>
+        <p id="calendar-google-sync-status" class="helper-text" aria-live="polite">Vérification de la synchronisation…</p>
+        <button id="calendar-google-sync-toggle" type="button" disabled>Modifier la synchronisation</button>
+        <button id="calendar-google-same" type="button" hidden>J’ai reconnecté le même agenda</button>
+        <button id="calendar-google-new" type="button" hidden>J’ai connecté un autre agenda</button>
     </section>
     <section class="form-card">
         <h3>Modifications depuis Google</h3>
@@ -1178,7 +1188,7 @@
     let openMessageConversations = {};
     let planningLoadId = 0;
     let servicePlanningLoadId = 0;
-    let calendarView = 'week';
+    let calendarView = 'day';
     let calendarDate = '';
     let calendarEvents = [];
     let calendarLoadId = 0;
@@ -1570,6 +1580,7 @@
             chargerDirectoryBookings(false);
         } else if (screenName === 'agenda') {
             calendarDate = dateCheckinBienEtre();
+            definirVueCalendrier('day');
             chargerCalendrier();
             chargerPartagesAgenda();
             chargerModificationsGoogle();
@@ -1585,7 +1596,7 @@
     }
 
     function configurerExplicationsSenior() {
-        document.querySelectorAll('#main-app-senior .senior-explanation, #screen-messages .senior-explanation').forEach(details => {
+        document.querySelectorAll('#main-app-senior .senior-explanation, #screen-messages .senior-explanation, #screen-agenda .senior-explanation').forEach(details => {
             const summary = details.querySelector('summary');
             let timer;
             const annulerOuverture = () => {
@@ -3703,9 +3714,21 @@
         return `${dateInputValue(date)}T${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
     }
 
+    function definirVueCalendrier(view) {
+        calendarView = view;
+        ['day', 'week', 'month'].forEach(item => {
+            document.getElementById(`calendar-${item}`).setAttribute('aria-pressed', String(item === view));
+        });
+    }
+
     function calendarBounds() {
         const selected = new Date(`${calendarDate}T12:00:00`);
         const start = new Date(selected);
+        if (calendarView === 'day') {
+            const end = new Date(start);
+            end.setDate(end.getDate() + 1);
+            return { start, end };
+        }
         if (calendarView === 'month') start.setDate(1);
         start.setDate(start.getDate() - (start.getDay() + 6) % 7);
         const end = new Date(start);
@@ -3740,39 +3763,46 @@
         const { start, end } = calendarBounds();
         const grid = document.getElementById('calendar-grid');
         const selected = new Date(`${calendarDate}T12:00:00`);
-        document.getElementById('calendar-title').textContent = calendarView === 'month'
-            ? selected.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-            : `Semaine du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-        grid.replaceChildren();
-        ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'].forEach(day => {
-            grid.append(makeTextElement('div', day, 'calendar-weekday'));
+        const selectedLabel = selected.toLocaleDateString('fr-FR', {
+            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
         });
-        for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
-            const dayValue = dateInputValue(date);
-            const outsideMonth = calendarView === 'month' && date.getMonth() !== selected.getMonth();
-            const cell = document.createElement('div');
-            cell.className = 'calendar-day';
-            if (outsideMonth) cell.classList.add('outside');
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = String(date.getDate());
-            button.setAttribute('aria-label', date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
-            button.setAttribute('aria-pressed', String(dayValue === calendarDate));
-            button.addEventListener('click', () => {
-                calendarDate = dayValue;
-                if (outsideMonth) chargerCalendrier();
-                else renderCalendar();
+        document.getElementById('calendar-title').textContent = calendarView === 'day'
+            ? `Agenda du ${selectedLabel}`
+            : calendarView === 'month'
+                ? selected.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+                : `Semaine du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        document.getElementById('calendar-scroll').hidden = calendarView === 'day';
+        grid.replaceChildren();
+        if (calendarView !== 'day') {
+            ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'].forEach(day => {
+                grid.append(makeTextElement('div', day, 'calendar-weekday'));
             });
-            cell.append(button);
-            calendarEvents.filter(event => calendarEventDate(event.scheduledAt) === dayValue).forEach(event => {
-                cell.append(makeTextElement('span', calendarEventLabel(event), `calendar-event${event.status === 'pending' ? ' pending' : ''}`));
-            });
-            grid.append(cell);
+            for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+                const dayValue = dateInputValue(date);
+                const outsideMonth = calendarView === 'month' && date.getMonth() !== selected.getMonth();
+                const cell = document.createElement('div');
+                cell.className = 'calendar-day';
+                if (outsideMonth) cell.classList.add('outside');
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.textContent = String(date.getDate());
+                button.setAttribute('aria-label', date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+                button.setAttribute('aria-pressed', String(dayValue === calendarDate));
+                button.addEventListener('click', () => {
+                    calendarDate = dayValue;
+                    if (outsideMonth) chargerCalendrier();
+                    else renderCalendar();
+                });
+                cell.append(button);
+                calendarEvents.filter(event => calendarEventDate(event.scheduledAt) === dayValue).forEach(event => {
+                    cell.append(makeTextElement('span', calendarEventLabel(event), `calendar-event${event.status === 'pending' ? ' pending' : ''}`));
+                });
+                grid.append(cell);
+            }
         }
         const details = document.getElementById('calendar-selected-day');
-        details.replaceChildren(makeTextElement('h4', selected.toLocaleDateString('fr-FR', {
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-        })));
+        details.replaceChildren();
+        if (calendarView !== 'day') details.append(makeTextElement('h4', selectedLabel));
         const events = calendarEvents.filter(event => calendarEventDate(event.scheduledAt) === calendarDate);
         if (!events.length) details.append(makeTextElement('p', 'Aucun rendez-vous pour cette date.', 'helper-text'));
         events.forEach(event => {
@@ -4054,7 +4084,9 @@
 
     function decalerCalendrier(offset) {
         const date = new Date(`${calendarDate}T12:00:00`);
-        if (calendarView === 'week') {
+        if (calendarView === 'day') {
+            date.setDate(date.getDate() + offset);
+        } else if (calendarView === 'week') {
             date.setDate(date.getDate() + offset * 7);
         } else {
             const day = date.getDate();
@@ -5688,12 +5720,9 @@
             chargerPlanningPro();
             chargerPlanningServices();
         });
-        ['week', 'month'].forEach(view => {
+        ['day', 'week', 'month'].forEach(view => {
             document.getElementById(`calendar-${view}`).addEventListener('click', () => {
-                calendarView = view;
-                ['week', 'month'].forEach(item => {
-                    document.getElementById(`calendar-${item}`).setAttribute('aria-pressed', String(item === view));
-                });
+                definirVueCalendrier(view);
                 chargerCalendrier();
             });
         });

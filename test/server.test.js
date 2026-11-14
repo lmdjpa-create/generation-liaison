@@ -90,6 +90,8 @@ test('calendar periods cover complete Monday-to-Sunday weeks and use Paris dates
   assert.equal(bounds('2026-03-29', 'month'), '2026-02-23,2026-04-06');
   assert.equal(bounds('2026-08-31', 'month'), '2026-07-27,2026-09-07');
   assert.equal(bounds('2026-12-31', 'week'), '2026-12-28,2027-01-04');
+  assert.equal(bounds('2026-03-29', 'day'), '2026-03-29,2026-03-30');
+  assert.equal(bounds('2026-12-31', 'day'), '2026-12-31,2027-01-01');
   assert.equal(vm.runInContext("calendarEventDate('2026-03-28T23:30:00Z')", context), '2026-03-29');
 });
 

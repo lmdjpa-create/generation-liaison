@@ -73,6 +73,8 @@
       'The city or postal code is sent to the public service geo.api.gouv.fr to find the municipality centre. The radius is measured in a straight line. Without a location, the search is nationwide.',
     'Réglages': 'Settings',
     'Agenda': 'Calendar',
+    'Jour': 'Day',
+    'Explications sur l’agenda': 'About the calendar',
     'Mon agenda': 'My calendar',
     'Consultez les rendez-vous et les disponibilités correspondant à votre compte.':
       'View appointments and availability for your account.',

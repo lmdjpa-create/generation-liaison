@@ -95,6 +95,8 @@ function createView(response) {
       'chargerParametresGooglePlanning'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
+    definirVueCalendrier: view => { context.calendarView = view; calls.push('definirVueCalendrier'); },
+    calendarView: 'week',
     calendarDate: ''
   };
   const screenStart = source.indexOf('    function switchScreen(screenName)');
@@ -180,6 +182,8 @@ test('settings are separate and only the current role’s account panels are sho
     context.openAgenda();
     assert.ok(element('screen-agenda').classList.contains('active'));
     assert.ok(element('nav-agenda').classList.contains('active'));
+    assert.equal(context.calendarView, 'day');
+    assert.equal(context.calendarDate, '2026-01-01');
   }
 });
 

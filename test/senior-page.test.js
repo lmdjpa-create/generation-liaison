@@ -107,6 +107,90 @@ test('senior tabs offer collapsed controls without hiding results or the calenda
   assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?id="contacts-list"/);
 });
 
+test('agenda shows the selected day before collapsed explanations and retains Google controls', () => {
+  const agenda = extract('<div id="screen-agenda"', '<div id="screen-directory"');
+  assert.match(agenda, /id="calendar-day"[^>]*aria-pressed="true"/);
+  assert.ok(agenda.indexOf('id="calendar-selected-day"') < agenda.indexOf('Explications sur l’agenda'));
+  assert.ok(agenda.indexOf('id="calendar-selected-day"') < agenda.indexOf('id="calendar-google-settings"'));
+  assert.match(agenda, /<details class="senior-disclosure senior-explanation">\s*<summary>Explications sur l’agenda<\/summary>[\s\S]*?chevauche/);
+  assert.match(agenda, /<summary>Explications<\/summary>[\s\S]*?la mise en pause ne supprime pas/i);
+  assert.match(agenda, /id="calendar-google-sync-toggle"/);
+  assert.match(agenda, /id="calendar-google-requests"/);
+});
+
+test('day view displays only the selected day and preserves week and month views', () => {
+  const elements = new Map();
+  const node = () => ({
+    children: [], attrs: {}, hidden: false, classList: { add() {} },
+    replaceChildren(...items) { this.children = items; },
+    append(...items) { this.children.push(...items); },
+    setAttribute(name, value) { this.attrs[name] = value; },
+    addEventListener() {}
+  });
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, node());
+    return elements.get(id);
+  };
+  const context = {
+    calendarDate: '2026-03-29',
+    calendarView: 'day',
+    calendarEvents: [
+      { kind: 'personal', id: 'personal', title: 'Médecin', scheduledAt: '2026-03-29T08:00:00Z', durationMinutes: 30 },
+      { kind: 'directory', title: 'En attente', status: 'pending', scheduledAt: '2026-03-29T10:00:00Z', durationMinutes: 30 },
+      { kind: 'visit', title: 'Autre jour', scheduledAt: '2026-03-28T22:30:00Z', durationMinutes: 30 }
+    ],
+    connectedUser: { role: 'senior' },
+    document: { getElementById: element, createElement: node },
+    makeTextElement: (tag, text, className) => ({ tag, textContent: text, className }),
+    Date, Intl
+  };
+  vm.runInNewContext(
+    `${extract('    function dateInputValue(date)', '    async function chargerPartagesAgenda()')}\n` +
+    'globalThis.render = renderCalendar; globalThis.setView = definirVueCalendrier;', context
+  );
+  context.setView('day');
+  context.render();
+  assert.equal(element('calendar-scroll').hidden, true);
+  assert.match(element('calendar-title').textContent, /29 mars 2026/);
+  const details = element('calendar-selected-day').children;
+  assert.equal(details.filter(item => item.tag === 'p').length, 2);
+  assert.ok(details.some(item => item.textContent?.includes('Médecin')));
+  assert.ok(details.some(item => item.textContent?.includes('en attente')));
+  assert.ok(details.some(item => item.textContent === 'Supprimer ce rendez-vous'));
+  assert.ok(details.every(item => !item.textContent?.includes('Autre jour')));
+  assert.equal(element('calendar-day').attrs['aria-pressed'], 'true');
+  context.calendarEvents = [];
+  context.render();
+  assert.ok(element('calendar-selected-day').children.some(item => item.textContent === 'Aucun rendez-vous pour cette date.'));
+  context.setView('week');
+  context.render();
+  assert.equal(element('calendar-scroll').hidden, false);
+  assert.equal(element('calendar-grid').children.length, 14);
+  assert.equal(element('calendar-week').attrs['aria-pressed'], 'true');
+  context.setView('month');
+  context.render();
+  assert.equal(element('calendar-month').attrs['aria-pressed'], 'true');
+  assert.ok(element('calendar-grid').children.length > 14);
+});
+
+test('calendar arrows move by day, week or month across date boundaries', () => {
+  const context = { calendarDate: '2026-12-31', calendarView: 'day', chargerCalendrier() {}, Date };
+  vm.runInNewContext(
+    `${extract('    function dateInputValue(date)', '    function dateTimeInputValue(date)')}\n` +
+    `${extract('    function decalerCalendrier(offset)', '    function updatePlanningDateTitle()')}\n` +
+    'globalThis.move = decalerCalendrier;', context
+  );
+  context.move(1);
+  assert.equal(context.calendarDate, '2027-01-01');
+  context.calendarView = 'week';
+  context.move(-1);
+  assert.equal(context.calendarDate, '2026-12-25');
+  context.calendarView = 'month';
+  context.calendarDate = '2026-01-31';
+  context.move(1);
+  assert.equal(context.calendarDate, '2026-02-28');
+});
+
 test('a new day re-enables the senior check-in form', () => {
   const elements = {
     'wellbeing-checkin-form': { hidden: true },
