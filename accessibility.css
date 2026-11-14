@@ -1,0 +1,26 @@
+button:not(.gl-password-toggle):not(.gl-language-switch button),
+.landing-app-link, .landing-login, .landing-download-link {
+  box-sizing: border-box;
+  min-height: 56px;
+  min-width: 56px;
+  font-size: 1.125rem;
+  line-height: 1.3;
+}
+
+.landing-app-link, .landing-login, .landing-download-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+button:focus-visible, summary:focus-visible, a:focus-visible {
+  outline: 3px solid #163b72;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
+}

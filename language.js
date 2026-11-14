@@ -249,6 +249,7 @@
       'This feature is not an emergency service and does not monitor your safety. If you are in immediate danger, call 112 or 15.',
     'Votre réponse': 'Your answer',
     '🎙️ Dicter ma réponse': '🎙️ Dictate my answer',
+    'Dicter le compte-rendu': 'Dictate the report',
     'La dictée dépend du navigateur et peut être traitée par son fournisseur. L’audio n’est ni conservé par Génération Liaison ni envoyé à OpenAI ; seul le texte que vous soumettez est transmis à OpenAI.':
       'Dictation depends on your browser and may be processed by its provider. Audio is not stored by Generation Liaison or sent to OpenAI; only the text you submit is sent to OpenAI.',
     'Partager votre réponse (facultatif)': 'Share your answer (optional)',

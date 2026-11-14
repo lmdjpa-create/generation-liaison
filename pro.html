@@ -88,6 +88,7 @@
 		}
 	      html { padding-top: 230px; } body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; box-sizing: border-box; height: 230px; padding-top: 44px; background: url(logo-generation-liaison.jpg) center bottom / contain no-repeat; background-origin: content-box; }
   </style>
+	<link rel="stylesheet" href="/accessibility.css">
 </head>
 <body>
 
@@ -100,7 +101,7 @@
 	<p style="text-align: center; color: #7f8c8d;">Appuyez sur le micro pour dicter votre compte-rendu de visite :</p>
 
 	<!-- Bouton Micro interactif -->
-	<button id="mic-btn" class="btn-mic" onclick="toggleEcoute()">🎙️</button>
+	<button id="mic-btn" class="btn-mic" type="button" aria-label="Dicter le compte-rendu" onclick="toggleEcoute()">🎙️</button>
 
 	<label style="font-weight: bold; color: #2f3640; display: block; margin-bottom: 5px;">Texte dicté :</label>
 	<textarea id="note-text" placeholder="Le compte-rendu apparaîtra ici automatiquement lors de votre dictée..."></textarea>

@@ -290,38 +290,41 @@
         #main-app-senior .btn-danger { background: #a32222 !important; }
         #main-app-senior .senior-logout { background: white; color: #8b1e25; border: 2px solid #8b1e25; border-radius: 12px; font-weight: 700; cursor: pointer; }
         #main-app-senior .senior-disclosure > summary { display: list-item; }
-        body.senior-mode :is(#screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button,
-        body.senior-mode #screen-settings summary {
+        #auth-box .btn-submit { background: #17684f; }
+        :is(#screen-aidant, #screen-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button,
+        #screen-settings summary {
             box-sizing: border-box;
             min-height: 56px;
             padding: 14px 18px;
             font-size: 1.125rem;
             line-height: 1.3;
         }
-        body.senior-mode :is(#screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button:focus-visible,
-        body.senior-mode #screen-settings summary:focus-visible,
-        body.senior-mode .nav-item:focus-visible {
+        :is(#screen-aidant, #screen-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button:focus-visible,
+        #screen-settings summary:focus-visible,
+        .nav-item:focus-visible {
             outline: 3px solid #163b72;
             outline-offset: 3px;
         }
-        body.senior-mode :is(#screen-settings, #screen-agenda, #screen-directory) .form-card button:not(.rating-pill),
-        body.senior-mode #screen-contacts :is(#add-app-contact-form, .directory-result) button {
+        :is(#screen-aidant, #screen-pro, #screen-settings, #screen-agenda, #screen-directory) .form-card button:not(.rating-pill),
+        #screen-contacts :is(#add-app-contact-form, .directory-result) button {
             background: #17684f;
             color: white;
         }
-        body.senior-mode #screen-settings .form-card .account-closure button { background: #8b1e25; }
-        body.senior-mode #screen-agenda :is(.calendar-toolbar, .calendar-day) button[aria-pressed="true"] {
+        #screen-settings .form-card .account-closure button { background: #8b1e25; }
+        :is(#screen-aidant, #screen-pro) .form-card .notification-actions button.decline { background: #8b1e25; }
+        #screen-agenda :is(.calendar-toolbar, .calendar-day) button[aria-pressed="true"] {
             background: #17684f;
             color: white;
         }
-        body.senior-mode #screen-video-call .btn-danger { background: #a32222 !important; }
-        body.senior-mode .nav-item { min-height: 56px; flex-basis: 76px; font-size: 0.875rem; }
+        #screen-video-call .btn-danger { background: #a32222 !important; }
+        .nav-item { min-height: 56px; flex-basis: 76px; font-size: 0.875rem; }
         @media (max-width: 480px) {
-            #main-app-senior .action-tiles { grid-template-columns: 1fr; }
-            #main-app-senior .action-tile { flex-direction: row; text-align: left; }
+            :is(#main-app-senior, #screen-aidant) .action-tiles { grid-template-columns: 1fr; }
+            :is(#main-app-senior, #screen-aidant) .action-tile { flex-direction: row; text-align: left; }
             #main-app-senior .next-visit-card { flex-wrap: wrap; }
         }
     </style>
+    <link rel="stylesheet" href="/accessibility.css">
 </head>
 <body>
 
@@ -402,7 +405,7 @@
                 <select id="reg-city-select" hidden></select>
                 <p id="reg-home-location-status" class="helper-text" aria-live="polite">Position du domicile non enregistrée.</p>
             </section>
-            <button class="btn-submit" style="background: #2ecc71;" onclick="inscrireUtilisateur()">Créer mon compte</button>
+            <button class="btn-submit" type="button" onclick="inscrireUtilisateur()">Créer mon compte</button>
             <p style="margin-top: 20px; font-size: 0.95rem; color: #7f8c8d;">Déjà inscrit ? <a href="#" onclick="basculerFormulaire(false)" style="color: #3498db; font-weight: bold; text-decoration: none;">Se connecter</a></p>
         </div>
     </div>
