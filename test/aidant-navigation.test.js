@@ -46,6 +46,7 @@ function createView(response) {
   };
   const calls = [];
   const bodyClasses = new Set();
+  const tabDisclosures = [{ open: false }, { open: false }];
   const context = {
     console: { error() {} },
     document: {
@@ -55,7 +56,7 @@ function createView(response) {
       } },
       getElementById: element,
       querySelector: element,
-      querySelectorAll: () => []
+      querySelectorAll: selector => selector === '.senior-tab-disclosure' ? tabDisclosures : []
     },
     window: { generationLiaisonTranslate: value => value },
     localStorage: { getItem: () => null, removeItem() {}, setItem() {} },
@@ -100,8 +101,19 @@ function createView(response) {
       'globalThis.openView = setAuthenticatedView; globalThis.openScreen = switchScreen; globalThis.openAgenda = ouvrirAgenda;',
     context
   );
-  return { context, element, calls, bodyClasses };
+  return { context, element, calls, bodyClasses, tabDisclosures };
 }
+
+test('shared tabs start collapsed for seniors and stay expanded for other roles', async () => {
+  const { context, tabDisclosures, calls } = createView({ seniors: [] });
+  await context.openView({ id: 'senior', role: 'senior' });
+  assert.ok(tabDisclosures.every(details => !details.open));
+  calls.length = 0;
+  context.openScreen('settings');
+  assert.ok(calls.includes('chargerConsentements'));
+  await context.openView({ id: 'aidant', role: 'aidant' });
+  assert.ok(tabDisclosures.every(details => details.open));
+});
 
 test('an aidant without a linked senior can use account navigation without loading senior data', async () => {
   const { context, element, calls } = createView({ seniors: [] });

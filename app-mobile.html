@@ -291,21 +291,30 @@
         #main-app-senior .btn-danger { background: #a32222 !important; }
         #main-app-senior .senior-logout { background: white; color: #8b1e25; border: 2px solid #8b1e25; border-radius: 12px; font-weight: 700; cursor: pointer; }
         #main-app-senior .senior-disclosure > summary { display: list-item; }
-        #main-app-senior .senior-disclosure:not(.senior-explanation) > summary {
+        #main-app-senior .senior-disclosure:not(.senior-explanation) > summary,
+        .senior-mode .senior-tab-disclosure > summary {
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 8px;
+            box-sizing: border-box;
+            min-height: 56px;
+            padding: 14px 18px;
             border: 1px solid #e3eee9;
             border-radius: 18px;
             background: white;
             color: var(--ink);
+            font-size: 1.125rem;
+            font-weight: 700;
             text-align: center;
             box-shadow: 0 6px 18px rgba(31, 58, 77, 0.07);
             cursor: pointer;
         }
-        #main-app-senior .senior-disclosure[open]:not(.senior-explanation) > summary { margin-bottom: 14px; }
+        #main-app-senior .senior-disclosure[open]:not(.senior-explanation) > summary,
+        .senior-mode .senior-tab-disclosure[open] > summary { margin-bottom: 14px; }
+        .senior-mode .senior-tab-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #main-app-senior .senior-disclosure + .senior-disclosure { margin-top: 12px; }
+        .senior-mode .senior-tab-disclosure + .senior-tab-disclosure { margin-top: 12px; }
         #main-app-senior .senior-action-tile { width: 100%; margin: 14px 0; }
         #auth-box .btn-submit { background: #17684f; }
         :is(#screen-aidant, #screen-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button,
@@ -541,10 +550,6 @@
                 <p class="helper-text">Consultez les étapes de visite communiquées par vos intervenants.</p>
             </details>
             <div id="senior-live-following" aria-live="polite">Chargement du suivi…</div>
-          </details>
-          <details class="senior-disclosure" id="senior-consents-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔐</span>Autorisations de partage</summary>
-            <div id="senior-sharing-consents" style="margin-top:12px;"></div>
           </details>
           <details class="senior-disclosure" id="senior-note-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Envoyer à l’équipe</summary>
@@ -843,12 +848,15 @@
         <button type="button" id="aidant-links-refresh">Actualiser</button>
     </section>
     <section class="form-card" id="settings-agenda">
-        <h2>Mon agenda</h2>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Mon agenda</summary>
         <p>Consultez les rendez-vous et les disponibilités correspondant à votre compte.</p>
         <button type="button" onclick="ouvrirAgenda()">Accéder à mon agenda</button>
+      </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-senior" style="display:none;">
-        <h3>Mes préférences de notification</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Mes préférences de notification</summary>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="senior">
             <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
@@ -859,6 +867,7 @@
         <p class="helper-text channel-status" aria-live="polite"></p>
         <button type="button" class="enable-push-button" data-role="senior">Activer les notifications push</button>
         <p class="helper-text push-status" aria-live="polite"></p>
+      </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
         <h3>Mes préférences de notification</h3>
@@ -887,11 +896,17 @@
         <p class="helper-text push-status" aria-live="polite"></p>
     </section>
 <section class="form-card" style="text-align:left;" id="settings-senior-links">
-            <h2>Accès des aidants à mon profil</h2>
+          <details class="senior-tab-disclosure">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👥</span>Accès des aidants à mon profil</summary>
             <p class="helper-text">Vous pouvez accepter ou refuser les demandes. Pour retirer un accès, il sera suspendu immédiatement ; l’administration vous enverra ensuite un code de confirmation par e-mail.</p>
             <p class="helper-text">Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées. Si vous vous êtes ajoutés mutuellement dans Contacts, la messagerie reste accessible : retirez aussi ce contact pour l’interrompre.</p>
             <div id="senior-link-management" aria-live="polite">Chargement des demandes…</div>
             <button type="button" id="senior-links-refresh">Actualiser</button>
+          </details>
+          <details class="senior-tab-disclosure" id="senior-consents-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔐</span>Gérer mes autorisations de partage</summary>
+            <div id="senior-sharing-consents" aria-live="polite"></div>
+          </details>
         </section>
 <div id="settings-pro-area">
 <section class="form-card" id="directory-profile-panel">
@@ -940,10 +955,12 @@
         </section>
 </div>
     <section class="form-card">
-        <h2>Options payantes envisagées</h2>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">ℹ️</span>Options payantes envisagées</summary>
         <p>Visio : cette fonction nécessite actuellement un accès premium actif.</p>
         <p>Pour l’agenda, il est envisagé d’inclure gratuitement un intervenant par catégorie de service ; des intervenants supplémentaires pourraient devenir payants.</p>
         <p class="helper-text">Projet uniquement : aucune limite n’est appliquée, les tarifs ne sont pas définis et aucun paiement ni abonnement ne peut être souscrit actuellement.</p>
+      </details>
     </section>
 <section class="form-card" id="settings-account-closure" style="display:none;">
     <details class="account-closure">
@@ -998,7 +1015,8 @@
     <div class="calendar-scroll"><div id="calendar-grid" class="calendar-grid"></div></div>
     <section class="form-card" id="calendar-selected-day" aria-live="polite"></section>
     <section class="form-card" id="personal-event-card">
-        <h3>Ajouter un rendez-vous à mon agenda</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Ajouter un rendez-vous</summary>
         <form id="personal-event-form">
             <input id="personal-event-title" type="text" maxlength="120" placeholder="Titre du rendez-vous" aria-label="Titre du rendez-vous" required>
             <input id="personal-event-start" type="datetime-local" aria-label="Date et heure" required>
@@ -1006,11 +1024,14 @@
             <button type="submit">Ajouter</button>
         </form>
         <p id="personal-event-message" class="helper-text" aria-live="polite"></p>
+      </details>
     </section>
     <section class="form-card" id="agenda-shares-card" hidden>
-        <h3>Comparer avec un agenda associé</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👥</span>Comparer avec un agenda associé</summary>
         <p class="helper-text">Demandez à voir l’agenda d’une personne associée. Il ne s’affiche qu’après son accord, et les chevauchements avec vos rendez-vous sont signalés.</p>
         <div id="agenda-shares" aria-live="polite"></div>
+      </details>
     </section>
     <section class="form-card">
         <h3>Modifications depuis Google</h3>
@@ -1025,7 +1046,10 @@
     </div>
     <p id="directory-senior-context" class="helper-text" hidden></p>
     <button id="directory-change-senior" type="button" onclick="switchScreen('aidant')" hidden>Changer de personne accompagnée</button>
-    <form id="directory-search-form" class="form-card form-grid">
+    <section class="form-card">
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔎</span>Chercher un professionnel</summary>
+    <form id="directory-search-form" class="form-grid">
         <label for="directory-search-query">Nom, activité ou service</label>
         <input id="directory-search-query" type="search" maxlength="120" placeholder="Ex. aide à domicile">
         <label for="directory-search-city">Ville</label>
@@ -1040,6 +1064,8 @@
         <p id="directory-location-status" class="helper-text" aria-live="polite">La ville ou le code postal est transmis au service public geo.api.gouv.fr pour trouver le centre de la commune. Le rayon est calculé à vol d’oiseau. Sans lieu, la recherche est nationale.</p>
         <button type="submit">Rechercher des professionnels</button>
     </form>
+      </details>
+    </section>
     <div id="directory-results" aria-live="polite">Recherchez un professionnel pour voir les profils disponibles.</div>
     <section class="form-card">
         <h3>Mes demandes de rendez-vous</h3>
@@ -1053,12 +1079,17 @@
         <span style="font-size:0.85rem;opacity:0.9;">L’accès à la visio nécessite un abonnement premium actif.</span>
     </div>
     <p class="helper-text">Version gratuite : un aidant et un soignant en contact. Pour en ajouter davantage, passez à la version payante. Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.</p>
+    <section class="form-card">
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👤</span>Ajouter un contact</summary>
     <form id="add-app-contact-form" class="form-grid">
         <label for="add-app-contact-email">Adresse e-mail d’un contact inscrit</label>
         <input id="add-app-contact-email" type="email" maxlength="254" required>
         <button type="submit">Ajouter ce contact</button>
     </form>
     <p id="add-app-contact-status" class="helper-text" aria-live="polite"></p>
+      </details>
+    </section>
     <div id="contacts-list" aria-live="polite">Chargement des contacts…</div>
 </div>
 
@@ -1485,6 +1516,7 @@
         if (screenName === 'settings') {
             chargerPreferencesNotification();
             if (!pendingAccess && ['senior', 'aidant'].includes(connectedUser.role)) chargerGestionAssociations();
+            if (!pendingAccess && connectedUser.role === 'senior') chargerConsentements('senior');
             if (!pendingAccess && connectedUser.role === 'pro') chargerDirectoryProfile();
             return;
         }
@@ -1725,6 +1757,9 @@
         connectedUser = user;
         currentUser = user;
         document.body.classList.toggle('senior-mode', user.role === 'senior');
+        document.querySelectorAll('.senior-tab-disclosure').forEach(details => {
+            details.open = user.role !== 'senior';
+        });
         const pendingProfessional = user.role === 'pro' && user.verificationStatus !== 'approved';
         const pendingGuardian = user.role === 'aidant' && user.isLegalGuardian &&
             user.guardianVerificationStatus !== 'approved';

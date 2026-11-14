@@ -31,7 +31,6 @@ test('companionship and daily services shortcuts are available alongside the dir
 test('senior feature tiles keep their content collapsed and shortcuts open their destinations', () => {
   for (const [id, content] of [
     ['senior-following-details', 'senior-live-following'],
-    ['senior-consents-details', 'senior-sharing-consents'],
     ['senior-note-details', 'senior-person-note-form'],
     ['senior-assistant-details', 'assistant-chat-form'],
     ['senior-services-details', 'senior-service-area']
@@ -61,6 +60,23 @@ test('senior feature tiles keep their content collapsed and shortcuts open their
     assert.equal(element(details).open, true);
     assert.equal(element(target).scrolled, true);
   }
+});
+
+test('sharing consent management is removed from the senior home but available in settings', () => {
+  const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  const settings = extract('<div id="screen-settings"', '<div id="screen-agenda"');
+  assert.doesNotMatch(dashboard, /senior-sharing-consents|senior-consents-details/);
+  assert.match(settings, /<details class="senior-tab-disclosure" id="senior-consents-details">[\s\S]*?id="senior-sharing-consents"/);
+});
+
+test('senior tabs offer collapsed controls without hiding results or the calendar', () => {
+  const agenda = extract('<div id="screen-agenda"', '<div id="screen-directory"');
+  const directory = extract('<div id="screen-directory"', '<div id="screen-contacts"');
+  const contacts = extract('<div id="screen-contacts"', '<div id="screen-video-call"');
+  assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?id="personal-event-form"/);
+  assert.match(agenda, /id="calendar-grid"/);
+  assert.match(directory, /<details class="senior-tab-disclosure">[\s\S]*?id="directory-search-form"[\s\S]*?<\/details>[\s\S]*?id="directory-results"/);
+  assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?id="contacts-list"/);
 });
 
 test('a new day re-enables the senior check-in form', () => {
