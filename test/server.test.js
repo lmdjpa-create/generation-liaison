@@ -252,12 +252,20 @@ test('homepage exposes public downloads and legal links without developer tools'
   assert.match(html, /class="landing-login" href="\/app-mobile\.html">Ouvrir l’application en ligne/);
   assert.match(html, /href="\/aide-installation-android\.html">Besoin d’aide/);
   assert.doesNotMatch(html, /app-generation-liaison\.aab|Espace administrateur|href="\/admin(?:\.html)?"/);
-  assert.match(html, /id="connection-status"[^>]*\shidden(?:\s|>)/);
+  assert.doesNotMatch(html, /Vérification de la connexion\.\.\./);
   assert.match(html, /href="\/cgu\.html#mentions-legales">Mentions légales/);
   assert.match(html, /href="\/cgu\.html">Conditions d’utilisation/);
   assert.match(html, /href="\/cgv\.html">Tarifs et CGV/);
   const terms = await (await fetch(`${baseUrl}/cgu.html`)).text();
   assert.match(terms, /id="mentions-legales"/);
+});
+
+test('serves the homepage activity log preview', async () => {
+  const response = await fetch(`${baseUrl}/homepage-images/apercu-carnet.png`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get('content-type'), /image\/png/);
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()),
+    fs.readFileSync(path.join(projectRoot, 'homepage-images', 'apercu-carnet.png')));
 });
 
 test('public pages use the configured contact e-mail address', () => {
@@ -351,8 +359,8 @@ test('declares production environment variables without hardcoding secrets', () 
 test('Play Console release has a new version and builds an app bundle', () => {
   const gradle = fs.readFileSync(path.join(projectRoot, 'android', 'app', 'build.gradle'), 'utf8');
   const releaseScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'build-android-release.js'), 'utf8');
-  assert.match(gradle, /versionCode 5/);
-  assert.match(gradle, /versionName "1\.1\.3"/);
+  assert.match(gradle, /versionCode 6/);
+  assert.match(gradle, /versionName "1\.1\.4"/);
   assert.match(releaseScript, /'assembleRelease', 'bundleRelease'/);
   assert.match(releaseScript, /app-release\.aab/);
   assert.match(releaseScript, /app-generation-liaison\.aab/);

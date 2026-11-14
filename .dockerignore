@@ -2,9 +2,16 @@ node_modules
 dist
 android
 ios
+test
 .idea
 .git
+.gitignore
 .env
 .env.*
 *.jks
 *.keystore
+AUTHENTICATION.md
+capacitor.config.json
+render.yaml
+scripts/build-android-release.js
+scripts/prepare-android-entry.js

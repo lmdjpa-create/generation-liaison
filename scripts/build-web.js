@@ -46,7 +46,7 @@ for (const file of ['robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 
   fs.copyFileSync(path.join(root, file), path.join(output, file));
 }
 
-const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg'];
+const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg', 'apercu-carnet.png'];
 fs.mkdirSync(path.join(output, 'homepage-images'), { recursive: true });
 for (const image of homepageImages) {
   fs.copyFileSync(path.join(root, 'homepage-images', image), path.join(output, 'homepage-images', image));

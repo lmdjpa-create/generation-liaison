@@ -768,6 +768,26 @@
       object-fit: cover;
     }
 
+    .landing-preview {
+      max-width: 520px;
+      margin: 0 auto 24px;
+    }
+
+    .landing-preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    .landing-preview figcaption {
+      margin-top: 10px;
+      color: #53665c;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
     .landing-login {
       display: inline-flex;
       min-height: 48px;
@@ -941,6 +961,10 @@
       </div>
       <p class="landing-kicker">Le lien au quotidien</p>
       <h1 id="landing-title">Bien entouré, mieux accompagné</h1>
+      <figure class="landing-preview">
+        <img src="/homepage-images/apercu-carnet.png" width="520" height="360" alt="Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant." />
+        <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
+      </figure>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application <span aria-hidden="true">→</span></a>
       <a class="landing-app-link" href="#presentation">Découvrir nos propositions</a>
     </section>
@@ -996,7 +1020,6 @@
           <p>Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins. Les demandes restent soumises à l’acceptation du prestataire.</p>
         </details>
       </div>
-      <p class="info-note">Photos d’illustration : <a href="https://www.pexels.com/photo/young-woman-and-elderly-couple-talking-and-smiling-6148866/">RDNE Stock project</a>, <a href="https://www.pexels.com/photo/woman-measuring-the-blood-pressure-of-an-elderly-man-with-a-blood-pressure-monitor-7345476/">Antoni Shkraba</a> et <a href="https://www.pexels.com/photo/elderly-woman-getting-a-haircut-8834079/">Kampus Production</a> sur Pexels.</p>
     </section>
 
     <section class="landing-info">
@@ -1009,7 +1032,6 @@
     <section class="landing-card" id="connexion" aria-labelledby="connexion-title">
       <h2 id="connexion-title">Accéder à Génération Liaison</h2>
       <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
-      <p class="landing-note" id="connection-status" role="status" aria-live="polite" hidden>Vérification de la connexion...</p>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
       <p class="landing-note">Sur votre téléphone, le menu de votre navigateur peut proposer « Ajouter à l’écran d’accueil » pour retrouver facilement le site.</p>
       <p><a class="landing-app-link" id="login-link" href="/app-mobile.html">Se connecter</a></p>
@@ -1053,46 +1075,6 @@
       });
     }
 
-    const connectionStatus = document.getElementById('connection-status');
-
-    function setConnectionStatus(status, message) {
-      connectionStatus.dataset.status = status;
-      connectionStatus.textContent = message;
-    }
-
-    async function checkConnection() {
-      if (navigator.onLine === false) {
-        setConnectionStatus('offline', 'Pas de connexion internet');
-        return;
-      }
-
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), 5000);
-
-      try {
-        const response = await fetch('/api/status', {
-          cache: 'no-store',
-          signal: controller.signal
-        });
-        if (!response.ok) throw new Error('Erreur serveur (' + response.status + ')');
-
-        const result = await response.json();
-        if (result.status !== 'En ligne') throw new Error('Statut serveur inattendu');
-        setConnectionStatus('connected', 'Service accessible');
-      } catch (error) {
-        setConnectionStatus('unavailable', 'Serveur inaccessible');
-        console.warn('Vérification de la connexion impossible :', error);
-      } finally {
-        window.clearTimeout(timeoutId);
-      }
-    }
-
-    window.addEventListener('online', checkConnection);
-    window.addEventListener('offline', () => {
-      setConnectionStatus('offline', 'Pas de connexion internet');
-    });
-    window.setInterval(checkConnection, 30000);
-    checkConnection();
   </script>
 </body>
 </html>

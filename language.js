@@ -18,6 +18,10 @@
       'A simple space for seniors, their families, and professionals to stay connected, with separate access to everyday services.',
     'Suivi partagé': 'Shared updates',
     'Carnet de liaison': 'Activity log',
+    'Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant.':
+      'Preview of the activity feed: two example messages from a family member and a care professional.',
+    'Un aperçu du carnet de liaison avec des données fictives.':
+      'A preview of the activity log with fictional data.',
     'Alertes et assistance': 'Alerts and support',
     'Services du quotidien': 'Everyday services',
     'Vérification de la connexion...': 'Checking connection...',
