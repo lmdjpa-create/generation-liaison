@@ -224,12 +224,12 @@
         /* Habillage inspiré de la maquette : vert apaisant, cartes arrondies, navigation douce */
         :root { --brand: #2a9d78; --brand-dark: #1f7f61; --brand-soft: #e6f4ee; --blue-soft: #e8f1fb; --ink: #1f3a4d; --primary: #1f3a4d; --senior-bg: transparent; --aidant-bg: transparent; --pro-bg: transparent; }
         body { background: #f6faf8; color: var(--ink); }
-        html { --auth-header-height: 140px; padding-top: var(--auth-header-height); }
+        html { --auth-header-height: 140px; }
         html:has(#nav-bar[style*="flex"]) { --auth-header-height: 0px; }
         html:has(#nav-bar[style*="flex"]) body::before { display: none; }
-        body { height: calc(100vh - var(--auth-header-height)); height: calc(100dvh - var(--auth-header-height)); }
         body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; box-sizing: border-box; height: var(--auth-header-height); padding-top: 40px; background: url(logo-generation-liaison.jpg) center bottom / contain no-repeat; background-origin: content-box; }
-        #auth-box { margin-top: 0; }
+        #screen-senior { padding-top: calc(20px + var(--auth-header-height)); }
+        #auth-box { margin-top: 0; background: white; }
         .brand-logo { display: block; width: 76px; height: 76px; margin: 0 auto 6px; }
         .brand-title { margin: 0 0 4px; text-align: center; font-size: 1.7rem; font-weight: 800; line-height: 1.05; color: var(--ink); }
         .brand-title span { display: block; color: var(--brand); }
