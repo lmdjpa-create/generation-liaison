@@ -56,7 +56,12 @@ function createView(response) {
       } },
       getElementById: element,
       querySelector: element,
-      querySelectorAll: selector => selector === '.senior-tab-disclosure' ? tabDisclosures : []
+      querySelectorAll: selector => {
+        if (selector === '.senior-tab-disclosure') return tabDisclosures;
+        if (selector === '.screen-container') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'messages'].map(name => element(`screen-${name}`));
+        if (selector === '.nav-item') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'notifications', 'logout'].map(name => element(`nav-${name}`));
+        return [];
+      }
     },
     window: { generationLiaisonTranslate: value => value },
     localStorage: { getItem: () => null, removeItem() {}, setItem() {} },
@@ -178,6 +183,26 @@ test('settings are separate and only the current role’s account panels are sho
   }
 });
 
+test('each approved account opens the shared messages page and returns to its own home', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const { context, element, calls } = createView({ seniors: [] });
+    await context.openView({ id: role, role, verificationStatus: 'approved' });
+    const home = source.slice(source.indexOf(`<div id="screen-${role}"`),
+      source.indexOf(role === 'senior' ? '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->' : role === 'aidant' ? '<!-- 🩺 3. INTERFACE PROFESSIONNEL -->' : '<div id="screen-messages"'));
+    assert.equal((home.match(/onclick="ouvrirNotifications\(\)"/g) || []).length, 1);
+    calls.length = 0;
+    context.openScreen('messages');
+    assert.ok(element('screen-messages').classList.contains('active'));
+    assert.ok(element('nav-notifications').classList.contains('active'));
+    assert.equal(element(`screen-${role}`).classList.contains('active'), false);
+    assert.equal(element(`notifications-panel-${role}`).style.display, 'block');
+    assert.ok(calls.includes('chargerCorrespondants'));
+    context.openScreen(role);
+    assert.ok(element(`screen-${role}`).classList.contains('active'));
+    assert.equal(element('screen-messages').classList.contains('active'), false);
+  }
+});
+
 test('senior button styling applies across tabs and is removed for other roles', async () => {
   const { context, bodyClasses } = createView({ seniors: [] });
   await context.openView({ id: 'senior', role: 'senior' });
@@ -199,6 +224,8 @@ test('pending guardian can open settings and return to verification without prof
   assert.equal(element('settings-agenda').style.display, 'none');
   context.openAgenda();
   assert.equal(element('nav-agenda').classList.contains('active'), false);
+  context.openScreen('messages');
+  assert.equal(element('screen-messages').classList.contains('active'), false);
   assert.equal(calls.includes('chargerGestionAssociations'), false);
   context.openScreen('aidant');
   assert.ok(element('screen-senior').classList.contains('active'));
@@ -213,6 +240,8 @@ test('a pending professional can open settings without accessing the agenda', as
   assert.equal(element('settings-agenda').style.display, 'none');
   context.openAgenda();
   assert.equal(element('nav-agenda').classList.contains('active'), false);
+  context.openScreen('messages');
+  assert.equal(element('screen-messages').classList.contains('active'), false);
   assert.equal(calls.includes('chargerPlanningPro'), false);
   context.openScreen('pro');
   assert.ok(element('screen-pro').classList.contains('active'));

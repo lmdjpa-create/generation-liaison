@@ -54,6 +54,7 @@ function createApp(response) {
     configurerPreferencesNotification() {},
     configurerAnnuaire() {},
     configurerExplicationsSenior() {},
+    surveillerNotificationsVisibles() {},
     modifierSynchronisationGoogle() {}
   };
   vm.runInNewContext([

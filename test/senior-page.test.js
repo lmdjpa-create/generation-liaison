@@ -199,13 +199,21 @@ test('safety actions remain visible outside the closed check-in and retain the r
   assert.equal(elements['wellbeing-safety-result'].children.length, 0);
 });
 
-test('senior notifications are visible and messages remain collapsed after emergency controls', () => {
+test('one senior shortcut alongside the other tiles opens the separate messages and notifications page', () => {
   const emergency = source.indexOf('<section class="form-card emergency-call-card"');
-  const panel = source.indexOf('<section class="form-card" id="notifications-panel-senior"');
-  const wellbeing = source.indexOf('<section class="form-card" id="wellbeing-checkin-panel"');
-  assert.ok(emergency >= 0 && emergency < panel && panel < wellbeing);
-  assert.match(source, /<div id="notifications-list-senior">/);
-  assert.match(source, /<details class="senior-disclosure" id="messages-senior">/);
+  const shortcut = source.indexOf('onclick="ouvrirNotifications()"');
+  const tiles = extract('        <div class="action-tiles">', '        <section class="form-card emergency-call-card"');
+  assert.ok(shortcut >= 0 && shortcut < emergency);
+  assert.match(tiles, /<button type="button" class="action-tile" onclick="ouvrirNotifications\(\)"/);
+  assert.match(tiles, /id="home-notification-count-senior"/);
+  const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  assert.doesNotMatch(dashboard, /id="notifications-senior"|id="message-form-senior"/);
+  const page = extract('<div id="screen-messages"', '<div id="screen-settings"');
+  assert.match(page, /onclick="switchScreen\(connectedUser\.role\)"/);
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(page, new RegExp(`id="notifications-${role}"`));
+    assert.match(page, new RegExp(`id="message-form-${role}"`));
+  }
 });
 
 test('notifications become read only when visible, keep actions, and report failures', async () => {
@@ -225,13 +233,14 @@ test('notifications become read only when visible, keep actions, and report fail
       classList: { remove(name) { this.removed = name; } }
     });
     const container = node('div');
-    const screen = { classList: { contains: () => true }, getBoundingClientRect: () => rect };
+    const screen = { active: false, classList: { contains: () => screen.active }, getBoundingClientRect: () => rect };
     const context = {
       connectedUser: { id: 'user', role },
       notificationLoadId: 0, notificationReadEntries: [],
       document: {
         hidden: true,
-        getElementById: id => id === 'notification-unread-count' ? badge : id === `screen-${role}` ? screen : container,
+        getElementById: id => id === 'notification-unread-count' || id.startsWith('home-notification-count-')
+          ? badge : id === 'screen-messages' ? screen : container,
         createElement: node,
         querySelectorAll: () => container.children.filter(card => card.className?.includes('unread') && !card.classList.removed)
       },
@@ -272,6 +281,9 @@ test('notifications become read only when visible, keep actions, and report fail
     invitation.rect = { ...rect, top: 150, bottom: 250 };
     context.document.hidden = false;
     context.check();
+    assert.equal(timers.size, 0);
+    screen.active = true;
+    context.check();
     assert.equal(timers.size, 1);
     const first = [...timers.values()][0];
     timers.clear();
@@ -298,12 +310,11 @@ test('notifications become read only when visible, keep actions, and report fail
 test('read receipts refresh only for the open and visible conversation', () => {
   const calls = [];
   const select = { value: 'contact' };
-  const messages = { open: true };
   const container = {};
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
     openMessageConversations: { senior: 'contact' },
-    document: { getElementById: id => id === 'message-contact-senior' ? select : id === 'messages-senior' ? messages : container },
+    document: { getElementById: id => id === 'message-contact-senior' ? select : container },
     notificationVisible: () => context.visible,
     ouvrirConversation: role => calls.push(role),
     visible: true
@@ -316,9 +327,6 @@ test('read receipts refresh only for the open and visible conversation', () => {
   context.visible = false;
   context.refresh();
   context.visible = true;
-  messages.open = false;
-  context.refresh();
-  messages.open = true;
   select.value = 'different';
   context.refresh();
   assert.deepEqual(calls, ['senior']);
@@ -362,7 +370,7 @@ test('opening a conversation marks received messages read and displays the sende
 });
 
 test('device notifications can be enabled directly in each account settings', () => {
-  const section = extract('<section class="form-card" id="notifications-panel-senior"', '<section class="form-card" id="wellbeing-checkin-panel"');
+  const section = extract('<section class="form-card" id="notifications-panel-senior"', '<section class="form-card" id="notifications-panel-aidant"');
   assert.doesNotMatch(section, /enable-push-button|ouvrirNotificationsSurAppareil/);
   for (const [role, next] of [['senior', 'aidant'], ['aidant', 'pro'], ['pro', null]]) {
     const start = source.indexOf(`<section class="form-card notification-settings" id="notification-settings-${role}"`);
@@ -578,22 +586,21 @@ test('explanations open after two seconds of hover and remain usable without hov
   assert.equal(timers.has(3), false);
 });
 
-test('the notification navigation opens the senior notification list', () => {
-  const panel = { scrollIntoView() { this.scrolled = true; } };
+test('the notification shortcut opens the separate page', () => {
+  const calls = [];
   const context = {
     connectedUser: { role: 'senior' },
-    switchScreen() {},
-    document: { getElementById: () => panel }
+    switchScreen: screen => calls.push(screen)
   };
   vm.runInNewContext(
     `${extract('    function ouvrirNotifications()', '    function configurerExplicationsSenior()')}\n` +
     'globalThis.openNotifications = ouvrirNotifications;', context
   );
   context.openNotifications();
-  assert.equal(panel.scrolled, true);
+  assert.deepEqual(calls, ['messages']);
 });
 
-test('opening a senior message notification expands its notification and conversation', async () => {
+test('opening a senior message notification opens the separate page and conversation', async () => {
   const elements = new Map();
   const element = id => {
     if (!elements.has(id)) elements.set(id, {
@@ -619,7 +626,7 @@ test('opening a senior message notification expands its notification and convers
       createElement: () => ({ append() {} })
     },
     URL,
-    switchScreen() {},
+    switchScreen: screen => calls.push([screen]),
     seniorLinksRequest: async () => ({
       type: 'private_message', senderUserId: 'contact', entityId: 'message',
       title: 'Message', message: 'Bonjour', createdAt: '2026-01-01'
@@ -635,9 +642,8 @@ test('opening a senior message notification expands its notification and convers
       "        window.addEventListener('generation-notification-opened'"), context
   );
   await context.window.handlePendingNotification();
-  assert.equal(element('messages-senior').open, true);
   assert.equal(element('messages-senior').scrolled, true);
-  assert.deepEqual(calls, [['senior', 'message']]);
+  assert.deepEqual(calls, [['messages'], ['senior', 'message']]);
 });
 
 test('contact video calls use the selected contact and report failures without a fake call', async () => {

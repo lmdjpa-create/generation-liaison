@@ -136,6 +136,7 @@
         .rating-pill.selected.rating-red { border-color: #c0392b; background: #fde9e8; color: #8b1e25; }
         .evaluation-comment { min-height: 76px; }
         .notification-card { margin: 8px 0; padding: 12px; border: 1px solid #e1e7eb; border-radius: 10px; background: #fff; text-align: left; }
+        #screen-messages > .register-button { margin-top: 32px; }
         .notification-card.unread { border-left: 4px solid #3498db; }
         .notification-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
         .notification-actions button { padding: 9px 12px; border: 0; border-radius: 8px; background: #2c3e50; color: white; font-weight: bold; cursor: pointer; }
@@ -465,6 +466,7 @@
             <button type="button" class="action-tile" onclick="ouvrirSectionSenior('senior-assistant-details', 'assistant-chat-panel')"><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">🤝</span>Un peu de compagnie</button>
             <button type="button" class="action-tile" onclick="ouvrirSectionSenior('senior-services-details', 'senior-service-area')"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🏠</span>Services du quotidien</button>
             <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🩺</span>Trouver un professionnel</button>
+            <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-senior" hidden></span></button>
         </div>
 
         <section class="form-card emergency-call-card" aria-labelledby="emergency-call-heading">
@@ -497,30 +499,6 @@
                     <a id="emergency-call-link" href="tel:112">Ouvrir le composeur</a>
                 </div>
             </div>
-        </section>
-        <section class="form-card" id="notifications-panel-senior" style="display:none;">
-            <div id="notifications-list-senior">
-                <h3>Notifications</h3>
-                <div id="notification-opened-senior" aria-live="polite"></div>
-                <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
-            </div>
-            <details class="senior-disclosure" id="messages-senior">
-                <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
-                <details class="senior-disclosure senior-explanation">
-                    <summary>Explications</summary>
-                    <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
-                </details>
-                <label for="message-contact-senior">Correspondant</label>
-                <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
-                <button type="button" onclick="ouvrirConversation('senior')">Ouvrir les messages</button>
-                <div id="message-list-senior" aria-live="polite"></div>
-                <form id="message-form-senior">
-                    <label for="message-text-senior">Votre message</label>
-                    <textarea id="message-text-senior" maxlength="2000" required></textarea>
-                    <button type="submit">Envoyer</button>
-                </form>
-                <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
-            </details>
         </section>
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
           <details class="senior-disclosure" id="wellbeing-checkin-details">
@@ -617,26 +595,6 @@
 
 <!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->
 <div id="screen-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
-    <section class="form-card" id="notifications-panel-aidant" style="display:none;">
-        <h3>Notifications</h3>
-        <div id="notification-opened-aidant" aria-live="polite"></div>
-        <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
-        <div id="messages-aidant">
-            <h3>Messages avec mes contacts</h3>
-            <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
-            <label for="message-contact-aidant">Correspondant</label>
-            <select id="message-contact-aidant" aria-label="Choisir un correspondant"></select>
-            <button type="button" onclick="ouvrirConversation('aidant')">Ouvrir les messages</button>
-            <div id="message-list-aidant" aria-live="polite"></div>
-            <form id="message-form-aidant">
-                <label for="message-text-aidant">Votre message</label>
-                <textarea id="message-text-aidant" maxlength="2000" required></textarea>
-                <button type="submit">Envoyer</button>
-            </form>
-            <p id="message-status-aidant" class="helper-text" aria-live="polite"></p>
-        </div>
-    </section>
-
     <div class="aidant-greeting">
         <div class="aidant-avatar" aria-hidden="true">🤝</div>
         <div>
@@ -650,6 +608,7 @@
         </div>
         <button type="button" onclick="ouvrirAgenda()">Agenda</button>
     </div>
+    <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
     <section class="form-card" id="aidant-senior-selector" style="display:none;">
         <label for="aidant-senior-select">Profil senior</label>
         <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
@@ -714,26 +673,6 @@
 
 <!-- 🩺 3. INTERFACE PROFESSIONNEL -->
 <div id="screen-pro" class="screen-container" style="background-color: var(--pro-bg);">
-    <section class="form-card" id="notifications-panel-pro" style="display:none;">
-        <h3>Notifications et demandes à traiter</h3>
-        <div id="notification-opened-pro" aria-live="polite"></div>
-        <div id="notifications-pro" aria-live="polite">Chargement des notifications…</div>
-        <div id="messages-pro">
-            <h3>Messages avec mes contacts</h3>
-            <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
-            <label for="message-contact-pro">Correspondant</label>
-            <select id="message-contact-pro" aria-label="Choisir un correspondant"></select>
-            <button type="button" onclick="ouvrirConversation('pro')">Ouvrir les messages</button>
-            <div id="message-list-pro" aria-live="polite"></div>
-            <form id="message-form-pro">
-                <label for="message-text-pro">Votre message</label>
-                <textarea id="message-text-pro" maxlength="2000" required></textarea>
-                <button type="submit">Envoyer</button>
-            </form>
-            <p id="message-status-pro" class="helper-text" aria-live="polite"></p>
-        </div>
-    </section>
-
     <section class="form-card" id="professional-verification-panel" style="display:none;">
         <h3>Vérification de votre dossier intervenant</h3>
         <p id="professional-verification-message" class="helper-text" aria-live="polite">Votre dossier est en attente de vérification manuelle. L’accès à l’espace intervenant sera ouvert après validation.</p>
@@ -751,6 +690,7 @@
         <h3 style="margin:0;">Espace intervenants 🩺</h3>
         <span style="font-size:0.85rem; opacity:0.9;">Espaces séparés : soins et services du quotidien</span>
     </div>
+    <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
         <section class="form-card">
         <h4>Demandes reçues</h4>
         <div id="directory-professional-bookings" aria-live="polite">Chargement des demandes…</div>
@@ -838,6 +778,73 @@
     </div>
 </div>
 
+
+<div id="screen-messages" class="screen-container">
+    <button type="button" class="register-button" onclick="switchScreen(connectedUser.role)">← Retour à l’accueil</button>
+    <h1>Notifications et messages</h1>
+    <section class="form-card" id="notifications-panel-senior" style="display:none;">
+        <div id="notifications-list-senior">
+            <h3>Notifications</h3>
+            <div id="notification-opened-senior" aria-live="polite"></div>
+            <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
+        </div>
+        <div id="messages-senior">
+            <h3>Messages avec mes contacts</h3>
+            <details class="senior-disclosure senior-explanation">
+                <summary>Explications</summary>
+                <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
+            </details>
+            <label for="message-contact-senior">Correspondant</label>
+            <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
+            <button type="button" onclick="ouvrirConversation('senior')">Ouvrir les messages</button>
+            <div id="message-list-senior" aria-live="polite"></div>
+            <form id="message-form-senior">
+                <label for="message-text-senior">Votre message</label>
+                <textarea id="message-text-senior" maxlength="2000" required></textarea>
+                <button type="submit">Envoyer</button>
+            </form>
+            <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
+        </div>
+    </section>
+    <section class="form-card" id="notifications-panel-aidant" style="display:none;">
+        <h3>Notifications</h3>
+        <div id="notification-opened-aidant" aria-live="polite"></div>
+        <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
+        <div id="messages-aidant">
+            <h3>Messages avec mes contacts</h3>
+            <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
+            <label for="message-contact-aidant">Correspondant</label>
+            <select id="message-contact-aidant" aria-label="Choisir un correspondant"></select>
+            <button type="button" onclick="ouvrirConversation('aidant')">Ouvrir les messages</button>
+            <div id="message-list-aidant" aria-live="polite"></div>
+            <form id="message-form-aidant">
+                <label for="message-text-aidant">Votre message</label>
+                <textarea id="message-text-aidant" maxlength="2000" required></textarea>
+                <button type="submit">Envoyer</button>
+            </form>
+            <p id="message-status-aidant" class="helper-text" aria-live="polite"></p>
+        </div>
+    </section>
+    <section class="form-card" id="notifications-panel-pro" style="display:none;">
+        <h3>Notifications et demandes à traiter</h3>
+        <div id="notification-opened-pro" aria-live="polite"></div>
+        <div id="notifications-pro" aria-live="polite">Chargement des notifications…</div>
+        <div id="messages-pro">
+            <h3>Messages avec mes contacts</h3>
+            <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
+            <label for="message-contact-pro">Correspondant</label>
+            <select id="message-contact-pro" aria-label="Choisir un correspondant"></select>
+            <button type="button" onclick="ouvrirConversation('pro')">Ouvrir les messages</button>
+            <div id="message-list-pro" aria-live="polite"></div>
+            <form id="message-form-pro">
+                <label for="message-text-pro">Votre message</label>
+                <textarea id="message-text-pro" maxlength="2000" required></textarea>
+                <button type="submit">Envoyer</button>
+            </form>
+            <p id="message-status-pro" class="helper-text" aria-live="polite"></p>
+        </div>
+    </section>
+</div>
 
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
@@ -1496,7 +1503,9 @@
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
         const agendaAllowed = screenName === 'agenda' &&
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
-        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed && !agendaAllowed) ||
+        const messagesAllowed = screenName === 'messages' &&
+            ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
+        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed && !agendaAllowed && !messagesAllowed) ||
             (pendingAccess && screenName !== connectedUser.role && !settingsAllowed)) {
             return;
         }
@@ -1505,7 +1514,7 @@
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         const screenId = pendingGuardian && screenName === 'aidant' ? 'senior' : screenName;
         document.getElementById(`screen-${screenId}`).classList.add('active');
-        document.getElementById(`nav-${screenName}`).classList.add('active');
+        document.getElementById(`nav-${screenName === 'messages' ? 'notifications' : screenName}`).classList.add('active');
         document.getElementById('nav-logout').classList.remove('active');
         if (screenName === 'agenda' || screenName === 'directory') {
             const isAidant = connectedUser.role === 'aidant';
@@ -1535,8 +1544,9 @@
         }
         if (pendingAccess) return;
         chargerNotifications();
-        if (screenName === connectedUser.role && ['senior', 'aidant', 'pro'].includes(screenName)) {
-            chargerCorrespondants(screenName);
+        if (screenName === 'messages') {
+            document.getElementById('screen-messages').scrollTop = 0;
+            chargerCorrespondants(connectedUser.role);
         }
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerLogs();
@@ -1571,13 +1581,11 @@
 
     function ouvrirNotifications() {
         if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
-        switchScreen(connectedUser.role);
-        const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
-        if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+        switchScreen('messages');
     }
 
     function configurerExplicationsSenior() {
-        document.querySelectorAll('#main-app-senior .senior-explanation').forEach(details => {
+        document.querySelectorAll('#main-app-senior .senior-explanation, #screen-messages .senior-explanation').forEach(details => {
             const summary = details.querySelector('summary');
             let timer;
             const annulerOuverture = () => {
@@ -3395,14 +3403,17 @@
     }
 
     function actualiserCompteurNotifications(count) {
-        const badge = document.getElementById('notification-unread-count');
-        badge.hidden = count === 0;
-        badge.textContent = count ? `${count} non lue${count > 1 ? 's' : ''}` : '';
+        ['notification-unread-count', ...['senior', 'aidant', 'pro'].map(role => `home-notification-count-${role}`)]
+            .forEach(id => {
+                const badge = document.getElementById(id);
+                badge.hidden = count === 0;
+                badge.textContent = count ? `${count} non lue${count > 1 ? 's' : ''}` : '';
+            });
     }
 
     function notificationVisible(entry) {
-        if (document.hidden || connectedUser?.id !== entry.userId || !entry.card.isConnected) return false;
-        const screen = document.getElementById(`screen-${entry.role}`);
+        if (document.hidden || connectedUser?.id !== entry.userId || connectedUser?.role !== entry.role || !entry.card.isConnected) return false;
+        const screen = document.getElementById('screen-messages');
         if (!screen.classList.contains('active')) return false;
         const rect = entry.card.getBoundingClientRect();
         const viewport = screen.getBoundingClientRect();
@@ -3593,7 +3604,6 @@
         const select = document.getElementById(`message-contact-${role}`);
         const container = document.getElementById(`message-list-${role}`);
         if (select.value !== openMessageConversations[role] ||
-            (role === 'senior' && !document.getElementById('messages-senior').open) ||
             !notificationVisible({ userId: connectedUser.id, role, card: container })) return;
         ouvrirConversation(role);
     }
@@ -5241,7 +5251,6 @@
         notificationReadEntries = [];
         actualiserCompteurNotifications(0);
         openMessageConversations = {};
-        document.getElementById('messages-senior').open = false;
         ['senior', 'aidant'].forEach(role => {
             document.getElementById(`message-contact-${role}`).replaceChildren();
             document.getElementById(`message-list-${role}`).replaceChildren();
@@ -5553,7 +5562,7 @@
                  connectedUser.guardianVerificationStatus !== 'approved')) return;
             pendingNotificationId = id;
             window.pendingPushNotificationId = '';
-            switchScreen(connectedUser.role);
+            switchScreen('messages');
             try {
                 const notification = await seniorLinksRequest(`/api/notifications/open/${encodeURIComponent(id)}`);
                 const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
@@ -5576,7 +5585,6 @@
                         return;
                     }
                     if (!await ouvrirConversation(role, notification.entityId)) return;
-                    if (role === 'senior') document.getElementById('messages-senior').open = true;
                     document.getElementById(`messages-${role}`).scrollIntoView({ behavior: 'smooth' });
                 } else {
                     await seniorLinksRequest(`/api/notifications/${encodeURIComponent(id)}`, {
