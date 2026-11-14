@@ -11,6 +11,8 @@ The mobile app now uses server-side accounts. The API stores users, individual s
 
 Registration currently supports senior, family caregiver, and professional roles. Passwords must be at least 12 characters. Sessions expire after 30 days and are revoked when the user signs out.
 
+New registrations collect first and family names separately and retain the combined display name. Existing accounts and older clients retain their original combined name; the application does not guess how to split it.
+
 ## Password recovery
 
 The sign-in and administrator pages link to `/reset-password.html`. Configure `RESEND_API_KEY`, `NOTIFICATIONS_FROM_EMAIL` (a sender on a verified Resend domain), and the public HTTPS `PUBLIC_APP_URL` before using recovery. Requests return the same message for active and unknown accounts; delivery failures are logged on the server. A new request for the same account is limited to one per minute. Recovery e-mails are transactional and do not require optional notification consent. Links expire after 15 minutes, can be used once, and reset all existing sessions. Closed or suspended accounts cannot be reset. The page never asks for the administrator access code.
