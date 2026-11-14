@@ -291,6 +291,22 @@
         #main-app-senior .btn-danger { background: #a32222 !important; }
         #main-app-senior .senior-logout { background: white; color: #8b1e25; border: 2px solid #8b1e25; border-radius: 12px; font-weight: 700; cursor: pointer; }
         #main-app-senior .senior-disclosure > summary { display: list-item; }
+        #main-app-senior .senior-disclosure:not(.senior-explanation) > summary {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid #e3eee9;
+            border-radius: 18px;
+            background: white;
+            color: var(--ink);
+            text-align: center;
+            box-shadow: 0 6px 18px rgba(31, 58, 77, 0.07);
+            cursor: pointer;
+        }
+        #main-app-senior .senior-disclosure[open]:not(.senior-explanation) > summary { margin-bottom: 14px; }
+        #main-app-senior .senior-disclosure + .senior-disclosure { margin-top: 12px; }
+        #main-app-senior .senior-action-tile { width: 100%; margin: 14px 0; }
         #auth-box .btn-submit { background: #17684f; }
         :is(#screen-aidant, #screen-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button,
         #screen-settings summary {
@@ -437,9 +453,8 @@
             <button type="button" onclick="switchScreen('agenda')">Voir l’agenda</button>
         </section>
         <div class="action-tiles">
-            <button type="button" class="action-tile" onclick="switchScreen('agenda')"><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Mon agenda</button>
-            <button type="button" class="action-tile" onclick="document.getElementById('senior-person-note-form').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Écrire à l’équipe</button>
-            <button type="button" class="action-tile" onclick="switchScreen('settings')"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">📄</span>Mes réglages</button>
+            <button type="button" class="action-tile" onclick="ouvrirSectionSenior('senior-assistant-details', 'assistant-chat-panel')"><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">🤝</span>Un peu de compagnie</button>
+            <button type="button" class="action-tile" onclick="ouvrirSectionSenior('senior-services-details', 'senior-service-area')"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🏠</span>Services du quotidien</button>
             <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🩺</span>Trouver un professionnel</button>
         </div>
 
@@ -469,12 +484,12 @@
         </section>
         <section class="form-card" id="notifications-panel-senior" style="display:none;">
             <details class="senior-disclosure" id="notifications-list-senior">
-                <summary>Notifications</summary>
+                <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications</summary>
                 <div id="notification-opened-senior" aria-live="polite"></div>
                 <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
             </details>
             <details class="senior-disclosure" id="messages-senior">
-                <summary>Messages avec mes contacts</summary>
+                <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
                 <details class="senior-disclosure senior-explanation">
                     <summary>Explications</summary>
                     <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
@@ -493,7 +508,7 @@
         </section>
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
           <details class="senior-disclosure" id="wellbeing-checkin-details">
-            <summary>Comment allez-vous aujourd’hui ?</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Comment allez-vous aujourd’hui ?</summary>
             <details class="senior-disclosure senior-explanation">
                 <summary>Explications</summary>
                 <p class="helper-text">Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit ; vous pourrez aussi écouter sa réponse.</p>
@@ -519,13 +534,20 @@
           <div id="wellbeing-safety-result" aria-live="polite"></div>
         </section>
         <section class="form-card" style="text-align:left;">
-            <h3 style="margin-top:0;">Suivi des interventions</h3>
+          <details class="senior-disclosure" id="senior-following-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📍</span>Suivi des interventions</summary>
             <details class="senior-disclosure senior-explanation">
                 <summary>Explications</summary>
                 <p class="helper-text">Consultez les étapes de visite communiquées par vos intervenants.</p>
             </details>
             <div id="senior-live-following" aria-live="polite">Chargement du suivi…</div>
+          </details>
+          <details class="senior-disclosure" id="senior-consents-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔐</span>Autorisations de partage</summary>
             <div id="senior-sharing-consents" style="margin-top:12px;"></div>
+          </details>
+          <details class="senior-disclosure" id="senior-note-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Envoyer à l’équipe</summary>
             <form id="senior-person-note-form" class="form-grid" style="margin-top:14px;">
                 <h4>Transmettre une information à l’équipe</h4>
                 <select id="senior-note-recipient" required><option value="">Choisir une équipe autorisée</option></select>
@@ -537,9 +559,12 @@
                 <textarea id="senior-note-content" maxlength="1500" placeholder="Information utile pour vos intervenants" required></textarea>
                 <button type="submit">Envoyer à l’équipe</button>
             </form>
+          </details>
         </section>
-        <section class="form-card assistant-chat" id="assistant-chat-panel">
-            <h3 style="margin:0;">Un peu de compagnie 🤝</h3>
+        <section class="form-card" id="assistant-chat-panel">
+          <details class="senior-disclosure" id="senior-assistant-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🤝</span>Un peu de compagnie</summary>
+            <div class="assistant-chat">
             <p class="helper-text" style="margin:0;">Je suis l’assistant IA de Génération Liaison. Je peux vous aider à utiliser l’application et vous orienter vers les services et rendez-vous. Je ne peux pas réserver un rendez-vous à votre place. Vos messages et votre prénom sont transmis à OpenAI pour préparer mes réponses. Dans Génération Liaison, la conversation est supprimée après 30 jours d’inactivité. Une personne autorisée de l’équipe pourra la lire si vous demandez son aide.</p>
             <div id="assistant-status" class="helper-text" role="status" aria-live="polite">Chargement de la conversation…</div>
             <div id="assistant-messages" class="assistant-messages" aria-live="polite"></div>
@@ -552,22 +577,28 @@
                     <button id="assistant-services-button" type="button">Voir les services et rendez-vous</button>
                 </div>
             </form>
+            </div>
+          </details>
         </section>
         <section class="form-card" style="text-align:left;">
-            <h3 style="margin-top:0;">Services du quotidien</h3>
+          <details class="senior-disclosure" id="senior-services-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🏠</span>Services du quotidien</summary>
             <details class="senior-disclosure senior-explanation">
                 <summary>Explications</summary>
                 <p class="helper-text">Repas, coiffure et ménage à domicile, séparément des soins. Le prestataire ne reçoit que les coordonnées nécessaires à un rendez-vous confirmé. Aucun renseignement médical ne lui est transmis. Les tarifs et paiements ne sont pas encore configurés : aucune somme n’est prélevée par l’application.</p>
             </details>
             <div id="senior-service-area" aria-live="polite">Chargement des services…</div>
+          </details>
         </section>
-        <button class="btn-gros btn-video" onclick="declencherVisio()">📞 APPELER EN VIDÉO</button>
+        <button type="button" class="action-tile senior-action-tile" onclick="declencherVisio()"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">📞</span>Appeler en vidéo</button>
         <div style="background: #e8f4f8; border-left: 6px solid #3498db; padding: 15px; border-radius: 8px; font-size: 1.3rem; margin: 25px 0; text-align: left;">
             Livraison de repas
         </div>
         <p style="font-size: 1.4rem; font-weight: bold; color: #34495e; margin-bottom: 5px;">Avez-vous reçu votre repas ?</p>
-        <button class="btn-gros btn-success" onclick="actionSenior('Repas livré avec succès', 'meal_delivery')">👍 OUI, reçu</button>
-        <button class="btn-gros btn-danger" onclick="actionSenior('Alerte : Repas non reçu', 'meal_delivery')">👎 NON, problème</button>
+        <div class="action-tiles">
+            <button type="button" class="action-tile" onclick="actionSenior('Repas livré avec succès', 'meal_delivery')"><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">👍</span>Oui, reçu</button>
+            <button type="button" class="action-tile" onclick="actionSenior('Alerte : Repas non reçu', 'meal_delivery')"><span class="tile-icon" aria-hidden="true" style="background:#fff0ee;">👎</span>Non, problème</button>
+        </div>
         <button type="button" class="senior-logout" onclick="deconnecterUtilisateur()">Se déconnecter</button>
     </div>
 </div>
@@ -1402,6 +1433,11 @@
     });
 
     document.getElementById('end-call-button')?.addEventListener('click', terminerAppelVideo);
+
+    function ouvrirSectionSenior(detailsId, targetId) {
+        document.getElementById(detailsId).open = true;
+        document.getElementById(targetId).scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     function switchScreen(screenName) {
         const pendingProfessional = connectedUser?.role === 'pro' && connectedUser.verificationStatus !== 'approved';
@@ -2550,7 +2586,7 @@
     });
 
     document.getElementById('assistant-services-button').addEventListener('click', () => {
-        document.getElementById('senior-service-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        ouvrirSectionSenior('senior-services-details', 'senior-service-area');
     });
 
     const directoryWeekdays = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];

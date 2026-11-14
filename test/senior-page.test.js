@@ -13,6 +13,56 @@ function extract(start, end) {
   return source.slice(first, last);
 }
 
+test('senior settings remain accessible from navigation without a dashboard shortcut', () => {
+  const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  assert.doesNotMatch(dashboard, /switchScreen\('settings'\)/);
+  assert.match(source, /<button id="nav-settings"[^>]*onclick="switchScreen\('settings'\)"/);
+});
+
+test('companionship and daily services shortcuts are available alongside the directory', () => {
+  const tiles = extract('        <div class="action-tiles">', '        <section class="form-card emergency-call-card"');
+  assert.match(tiles, /ouvrirSectionSenior\('senior-assistant-details', 'assistant-chat-panel'\)/);
+  assert.match(tiles, /ouvrirSectionSenior\('senior-services-details', 'senior-service-area'\)/);
+  assert.match(tiles, /switchScreen\('directory'\)/);
+  assert.doesNotMatch(tiles, /Mon agenda/);
+  assert.match(source, /<button[^>]*onclick="switchScreen\('agenda'\)"[^>]*>Voir l’agenda<\/button>/);
+});
+
+test('senior feature tiles keep their content collapsed and shortcuts open their destinations', () => {
+  for (const [id, content] of [
+    ['senior-following-details', 'senior-live-following'],
+    ['senior-consents-details', 'senior-sharing-consents'],
+    ['senior-note-details', 'senior-person-note-form'],
+    ['senior-assistant-details', 'assistant-chat-form'],
+    ['senior-services-details', 'senior-service-area']
+  ]) {
+    const start = source.indexOf(`<details class="senior-disclosure" id="${id}">`);
+    const end = source.indexOf(`id="${content}"`, start);
+    assert.ok(start >= 0 && end > start, `${id} must contain ${content}`);
+    assert.match(source.slice(start, end), /<summary><span class="tile-icon"/);
+  }
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, { open: false, scrollIntoView() { this.scrolled = true; } });
+    return elements.get(id);
+  };
+  const context = { document: { getElementById: element } };
+  vm.runInNewContext(
+    `${extract('    function ouvrirSectionSenior(detailsId, targetId)', '    function switchScreen(screenName)')}\n` +
+    'globalThis.openSection = ouvrirSectionSenior;', context
+  );
+  assert.match(source, /<summary><span class="tile-icon"[^>]*>💬<\/span>Envoyer à l’équipe<\/summary>/);
+  for (const [details, target] of [
+    ['senior-services-details', 'senior-service-area'],
+    ['senior-assistant-details', 'assistant-chat-panel']
+  ]) {
+    assert.ok(source.includes(`ouvrirSectionSenior('${details}', '${target}')`));
+    context.openSection(details, target);
+    assert.equal(element(details).open, true);
+    assert.equal(element(target).scrolled, true);
+  }
+});
+
 test('a new day re-enables the senior check-in form', () => {
   const elements = {
     'wellbeing-checkin-form': { hidden: true },
