@@ -10,6 +10,7 @@
         .dashboard { max-width: 800px; margin: 0 auto; }
         .header { background: #2c3e50; color: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; }
         .section-title { color: #2c3e50; font-size: 1.5rem; border-bottom: 2px solid #bdc3c7; padding-bottom: 10px; margin-top: 30px; margin-bottom: 15px; }
+        details > summary { cursor: pointer; min-height: 56px; padding: 14px 0; box-sizing: border-box; }
         .meal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
         @media(max-width: 600px) { .meal-grid { grid-template-columns: 1fr; } }
         .meal-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); display: flex; flex-direction: column; justify-content: space-between; }
@@ -47,12 +48,16 @@
     </div>
 
     <!-- CARNET DE LIAISON EN DIRECT -->
-    <div class="section-title">📊 Carnet de liaison en temps réel</div>
-    <div class="log-list" id="logs-container">Chargement du fil d'actualité...</div>
+    <details>
+        <summary class="section-title">📊 Carnet de liaison en temps réel</summary>
+        <div class="log-list" id="logs-container">Chargement du fil d'actualité...</div>
+    </details>
 
     <!-- MODULE DE COMMANDE -->
-    <div class="section-title">🍲 Commander un repas chez notre partenaire</div>
-    <div class="meal-grid" id="meals-container">Chargement des menus...</div>
+    <details>
+        <summary class="section-title">🍲 Commander un repas chez notre partenaire</summary>
+        <div class="meal-grid" id="meals-container">Chargement des menus...</div>
+    </details>
 </div>
 
 <div id="notification">🛒 Commande envoyée au prestataire !</div>

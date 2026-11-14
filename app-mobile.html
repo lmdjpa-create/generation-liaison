@@ -93,6 +93,7 @@
         .visit-progress button:disabled, .form-card button:disabled { opacity: 0.55; cursor: not-allowed; }
         .form-card { margin: 14px 0; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.05); text-align: left; }
         .senior-disclosure > summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
+        #screen-aidant .senior-disclosure > summary { padding: 16px; border-radius: 12px; background: #2c3e50; color: white; }
         .senior-explanation > summary { color: #155e48; }
         .emergency-call-card { border: 2px solid #b42318; background: #fff7f6; }
         .emergency-call-actions { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -268,7 +269,7 @@
         .aidant-avatar { display: grid; place-items: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-dark); font-size: 1.5rem; }
         .aidant-greeting h2 { margin: 0; font-size: 1.25rem; color: var(--ink); }
         .aidant-greeting p { margin: 2px 0 0; color: #3f6a5c; font-size: 0.9rem; }
-        #main-app-senior button, #main-app-senior .senior-disclosure > summary,
+        #main-app-senior button, #main-app-senior .senior-disclosure > summary, #screen-aidant .senior-disclosure > summary,
         #main-app-senior .emergency-call-actions a {
             box-sizing: border-box;
             min-height: 56px;
@@ -491,7 +492,8 @@
             </details>
         </section>
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
-            <h2 style="margin-top:0;">Comment allez-vous aujourd’hui ?</h2>
+          <details class="senior-disclosure" id="wellbeing-checkin-details">
+            <summary>Comment allez-vous aujourd’hui ?</summary>
             <details class="senior-disclosure senior-explanation">
                 <summary>Explications</summary>
                 <p class="helper-text">Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit ; vous pourrez aussi écouter sa réponse.</p>
@@ -513,6 +515,8 @@
             </form>
             <p id="wellbeing-checkin-status" class="helper-text" role="status" aria-live="polite"></p>
             <div id="wellbeing-checkin-result" aria-live="polite" hidden></div>
+          </details>
+          <div id="wellbeing-safety-result" aria-live="polite"></div>
         </section>
         <section class="form-card" style="text-align:left;">
             <h3 style="margin-top:0;">Suivi des interventions</h3>
@@ -594,7 +598,6 @@
         <div class="aidant-avatar" aria-hidden="true">🤝</div>
         <div>
             <h2>Bonjour <span id="welcome-aidant-name">!</span></h2>
-            <p>Tout est bien coordonné <span aria-hidden="true">💚</span></p>
         </div>
     </div>
     <div class="header-mobile next-visit-card" style="flex-direction:row;">
@@ -604,13 +607,6 @@
         </div>
         <button type="button" onclick="ouvrirAgenda()">Agenda</button>
     </div>
-    <div class="action-tiles">
-        <button type="button" class="action-tile" onclick="document.getElementById('aidant-live-following').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#e6f4ee;">📍</span>Suivi des visites</button>
-        <button type="button" class="action-tile" onclick="document.getElementById('aidant-sharing-consents').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#e8f1fb;">🔐</span>Autorisation de partage</button>
-        <button type="button" class="action-tile" onclick="document.getElementById('aidant-service-area').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#fdf1dc;">🍽️</span>Repas du jour</button>
-        <button type="button" class="action-tile" onclick="document.getElementById('aidant-person-note-form').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#f3e8fa;">💬</span>Message à l’équipe</button>
-    </div>
-
     <section class="form-card" id="aidant-senior-selector" style="display:none;">
         <label for="aidant-senior-select">Profil senior</label>
         <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
@@ -623,19 +619,35 @@
     </section>
     <div id="aidant-senior-content" style="display:none;">
     <section class="form-card">
-        <h4>Check-ins de bien-être partagés</h4>
+      <details class="senior-disclosure" id="aidant-checkins-details">
+        <summary>Check-ins de bien-être partagés</summary>
         <p class="helper-text">Vous ne voyez ici que les réponses que la personne a choisi de vous transmettre. Ce partage n’est pas un service d’urgence ni une surveillance automatique.</p>
         <div id="aidant-wellbeing-shared" aria-live="polite">Chargement des messages partagés…</div>
+      </details>
     </section>
-    <h4 style="margin: 15px 0 10px 0; color: var(--primary);">📊 Fil d'actualité en direct</h4>
-    <div class="card" id="logs-list" style="text-align: left;">Chargement du journal...</div>
     <section class="form-card">
-        <h4>Suivi des interventions</h4>
+      <details class="senior-disclosure" id="aidant-feed-details">
+        <summary>Fil d’actualité en direct</summary>
+        <div class="card" id="logs-list" style="text-align: left;">Chargement du journal...</div>
+      </details>
+    </section>
+    <section class="form-card">
+      <details class="senior-disclosure" id="aidant-following-details">
+        <summary>Suivi des interventions</summary>
         <p class="helper-text">Les étapes des visites sont visibles si ce compte est autorisé pour le profil concerné.</p>
         <div id="aidant-live-following" aria-live="polite">Chargement du suivi…</div>
+      </details>
+    </section>
+    <section class="form-card">
+      <details class="senior-disclosure" id="aidant-consents-details">
+        <summary>Autorisation de partage</summary>
         <div id="aidant-sharing-consents" style="margin-top:12px;"></div>
+      </details>
+    </section>
+    <section class="form-card">
+      <details class="senior-disclosure" id="aidant-team-message-details">
+        <summary>Message à l’équipe</summary>
         <form id="aidant-person-note-form" class="form-grid" style="margin-top:14px;">
-            <h4>Transmettre une information à l’équipe</h4>
             <select id="aidant-note-recipient" required><option value="">Choisir une équipe autorisée</option></select>
             <select id="aidant-note-importance" required aria-label="Importance de l’information">
                 <option value="information">🔵 Information</option>
@@ -645,11 +657,14 @@
             <textarea id="aidant-note-content" maxlength="1500" placeholder="Information utile pour les intervenants" required></textarea>
             <button type="submit">Envoyer à l’équipe</button>
         </form>
+      </details>
     </section>
     <section class="form-card">
-        <h4>Services du quotidien</h4>
+      <details class="senior-disclosure" id="aidant-services-details">
+        <summary>Services du quotidien</summary>
         <p class="helper-text">Repas, coiffure et ménage à domicile. Cet espace est distinct du suivi des soins et ne transmet aucune donnée médicale aux prestataires. Les demandes doivent être confirmées par le partenaire ; les tarifs et paiements restent à définir.</p>
         <div id="aidant-service-area" aria-live="polite">Chargement des services…</div>
+      </details>
     </section>
     </div>
 </div>
@@ -2175,7 +2190,9 @@
         }
         const form = document.getElementById('wellbeing-checkin-form');
         const result = document.getElementById('wellbeing-checkin-result');
+        const safetyResult = document.getElementById('wellbeing-safety-result');
         result.replaceChildren();
+        safetyResult.replaceChildren();
         if (!checkin) {
             form.hidden = false;
             document.getElementById('wellbeing-checkin-submit').disabled = false;
@@ -2202,7 +2219,7 @@
         speakButton.addEventListener('click', () =>
             parlerCheckinBienEtre(checkin.assistantReply, speakStatus));
         result.append(speakButton, speakStatus);
-        afficherSuiviSecuriteBienEtre(result, checkin);
+        afficherSuiviSecuriteBienEtre(safetyResult, checkin);
     }
 
     function afficherSuiviSecuriteBienEtre(container, checkin) {

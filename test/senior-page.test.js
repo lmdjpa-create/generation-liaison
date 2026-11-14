@@ -17,7 +17,8 @@ test('a new day re-enables the senior check-in form', () => {
   const elements = {
     'wellbeing-checkin-form': { hidden: true },
     'wellbeing-checkin-submit': { disabled: true },
-    'wellbeing-checkin-result': { hidden: false, replaceChildren() {} }
+    'wellbeing-checkin-result': { hidden: false, replaceChildren() {} },
+    'wellbeing-safety-result': { replaceChildren() {} }
   };
   const context = {
     document: { getElementById: id => elements[id] },
@@ -31,6 +32,77 @@ test('a new day re-enables the senior check-in form', () => {
   assert.equal(elements['wellbeing-checkin-form'].hidden, false);
   assert.equal(elements['wellbeing-checkin-submit'].disabled, false);
   assert.equal(elements['wellbeing-checkin-result'].hidden, true);
+});
+
+test('check-in is collapsed while safety follow-up remains outside the collapsed content', () => {
+  const checkin = extract('        <section class="form-card" id="wellbeing-checkin-panel"',
+    '        <section class="form-card" style="text-align:left;">');
+  assert.match(checkin, /<details class="senior-disclosure" id="wellbeing-checkin-details">/);
+  assert.match(checkin, /<\/details>\s*<div id="wellbeing-safety-result"/);
+});
+
+test('safety follow-up is rendered separately from the collapsed check-in', () => {
+  const nodes = () => ({ children: [], replaceChildren() { this.children = []; }, append(...items) { this.children.push(...items); }, setAttribute() {}, addEventListener() {} });
+  const elements = {
+    'wellbeing-checkin-form': { hidden: false },
+    'wellbeing-checkin-submit': { disabled: false },
+    'wellbeing-checkin-result': nodes(),
+    'wellbeing-safety-result': nodes()
+  };
+  const checkin = { safetyConcern: true, safetyCheckStatus: 'awaiting_response', response: 'Bonjour', assistantReply: 'Bonjour' };
+  const context = {
+    document: { getElementById: id => elements[id], createElement: nodes },
+    wellbeingSafetyTimer: null,
+    makeTextElement: nodes,
+    afficherSuiviSecuriteBienEtre: (container, value) => container.append(value)
+  };
+  vm.runInNewContext(
+    `${extract('    function afficherCheckinBienEtre(checkin)', '    function afficherSuiviSecuriteBienEtre')}\n` +
+    'globalThis.showCheckin = afficherCheckinBienEtre;', context
+  );
+  context.showCheckin(checkin);
+  assert.equal(elements['wellbeing-checkin-form'].hidden, true);
+  assert.equal(elements['wellbeing-safety-result'].children[0], checkin);
+  assert.equal(elements['wellbeing-checkin-result'].children.includes(checkin), false);
+  context.showCheckin(null);
+  assert.equal(elements['wellbeing-safety-result'].children.length, 0);
+});
+
+test('safety actions remain visible outside the closed check-in and retain the response timer', () => {
+  const node = () => ({
+    children: [], replaceChildren() { this.children = []; },
+    append(...items) { this.children.push(...items); },
+    setAttribute() {}, addEventListener() {}
+  });
+  const elements = {
+    'wellbeing-checkin-form': { hidden: false },
+    'wellbeing-checkin-submit': { disabled: false },
+    'wellbeing-checkin-result': node(),
+    'wellbeing-safety-result': node()
+  };
+  let timeout;
+  const context = {
+    document: { getElementById: id => elements[id], createElement: node },
+    window: { setTimeout: (callback, delay) => { timeout = { callback, delay }; return 1; }, clearTimeout() {} },
+    wellbeingSafetyTimer: null,
+    makeTextElement: (tag, text) => ({ ...node(), textContent: text }),
+    enregistrerReponseSecurite: (id, response) => { context.response = { id, response }; }
+  };
+  vm.runInNewContext(
+    `${extract('    function afficherCheckinBienEtre(checkin)', '    async function enregistrerReponseSecurite')}\n` +
+    'globalThis.showCheckin = afficherCheckinBienEtre;', context
+  );
+  const checkin = { id: 'check-1', response: 'Bonjour', assistantReply: 'Bonjour', safetyConcern: true };
+  context.showCheckin({ ...checkin, safetyCheckStatus: 'awaiting_response' });
+  assert.equal(elements['wellbeing-safety-result'].children[0].children[2].children.length, 2);
+  assert.equal(timeout.delay, 60000);
+  timeout.callback();
+  assert.equal(context.response.id, 'check-1');
+  assert.equal(context.response.response, 'no_response');
+  context.showCheckin({ ...checkin, safetyCheckStatus: 'needs_help' });
+  assert.equal(elements['wellbeing-safety-result'].children[0].children[2].children.length, 2);
+  context.showCheckin({ ...checkin, safetyConcern: false });
+  assert.equal(elements['wellbeing-safety-result'].children.length, 0);
 });
 
 test('senior notifications and messages start collapsed immediately after emergency controls', () => {

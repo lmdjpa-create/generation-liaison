@@ -116,6 +116,21 @@ test('an aidant without a linked senior can use account navigation without loadi
   assert.ok(calls.includes('chargerContacts'));
 });
 
+test('aidant functions start collapsed without removing their content', () => {
+  for (const [id, content] of [
+    ['aidant-checkins-details', 'aidant-wellbeing-shared'],
+    ['aidant-feed-details', 'logs-list'],
+    ['aidant-following-details', 'aidant-live-following'],
+    ['aidant-consents-details', 'aidant-sharing-consents'],
+    ['aidant-team-message-details', 'aidant-person-note-form'],
+    ['aidant-services-details', 'aidant-service-area']
+  ]) {
+    const section = source.match(new RegExp(`<details class="senior-disclosure" id="${id}">([\\s\\S]*?)</details>`));
+    assert.ok(section);
+    assert.match(section[1], new RegExp(`id="${content}"`));
+  }
+});
+
 test('a failed senior-profile request is not presented as an empty association list', async () => {
   const { context, element } = createView({ error: 'Network error' });
   await context.openView({ id: 'aidant', role: 'aidant' });
