@@ -258,9 +258,11 @@ test('homepage exposes public downloads and legal links without developer tools'
   assert.match(terms, /id="mentions-legales"/);
 });
 
-test('public pages use the registered generation-liaison.fr domain for e-mail', () => {
-  for (const page of ['index.html', 'cgu.html', 'cgv.html', 'aide-installation-android.html']) {
-    assert.doesNotMatch(fs.readFileSync(path.join(projectRoot, page), 'utf8'), /generationliaison\.fr/, page);
+test('public pages use the configured contact e-mail address', () => {
+  for (const page of ['index.html', 'cgu.html', 'cgv.html', 'aide-installation-android.html', 'privacy-policy.html']) {
+    const html = fs.readFileSync(path.join(projectRoot, page), 'utf8');
+    assert.match(html, /mail@generation-liaison\.fr/, page);
+    assert.doesNotMatch(html, /(?:support|contact)@generation-liaison\.fr|generationliaison\.fr/, page);
   }
 });
 
