@@ -180,6 +180,58 @@ test('senior notifications and messages start collapsed immediately after emerge
   assert.match(source, /<details class="senior-disclosure" id="messages-senior">/);
 });
 
+test('emergency details are optional while numbers, confirmation and status stay accessible', () => {
+  const emergency = extract('<section class="form-card emergency-call-card"', '<section class="form-card" id="notifications-panel-senior"');
+  assert.match(emergency, /<details class="senior-disclosure senior-explanation">\s*<summary>Explications sur l’appel<\/summary>/);
+  assert.match(emergency, /<button type="button" data-emergency-number="15">/);
+  assert.match(emergency, /<button type="button" data-emergency-number="112">/);
+  assert.match(emergency, /<\/details>\s*<div class="emergency-call-actions">\s*<button type="button" id="emergency-call-confirm-click">/);
+  assert.match(emergency, /<\/div>\s*<p id="emergency-call-status"[^>]*role="status"/);
+  assert.match(emergency, /Vous devrez lancer l’appel sur votre téléphone/);
+});
+
+test('emergency calls require confirmation and can be confirmed again after a completed attempt', async () => {
+  const makeElement = () => ({
+    hidden: true, disabled: false, textContent: '', listeners: {},
+    addEventListener(type, handler) { this.listeners[type] = handler; }
+  });
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, makeElement());
+    return elements.get(id);
+  };
+  const numbers = ['15', '112'].map(number => ({ ...makeElement(), dataset: { emergencyNumber: number } }));
+  const controls = ['emergency-call-confirm-click', 'emergency-call-confirm-voice', 'emergency-call-cancel'].map(element);
+  element('emergency-call-confirmation').querySelectorAll = () => controls;
+  const requests = [];
+  const context = {
+    document: {
+      getElementById: element,
+      querySelectorAll: selector => selector === '[data-emergency-number]' ? numbers : []
+    },
+    window: { location: { href: '' }, setTimeout() {} },
+    planningRequest: async (url, options) => {
+      requests.push({ url, number: options.body.number, confirmed: options.body.confirmed });
+      return { notificationsQueued: 0 };
+    }
+  };
+  vm.runInNewContext(
+    extract('    let emergencyNumberSelected = null;', '    function parlerCheckinBienEtre(texte, status)'), context
+  );
+  numbers[1].listeners.click();
+  assert.equal(element('emergency-call-confirmation').hidden, false);
+  assert.equal(requests.length, 0);
+  assert.equal(context.window.location.href, '');
+  element('emergency-call-confirm-click').listeners.click();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(requests[0], { url: '/api/emergency-alert', number: '112', confirmed: true });
+  assert.equal(context.window.location.href, 'tel:112');
+  assert.ok(controls.every(button => !button.disabled));
+  numbers[0].listeners.click();
+  assert.equal(element('emergency-call-confirmation').hidden, false);
+  assert.equal(element('emergency-call-confirm-click').disabled, false);
+});
+
 test('explanations open after two seconds of hover and remain usable without hover', () => {
   const summary = { listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } };
   const details = {

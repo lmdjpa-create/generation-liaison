@@ -469,23 +469,30 @@
 
         <section class="form-card emergency-call-card" aria-labelledby="emergency-call-heading">
             <h2 id="emergency-call-heading" style="margin-top:0; color:#8b1e25;">Besoin d’appeler les secours ?</h2>
-            <p>En cas de danger immédiat en France, vous pouvez appeler le 15 ou le 112. Après votre choix, une deuxième confirmation est obligatoire. Les aidants actifs enregistrés seront informés ; les SMS et e-mails dépendent de leurs préférences. L’application ouvre le composeur du téléphone, mais ne peut pas vérifier que l’appel a été passé ou abouti.</p>
+            <p>Choisissez un numéro, puis confirmez. Les aidants actifs seront informés selon leurs préférences. Vous devrez lancer l’appel sur votre téléphone.</p>
+            <details class="senior-disclosure senior-explanation">
+                <summary>Explications sur l’appel</summary>
+                <p>En cas de danger immédiat en France, vous pouvez appeler le 15 ou le 112. Après votre choix, une deuxième confirmation est obligatoire. Les aidants actifs enregistrés seront informés ; les SMS et e-mails dépendent de leurs préférences. L’application ouvre le composeur du téléphone, mais ne peut pas vérifier que l’appel a été passé ou abouti.</p>
+            </details>
             <div class="emergency-call-actions">
                 <button type="button" data-emergency-number="15">Appeler le 15</button>
                 <button type="button" data-emergency-number="112">Appeler le 112</button>
             </div>
             <div id="emergency-call-confirmation" class="emergency-confirmation" hidden>
                 <h3 id="emergency-call-confirmation-title">Confirmer l’appel</h3>
-                <p>Confirmez une deuxième fois pour préparer l’alerte aux aidants et ouvrir le composeur. Pour confirmer par la voix, dites : « Je confirme l’appel d’urgence ».</p>
-                <p class="helper-text">La confirmation vocale dépend du navigateur et peut être traitée par son fournisseur ; Génération Liaison ne conserve pas l’audio. Le bouton de confirmation reste disponible.</p>
+                <p>Confirmez pour préparer l’alerte aux aidants et ouvrir le téléphone. Lancez ensuite l’appel.</p>
+                <details class="senior-disclosure senior-explanation">
+                    <summary>Explications sur la confirmation vocale</summary>
+                    <p class="helper-text">Pour confirmer par la voix, dites : « Je confirme l’appel d’urgence ». La confirmation vocale dépend du navigateur et peut être traitée par son fournisseur ; Génération Liaison ne conserve pas l’audio. Le bouton de confirmation reste disponible.</p>
+                </details>
                 <div class="emergency-call-actions">
-                    <button type="button" id="emergency-call-confirm-click">Je confirme et continue</button>
+                    <button type="button" id="emergency-call-confirm-click">Confirmer et ouvrir le téléphone</button>
                     <button type="button" id="emergency-call-confirm-voice">Confirmer par la voix</button>
                     <button type="button" id="emergency-call-cancel" style="background:#5b6573;">Annuler</button>
                 </div>
             </div>
+            <p id="emergency-call-status" class="helper-text" role="status" aria-live="polite"></p>
             <div id="emergency-call-next-action" class="emergency-confirmation" hidden>
-                <p id="emergency-call-status" class="helper-text" role="status" aria-live="polite"></p>
                 <div class="emergency-call-actions">
                     <a id="emergency-call-link" href="tel:112">Ouvrir le composeur</a>
                 </div>
@@ -2153,6 +2160,7 @@
         callLink.href = `tel:${number}`;
         callLink.textContent = `Continuer vers l’appel au ${number}`;
         confirmation.hidden = true;
+        confirmation.querySelectorAll('button').forEach(button => { button.disabled = false; });
         nextAction.hidden = false;
         if (!outcome) {
             status.textContent = 'La demande d’alerte est encore en cours. Vous pouvez ouvrir le composeur sans attendre ; l’application poursuit l’envoi.';
