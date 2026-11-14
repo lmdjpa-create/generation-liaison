@@ -471,6 +471,8 @@ test('consent, suspension, administrator email and confirmation protect senior d
   assert.equal((await request(`/api/senior-links/requests/${acceptedId}/decision`, {
     user: senior, body: { decision: 'accept' }
   })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: senior })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: aidant })).status, 200);
   assert.equal((await request('/api/logs/all', { user: aidant, seniorId })).status, 200);
 
   assert.equal((await request('/api/senior-links/removals', {

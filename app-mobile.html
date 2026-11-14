@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Génération Liaison - Mobile</title>
     <script src="/language.js"></script>
     <script src="/geolocation-client.js"></script>
@@ -92,6 +92,8 @@
         .visit-notes-button { width: 100%; margin-top: 10px; padding: 11px 12px; border: 1px solid #2c3e50; border-radius: 8px; color: #2c3e50; background: #fff; font-weight: bold; cursor: pointer; }
         .visit-progress button:disabled, .form-card button:disabled { opacity: 0.55; cursor: not-allowed; }
         .form-card { margin: 14px 0; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.05); text-align: left; }
+        .senior-disclosure > summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
+        .senior-explanation > summary { color: #155e48; }
         .emergency-call-card { border: 2px solid #b42318; background: #fff7f6; }
         .emergency-call-actions { display: flex; flex-wrap: wrap; gap: 10px; }
         .emergency-call-actions button { min-height: 52px; flex: 1 1 140px; background: #b42318; }
@@ -266,6 +268,59 @@
         .aidant-avatar { display: grid; place-items: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-dark); font-size: 1.5rem; }
         .aidant-greeting h2 { margin: 0; font-size: 1.25rem; color: var(--ink); }
         .aidant-greeting p { margin: 2px 0 0; color: #3f6a5c; font-size: 0.9rem; }
+        #main-app-senior button, #main-app-senior .senior-disclosure > summary,
+        #main-app-senior .emergency-call-actions a {
+            box-sizing: border-box;
+            min-height: 56px;
+            padding: 14px 18px;
+            font-size: 1.125rem;
+            line-height: 1.3;
+        }
+        #main-app-senior button:focus-visible, #main-app-senior summary:focus-visible,
+        #main-app-senior .emergency-call-actions a:focus-visible {
+            outline: 3px solid #163b72;
+            outline-offset: 3px;
+        }
+        #main-app-senior .form-card button:not(.rating-pill) { background: #17684f; color: white; }
+        #main-app-senior .form-card .emergency-call-actions button { background: #981b1b; }
+        #main-app-senior .form-card .notification-actions button.decline { background: #8b1e25; }
+        #main-app-senior .next-visit-card button { color: #155e48; }
+        #main-app-senior .btn-video { background: #59428c; animation: none; }
+        #main-app-senior .btn-success { background: #17684f; }
+        #main-app-senior .btn-danger { background: #a32222 !important; }
+        #main-app-senior .senior-logout { background: white; color: #8b1e25; border: 2px solid #8b1e25; border-radius: 12px; font-weight: 700; cursor: pointer; }
+        #main-app-senior .senior-disclosure > summary { display: list-item; }
+        body.senior-mode :is(#screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button,
+        body.senior-mode #screen-settings summary {
+            box-sizing: border-box;
+            min-height: 56px;
+            padding: 14px 18px;
+            font-size: 1.125rem;
+            line-height: 1.3;
+        }
+        body.senior-mode :is(#screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button:focus-visible,
+        body.senior-mode #screen-settings summary:focus-visible,
+        body.senior-mode .nav-item:focus-visible {
+            outline: 3px solid #163b72;
+            outline-offset: 3px;
+        }
+        body.senior-mode :is(#screen-settings, #screen-agenda, #screen-directory) .form-card button:not(.rating-pill),
+        body.senior-mode #screen-contacts :is(#add-app-contact-form, .directory-result) button {
+            background: #17684f;
+            color: white;
+        }
+        body.senior-mode #screen-settings .form-card .account-closure button { background: #8b1e25; }
+        body.senior-mode #screen-agenda :is(.calendar-toolbar, .calendar-day) button[aria-pressed="true"] {
+            background: #17684f;
+            color: white;
+        }
+        body.senior-mode #screen-video-call .btn-danger { background: #a32222 !important; }
+        body.senior-mode .nav-item { min-height: 56px; flex-basis: 76px; font-size: 0.875rem; }
+        @media (max-width: 480px) {
+            #main-app-senior .action-tiles { grid-template-columns: 1fr; }
+            #main-app-senior .action-tile { flex-direction: row; text-align: left; }
+            #main-app-senior .next-visit-card { flex-wrap: wrap; }
+        }
     </style>
 </head>
 <body>
@@ -274,26 +329,6 @@
 
 <!-- 📱 1. INTERFACE SÉNIOR (Avec Authentification) -->
 <div id="screen-senior" class="screen-container active" style="background-color: var(--senior-bg);">
-    <section class="form-card" id="notifications-panel-senior" style="display:none;">
-        <h3>Notifications</h3>
-        <div id="notification-opened-senior" aria-live="polite"></div>
-        <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
-        <div id="messages-senior">
-            <h3>Messages avec mes contacts</h3>
-            <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
-            <label for="message-contact-senior">Correspondant</label>
-            <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
-            <button type="button" onclick="ouvrirConversation('senior')">Ouvrir les messages</button>
-            <div id="message-list-senior" aria-live="polite"></div>
-            <form id="message-form-senior">
-                <label for="message-text-senior">Votre message</label>
-                <textarea id="message-text-senior" maxlength="2000" required></textarea>
-                <button type="submit">Envoyer</button>
-            </form>
-            <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
-        </div>
-    </section>
-
     <div id="auth-box" class="card">
 
         <!-- Bloc Connexion -->
@@ -398,10 +433,10 @@
             <button type="button" onclick="switchScreen('agenda')">Voir l’agenda</button>
         </section>
         <div class="action-tiles">
-            <button type="button" class="action-tile" onclick="switchScreen('agenda')"><span class="tile-icon" style="background:#e6f4ee;">📅</span>Prendre un rendez-vous</button>
-            <button type="button" class="action-tile" onclick="document.getElementById('senior-person-note-form').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" style="background:#e8f1fb;">💬</span>Partager un message</button>
-            <button type="button" class="action-tile" onclick="switchScreen('settings')"><span class="tile-icon" style="background:#fdf1dc;">📄</span>Mes documents</button>
-            <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" style="background:#f3e8fa;">🩺</span>Contacter un professionnel</button>
+            <button type="button" class="action-tile" onclick="switchScreen('agenda')"><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Mon agenda</button>
+            <button type="button" class="action-tile" onclick="document.getElementById('senior-person-note-form').scrollIntoView({behavior:'smooth'})"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Écrire à l’équipe</button>
+            <button type="button" class="action-tile" onclick="switchScreen('settings')"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">📄</span>Mes réglages</button>
+            <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🩺</span>Trouver un professionnel</button>
         </div>
 
         <section class="form-card emergency-call-card" aria-labelledby="emergency-call-heading">
@@ -428,9 +463,36 @@
                 </div>
             </div>
         </section>
+        <section class="form-card" id="notifications-panel-senior" style="display:none;">
+            <details class="senior-disclosure" id="notifications-list-senior">
+                <summary>Notifications</summary>
+                <div id="notification-opened-senior" aria-live="polite"></div>
+                <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
+            </details>
+            <details class="senior-disclosure" id="messages-senior">
+                <summary>Messages avec mes contacts</summary>
+                <details class="senior-disclosure senior-explanation">
+                    <summary>Explications</summary>
+                    <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
+                </details>
+                <label for="message-contact-senior">Correspondant</label>
+                <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
+                <button type="button" onclick="ouvrirConversation('senior')">Ouvrir les messages</button>
+                <div id="message-list-senior" aria-live="polite"></div>
+                <form id="message-form-senior">
+                    <label for="message-text-senior">Votre message</label>
+                    <textarea id="message-text-senior" maxlength="2000" required></textarea>
+                    <button type="submit">Envoyer</button>
+                </form>
+                <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
+            </details>
+        </section>
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
             <h2 style="margin-top:0;">Comment allez-vous aujourd’hui ?</h2>
-            <p class="helper-text">Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit ; vous pourrez aussi écouter sa réponse.</p>
+            <details class="senior-disclosure senior-explanation">
+                <summary>Explications</summary>
+                <p class="helper-text">Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit ; vous pourrez aussi écouter sa réponse.</p>
+            </details>
             <button type="button" id="wellbeing-question-speak">🔊 Écouter la question</button>
             <div class="schedule-notice" role="note">Cette fonction n’est pas un service d’urgence et ne surveille pas votre sécurité. En cas de danger immédiat, appelez le 112 ou le 15.</div>
             <form id="wellbeing-checkin-form" class="form-grid">
@@ -444,14 +506,17 @@
                     <div id="wellbeing-aidant-contacts" aria-live="polite">Chargement des aidants…</div>
                     <label class="notification-choice"><input type="checkbox" id="wellbeing-share-confirmation"> Je confirme l’envoi de ma réponse aux aidants sélectionnés.</label>
                 </fieldset>
-                <button type="submit" id="wellbeing-checkin-submit">Envoyer mon check-in</button>
+                <button type="submit" id="wellbeing-checkin-submit">Envoyer ma réponse</button>
             </form>
             <p id="wellbeing-checkin-status" class="helper-text" role="status" aria-live="polite"></p>
             <div id="wellbeing-checkin-result" aria-live="polite" hidden></div>
         </section>
         <section class="form-card" style="text-align:left;">
             <h3 style="margin-top:0;">Suivi des interventions</h3>
-            <p class="helper-text">Consultez les étapes de visite communiquées par vos intervenants.</p>
+            <details class="senior-disclosure senior-explanation">
+                <summary>Explications</summary>
+                <p class="helper-text">Consultez les étapes de visite communiquées par vos intervenants.</p>
+            </details>
             <div id="senior-live-following" aria-live="polite">Chargement du suivi…</div>
             <div id="senior-sharing-consents" style="margin-top:12px;"></div>
             <form id="senior-person-note-form" class="form-grid" style="margin-top:14px;">
@@ -483,17 +548,20 @@
         </section>
         <section class="form-card" style="text-align:left;">
             <h3 style="margin-top:0;">Services du quotidien</h3>
-            <p class="helper-text">Repas, coiffure et ménage à domicile, séparément des soins. Le prestataire ne reçoit que les coordonnées nécessaires à un rendez-vous confirmé. Aucun renseignement médical ne lui est transmis. Les tarifs et paiements ne sont pas encore configurés : aucune somme n’est prélevée par l’application.</p>
+            <details class="senior-disclosure senior-explanation">
+                <summary>Explications</summary>
+                <p class="helper-text">Repas, coiffure et ménage à domicile, séparément des soins. Le prestataire ne reçoit que les coordonnées nécessaires à un rendez-vous confirmé. Aucun renseignement médical ne lui est transmis. Les tarifs et paiements ne sont pas encore configurés : aucune somme n’est prélevée par l’application.</p>
+            </details>
             <div id="senior-service-area" aria-live="polite">Chargement des services…</div>
         </section>
         <button class="btn-gros btn-video" onclick="declencherVisio()">📞 APPELER EN VIDÉO</button>
         <div style="background: #e8f4f8; border-left: 6px solid #3498db; padding: 15px; border-radius: 8px; font-size: 1.3rem; margin: 25px 0; text-align: left;">
-            ➔ <strong>12:00</strong> - Livraison du repas
+            Livraison de repas
         </div>
         <p style="font-size: 1.4rem; font-weight: bold; color: #34495e; margin-bottom: 5px;">Avez-vous reçu votre repas ?</p>
         <button class="btn-gros btn-success" onclick="actionSenior('Repas livré avec succès', 'meal_delivery')">👍 OUI, reçu</button>
         <button class="btn-gros btn-danger" onclick="actionSenior('Alerte : Repas non reçu', 'meal_delivery')">👎 NON, problème</button>
-        <button onclick="deconnecterUtilisateur()" style="background: none; border: none; color: #e74c3c; font-weight: bold; margin-top: 25px; cursor: pointer; font-size: 1rem;">Se déconnecter</button>
+        <button type="button" class="senior-logout" onclick="deconnecterUtilisateur()">Se déconnecter</button>
     </div>
 </div>
 
@@ -1164,7 +1232,7 @@
                 );
                 button.type = 'button';
                 button.disabled = !hasPremiumAccess();
-                button.addEventListener('click', () => declencherVisio(contact));
+                button.addEventListener('click', () => appelerContactEnVisio(contact));
                 card.append(button);
                 const remove = makeTextElement('button', 'Retirer ce contact', 'visit-notes-button');
                 remove.type = 'button';
@@ -1186,7 +1254,7 @@
         }
     }
 
-    function terminerAppelVideo() {
+    function terminerAppelVideo(notify = true) {
         if (videoCallState.callFrame) {
             try {
                 if (typeof videoCallState.callFrame.leave === 'function') {
@@ -1213,11 +1281,11 @@
         const remote = document.getElementById('remote-video');
         if (local) local.replaceChildren();
         if (remote) remote.replaceChildren();
-        showToast('Appel terminé');
+        if (notify) showToast('Appel terminé');
         switchScreen('contacts');
     }
 
-    async function declencherVisio(contact = null) {
+    async function appelerContactEnVisio(contact) {
         if (!connectedUser) {
             showToast('Connectez-vous pour lancer un appel.', false);
             return;
@@ -1275,41 +1343,8 @@
             throw new Error('Le SDK Daily n’est pas disponible pour cette session.');
         } catch (error) {
             console.warn('Appel visio premium impossible avec Daily :', error);
-            setVideoCallPlaceholder(targetName, 'placeholder');
-            showToast('Appel lancé en mode local. Vérifiez votre accès Daily et les autorisations.', true);
-            try {
-                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error('La caméra / le micro ne sont pas disponibles sur cet appareil.');
-                }
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
-                    audio: true
-                });
-                videoCallState.localStream = stream;
-                const localVideo = document.createElement('video');
-                localVideo.srcObject = stream;
-                localVideo.autoplay = true;
-                localVideo.muted = true;
-                localVideo.playsInline = true;
-                localVideo.style.width = '100%';
-                localVideo.style.height = '100%';
-                localVideo.style.objectFit = 'cover';
-                const localContainer = document.getElementById('local-video');
-                localContainer.replaceChildren(localVideo);
-                const waitingText = document.createElement('div');
-                waitingText.textContent = `Connexion avec ${targetName}…`;
-                waitingText.style.display = 'flex';
-                waitingText.style.alignItems = 'center';
-                waitingText.style.justifyContent = 'center';
-                waitingText.style.height = '100%';
-                waitingText.style.fontSize = '1.2rem';
-                waitingText.style.fontWeight = '700';
-                waitingText.style.color = '#e2e8f0';
-                document.getElementById('remote-video').append(waitingText);
-            } catch (localError) {
-                console.warn('Appel visio impossible avec les médias locaux :', localError);
-                showToast('Appel lancé en mode sans caméra. Vérifiez les autorisations.', true);
-            }
+            terminerAppelVideo(false);
+            showToast(error.message || 'Impossible de lancer l’appel vidéo.', false);
         }
     }
 
@@ -1438,8 +1473,32 @@
     function ouvrirNotifications() {
         if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
         switchScreen(connectedUser.role);
+        if (connectedUser.role === 'senior') {
+            document.getElementById('notifications-list-senior').open = true;
+        }
         const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
         if (panel) panel.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function configurerExplicationsSenior() {
+        document.querySelectorAll('#main-app-senior .senior-explanation').forEach(details => {
+            const summary = details.querySelector('summary');
+            let timer;
+            const annulerOuverture = () => {
+                clearTimeout(timer);
+                timer = null;
+            };
+            summary.addEventListener('pointerenter', event => {
+                if (event.pointerType === 'touch' || details.open) return;
+                annulerOuverture();
+                timer = setTimeout(() => {
+                    details.open = true;
+                    timer = null;
+                }, 2000);
+            });
+            summary.addEventListener('pointerleave', annulerOuverture);
+            details.addEventListener('toggle', annulerOuverture);
+        });
     }
 
     function ouvrirAgenda() {
@@ -1611,6 +1670,7 @@
         if (connectedUser?.id !== user.id) wellbeingLoadedDate = null;
         connectedUser = user;
         currentUser = user;
+        document.body.classList.toggle('senior-mode', user.role === 'senior');
         const pendingProfessional = user.role === 'pro' && user.verificationStatus !== 'approved';
         const pendingGuardian = user.role === 'aidant' && user.isLegalGuardian &&
             user.guardianVerificationStatus !== 'approved';
@@ -2115,6 +2175,7 @@
         result.replaceChildren();
         if (!checkin) {
             form.hidden = false;
+            document.getElementById('wellbeing-checkin-submit').disabled = false;
             result.hidden = true;
             return;
         }
@@ -4569,7 +4630,7 @@
     }
 
     function configurerFormulairesInformationsPersonne() {
-        ['senior', 'aidant', 'pro'].forEach(role => {
+        ['senior', 'aidant'].forEach(role => {
             const form = document.getElementById(`${role}-person-note-form`);
             form.addEventListener('submit', async event => {
                 event.preventDefault();
@@ -4963,6 +5024,7 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
+        document.body.classList.remove('senior-mode');
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');
         directoryLocation = null;
@@ -4974,6 +5036,8 @@
             document.getElementById(`notification-settings-${role}`).style.display = 'none';
             document.getElementById(`notification-opened-${role}`).replaceChildren();
         });
+        document.getElementById('notifications-list-senior').open = false;
+        document.getElementById('messages-senior').open = false;
         ['senior', 'aidant'].forEach(role => {
             document.getElementById(`message-contact-${role}`).replaceChildren();
             document.getElementById(`message-list-${role}`).replaceChildren();
@@ -5272,6 +5336,7 @@
         configurerFormulairesInformationsPersonne();
         configurerPreferencesNotification();
         configurerAnnuaire();
+        configurerExplicationsSenior();
         let pendingNotificationId = new URLSearchParams(window.location.search).get('notification') || '';
         window.handlePendingNotification = async () => {
             const id = window.pendingPushNotificationId || pendingNotificationId;
@@ -5286,6 +5351,9 @@
                 const notification = await seniorLinksRequest(`/api/notifications/open/${encodeURIComponent(id)}`);
                 const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
                 const opened = document.getElementById(`notification-opened-${connectedUser.role}`);
+                if (connectedUser.role === 'senior') {
+                    document.getElementById('notifications-list-senior').open = true;
+                }
                 const card = document.createElement('article');
                 card.className = 'notification-card';
                 card.append(makeTextElement('strong', notification.title));
@@ -5304,6 +5372,7 @@
                         return;
                     }
                     if (!await ouvrirConversation(role, notification.entityId)) return;
+                    if (role === 'senior') document.getElementById('messages-senior').open = true;
                     document.getElementById(`messages-${role}`).scrollIntoView({ behavior: 'smooth' });
                 } else {
                     await seniorLinksRequest(`/api/notifications/${encodeURIComponent(id)}`, {

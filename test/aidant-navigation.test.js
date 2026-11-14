@@ -45,9 +45,14 @@ function createView(response) {
     return elements.get(id);
   };
   const calls = [];
+  const bodyClasses = new Set();
   const context = {
     console: { error() {} },
     document: {
+      body: { classList: {
+        toggle(value, enabled) { if (enabled) bodyClasses.add(value); else bodyClasses.delete(value); },
+        contains: value => bodyClasses.has(value)
+      } },
       getElementById: element,
       querySelector: element,
       querySelectorAll: () => []
@@ -95,7 +100,7 @@ function createView(response) {
       'globalThis.openView = setAuthenticatedView; globalThis.openScreen = switchScreen; globalThis.openAgenda = ouvrirAgenda;',
     context
   );
-  return { context, element, calls };
+  return { context, element, calls, bodyClasses };
 }
 
 test('an aidant without a linked senior can use account navigation without loading senior data', async () => {
@@ -143,6 +148,18 @@ test('settings are separate and only the current role’s account panels are sho
     assert.ok(element('screen-agenda').classList.contains('active'));
     assert.ok(element('nav-agenda').classList.contains('active'));
   }
+});
+
+test('senior button styling applies across tabs and is removed for other roles', async () => {
+  const { context, bodyClasses } = createView({ seniors: [] });
+  await context.openView({ id: 'senior', role: 'senior' });
+  assert.equal(bodyClasses.has('senior-mode'), true);
+  context.openAgenda();
+  assert.equal(bodyClasses.has('senior-mode'), true);
+  await context.openView({ id: 'aidant', role: 'aidant' });
+  assert.equal(bodyClasses.has('senior-mode'), false);
+  await context.openView({ id: 'pro', role: 'pro', verificationStatus: 'approved' });
+  assert.equal(bodyClasses.has('senior-mode'), false);
 });
 
 test('pending guardian can open settings and return to verification without profile access', async () => {

@@ -176,6 +176,11 @@
     'Aucun senior associé pour le moment': 'No senior linked yet',
     '✅ Action enregistrée !': '✅ Action saved!',
     'Notifications': 'Notifications',
+    'Explications': 'More information',
+    'Écrire à l’équipe': 'Write to the team',
+    'Mes réglages': 'My settings',
+    'Trouver un professionnel': 'Find a professional',
+    'Envoyer ma réponse': 'Send my answer',
     'Chargement des notifications…': 'Loading notifications…',
     'Mes préférences de notification': 'My notification preferences',
     'Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).':
