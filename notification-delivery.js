@@ -112,6 +112,16 @@ function safeMessage(title) {
   return `Génération Liaison : ${title}. Connectez-vous à l’application pour consulter les détails.`;
 }
 
+function notificationUrl(notificationId) {
+  const base = new URL(process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com');
+  if (base.protocol !== 'https:' || base.username || base.password) {
+    throw new Error('PUBLIC_APP_URL doit être une URL HTTPS valide.');
+  }
+  const url = new URL('/app-mobile.html', base);
+  url.searchParams.set('notification', notificationId);
+  return url.toString();
+}
+
 async function sendPush(delivery) {
   const subscriptions = delivery.subscriptions || [];
   if (!subscriptions.length) return false;
@@ -130,7 +140,7 @@ async function sendPush(delivery) {
       notification: { title: delivery.title, body: safeMessage(delivery.title) },
       data: {
         notificationId: delivery.notification_id,
-        url: '/app-mobile.html'
+        url: `/app-mobile.html?notification=${encodeURIComponent(delivery.notification_id)}`
       }
     });
     const invalidTokens = result.responses
@@ -157,7 +167,10 @@ async function sendPush(delivery) {
     const payload = JSON.stringify({
       title: delivery.title,
       body: safeMessage(delivery.title),
-      data: { notificationId: delivery.notification_id, url: '/app-mobile.html' }
+      data: {
+        notificationId: delivery.notification_id,
+        url: `/app-mobile.html?notification=${encodeURIComponent(delivery.notification_id)}`
+      }
     });
     const results = await Promise.allSettled(webSubscriptions.map(({ subscription }) =>
       webPush.sendNotification(subscription, payload)
@@ -187,7 +200,7 @@ async function deliver(delivery) {
     if (!delivery.sms_enabled || !delivery.phone) return false;
     const client = getTwilioClient();
     await client.messages.create({
-      body: safeMessage(delivery.title),
+      body: `${safeMessage(delivery.title)} ${notificationUrl(delivery.notification_id)}`,
       from: process.env.TWILIO_FROM_NUMBER,
       to: delivery.phone
     });
@@ -200,8 +213,7 @@ async function deliver(delivery) {
       from: process.env.NOTIFICATIONS_FROM_EMAIL,
       to: delivery.email,
       subject: delivery.title,
-      text: safeMessage(delivery.title),
-      html: `<p>${safeMessage(delivery.title)}</p><p><a href="${process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com'}/app-mobile.html">Ouvrir Génération Liaison</a></p>`
+      text: `${safeMessage(delivery.title)}\n\n${notificationUrl(delivery.notification_id)}`
     });
     if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
     return true;

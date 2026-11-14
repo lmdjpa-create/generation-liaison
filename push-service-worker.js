@@ -13,9 +13,18 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || '/app-mobile.html', self.location.origin).href;
+  const target = new URL('/app-mobile.html', self.location.origin);
+  const notificationId = event.notification.data?.notificationId;
+  if (notificationId) target.searchParams.set('notification', notificationId);
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
-    const existing = clients.find(client => client.url === targetUrl);
-    return existing ? existing.focus() : self.clients.openWindow(targetUrl);
+    const existing = clients.find(client => {
+      const url = new URL(client.url);
+      return url.origin === target.origin && url.pathname === target.pathname;
+    });
+    if (existing) {
+      existing.postMessage({ type: 'notification-opened', notificationId });
+      return existing.focus();
+    }
+    return self.clients.openWindow(target.href);
   }));
 });

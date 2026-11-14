@@ -73,7 +73,7 @@ function createView(response) {
     afficherAccueilSenior() {},
     updatePlanningDateTitle() {},
     ...Object.fromEntries([
-      'chargerNotifications', 'chargerPreferencesNotification', 'chargerLogs',
+      'chargerNotifications', 'chargerPreferencesNotification', 'chargerCorrespondants', 'chargerLogs',
       'chargerCheckinsPartages', 'chargerSuiviPartage', 'chargerConsentements',
       'chargerServicesFamiliaux', 'chargerAnnuaire', 'chargerDirectoryBookings',
       'chargerContacts', 'chargerGestionAssociations', 'chargerDirectoryProfile',
