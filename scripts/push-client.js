@@ -10,12 +10,16 @@ if (window.Capacitor?.isNativePlatform()) {
   }).catch(error => console.error('Impossible de suivre l’ouverture des notifications :', error));
 }
 
-window.registerNativePush = async (serverUrl, sessionToken) => {
+window.requestNativePushPermission = async (automatic = false) => {
   let permission = await PushNotifications.checkPermissions();
-  if (permission.receive !== 'granted') {
+  if (permission.receive !== 'granted' && (!automatic || permission.receive === 'prompt')) {
     permission = await PushNotifications.requestPermissions();
   }
-  if (permission.receive !== 'granted') {
+  return permission.receive;
+};
+
+window.registerNativePush = async (serverUrl, sessionToken) => {
+  if (await window.requestNativePushPermission() !== 'granted') {
     throw new Error('Autorisez les notifications dans les réglages de votre appareil.');
   }
 

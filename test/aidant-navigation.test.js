@@ -80,6 +80,7 @@ function createView(response) {
     updatePlanningDateTitle() {},
     ...Object.fromEntries([
       'chargerNotifications', 'chargerPreferencesNotification', 'chargerCorrespondants', 'chargerLogs',
+      'demanderNotificationsAutomatiquement',
       'chargerCheckinsPartages', 'chargerSuiviPartage', 'chargerConsentements',
       'chargerServicesFamiliaux', 'chargerAnnuaire', 'chargerDirectoryBookings',
       'chargerContacts', 'chargerGestionAssociations', 'chargerDirectoryProfile',

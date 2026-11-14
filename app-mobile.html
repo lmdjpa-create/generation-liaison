@@ -862,7 +862,10 @@
       </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-senior" style="display:none;">
-      <details class="senior-tab-disclosure">
+      <button type="button" class="enable-push-button" data-role="senior" disabled>Activer les notifications sur cet appareil</button>
+      <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
+      <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
+      <details class="senior-tab-disclosure" id="senior-notification-preferences">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Mes préférences de notification</summary>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="senior">
@@ -872,11 +875,12 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="senior">Activer les notifications push</button>
-        <p class="helper-text push-status" aria-live="polite"></p>
       </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
+        <button type="button" class="enable-push-button" data-role="aidant" disabled>Activer les notifications sur cet appareil</button>
+        <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
+        <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
         <h3>Mes préférences de notification</h3>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="aidant">
@@ -886,10 +890,11 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="aidant">Activer les notifications push</button>
-        <p class="helper-text push-status" aria-live="polite"></p>
     </section>
 <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
+        <button type="button" class="enable-push-button" data-role="pro" disabled>Activer les notifications sur cet appareil</button>
+        <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
+        <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
         <h3>Mes préférences de notification</h3>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="pro">
@@ -899,8 +904,6 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
-        <button type="button" class="enable-push-button" data-role="pro">Activer les notifications push</button>
-        <p class="helper-text push-status" aria-live="polite"></p>
     </section>
 <section class="form-card" style="text-align:left;" id="settings-senior-links">
           <details class="senior-tab-disclosure">
@@ -1810,6 +1813,8 @@
             ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
         document.getElementById('nav-agenda').style.display =
             ['senior', 'aidant', 'pro'].includes(user.role) && !pendingAccess ? 'flex' : 'none';
+
+        demanderNotificationsAutomatiquement(user);
 
         if (pendingProfessional) {
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
@@ -3150,6 +3155,39 @@
         showToast(window.generationLiaisonTranslate('Justificatifs transmis. Votre dossier est en attente de vérification.'));
     }
 
+    async function demanderNotificationsAutomatiquement(user) {
+        const requestKey = `generation-liaison-push-requested-${user.id}`;
+        if (localStorage.getItem(requestKey) || localStorage.getItem('pushWasDisabled') ||
+            localStorage.getItem(PUSH_TOKEN_KEY)) return;
+        const platform = window.Capacitor?.getPlatform?.();
+        const native = platform === 'android' || platform === 'ios';
+        if (native ? typeof window.requestNativePushPermission !== 'function' :
+            !('serviceWorker' in navigator) || !('PushManager' in window) ||
+            !('Notification' in window) || Notification.permission !== 'default') return;
+        try {
+            const configuration = await planningRequest('/api/notifications/config');
+            if (connectedUser?.id !== user.id || localStorage.getItem(requestKey) ||
+                localStorage.getItem('pushWasDisabled') || localStorage.getItem(PUSH_TOKEN_KEY)) return;
+            if (!(native ? configuration.channels.nativePush : configuration.channels.webPush)) return;
+            localStorage.setItem(requestKey, '1');
+            const permission = native
+                ? await window.requestNativePushPermission(true)
+                : await Notification.requestPermission();
+            if (connectedUser?.id !== user.id) return;
+            const status = document.querySelector(`#notification-settings-${user.role} .push-status`);
+            if (permission === 'granted') {
+                status.textContent = 'Autorisation accordée. Activez les notifications dans les réglages.';
+                showToast(status.textContent);
+            } else if (permission === 'denied') {
+                status.textContent = 'Les notifications ne sont pas autorisées. Vous pouvez les activer dans les réglages de votre appareil.';
+            } else {
+                status.textContent = 'La demande n’a pas abouti. Utilisez le bouton d’activation dans les réglages et autorisez les notifications si nécessaire.';
+            }
+        } catch (error) {
+            console.error('Demande automatique des notifications impossible :', error);
+        }
+    }
+
     async function chargerPreferencesNotification() {
         if (!connectedUser) return;
         const role = connectedUser.role;
@@ -3177,10 +3215,10 @@
             const pushRegistered = Boolean(localStorage.getItem(PUSH_TOKEN_KEY));
             pushButton.disabled = !pushConfigured && !pushRegistered;
             pushButton.textContent = pushRegistered
-                ? 'Désactiver les notifications sur ce téléphone'
+                ? 'Désactiver les notifications sur cet appareil'
                 : localStorage.getItem('pushWasDisabled')
-                    ? 'Réactiver les notifications push'
-                    : 'Activer les notifications push';
+                    ? 'Réactiver les notifications sur cet appareil'
+                    : 'Activer les notifications sur cet appareil';
             status.textContent = pushRegistered
                 ? 'Cet appareil est inscrit pour les notifications push.'
                 : pushConfigured
@@ -3230,6 +3268,7 @@
                     token: JSON.stringify(subscription.toJSON())
                 }));
             }
+            localStorage.removeItem('pushWasDisabled');
             status.textContent = 'Notifications push activées sur cet appareil.';
             await chargerPreferencesNotification();
             showToast('Notifications push activées');

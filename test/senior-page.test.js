@@ -180,6 +180,135 @@ test('senior notifications and messages start collapsed immediately after emerge
   assert.match(source, /<details class="senior-disclosure" id="messages-senior">/);
 });
 
+test('device notifications can be enabled directly in each account settings', () => {
+  const section = extract('<section class="form-card" id="notifications-panel-senior"', '<section class="form-card" id="wellbeing-checkin-panel"');
+  assert.doesNotMatch(section, /enable-push-button|ouvrirNotificationsSurAppareil/);
+  for (const [role, next] of [['senior', 'aidant'], ['aidant', 'pro'], ['pro', null]]) {
+    const start = source.indexOf(`<section class="form-card notification-settings" id="notification-settings-${role}"`);
+    const end = next ? source.indexOf(`<section class="form-card notification-settings" id="notification-settings-${next}"`, start) : source.indexOf('<section class="form-card" style="text-align:left;" id="settings-senior-links">', start);
+    assert.ok(start >= 0 && end > start);
+    const preferences = source.slice(start, end);
+    assert.match(preferences, new RegExp(`<button[^>]*class="enable-push-button"[^>]*data-role="${role}"[^>]*disabled[^>]*>Activer les notifications sur cet appareil</button>`));
+    assert.match(preferences, /l’application est fermée/);
+    assert.match(preferences, /La déconnexion les désactive/);
+  }
+});
+
+test('notification activation is offered only when the server is configured', async () => {
+  const inputs = new Map();
+  const form = { querySelector: key => {
+    if (!inputs.has(key)) inputs.set(key, {});
+    return inputs.get(key);
+  } };
+  const button = {};
+  const pushStatus = {};
+  const channelStatus = {};
+  let configured = false;
+  const context = {
+    connectedUser: { role: 'senior' },
+    document: { querySelector: selector => {
+      if (selector.startsWith('.notification-preferences-form')) return form;
+      if (selector.startsWith('.enable-push-button')) return button;
+      return selector.endsWith('.push-status') ? pushStatus : channelStatus;
+    } },
+    window: {},
+    localStorage: { getItem: () => null },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async url => url.endsWith('/preferences')
+      ? { phone: '', emailEnabled: false, smsEnabled: false }
+      : { channels: { email: false, sms: false, webPush: configured } }
+  };
+  vm.runInNewContext(
+    `${extract('    async function chargerPreferencesNotification()', '    async function activerNotificationsPush(button)')}\n` +
+    'globalThis.loadPreferences = chargerPreferencesNotification;', context
+  );
+  for (const role of ['senior', 'aidant', 'pro']) {
+    context.connectedUser.role = role;
+    configured = false;
+    await context.loadPreferences();
+    assert.equal(button.disabled, true);
+    assert.match(pushStatus.textContent, /pas encore configuré/);
+    configured = true;
+    await context.loadPreferences();
+    assert.equal(button.disabled, false);
+    assert.equal(button.textContent, 'Activer les notifications sur cet appareil');
+  }
+});
+
+test('notification permission is requested once only when supported and configured', async () => {
+  const stored = new Map();
+  const status = {};
+  const calls = [];
+  const notification = { permission: 'default', requestPermission: async () => { calls.push('permission'); return 'granted'; } };
+  const context = {
+    connectedUser: { id: 'user-1', role: 'senior' },
+    navigator: { serviceWorker: {} },
+    window: { PushManager: {}, Notification: notification },
+    Notification: notification,
+    localStorage: {
+      getItem: key => stored.get(key) || null,
+      setItem: (key, value) => stored.set(key, value)
+    },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async () => ({ channels: { webPush: true } }),
+    document: { querySelector: () => status },
+    showToast: message => calls.push(message),
+    console
+  };
+  vm.runInNewContext(
+    `${extract('    async function demanderNotificationsAutomatiquement(user)', '    async function chargerPreferencesNotification()')}\n` +
+    'globalThis.requestAutomatically = demanderNotificationsAutomatiquement;', context
+  );
+  await context.requestAutomatically(context.connectedUser);
+  assert.equal(calls.filter(item => item === 'permission').length, 1);
+  assert.match(status.textContent, /Activez les notifications dans les réglages/);
+  await context.requestAutomatically(context.connectedUser);
+  assert.equal(calls.filter(item => item === 'permission').length, 1);
+  context.connectedUser = { id: 'user-2', role: 'aidant' };
+  stored.set('pushWasDisabled', '1');
+  await context.requestAutomatically(context.connectedUser);
+  stored.delete('pushWasDisabled');
+  notification.permission = 'denied';
+  await context.requestAutomatically(context.connectedUser);
+  assert.equal(calls.filter(item => item === 'permission').length, 1);
+  notification.permission = 'default';
+  context.planningRequest = async () => ({ channels: { webPush: false } });
+  await context.requestAutomatically(context.connectedUser);
+  assert.equal(calls.filter(item => item === 'permission').length, 1);
+  assert.equal(stored.has('generation-liaison-push-requested-user-2'), false);
+  context.planningRequest = async () => {
+    context.connectedUser = null;
+    return { channels: { webPush: true } };
+  };
+  await context.requestAutomatically({ id: 'user-2', role: 'aidant' });
+  assert.equal(calls.filter(item => item === 'permission').length, 1);
+});
+
+test('automatic native permission requests respect previously refused permissions', async () => {
+  const client = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'push-client.js'), 'utf8');
+  const start = client.indexOf('window.requestNativePushPermission = async');
+  const end = client.indexOf('window.registerNativePush = async', start);
+  assert.ok(start >= 0 && end > start);
+  let state = 'denied';
+  let requests = 0;
+  const context = {
+    window: {},
+    PushNotifications: {
+      checkPermissions: async () => ({ receive: state }),
+      requestPermissions: async () => { requests++; return { receive: 'granted' }; }
+    }
+  };
+  vm.runInNewContext(client.slice(start, end), context);
+  assert.equal(await context.window.requestNativePushPermission(true), 'denied');
+  assert.equal(requests, 0);
+  state = 'prompt-with-rationale';
+  assert.equal(await context.window.requestNativePushPermission(true), 'prompt-with-rationale');
+  assert.equal(requests, 0);
+  state = 'prompt';
+  assert.equal(await context.window.requestNativePushPermission(true), 'granted');
+  assert.equal(requests, 1);
+});
+
 test('emergency details are optional while numbers, confirmation and status stay accessible', () => {
   const emergency = extract('<section class="form-card emergency-call-card"', '<section class="form-card" id="notifications-panel-senior"');
   assert.match(emergency, /<details class="senior-disclosure senior-explanation">\s*<summary>Explications sur l’appel<\/summary>/);
