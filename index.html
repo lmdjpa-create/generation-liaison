@@ -689,7 +689,7 @@
 
     .landing-card {
       width: min(100%, 960px);
-      padding: clamp(30px, 7vw, 68px);
+      padding: clamp(20px, 4vw, 36px);
       border: 1px solid rgba(225, 233, 228, 0.9);
       border-radius: 28px;
       background: rgba(255, 255, 255, 0.92);
@@ -701,7 +701,7 @@
       display: inline-flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 30px;
+      margin-bottom: 16px;
       color: var(--text);
       font-size: 1rem;
       font-weight: 800;
@@ -817,7 +817,7 @@
 
     .landing-info {
       width: min(100%, 960px);
-      padding: clamp(24px, 5vw, 48px);
+      padding: clamp(16px, 3vw, 24px);
       border: 1px solid var(--border);
       border-radius: 28px;
       background: var(--panel);
@@ -843,7 +843,7 @@
     }
 
     .info-card {
-      padding: 20px;
+      padding: 10px 14px;
       border: 1px solid var(--border);
       border-radius: 16px;
       background: #f7faf8;
@@ -860,6 +860,23 @@
       color: #53665c;
       line-height: 1.6;
     }
+
+    .info-card summary {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--primary-dark);
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .info-card summary::after { content: "+"; font-size: 1.5rem; }
+    .info-card[open] summary::after { content: "−"; }
+    .info-card summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+    .info-card[open] summary { margin-bottom: 12px; }
 
     .info-card img {
       display: block;
@@ -924,79 +941,69 @@
       </div>
       <p class="landing-kicker">Le lien au quotidien</p>
       <h1 id="landing-title">Bien entouré, mieux accompagné</h1>
-      <p class="landing-description">
-        Un espace simple pour faciliter les échanges entre les seniors, leurs proches et les professionnels, avec un accès séparé aux services du quotidien.
-      </p>
-      <img class="landing-photo" src="/homepage-images/famille.jpg" width="1200" height="800" alt="Un couple de seniors partage un moment avec une proche." />
-      <ul class="landing-features" aria-label="Fonctionnalités">
-        <li>Suivi partagé</li>
-        <li>Carnet de liaison</li>
-        <li>Alertes et assistance</li>
-        <li>Services du quotidien</li>
-      </ul>
-      <a class="landing-app-link" href="#presentation">Découvrir Génération Liaison</a>
-      <a class="landing-app-link" href="#connexion">Se connecter</a>
+      <a class="landing-login" href="/app-mobile.html">Ouvrir l’application <span aria-hidden="true">→</span></a>
+      <a class="landing-app-link" href="#presentation">Découvrir nos propositions</a>
     </section>
 
     <section class="landing-info" id="presentation" aria-labelledby="presentation-title">
       <h2 id="presentation-title">Un lien pour mieux accompagner le quotidien</h2>
-      <p>Génération Liaison réunit des outils pour faciliter la communication et l’organisation entre les personnes concernées, dans le respect des accès autorisés.</p>
       <div class="info-grid">
-        <article class="info-card">
-          <h3>Pour les seniors</h3>
+        <details class="info-card">
+          <summary>Pour les seniors</summary>
           <p>Retrouvez un espace pour échanger avec vos proches et les professionnels autorisés, consulter vos rendez-vous et accéder aux services du quotidien.</p>
-        </article>
-        <article class="info-card">
-          <h3>Pour les proches et aidants</h3>
+        </details>
+        <details class="info-card">
+          <summary>Pour les proches et aidants</summary>
           <p>Gardez le lien grâce au carnet de liaison et aux informations partagées avec vous, et suivez les rendez-vous et les notifications selon vos accès.</p>
-        </article>
-        <article class="info-card">
-          <h3>Pour les professionnels</h3>
+        </details>
+        <details class="info-card">
+          <summary>Pour les professionnels</summary>
           <p>Échangez avec les personnes autorisées, contribuez au suivi du quotidien et gérez les demandes et rendez-vous qui vous concernent.</p>
-        </article>
+        </details>
       </div>
     </section>
 
     <section class="landing-info" aria-labelledby="features-title">
       <h2 id="features-title">Des outils pour rester en lien</h2>
       <div class="info-grid">
-        <article class="info-card">
-          <h3>Carnet de liaison</h3>
+        <details class="info-card">
+          <summary>Carnet de liaison</summary>
           <p>Partagez des notes et des informations utiles au quotidien avec les personnes autorisées.</p>
-        </article>
-        <article class="info-card">
-          <h3>Rendez-vous et services</h3>
+        </details>
+        <details class="info-card">
+          <summary>Rendez-vous et services</summary>
           <p>Consultez les rendez-vous et découvrez les services du quotidien, séparés du suivi des soins. Une demande de service doit être acceptée par le prestataire.</p>
-        </article>
-        <article class="info-card">
-          <h3>Notifications et assistance</h3>
+        </details>
+        <details class="info-card">
+          <summary>Notifications et assistance</summary>
           <p>Choisissez vos notifications et utilisez l’assistant pour vous orienter dans l’application. Ses réponses peuvent être inexactes ou incomplètes.</p>
-        </article>
+        </details>
       </div>
       <p class="info-note">Génération Liaison ne remplace ni un professionnel de santé ni un service d’urgence. En cas de danger immédiat en France, appelez le 15 ou le 112.</p>
     </section>
 
     <section class="landing-info" aria-labelledby="daily-life-title">
       <h2 id="daily-life-title">Accompagnement et services du quotidien</h2>
-      <p>Les échanges autour du suivi et les services du quotidien disposent d’espaces séparés dans l’application.</p>
       <div class="info-grid">
-        <article class="info-card">
+        <details class="info-card">
+          <summary>Échanges avec les professionnels</summary>
           <img src="/homepage-images/soins.jpg" width="900" height="700" loading="lazy" alt="Une professionnelle prend la tension d’un senior." />
-          <h3>Échanges avec les professionnels</h3>
           <p>Le carnet de liaison facilite le partage d’informations avec les professionnels de santé autorisés, notamment les infirmiers et infirmières.</p>
-        </article>
-        <article class="info-card">
+        </details>
+        <details class="info-card">
+          <summary>Services à domicile</summary>
           <img src="/homepage-images/coiffure.jpg" width="900" height="700" loading="lazy" alt="Une coiffeuse coupe les cheveux d’une personne âgée." />
-          <h3>Services à domicile</h3>
           <p>Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins. Les demandes restent soumises à l’acceptation du prestataire.</p>
-        </article>
+        </details>
       </div>
       <p class="info-note">Photos d’illustration : <a href="https://www.pexels.com/photo/young-woman-and-elderly-couple-talking-and-smiling-6148866/">RDNE Stock project</a>, <a href="https://www.pexels.com/photo/woman-measuring-the-blood-pressure-of-an-elderly-man-with-a-blood-pressure-monitor-7345476/">Antoni Shkraba</a> et <a href="https://www.pexels.com/photo/elderly-woman-getting-a-haircut-8834079/">Kampus Production</a> sur Pexels.</p>
     </section>
 
-    <section class="landing-info" aria-labelledby="contact-title">
-      <h2 id="contact-title">Une question ?</h2>
-      <p>Contactez l’équipe à <a href="mailto:mail@generation-liaison.fr">mail@generation-liaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
+    <section class="landing-info">
+      <details class="info-card">
+        <summary>Une question ?</summary>
+        <p>Contactez l’équipe à <a href="mailto:mail@generation-liaison.fr">mail@generation-liaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
+      </details>
     </section>
 
     <section class="landing-card" id="connexion" aria-labelledby="connexion-title">
