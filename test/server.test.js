@@ -351,8 +351,8 @@ test('declares production environment variables without hardcoding secrets', () 
 test('Play Console release has a new version and builds an app bundle', () => {
   const gradle = fs.readFileSync(path.join(projectRoot, 'android', 'app', 'build.gradle'), 'utf8');
   const releaseScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'build-android-release.js'), 'utf8');
-  assert.match(gradle, /versionCode 4/);
-  assert.match(gradle, /versionName "1\.1\.2"/);
+  assert.match(gradle, /versionCode 5/);
+  assert.match(gradle, /versionName "1\.1\.3"/);
   assert.match(releaseScript, /'assembleRelease', 'bundleRelease'/);
   assert.match(releaseScript, /app-release\.aab/);
   assert.match(releaseScript, /app-generation-liaison\.aab/);
