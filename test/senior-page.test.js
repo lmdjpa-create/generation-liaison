@@ -199,13 +199,166 @@ test('safety actions remain visible outside the closed check-in and retain the r
   assert.equal(elements['wellbeing-safety-result'].children.length, 0);
 });
 
-test('senior notifications and messages start collapsed immediately after emergency controls', () => {
+test('senior notifications are visible and messages remain collapsed after emergency controls', () => {
   const emergency = source.indexOf('<section class="form-card emergency-call-card"');
   const panel = source.indexOf('<section class="form-card" id="notifications-panel-senior"');
   const wellbeing = source.indexOf('<section class="form-card" id="wellbeing-checkin-panel"');
   assert.ok(emergency >= 0 && emergency < panel && panel < wellbeing);
-  assert.match(source, /<details class="senior-disclosure" id="notifications-list-senior">/);
+  assert.match(source, /<div id="notifications-list-senior">/);
   assert.match(source, /<details class="senior-disclosure" id="messages-senior">/);
+});
+
+test('notifications become read only when visible, keep actions, and report failures', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const timers = new Map();
+    let timerId = 0;
+    const requests = [];
+    const errors = [];
+    const badge = {};
+    const rect = { top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 };
+    const node = tag => ({
+      tag, children: [], listeners: {}, isConnected: true, rect: { ...rect },
+      append(...items) { this.children.push(...items); },
+      replaceChildren(...items) { this.children = items; },
+      addEventListener(event, callback) { this.listeners[event] = callback; },
+      getBoundingClientRect() { return this.rect; },
+      classList: { remove(name) { this.removed = name; } }
+    });
+    const container = node('div');
+    const screen = { classList: { contains: () => true }, getBoundingClientRect: () => rect };
+    const context = {
+      connectedUser: { id: 'user', role },
+      notificationLoadId: 0, notificationReadEntries: [],
+      document: {
+        hidden: true,
+        getElementById: id => id === 'notification-unread-count' ? badge : id === `screen-${role}` ? screen : container,
+        createElement: node,
+        querySelectorAll: () => container.children.filter(card => card.className?.includes('unread') && !card.classList.removed)
+      },
+      window: { innerWidth: 100, innerHeight: 100, handlePendingNotification() { this.opened = true; } },
+      setTimeout: (callback, delay) => { assert.equal(delay, 2000); timers.set(++timerId, callback); return timerId; },
+      clearTimeout: id => timers.delete(id),
+      makeTextElement: (tag, text) => ({ tag, textContent: text }),
+      formatDateTime: () => 'date',
+      planningRequest: async (url, options) => {
+        requests.push({ url, options });
+        if (url === '/api/notifications') return {
+          unreadCount: 2,
+          notifications: [
+            { id: 'message', type: 'private_message', senderUserId: 'other', title: 'Message', message: 'Bonjour', read: false },
+            { id: 'invite', type: 'care_visit_invite', entityStatus: 'pending', title: 'Invitation', message: 'Rendez-vous', read: false }
+          ]
+        };
+        if (url.endsWith('invite')) throw new Error('Lecture impossible');
+      },
+      showToast: message => errors.push(message),
+      repondreInvitation() {}
+    };
+    vm.runInNewContext(
+      `${extract('    function actualiserCompteurNotifications(count)', '    async function chargerCorrespondants(role)')}\n` +
+      'globalThis.load = chargerNotifications; globalThis.check = surveillerNotificationsVisibles;', context
+    );
+    await context.load();
+    assert.equal(badge.textContent, '2 non lues');
+    assert.equal(timers.size, 0);
+    const [message, invitation] = container.children;
+    assert.equal(message.children.filter(child => child.tag === 'button').length, 0);
+    assert.equal(invitation.children.find(child => child.className === 'notification-actions').children.length, 2);
+    const link = message.children.find(child => child.tag === 'a');
+    link.listeners.click({ preventDefault() {} });
+    assert.equal(context.window.pendingPushNotificationId, 'message');
+    assert.equal(context.window.opened, true);
+
+    invitation.rect = { ...rect, top: 150, bottom: 250 };
+    context.document.hidden = false;
+    context.check();
+    assert.equal(timers.size, 1);
+    const first = [...timers.values()][0];
+    timers.clear();
+    await first();
+    assert.equal(message.children.find(child => child.textContent === 'Lu').textContent, 'Lu');
+    assert.equal(badge.textContent, '1 non lue');
+    assert.equal(requests.filter(item => item.options?.method === 'PATCH').length, 1);
+
+    invitation.rect = { ...rect };
+    context.check();
+    const second = [...timers.values()][0];
+    timers.clear();
+    context.document.hidden = true;
+    await second();
+    assert.equal(requests.filter(item => item.options?.method === 'PATCH').length, 1);
+    context.document.hidden = false;
+    context.check();
+    await [...timers.values()][0]();
+    assert.equal(errors[0], 'Lecture impossible');
+    assert.ok(invitation.children.some(child => child.textContent === 'Non lu'));
+  }
+});
+
+test('read receipts refresh only for the open and visible conversation', () => {
+  const calls = [];
+  const select = { value: 'contact' };
+  const messages = { open: true };
+  const container = {};
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    openMessageConversations: { senior: 'contact' },
+    document: { getElementById: id => id === 'message-contact-senior' ? select : id === 'messages-senior' ? messages : container },
+    notificationVisible: () => context.visible,
+    ouvrirConversation: role => calls.push(role),
+    visible: true
+  };
+  vm.runInNewContext(
+    `${extract('    function rafraichirConversationVisible()', '    async function envoyerMessage(role)')}\n` +
+    'globalThis.refresh = rafraichirConversationVisible;', context
+  );
+  context.refresh();
+  context.visible = false;
+  context.refresh();
+  context.visible = true;
+  messages.open = false;
+  context.refresh();
+  messages.open = true;
+  select.value = 'different';
+  context.refresh();
+  assert.deepEqual(calls, ['senior']);
+});
+
+test('opening a conversation marks received messages read and displays the sender receipt after refresh', async () => {
+  const container = { children: [], replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } };
+  const select = { value: 'contact', selectedOptions: [{ text: 'Contact' }] };
+  const status = {};
+  const calls = [];
+  let senderRead = false;
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    openMessageConversations: {},
+    document: {
+      getElementById: id => id === 'message-contact-senior' ? select : id === 'message-list-senior' ? container : status,
+      createElement: () => ({ children: [], append(item) { this.children.push(item); } })
+    },
+    makeTextElement: (tag, text) => ({ tag, text }),
+    formatDateTime: () => 'date',
+    chargerNotifications() {},
+    seniorLinksRequest: async (url, options) => {
+      calls.push({ url, options });
+      if (options) return {};
+      return { messages: [
+        { id: 'sent', mine: true, body: 'Bonjour', readAt: senderRead ? 'today' : null },
+        { id: 'received', mine: false, body: 'Bonjour', readAt: null }
+      ] };
+    }
+  };
+  vm.runInNewContext(
+    `${extract('    async function ouvrirConversation(role, focusId', '    function rafraichirConversationVisible()')}\n` +
+    'globalThis.open = ouvrirConversation;', context
+  );
+  assert.equal(await context.open('senior'), true);
+  assert.match(container.children[0].children[2].text, /Non lu/);
+  assert.deepEqual(Array.from(calls[1].options.body.ids), ['received']);
+  senderRead = true;
+  assert.equal(await context.open('senior'), true);
+  assert.match(container.children[0].children[2].text, /· Lu/);
 });
 
 test('device notifications can be enabled directly in each account settings', () => {
@@ -427,18 +580,16 @@ test('explanations open after two seconds of hover and remain usable without hov
 
 test('the notification navigation opens the senior notification list', () => {
   const panel = { scrollIntoView() { this.scrolled = true; } };
-  const list = { open: false };
   const context = {
     connectedUser: { role: 'senior' },
     switchScreen() {},
-    document: { getElementById: id => id === 'notifications-list-senior' ? list : panel }
+    document: { getElementById: () => panel }
   };
   vm.runInNewContext(
     `${extract('    function ouvrirNotifications()', '    function configurerExplicationsSenior()')}\n` +
     'globalThis.openNotifications = ouvrirNotifications;', context
   );
   context.openNotifications();
-  assert.equal(list.open, true);
   assert.equal(panel.scrolled, true);
 });
 
@@ -484,7 +635,6 @@ test('opening a senior message notification expands its notification and convers
       "        window.addEventListener('generation-notification-opened'"), context
   );
   await context.window.handlePendingNotification();
-  assert.equal(element('notifications-list-senior').open, true);
   assert.equal(element('messages-senior').open, true);
   assert.equal(element('messages-senior').scrolled, true);
   assert.deepEqual(calls, [['senior', 'message']]);

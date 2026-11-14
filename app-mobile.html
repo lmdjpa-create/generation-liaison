@@ -499,11 +499,11 @@
             </div>
         </section>
         <section class="form-card" id="notifications-panel-senior" style="display:none;">
-            <details class="senior-disclosure" id="notifications-list-senior">
-                <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications</summary>
+            <div id="notifications-list-senior">
+                <h3>Notifications</h3>
                 <div id="notification-opened-senior" aria-live="polite"></div>
                 <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
-            </details>
+            </div>
             <details class="senior-disclosure" id="messages-senior">
                 <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
                 <details class="senior-disclosure senior-explanation">
@@ -1140,7 +1140,7 @@
         <span class="nav-icon">🗓️</span><span>Agenda</span>
     </button>
     <button id="nav-notifications" class="nav-item" onclick="ouvrirNotifications()" style="display:none;">
-        <span class="nav-icon">🔔</span><span>Messages</span>
+        <span class="nav-icon">🔔</span><span>Notifications et messages</span><span id="notification-unread-count" hidden></span>
     </button>
     <button id="nav-settings" class="nav-item" onclick="switchScreen('settings')" style="display:none;">
         <span class="nav-icon">☰</span><span>Plus</span>
@@ -1166,6 +1166,9 @@
     let verificationDocumentsLoadId = 0;
     let planningState = { members: [], recipients: [], servicePartners: [] };
     let planningRefreshTimer = null;
+    let notificationLoadId = 0;
+    let notificationReadEntries = [];
+    let openMessageConversations = {};
     let planningLoadId = 0;
     let servicePlanningLoadId = 0;
     let calendarView = 'week';
@@ -1569,9 +1572,6 @@
     function ouvrirNotifications() {
         if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
         switchScreen(connectedUser.role);
-        if (connectedUser.role === 'senior') {
-            document.getElementById('notifications-list-senior').open = true;
-        }
         const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
         if (panel) panel.scrollIntoView({ behavior: 'smooth' });
     }
@@ -1763,7 +1763,10 @@
     async function setAuthenticatedView(user) {
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
-        if (connectedUser?.id !== user.id) wellbeingLoadedDate = null;
+        if (connectedUser?.id !== user.id) {
+            wellbeingLoadedDate = null;
+            openMessageConversations = {};
+        }
         connectedUser = user;
         currentUser = user;
         document.body.classList.toggle('senior-mode', user.role === 'senior');
@@ -1906,6 +1909,7 @@
                 chargerModificationsGoogle();
                 chargerParametresGooglePlanning();
             }
+            rafraichirConversationVisible();
             chargerNotifications();
         }, 30000);
         const planningDate = document.getElementById('planning-date');
@@ -3390,14 +3394,73 @@
         }
     }
 
+    function actualiserCompteurNotifications(count) {
+        const badge = document.getElementById('notification-unread-count');
+        badge.hidden = count === 0;
+        badge.textContent = count ? `${count} non lue${count > 1 ? 's' : ''}` : '';
+    }
+
+    function notificationVisible(entry) {
+        if (document.hidden || connectedUser?.id !== entry.userId || !entry.card.isConnected) return false;
+        const screen = document.getElementById(`screen-${entry.role}`);
+        if (!screen.classList.contains('active')) return false;
+        const rect = entry.card.getBoundingClientRect();
+        const viewport = screen.getBoundingClientRect();
+        const height = Math.min(rect.bottom, viewport.bottom, window.innerHeight) -
+            Math.max(rect.top, viewport.top, 0);
+        const width = Math.min(rect.right, viewport.right, window.innerWidth) -
+            Math.max(rect.left, viewport.left, 0);
+        return rect.height > 0 && rect.width > 0 && height > 0 && width > 0 &&
+            height >= Math.min(rect.height, viewport.height) / 2;
+    }
+
+    function surveillerNotificationsVisibles() {
+        notificationReadEntries.forEach(entry => {
+            if (!notificationVisible(entry)) {
+                clearTimeout(entry.timer);
+                entry.timer = null;
+                return;
+            }
+            if (entry.timer || entry.pending || entry.failed) return;
+            entry.timer = setTimeout(async () => {
+                entry.timer = null;
+                if (!notificationVisible(entry)) return;
+                entry.pending = true;
+                try {
+                    await planningRequest(`/api/notifications/${encodeURIComponent(entry.id)}`, {
+                        method: 'PATCH', body: { read: true }
+                    });
+                    if (connectedUser?.id !== entry.userId || !entry.card.isConnected) return;
+                    entry.card.classList.remove('unread');
+                    entry.status.textContent = 'Lu';
+                    notificationReadEntries = notificationReadEntries.filter(item => item !== entry);
+                    actualiserCompteurNotifications(document.querySelectorAll(
+                        `#notifications-${entry.role} .notification-card.unread`
+                    ).length);
+                } catch (error) {
+                    entry.failed = true;
+                    showToast(error.message || 'Impossible de marquer la notification comme lue.', false);
+                } finally {
+                    entry.pending = false;
+                }
+            }, 2000);
+        });
+    }
+
     async function chargerNotifications() {
         if (!connectedUser) return;
         const role = connectedUser.role;
+        const userId = connectedUser.id;
+        const loadId = ++notificationLoadId;
         const container = document.getElementById(`notifications-${role}`);
         if (!container) return;
         try {
             const result = await planningRequest('/api/notifications');
+            if (connectedUser?.id !== userId || connectedUser?.role !== role || loadId !== notificationLoadId) return;
+            notificationReadEntries.forEach(entry => clearTimeout(entry.timer));
+            notificationReadEntries = [];
             container.replaceChildren();
+            actualiserCompteurNotifications(result.unreadCount);
             if (!result.notifications.length) {
                 container.append(makeTextElement('p', 'Aucune notification pour le moment.', 'helper-text'));
                 return result;
@@ -3408,7 +3471,22 @@
                 card.append(makeTextElement('strong', notification.title));
                 card.append(makeTextElement('p', notification.message, 'helper-text'));
                 card.append(makeTextElement('small', formatDateTime(notification.createdAt), 'helper-text'));
-                card.append(makeTextElement('p', notification.read ? 'Lu' : 'Non lu', 'helper-text'));
+                const readStatus = makeTextElement('p', notification.read ? 'Lu' : 'Non lu', 'helper-text');
+                card.append(readStatus);
+                if (!notification.read) {
+                    notificationReadEntries.push({ id: notification.id, userId, role, card, status: readStatus });
+                }
+                if (notification.type === 'private_message' && notification.senderUserId) {
+                    const link = document.createElement('a');
+                    link.href = `#messages-${role}`;
+                    link.textContent = 'Lire le message';
+                    link.addEventListener('click', event => {
+                        event.preventDefault();
+                        window.pendingPushNotificationId = notification.id;
+                        window.handlePendingNotification();
+                    });
+                    card.append(link);
+                }
 
                 const careInvitationPending = notification.type === 'care_visit_invite' &&
                     notification.entityStatus === 'pending';
@@ -3428,26 +3506,13 @@
                     decline.addEventListener('click', () => repondreInvitation(notification, 'declined', decline));
                     actions.append(accept, decline);
                     card.append(actions);
-                } else if (!notification.read) {
-                    const markRead = document.createElement('button');
-                    markRead.type = 'button';
-                    markRead.className = 'visit-notes-button';
-                    markRead.textContent = 'Marquer comme lu';
-                    markRead.addEventListener('click', () => marquerNotificationLue(notification.id, markRead));
-                    card.append(markRead);
-                }
-                if (!notification.read && (careInvitationPending || serviceInvitationPending)) {
-                    const markRead = document.createElement('button');
-                    markRead.type = 'button';
-                    markRead.className = 'visit-notes-button';
-                    markRead.textContent = 'Marquer comme lu';
-                    markRead.addEventListener('click', () => marquerNotificationLue(notification.id, markRead));
-                    card.append(markRead);
                 }
                 container.append(card);
             });
+            surveillerNotificationsVisibles();
             return result;
         } catch (error) {
+            if (connectedUser?.id !== userId || loadId !== notificationLoadId) return;
             container.replaceChildren(makeTextElement(
                 'p',
                 error.message || 'Impossible de charger les notifications.',
@@ -3510,14 +3575,27 @@
                 await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}/read`, {
                     method: 'PATCH', body: { ids: unread }
                 });
+                if (connectedUser?.id !== userId || connectedUser?.role !== role || select.value !== contactId) return false;
                 chargerNotifications();
             }
+            openMessageConversations[role] = contactId;
             status.textContent = '';
             return true;
         } catch (error) {
             status.textContent = error.message || 'Impossible de charger les messages.';
             return false;
         }
+    }
+
+    function rafraichirConversationVisible() {
+        const role = connectedUser?.role;
+        if (!role || !openMessageConversations[role]) return;
+        const select = document.getElementById(`message-contact-${role}`);
+        const container = document.getElementById(`message-list-${role}`);
+        if (select.value !== openMessageConversations[role] ||
+            (role === 'senior' && !document.getElementById('messages-senior').open) ||
+            !notificationVisible({ userId: connectedUser.id, role, card: container })) return;
+        ouvrirConversation(role);
     }
 
     async function envoyerMessage(role) {
@@ -3547,20 +3625,6 @@
             status.textContent = error.message || 'Impossible d’envoyer le message.';
         } finally {
             button.disabled = false;
-        }
-    }
-
-    async function marquerNotificationLue(notificationId, button) {
-        button.disabled = true;
-        try {
-            await planningRequest(`/api/notifications/${encodeURIComponent(notificationId)}`, {
-                method: 'PATCH',
-                body: { read: true }
-            });
-            await chargerNotifications();
-        } catch (error) {
-            button.disabled = false;
-            showToast(error.message || 'Impossible de marquer la notification comme lue.', false);
         }
     }
 
@@ -3596,7 +3660,7 @@
             await Promise.all([chargerNotifications(), chargerPlanningPro(), chargerPlanningServices()]);
             showToast(
                 notificationUpdateFailed
-                    ? 'Réponse enregistrée, mais la notification reste à marquer comme lue.'
+                    ? 'Réponse enregistrée, mais la notification n’a pas pu être marquée comme lue.'
                     : response === 'accepted'
                         ? 'Rendez-vous accepté et ajouté à votre agenda.'
                         : 'Demande de rendez-vous refusée.',
@@ -5172,7 +5236,11 @@
             document.getElementById(`notification-settings-${role}`).style.display = 'none';
             document.getElementById(`notification-opened-${role}`).replaceChildren();
         });
-        document.getElementById('notifications-list-senior').open = false;
+        notificationLoadId++;
+        notificationReadEntries.forEach(entry => clearTimeout(entry.timer));
+        notificationReadEntries = [];
+        actualiserCompteurNotifications(0);
+        openMessageConversations = {};
         document.getElementById('messages-senior').open = false;
         ['senior', 'aidant'].forEach(role => {
             document.getElementById(`message-contact-${role}`).replaceChildren();
@@ -5473,6 +5541,9 @@
         configurerPreferencesNotification();
         configurerAnnuaire();
         configurerExplicationsSenior();
+        document.addEventListener('scroll', surveillerNotificationsVisibles, true);
+        document.addEventListener('visibilitychange', surveillerNotificationsVisibles);
+        window.addEventListener('resize', surveillerNotificationsVisibles);
         let pendingNotificationId = new URLSearchParams(window.location.search).get('notification') || '';
         window.handlePendingNotification = async () => {
             const id = window.pendingPushNotificationId || pendingNotificationId;
@@ -5487,9 +5558,6 @@
                 const notification = await seniorLinksRequest(`/api/notifications/open/${encodeURIComponent(id)}`);
                 const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
                 const opened = document.getElementById(`notification-opened-${connectedUser.role}`);
-                if (connectedUser.role === 'senior') {
-                    document.getElementById('notifications-list-senior').open = true;
-                }
                 const card = document.createElement('article');
                 card.className = 'notification-card';
                 card.append(makeTextElement('strong', notification.title));
