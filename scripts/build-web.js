@@ -88,19 +88,23 @@ fs.copyFileSync(
 );
 
 const destinationPath = path.join(output, download);
-if (fs.existsSync(downloadSource)) {
-  fs.copyFileSync(downloadSource, destinationPath);
-  console.log(`Android APK copied to ${path.relative(root, destinationPath)}.`);
-} else {
-  console.warn(`Android APK not found at ${path.relative(root, downloadSource)}; skipping copy.`);
-}
-
-if (!fs.existsSync(bundleSource)) {
-  console.error(`Google Play app bundle not found at ${path.relative(root, bundleSource)}.`);
-  process.exit(1);
-}
 const bundleDestinationPath = path.join(output, bundle);
-fs.copyFileSync(bundleSource, bundleDestinationPath);
-console.log(`Google Play app bundle copied to ${path.relative(root, bundleDestinationPath)}.`);
+if (buildAndroid) {
+  fs.rmSync(destinationPath, { force: true });
+  fs.rmSync(bundleDestinationPath, { force: true });
+} else {
+  if (fs.existsSync(downloadSource)) {
+    fs.copyFileSync(downloadSource, destinationPath);
+    console.log(`Android APK copied to ${path.relative(root, destinationPath)}.`);
+  } else {
+    console.warn(`Android APK not found at ${path.relative(root, downloadSource)}; skipping copy.`);
+  }
+  if (!fs.existsSync(bundleSource)) {
+    console.error(`Google Play app bundle not found at ${path.relative(root, bundleSource)}.`);
+    process.exit(1);
+  }
+  fs.copyFileSync(bundleSource, bundleDestinationPath);
+  console.log(`Google Play app bundle copied to ${path.relative(root, bundleDestinationPath)}.`);
+}
 
 console.log(`Web files copied to ${path.relative(root, output)}.`);
