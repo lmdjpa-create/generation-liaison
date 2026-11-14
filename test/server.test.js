@@ -20,7 +20,7 @@ before(async () => {
   for (const entry of [
     'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html', 'reset-password.html',
     'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html', 'language.js',
-    'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'push-service-worker.js', 'homepage-images', 'downloads', 'scripts'
+    'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'push-service-worker.js', 'homepage-images', 'downloads', 'scripts'
   ]) {
     fs.cpSync(path.join(projectRoot, entry), path.join(androidFixture, entry), { recursive: true });
   }
@@ -349,8 +349,8 @@ test('declares production environment variables without hardcoding secrets', () 
 test('Play Console release has a new version and builds an app bundle', () => {
   const gradle = fs.readFileSync(path.join(projectRoot, 'android', 'app', 'build.gradle'), 'utf8');
   const releaseScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'build-android-release.js'), 'utf8');
-  assert.match(gradle, /versionCode 3/);
-  assert.match(gradle, /versionName "1\.1\.1"/);
+  assert.match(gradle, /versionCode 4/);
+  assert.match(gradle, /versionName "1\.1\.2"/);
   assert.match(releaseScript, /'assembleRelease', 'bundleRelease'/);
   assert.match(releaseScript, /app-release\.aab/);
   assert.match(releaseScript, /app-generation-liaison\.aab/);
