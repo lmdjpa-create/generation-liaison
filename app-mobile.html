@@ -661,12 +661,13 @@
     <h1>Réglages</h1>
 <section class="form-card" style="text-align:left;" id="settings-aidant-links">
         <h3>Mes profils seniors</h3>
-        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior. Il devra accepter votre demande avant que vous puissiez consulter son profil.</p>
+        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior pour lui envoyer une invitation à découvrir l’application. S’il ne possède pas encore de compte, faites une nouvelle demande après son inscription. Il devra l’accepter avant que vous puissiez consulter son profil.</p>
         <form id="aidant-link-form" class="form-grid">
             <label for="aidant-link-email">Adresse e-mail du senior</label>
             <input id="aidant-link-email" type="email" autocomplete="off" maxlength="254" required>
             <button type="submit">Demander l’accès</button>
         </form>
+        <p id="aidant-link-status" class="helper-text" role="status" aria-live="polite"></p>
         <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie et associe les profils seniors.</p>
         <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
         <button type="button" id="aidant-links-refresh">Actualiser</button>
@@ -4440,15 +4441,17 @@
         document.getElementById('aidant-link-form').addEventListener('submit', async event => {
             event.preventDefault();
             const button = event.currentTarget.querySelector('button[type="submit"]');
+            const status = document.getElementById('aidant-link-status');
             button.disabled = true;
+            status.textContent = 'Envoi de la demande…';
             try {
                 const result = await seniorLinksRequest('/api/senior-links/requests', {
                     method: 'POST', body: { email: document.getElementById('aidant-link-email').value }
                 });
                 document.getElementById('aidant-link-email').value = '';
-                showToast(window.generationLiaisonTranslate(result.message));
+                status.textContent = window.generationLiaisonTranslate(result.message);
             } catch (error) {
-                showToast(error.message || 'Impossible d’envoyer la demande.', false);
+                status.textContent = error.message || 'Impossible d’envoyer la demande.';
             } finally {
                 button.disabled = false;
             }
