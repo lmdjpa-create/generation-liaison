@@ -197,6 +197,17 @@ function createAuthService(pool) {
           read_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        CREATE TABLE IF NOT EXISTS app_private_messages (
+          id UUID PRIMARY KEY,
+          sender_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          recipient_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          body VARCHAR(2000) NOT NULL,
+          read_at TIMESTAMPTZ,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CHECK (sender_id <> recipient_id)
+        );
+        CREATE INDEX IF NOT EXISTS app_private_messages_participants_date_idx
+          ON app_private_messages (sender_id, recipient_id, created_at);
         CREATE TABLE IF NOT EXISTS app_google_calendar_oauth_states (
           state_hash CHAR(64) PRIMARY KEY,
           user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,

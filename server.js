@@ -1215,12 +1215,20 @@ app.get('/api/contacts', requireAuth, async (req, res) => {
 });
 
 app.post('/api/contacts', requireAuth, async (req, res) => {
-  const contactUserId = req.body?.contactUserId || req.body?.id || req.body?.contactId;
-  if (!isValidUuid(String(contactUserId || ''))) {
+  let contactUserId = req.body?.contactUserId || req.body?.id || req.body?.contactId;
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (!contactUserId && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Choisissez un contact valide.' });
   }
-
   try {
+    if (!contactUserId) {
+      const { rows } = await pool.query('SELECT id FROM app_users WHERE email = $1 AND is_active = TRUE', [email]);
+      if (!rows[0]) return res.status(404).json({ error: 'Ce contact n’existe pas ou ne peut pas être ajouté.' });
+      contactUserId = rows[0].id;
+    }
+    if (!isValidUuid(String(contactUserId))) {
+      return res.status(400).json({ error: 'Choisissez un contact valide.' });
+    }
     if (!hasActivePremium(req.authUser)) {
       const { rows: [target] } = await pool.query(
         'SELECT role FROM app_users WHERE id = $1 AND is_active = TRUE', [contactUserId]
@@ -1265,6 +1273,20 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
     });
   } catch (error) {
     sendApiError(res, error, 'Impossible d’ajouter ce contact.');
+  }
+});
+
+app.delete('/api/contacts/:contactId', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.contactId)) return res.status(400).json({ error: 'Contact invalide.' });
+  try {
+    const result = await pool.query(
+      'DELETE FROM app_user_contacts WHERE user_id = $1 AND contact_user_id = $2 RETURNING id',
+      [req.authUser.id, req.params.contactId]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Contact introuvable.' });
+    res.json({ removed: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de supprimer ce contact.');
   }
 });
 
@@ -2085,6 +2107,8 @@ app.post('/api/admin/account-closure-requests/:requestId/ai-review', requireAuth
           WHERE item.user_id = target.user_id) AS professional_documents,
          (SELECT count(*) FROM app_notifications item
           WHERE item.user_id = target.user_id) AS notifications,
+         (SELECT count(*) FROM app_private_messages item
+          WHERE item.sender_id = target.user_id OR item.recipient_id = target.user_id) AS private_messages,
          (SELECT count(*) FROM app_notification_deliveries item
           WHERE item.user_id = target.user_id) AS notification_deliveries,
          (SELECT count(*) FROM app_push_subscriptions item
@@ -2138,6 +2162,7 @@ app.post('/api/admin/account-closure-requests/:requestId/ai-review', requireAuth
     const inventory = Object.fromEntries([
       ['professionalDocuments', account.professional_documents],
       ['notifications', account.notifications],
+      ['privateMessages', account.private_messages],
       ['notificationDeliveries', account.notification_deliveries],
       ['pushSubscriptions', account.push_subscriptions],
       ['directoryBookings', account.directory_bookings],
@@ -4108,12 +4133,179 @@ app.post('/api/senior-links/removals/:id/confirm', requireAuth, async (req, res)
   }
 });
 
+app.get('/api/messages/contacts', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT other.id, other.name, other.premium_status, other.premium_until
+       FROM app_users other
+       WHERE other.id <> $1 AND other.is_active = TRUE AND (
+         (EXISTS (SELECT 1 FROM app_user_contacts contact
+           WHERE contact.user_id = $1 AND contact.contact_user_id = other.id)
+          AND EXISTS (SELECT 1 FROM app_user_contacts contact
+           WHERE contact.user_id = other.id AND contact.contact_user_id = $1))
+         OR EXISTS (
+           SELECT 1 FROM app_aidant_senior_links link
+           JOIN app_users senior ON senior.senior_id = link.senior_profile_id AND senior.role = 'senior'
+           WHERE link.suspended_at IS NULL AND
+             ((senior.id = $1 AND link.aidant_user_id = other.id) OR
+              (senior.id = other.id AND link.aidant_user_id = $1))
+         )
+       )
+       ORDER BY other.name, other.id`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ contacts: rows.map(row => ({ id: row.id, name: row.name, premium: hasActivePremium(row) })),
+      premium: hasActivePremium(req.authUser) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger vos correspondants.');
+  }
+});
+
+async function findMessageLink(client, userId, contactId, lock = false) {
+  const { rows } = await client.query(
+    `SELECT contact.premium_status, contact.premium_until, account.premium_status AS own_premium_status,
+            account.premium_until AS own_premium_until
+     FROM app_users account
+     JOIN app_users contact ON contact.id = $2 AND contact.is_active = TRUE
+     WHERE account.id = $1 AND account.is_active = TRUE AND account.id <> contact.id
+     ${lock ? 'FOR SHARE OF account, contact' : ''}`,
+    [userId, contactId]
+  );
+  if (!rows[0]) return null;
+  const saved = await client.query(
+    `SELECT id FROM app_user_contacts
+     WHERE (user_id = $1 AND contact_user_id = $2) OR (user_id = $2 AND contact_user_id = $1)
+     ${lock ? 'FOR SHARE' : ''}`,
+    [userId, contactId]
+  );
+  if (saved.rows.length === 2) return rows[0];
+  const linked = await client.query(
+    `SELECT link.aidant_user_id FROM app_aidant_senior_links link
+     JOIN app_users senior ON senior.senior_id = link.senior_profile_id AND senior.role = 'senior'
+     WHERE link.suspended_at IS NULL AND
+       ((senior.id = $1 AND link.aidant_user_id = $2) OR
+        (senior.id = $2 AND link.aidant_user_id = $1))
+     ${lock ? 'FOR SHARE OF link' : ''}`,
+    [userId, contactId]
+  );
+  return linked.rows.length ? rows[0] : null;
+}
+
+app.get('/api/messages/:contactId', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.contactId)) return res.status(400).json({ error: 'Correspondant invalide.' });
+  if (req.query.focus !== undefined && !isValidUuid(req.query.focus)) {
+    return res.status(400).json({ error: 'Message invalide.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    if (!await findMessageLink(client, req.authUser.id, req.params.contactId, true)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce correspondant n’est pas associé à votre compte.' });
+    }
+    const { rows } = await client.query(
+      `SELECT * FROM (
+         SELECT id, sender_id, recipient_id, body, read_at, created_at
+         FROM app_private_messages
+         WHERE (sender_id = $1 AND recipient_id = $2) OR (sender_id = $2 AND recipient_id = $1)
+         ORDER BY CASE WHEN id = $3::uuid THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT 100
+       ) recent ORDER BY created_at, id`,
+      [req.authUser.id, req.params.contactId, req.query.focus || null]
+    );
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ messages: rows.map(row => ({
+      id: row.id, mine: row.sender_id === req.authUser.id, body: row.body,
+      readAt: row.read_at, createdAt: row.created_at
+    })) });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de charger les messages.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/messages/:contactId', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.contactId)) return res.status(400).json({ error: 'Correspondant invalide.' });
+  const body = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!body || body.length > 2000) return res.status(400).json({ error: 'Écrivez un message de 1 à 2 000 caractères.' });
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const contact = await findMessageLink(client, req.authUser.id, req.params.contactId, true);
+    if (!contact) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce correspondant n’est pas associé à votre compte.' });
+    }
+    if (!hasActivePremium({ premium_status: contact.own_premium_status, premium_until: contact.own_premium_until }) ||
+        !hasActivePremium(contact)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Les deux personnes doivent disposer d’un accès premium actif pour envoyer un message.' });
+    }
+    const id = randomUUID();
+    await client.query(
+      'INSERT INTO app_private_messages (id, sender_id, recipient_id, body) VALUES ($1, $2, $3, $4)',
+      [id, req.authUser.id, req.params.contactId, body]
+    );
+    await insertAppNotification(client, req.params.contactId, 'private_message', 'Nouveau message',
+      'Vous avez reçu un nouveau message. Ouvrez la messagerie pour le lire.', 'private_message', id);
+    await client.query('COMMIT');
+    res.status(201).json({ id });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’envoyer le message.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.patch('/api/messages/:contactId/read', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.contactId) || !Array.isArray(req.body?.ids) ||
+      req.body.ids.length > 100 || !req.body.ids.every(isValidUuid)) {
+    return res.status(400).json({ error: 'Messages à marquer comme lus invalides.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    if (!await findMessageLink(client, req.authUser.id, req.params.contactId, true)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce correspondant n’est pas associé à votre compte.' });
+    }
+    await client.query(
+      `UPDATE app_private_messages SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+       WHERE id = ANY($1::uuid[]) AND recipient_id = $2 AND sender_id = $3`,
+      [req.body.ids, req.authUser.id, req.params.contactId]
+    );
+    await client.query(
+      `UPDATE app_notifications SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+       WHERE user_id = $1 AND entity_type = 'private_message' AND entity_id = ANY($2::uuid[])`,
+      [req.authUser.id, req.body.ids]
+    );
+    await client.query('COMMIT');
+    res.json({ read: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de confirmer la lecture des messages.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
 app.get('/api/notifications', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT notification.id, notification.notification_type, notification.title,
               notification.message, notification.entity_type, notification.entity_id,
               notification.read_at, notification.created_at,
+              CASE WHEN notification.entity_type = 'private_message' THEN (
+                SELECT message.sender_id FROM app_private_messages message
+                WHERE message.id = notification.entity_id AND message.recipient_id = notification.user_id
+              ) ELSE NULL END AS sender_user_id,
               CASE
                 WHEN notification.entity_type = 'care_visit' THEN (
                   SELECT visit.acceptance_status
@@ -4143,12 +4335,38 @@ app.get('/api/notifications', requireAuth, async (req, res) => {
         entityType: row.entity_type,
         entityId: row.entity_id,
         entityStatus: row.entity_status,
+        senderUserId: row.sender_user_id,
         read: Boolean(row.read_at),
         createdAt: row.created_at
       }))
     });
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger vos notifications.');
+  }
+});
+
+app.get('/api/notifications/open/:notificationId', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.notificationId)) return res.status(400).json({ error: 'Identifiant de notification invalide.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT notification.id, notification.notification_type, notification.entity_id,
+              notification.title, notification.message, notification.created_at,
+              message.sender_id
+       FROM app_notifications notification
+       LEFT JOIN app_private_messages message ON notification.entity_type = 'private_message'
+         AND message.id = notification.entity_id AND message.recipient_id = notification.user_id
+       WHERE notification.id = $1 AND notification.user_id = $2`,
+      [req.params.notificationId, req.authUser.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Notification introuvable.' });
+    res.set('Cache-Control', 'private, no-store');
+    res.json({
+      id: rows[0].id, type: rows[0].notification_type,
+      title: rows[0].title, message: rows[0].message, createdAt: rows[0].created_at,
+      entityId: rows[0].entity_id, senderUserId: rows[0].sender_id
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger cette notification.');
   }
 });
 

@@ -3,6 +3,13 @@ import { Browser } from '@capacitor/browser';
 
 window.openCalendarAuthorization = async url => Browser.open({ url });
 
+if (window.Capacitor?.isNativePlatform()) {
+  PushNotifications.addListener('pushNotificationActionPerformed', ({ notification }) => {
+    window.pendingPushNotificationId = notification.data?.notificationId;
+    window.dispatchEvent(new Event('generation-notification-opened'));
+  }).catch(error => console.error('Impossible de suivre l’ouverture des notifications :', error));
+}
+
 window.registerNativePush = async (serverUrl, sessionToken) => {
   let permission = await PushNotifications.checkPermissions();
   if (permission.receive !== 'granted') {

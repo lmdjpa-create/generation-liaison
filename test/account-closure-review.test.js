@@ -10,6 +10,7 @@ const reviewResult = {
 };
 const emptyInventory = {
   professionalDocuments: 0,
+  privateMessages: 0,
   notifications: 0,
   notificationDeliveries: 0,
   pushSubscriptions: 0,
@@ -70,6 +71,7 @@ test('sends only allowlisted account metadata and record counts, without storing
       accountTier: 'free_or_inactive',
       linkedRecordCounts: {
         professionalDocuments: 0,
+        privateMessages: 0,
         notifications: 0,
         notificationDeliveries: 0,
         pushSubscriptions: 0,

@@ -149,6 +149,93 @@ test('invites seniors by email without granting access and reports delivery prob
   assert.equal((await request('/api/logs/all', { user: anotherAidant, seniorId: newSenior.user.seniorId })).status, 403);
 });
 
+test('private messages require an active senior link and confirm reading only to the sender', async () => {
+  const senior = await register('message-senior@example.test', 'senior');
+  const aidant = await register('message-aidant@example.test', 'aidant');
+  const stranger = await register('message-stranger@example.test', 'aidant');
+  const messages = `/api/messages/${senior.user.id}`;
+  assert.equal((await request(messages, { user: aidant, body: { message: 'Bonjour' } })).status, 403);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request('/api/messages/contacts', { user: senior })).data.contacts[0].id, aidant.user.id);
+  assert.equal((await request(messages, { user: aidant, body: { message: 'Bonjour' } })).status, 403);
+  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [aidant.user.id]);
+  assert.equal((await request(messages, { user: aidant, body: { message: 'Bonjour' } })).status, 403);
+  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
+  assert.equal((await request(messages, { user: aidant, body: { message: '  ' } })).status, 400);
+  assert.equal((await request(messages, { user: aidant, body: { message: 'x'.repeat(2001) } })).status, 400);
+  const sent = await request(messages, { user: aidant, body: { message: ' Bonjour ! ' } });
+  assert.equal(sent.status, 201);
+  const own = (await request(messages, { user: aidant })).data.messages[0];
+  assert.equal(own.body, 'Bonjour !');
+  assert.equal(own.readAt, null);
+  const inbox = await request('/api/notifications', { user: senior });
+  const notification = inbox.data.notifications.find(item => item.entityId === sent.data.id);
+  assert.equal(notification.senderUserId, aidant.user.id);
+  assert.equal(notification.read, false);
+  assert.equal((await request(`/api/notifications/open/${notification.id}`, { user: stranger })).status, 404);
+  assert.equal((await request(`/api/notifications/open/${notification.id}`, { user: senior })).data.entityId, sent.data.id);
+  const deliveries = await db.query('SELECT channel FROM app_notification_deliveries WHERE notification_id = $1', [notification.id]);
+  assert.deepEqual(new Set(deliveries.rows.map(row => row.channel)), new Set(['push', 'sms', 'email']));
+  assert.equal((await request(`/api/messages/${aidant.user.id}`, { user: stranger })).status, 403);
+  assert.equal((await request(`/api/messages/${aidant.user.id}`, { user: senior })).data.messages[0].readAt, null);
+  await db.query(`UPDATE app_private_messages SET created_at = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [sent.data.id]);
+  await db.query(`INSERT INTO app_private_messages (id, sender_id, recipient_id, body)
+    SELECT gen_random_uuid(), $1, $2, 'nouveau' FROM generate_series(1, 100)`,
+  [aidant.user.id, senior.user.id]);
+  const focused = await request(`/api/messages/${aidant.user.id}?focus=${sent.data.id}`, { user: senior });
+  assert.equal(focused.data.messages.length, 100);
+  assert.ok(focused.data.messages.some(message => message.id === sent.data.id));
+  assert.equal((await request(`/api/messages/${senior.user.id}/read`, {
+    user: aidant, method: 'PATCH', body: { ids: [sent.data.id] }
+  })).status, 200);
+  assert.equal((await request(`${messages}?focus=${sent.data.id}`, { user: aidant })).data.messages.find(message => message.id === sent.data.id).readAt, null);
+  assert.equal((await request(`/api/messages/${aidant.user.id}/read`, {
+    user: senior, method: 'PATCH', body: { ids: [sent.data.id] }
+  })).status, 200);
+  assert.ok((await request(`${messages}?focus=${sent.data.id}`, { user: aidant })).data.messages.find(message => message.id === sent.data.id).readAt);
+  assert.equal((await request('/api/notifications', { user: senior })).data.notifications.find(item => item.id === notification.id).read, true);
+  await db.query(`UPDATE app_users SET premium_until = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [senior.user.id]);
+  assert.equal((await request(messages, { user: aidant, body: { message: 'Premium expiré' } })).status, 403);
+  assert.equal((await request(`${messages}?focus=${sent.data.id}`, { user: aidant })).status, 200);
+  await db.query(`UPDATE app_users SET premium_until = NULL WHERE id = $1`, [senior.user.id]);
+  const reply = await request(`/api/messages/${aidant.user.id}`, { user: senior, body: { message: 'À bientôt' } });
+  assert.equal(reply.status, 201);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1 AND senior_profile_id = $2',
+    [aidant.user.id, senior.user.seniorId]);
+  assert.deepEqual((await request('/api/messages/contacts', { user: senior })).data.contacts, []);
+  assert.equal((await request(messages, { user: aidant })).status, 403);
+  assert.equal((await request(messages, { user: aidant, body: { message: 'Après retrait' } })).status, 403);
+  assert.equal((await request(`/api/messages/${senior.user.id}/read`, {
+    user: aidant, method: 'PATCH', body: { ids: [reply.data.id] }
+  })).status, 403);
+});
+
+test('all contact roles can exchange premium messages only after mutually adding each other', async () => {
+  const senior = await register('message-contact-senior@example.test', 'senior');
+  const professional = await register('message-contact-pro@example.test', 'senior');
+  const stranger = await register('message-contact-outsider@example.test', 'senior');
+  await db.query(`UPDATE app_users SET role = 'pro', verification_status = 'approved', premium_status = 'active'
+    WHERE id = $1`, [professional.user.id]);
+  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
+  assert.equal((await request('/api/contacts', {
+    user: senior, body: { email: ' MESSAGE-CONTACT-PRO@EXAMPLE.TEST ' }
+  })).status, 201);
+  assert.equal((await request(`/api/messages/${professional.user.id}`, {
+    user: senior, body: { message: 'Bonjour' }
+  })).status, 403);
+  assert.equal((await request('/api/contacts', {
+    user: professional, body: { email: 'message-contact-senior@example.test' }
+  })).status, 201);
+  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].id, senior.user.id);
+  const sent = await request(`/api/messages/${professional.user.id}`, { user: senior, body: { message: 'Bonjour' } });
+  assert.equal(sent.status, 201);
+  assert.equal((await request(`/api/messages/${senior.user.id}`, { user: professional, body: { message: 'Bonjour également' } })).status, 201);
+  assert.equal((await request(`/api/messages/${senior.user.id}`, { user: stranger })).status, 403);
+  assert.equal((await request(`/api/contacts/${professional.user.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior })).status, 403);
+});
+
 test('personal agenda events can be compared only after the linked owner accepts', async () => {
   const senior = await register('agenda-senior@example.test', 'senior');
   const aidant = await register('agenda-aidant@example.test', 'aidant');

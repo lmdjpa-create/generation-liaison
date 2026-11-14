@@ -276,7 +276,22 @@
 <div id="screen-senior" class="screen-container active" style="background-color: var(--senior-bg);">
     <section class="form-card" id="notifications-panel-senior" style="display:none;">
         <h3>Notifications</h3>
+        <div id="notification-opened-senior" aria-live="polite"></div>
         <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
+        <div id="messages-senior">
+            <h3>Messages avec mes contacts</h3>
+            <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
+            <label for="message-contact-senior">Correspondant</label>
+            <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
+            <button type="button" onclick="ouvrirConversation('senior')">Ouvrir les messages</button>
+            <div id="message-list-senior" aria-live="polite"></div>
+            <form id="message-form-senior">
+                <label for="message-text-senior">Votre message</label>
+                <textarea id="message-text-senior" maxlength="2000" required></textarea>
+                <button type="submit">Envoyer</button>
+            </form>
+            <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
+        </div>
     </section>
 
     <div id="auth-box" class="card">
@@ -486,7 +501,22 @@
 <div id="screen-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
     <section class="form-card" id="notifications-panel-aidant" style="display:none;">
         <h3>Notifications</h3>
+        <div id="notification-opened-aidant" aria-live="polite"></div>
         <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
+        <div id="messages-aidant">
+            <h3>Messages avec mes contacts</h3>
+            <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
+            <label for="message-contact-aidant">Correspondant</label>
+            <select id="message-contact-aidant" aria-label="Choisir un correspondant"></select>
+            <button type="button" onclick="ouvrirConversation('aidant')">Ouvrir les messages</button>
+            <div id="message-list-aidant" aria-live="polite"></div>
+            <form id="message-form-aidant">
+                <label for="message-text-aidant">Votre message</label>
+                <textarea id="message-text-aidant" maxlength="2000" required></textarea>
+                <button type="submit">Envoyer</button>
+            </form>
+            <p id="message-status-aidant" class="helper-text" aria-live="polite"></p>
+        </div>
     </section>
 
     <div class="aidant-greeting">
@@ -557,7 +587,22 @@
 <div id="screen-pro" class="screen-container" style="background-color: var(--pro-bg);">
     <section class="form-card" id="notifications-panel-pro" style="display:none;">
         <h3>Notifications et demandes à traiter</h3>
+        <div id="notification-opened-pro" aria-live="polite"></div>
         <div id="notifications-pro" aria-live="polite">Chargement des notifications…</div>
+        <div id="messages-pro">
+            <h3>Messages avec mes contacts</h3>
+            <p class="helper-text">Pour envoyer un message, vous et votre contact devez disposer d’un accès premium actif. Pour une urgence, appelez les secours.</p>
+            <label for="message-contact-pro">Correspondant</label>
+            <select id="message-contact-pro" aria-label="Choisir un correspondant"></select>
+            <button type="button" onclick="ouvrirConversation('pro')">Ouvrir les messages</button>
+            <div id="message-list-pro" aria-live="polite"></div>
+            <form id="message-form-pro">
+                <label for="message-text-pro">Votre message</label>
+                <textarea id="message-text-pro" maxlength="2000" required></textarea>
+                <button type="submit">Envoyer</button>
+            </form>
+            <p id="message-status-pro" class="helper-text" aria-live="polite"></p>
+        </div>
     </section>
 
     <section class="form-card" id="professional-verification-panel" style="display:none;">
@@ -727,7 +772,7 @@
 <section class="form-card" style="text-align:left;" id="settings-senior-links">
             <h2>Accès des aidants à mon profil</h2>
             <p class="helper-text">Vous pouvez accepter ou refuser les demandes. Pour retirer un accès, il sera suspendu immédiatement ; l’administration vous enverra ensuite un code de confirmation par e-mail.</p>
-            <p class="helper-text">Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées.</p>
+            <p class="helper-text">Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées. Si vous vous êtes ajoutés mutuellement dans Contacts, la messagerie reste accessible : retirez aussi ce contact pour l’interrompre.</p>
             <div id="senior-link-management" aria-live="polite">Chargement des demandes…</div>
             <button type="button" id="senior-links-refresh">Actualiser</button>
         </section>
@@ -890,7 +935,13 @@
         <h3 style="margin:0;">Mes contacts</h3>
         <span style="font-size:0.85rem;opacity:0.9;">L’accès à la visio nécessite un abonnement premium actif.</span>
     </div>
-    <p class="helper-text">Version gratuite : un aidant et un soignant en contact. Pour en ajouter davantage, passez à la version payante.</p>
+    <p class="helper-text">Version gratuite : un aidant et un soignant en contact. Pour en ajouter davantage, passez à la version payante. Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.</p>
+    <form id="add-app-contact-form" class="form-grid">
+        <label for="add-app-contact-email">Adresse e-mail d’un contact inscrit</label>
+        <input id="add-app-contact-email" type="email" maxlength="254" required>
+        <button type="submit">Ajouter ce contact</button>
+    </form>
+    <p id="add-app-contact-status" class="helper-text" aria-live="polite"></p>
     <div id="contacts-list" aria-live="polite">Chargement des contacts…</div>
 </div>
 
@@ -1063,15 +1114,9 @@
         if (!container) return;
         container.replaceChildren(makeTextElement('p', 'Chargement des contacts…', 'helper-text'));
 
-        const fallbackContacts = [
-            { id: 'contact-1', name: 'Claire Martin', role: 'Aidante', phone: '+33613456789', photoUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80' },
-            { id: 'contact-2', name: 'Jean Petit', role: 'Intervenant', phone: '+33676543210', photoUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80' },
-            { id: 'contact-3', name: 'Marie Durand', role: 'Proche', phone: '+33699887766', photoUrl: '' }
-        ];
-
         try {
-            const result = await planningRequest('/api/contacts').catch(() => ({ contacts: [] }));
-            const contacts = Array.isArray(result.contacts) && result.contacts.length ? result.contacts : fallbackContacts;
+            const result = await seniorLinksRequest('/api/contacts');
+            const contacts = result.contacts;
             container.replaceChildren();
             if (!contacts.length) {
                 container.append(makeTextElement('p', 'Aucun contact enregistré pour le moment.', 'helper-text'));
@@ -1121,6 +1166,19 @@
                 button.disabled = !hasPremiumAccess();
                 button.addEventListener('click', () => declencherVisio(contact));
                 card.append(button);
+                const remove = makeTextElement('button', 'Retirer ce contact', 'visit-notes-button');
+                remove.type = 'button';
+                remove.addEventListener('click', async () => {
+                    remove.disabled = true;
+                    try {
+                        await seniorLinksRequest(`/api/contacts/${encodeURIComponent(contact.id)}`, { method: 'DELETE' });
+                        await chargerContacts();
+                    } catch (error) {
+                        remove.disabled = false;
+                        showToast(error.message || 'Impossible de retirer ce contact.', false);
+                    }
+                });
+                card.append(remove);
                 container.append(card);
             });
         } catch (error) {
@@ -1343,6 +1401,9 @@
         }
         if (pendingAccess) return;
         chargerNotifications();
+        if (screenName === connectedUser.role && ['senior', 'aidant', 'pro'].includes(screenName)) {
+            chargerCorrespondants(screenName);
+        }
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerLogs();
             chargerCheckinsPartages();
@@ -1653,6 +1714,7 @@
                 : 'Position du domicile non enregistrée : relevez-la depuis votre domicile.';
         }
         switchScreen(user.role);
+        window.handlePendingNotification?.();
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = setInterval(() => {
             if (!connectedUser) return;
@@ -2955,7 +3017,7 @@
             const pushRegistered = Boolean(localStorage.getItem(PUSH_TOKEN_KEY));
             pushButton.disabled = !pushConfigured && !pushRegistered;
             pushButton.textContent = pushRegistered
-                ? 'Désactiver les notifications push'
+                ? 'Désactiver les notifications sur ce téléphone'
                 : localStorage.getItem('pushWasDisabled')
                     ? 'Réactiver les notifications push'
                     : 'Activer les notifications push';
@@ -3139,7 +3201,7 @@
             container.replaceChildren();
             if (!result.notifications.length) {
                 container.append(makeTextElement('p', 'Aucune notification pour le moment.', 'helper-text'));
-                return;
+                return result;
             }
             result.notifications.forEach(notification => {
                 const card = document.createElement('article');
@@ -3147,6 +3209,7 @@
                 card.append(makeTextElement('strong', notification.title));
                 card.append(makeTextElement('p', notification.message, 'helper-text'));
                 card.append(makeTextElement('small', formatDateTime(notification.createdAt), 'helper-text'));
+                card.append(makeTextElement('p', notification.read ? 'Lu' : 'Non lu', 'helper-text'));
 
                 const careInvitationPending = notification.type === 'care_visit_invite' &&
                     notification.entityStatus === 'pending';
@@ -3174,14 +3237,119 @@
                     markRead.addEventListener('click', () => marquerNotificationLue(notification.id, markRead));
                     card.append(markRead);
                 }
+                if (!notification.read && (careInvitationPending || serviceInvitationPending)) {
+                    const markRead = document.createElement('button');
+                    markRead.type = 'button';
+                    markRead.className = 'visit-notes-button';
+                    markRead.textContent = 'Marquer comme lu';
+                    markRead.addEventListener('click', () => marquerNotificationLue(notification.id, markRead));
+                    card.append(markRead);
+                }
                 container.append(card);
             });
+            return result;
         } catch (error) {
             container.replaceChildren(makeTextElement(
                 'p',
                 error.message || 'Impossible de charger les notifications.',
                 'helper-text'
             ));
+        }
+    }
+
+    async function chargerCorrespondants(role) {
+        const select = document.getElementById(`message-contact-${role}`);
+        const status = document.getElementById(`message-status-${role}`);
+        const userId = connectedUser?.id;
+        try {
+            const result = await seniorLinksRequest('/api/messages/contacts');
+            if (connectedUser?.id !== userId || connectedUser?.role !== role) return false;
+            const previous = select.value;
+            select.replaceChildren(new Option('Choisissez un correspondant', ''));
+            result.contacts.forEach(contact => select.add(new Option(
+                `${contact.name}${contact.premium ? '' : ' · premium requis pour envoyer'}`, contact.id
+            )));
+            if (result.contacts.some(contact => contact.id === previous)) select.value = previous;
+            status.textContent = !result.premium
+                ? 'Un accès premium actif est nécessaire pour envoyer des messages.'
+                : result.contacts.length ? '' : 'Aucun contact pour le moment. Ajoutez-en dans Contacts.';
+            return true;
+        } catch (error) {
+            status.textContent = error.message || 'Impossible de charger les correspondants.';
+            return false;
+        }
+    }
+
+    async function ouvrirConversation(role, focusId = '') {
+        const select = document.getElementById(`message-contact-${role}`);
+        const contactId = select.value;
+        const container = document.getElementById(`message-list-${role}`);
+        const status = document.getElementById(`message-status-${role}`);
+        if (!contactId) {
+            status.textContent = 'Choisissez un correspondant.';
+            return false;
+        }
+        const userId = connectedUser?.id;
+        try {
+            const focus = focusId ? `?focus=${encodeURIComponent(focusId)}` : '';
+            const result = await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}${focus}`);
+            if (connectedUser?.id !== userId || select.value !== contactId) return false;
+            if (focusId && !result.messages.some(message => message.id === focusId && !message.mine)) {
+                status.textContent = 'Ce message n’est plus disponible.';
+                return false;
+            }
+            container.replaceChildren();
+            if (!result.messages.length) container.append(makeTextElement('p', 'Aucun message pour le moment.', 'helper-text'));
+            result.messages.forEach(message => {
+                const item = document.createElement('article');
+                item.className = 'notification-card';
+                item.append(makeTextElement('strong', message.mine ? 'Vous' : select.selectedOptions[0].text));
+                item.append(makeTextElement('p', message.body));
+                item.append(makeTextElement('small', `${formatDateTime(message.createdAt)}${message.mine ? (message.readAt ? ' · Lu' : ' · Non lu') : ''}`, 'helper-text'));
+                container.append(item);
+            });
+            const unread = result.messages.filter(message => !message.mine && !message.readAt).map(message => message.id);
+            if (unread.length) {
+                await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}/read`, {
+                    method: 'PATCH', body: { ids: unread }
+                });
+                chargerNotifications();
+            }
+            status.textContent = '';
+            return true;
+        } catch (error) {
+            status.textContent = error.message || 'Impossible de charger les messages.';
+            return false;
+        }
+    }
+
+    async function envoyerMessage(role) {
+        const select = document.getElementById(`message-contact-${role}`);
+        const text = document.getElementById(`message-text-${role}`);
+        const status = document.getElementById(`message-status-${role}`);
+        if (!select.value) {
+            status.textContent = 'Choisissez un correspondant.';
+            return;
+        }
+        const contactId = select.value;
+        const message = text.value.trim();
+        if (!message) {
+            status.textContent = 'Écrivez un message avant de l’envoyer.';
+            return;
+        }
+        const button = document.querySelector(`#message-form-${role} button`);
+        button.disabled = true;
+        try {
+            await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
+                method: 'POST', body: { message }
+            });
+            text.value = '';
+            status.textContent = 'Message envoyé.';
+            if (select.value === contactId) await ouvrirConversation(role);
+        } catch (error) {
+            status.textContent = error.message || 'Impossible d’envoyer le message.';
+        } finally {
+            button.disabled = false;
         }
     }
 
@@ -4401,7 +4569,7 @@
     }
 
     function configurerFormulairesInformationsPersonne() {
-        ['senior', 'aidant'].forEach(role => {
+        ['senior', 'aidant', 'pro'].forEach(role => {
             const form = document.getElementById(`${role}-person-note-form`);
             form.addEventListener('submit', async event => {
                 event.preventDefault();
@@ -4804,6 +4972,13 @@
         ['senior', 'aidant', 'pro'].forEach(role => {
             document.getElementById(`notifications-panel-${role}`).style.display = 'none';
             document.getElementById(`notification-settings-${role}`).style.display = 'none';
+            document.getElementById(`notification-opened-${role}`).replaceChildren();
+        });
+        ['senior', 'aidant'].forEach(role => {
+            document.getElementById(`message-contact-${role}`).replaceChildren();
+            document.getElementById(`message-list-${role}`).replaceChildren();
+            document.getElementById(`message-text-${role}`).value = '';
+            document.getElementById(`message-status-${role}`).textContent = '';
         });
         document.getElementById('settings-account-closure').style.display = 'none';
         document.getElementById('legal-guardian-verification-panel').style.display = 'none';
@@ -5097,6 +5272,87 @@
         configurerFormulairesInformationsPersonne();
         configurerPreferencesNotification();
         configurerAnnuaire();
+        let pendingNotificationId = new URLSearchParams(window.location.search).get('notification') || '';
+        window.handlePendingNotification = async () => {
+            const id = window.pendingPushNotificationId || pendingNotificationId;
+            if (!id || !connectedUser || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return;
+            if ((connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
+                (connectedUser.role === 'aidant' && connectedUser.isLegalGuardian &&
+                 connectedUser.guardianVerificationStatus !== 'approved')) return;
+            pendingNotificationId = id;
+            window.pendingPushNotificationId = '';
+            switchScreen(connectedUser.role);
+            try {
+                const notification = await seniorLinksRequest(`/api/notifications/open/${encodeURIComponent(id)}`);
+                const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
+                const opened = document.getElementById(`notification-opened-${connectedUser.role}`);
+                const card = document.createElement('article');
+                card.className = 'notification-card';
+                card.append(makeTextElement('strong', notification.title));
+                card.append(makeTextElement('p', notification.message));
+                card.append(makeTextElement('small', formatDateTime(notification.createdAt), 'helper-text'));
+                opened.replaceChildren(card);
+                panel.scrollIntoView({ behavior: 'smooth' });
+                if (notification.type === 'private_message' && notification.senderUserId &&
+                    ['senior', 'aidant', 'pro'].includes(connectedUser.role)) {
+                    const role = connectedUser.role;
+                    if (!await chargerCorrespondants(role)) return;
+                    const select = document.getElementById(`message-contact-${role}`);
+                    select.value = notification.senderUserId;
+                    if (!select.value) {
+                        showToast('Ce correspondant n’est plus associé à votre compte.', false);
+                        return;
+                    }
+                    if (!await ouvrirConversation(role, notification.entityId)) return;
+                    document.getElementById(`messages-${role}`).scrollIntoView({ behavior: 'smooth' });
+                } else {
+                    await seniorLinksRequest(`/api/notifications/${encodeURIComponent(id)}`, {
+                        method: 'PATCH', body: { read: true }
+                    });
+                    await chargerNotifications();
+                }
+                pendingNotificationId = '';
+                const url = new URL(window.location.href);
+                url.searchParams.delete('notification');
+                window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+            } catch (error) {
+                showToast(error.message || 'Impossible de confirmer l’ouverture de la notification.', false);
+            }
+        };
+        window.addEventListener('generation-notification-opened', () => window.handlePendingNotification());
+        navigator.serviceWorker?.addEventListener('message', event => {
+            if (event.data?.type === 'notification-opened') {
+                pendingNotificationId = event.data.notificationId;
+                window.handlePendingNotification();
+            }
+        });
+        ['senior', 'aidant', 'pro'].forEach(role => {
+            document.getElementById(`message-contact-${role}`).addEventListener('change', () => {
+                document.getElementById(`message-list-${role}`).replaceChildren();
+            });
+            document.getElementById(`message-form-${role}`).addEventListener('submit', event => {
+                event.preventDefault();
+                envoyerMessage(role);
+            });
+        });
+        document.getElementById('add-app-contact-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const form = event.currentTarget;
+            const button = form.querySelector('button');
+            const email = document.getElementById('add-app-contact-email');
+            const status = document.getElementById('add-app-contact-status');
+            button.disabled = true;
+            try {
+                await seniorLinksRequest('/api/contacts', { method: 'POST', body: { email: email.value.trim() } });
+                email.value = '';
+                status.textContent = 'Contact ajouté.';
+                await chargerContacts();
+            } catch (error) {
+                status.textContent = error.message || 'Impossible d’ajouter ce contact.';
+            } finally {
+                button.disabled = false;
+            }
+        });
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible' &&
                 connectedUser?.role === 'pro' &&
@@ -5116,7 +5372,9 @@
             if (calendarMessages[calendarResult]) {
                 showToast(calendarMessages[calendarResult], calendarResult === 'connected');
             }
-            window.history.replaceState({}, '', `${window.location.pathname}${window.location.hash}`);
+            const url = new URL(window.location.href);
+            url.searchParams.delete('calendar');
+            window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
         }
         document.getElementById('planning-previous-day').addEventListener('click', () => decalerJourPlanning(-1));
         document.getElementById('personal-event-form').addEventListener('submit', async event => {
