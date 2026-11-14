@@ -77,6 +77,40 @@ async function register(email, role, isLegalGuardian = false) {
   return result.data;
 }
 
+test('all account roles store separate names without altering legacy accounts', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const email = `separate-name-${role}@example.test`;
+    const body = {
+      firstName: ' Marie Claire ', lastName: ' Dupont Martin ', email,
+      password: 'a-test-password-123', role, acceptedTerms: true,
+      acceptedTermsVersion: TERMS_VERSION
+    };
+    if (role === 'pro') Object.assign(body, { homeLatitude: 43.7, homeLongitude: 0.1, serviceRadiusKm: 30 });
+    const created = await request('/api/auth/register', { body });
+    assert.equal(created.status, 201);
+    assert.equal(created.data.user.name, 'Marie Claire Dupont Martin');
+    assert.equal(created.data.user.firstName, 'Marie Claire');
+    assert.equal(created.data.user.lastName, 'Dupont Martin');
+    const authenticated = await request('/api/auth/me', { user: created.data });
+    assert.equal(authenticated.data.user.firstName, 'Marie Claire');
+    assert.equal(authenticated.data.user.lastName, 'Dupont Martin');
+    const loggedIn = await request('/api/auth/login', { body: { email, password: body.password } });
+    assert.equal(loggedIn.data.user.firstName, 'Marie Claire');
+    assert.equal(loggedIn.data.user.lastName, 'Dupont Martin');
+  }
+  const legacy = await register('legacy-name@example.test', 'senior');
+  assert.equal(legacy.user.name, 'legacy-name@example.test');
+  assert.equal(legacy.user.firstName, null);
+  assert.equal(legacy.user.lastName, null);
+  for (const names of [{ firstName: 'Marie' }, { firstName: 'Marie', lastName: '  ' }]) {
+    const result = await request('/api/auth/register', {
+      body: { name: 'Ignored', ...names, email: 'invalid-name@example.test', password: 'a-test-password-123',
+        role: 'senior', acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION }
+    });
+    assert.equal(result.status, 400);
+  }
+});
+
 test('invites seniors by email without granting access and reports delivery problems', async () => {
   const aidant = await register('invite-aidant@example.test', 'aidant');
   const existing = await register('invite-senior@example.test', 'senior');

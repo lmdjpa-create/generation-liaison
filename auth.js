@@ -81,6 +81,9 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS terms_version VARCHAR(32);
         ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS first_name VARCHAR(120),
+          ADD COLUMN IF NOT EXISTS last_name VARCHAR(120);
+        ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
         ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS verification_status VARCHAR(16) NOT NULL DEFAULT 'approved',
@@ -636,6 +639,8 @@ function createAuthService(pool) {
     return {
       id: row.id,
       name: row.name,
+      firstName: row.first_name || null,
+      lastName: row.last_name || null,
       email: row.email,
       role: row.role,
       isActive: row.is_active !== false,
@@ -666,6 +671,8 @@ function createAuthService(pool) {
 
   async function register({
     name,
+    firstName,
+    lastName,
     email,
     password,
     role,
@@ -686,13 +693,20 @@ function createAuthService(pool) {
       throw new AuthError(400, 'Vous devez accepter les conditions générales d’utilisation en vigueur.');
     }
 
-    if (typeof name !== 'string' || typeof email !== 'string' ||
+    const hasSeparateNames = firstName !== undefined || lastName !== undefined;
+    if ((hasSeparateNames && (typeof firstName !== 'string' || typeof lastName !== 'string')) ||
+        (!hasSeparateNames && typeof name !== 'string') || typeof email !== 'string' ||
         (seniorName !== undefined && seniorName !== null && typeof seniorName !== 'string')) {
       throw new AuthError(400, 'Complétez tous les champs du formulaire.');
     }
 
     const normalizedEmail = email.trim().toLowerCase();
-    const normalizedName = name.trim();
+    const normalizedFirstName = hasSeparateNames ? firstName.trim() : null;
+    const normalizedLastName = hasSeparateNames ? lastName.trim() : null;
+    if (hasSeparateNames && (!normalizedFirstName || !normalizedLastName)) {
+      throw new AuthError(400, 'Saisissez votre prénom et votre nom.');
+    }
+    const normalizedName = hasSeparateNames ? `${normalizedFirstName} ${normalizedLastName}` : name.trim();
     if (!normalizedName || normalizedName.length > 120) {
       throw new AuthError(400, 'Vérifiez les noms saisis.');
     }
@@ -751,13 +765,14 @@ function createAuthService(pool) {
             password_salt, password_hash, verification_status, notification_phone,
             email_notifications_enabled, sms_notifications_enabled, is_legal_guardian,
             guardian_verification_status,
-            email_notifications_consent_at, sms_notifications_consent_at, terms_accepted_at, terms_version)
+            email_notifications_consent_at, sms_notifications_consent_at, terms_accepted_at, terms_version,
+            first_name, last_name)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                  CASE WHEN $15 THEN 'pending' ELSE 'not_required' END,
                  CASE WHEN $13 THEN CURRENT_TIMESTAMP ELSE NULL END,
                  CASE WHEN $14 THEN CURRENT_TIMESTAMP ELSE NULL END,
-                 CURRENT_TIMESTAMP, $16)
-         RETURNING id, senior_id, name, email, role, verification_status,
+                 CURRENT_TIMESTAMP, $16, $17, $18)
+         RETURNING id, senior_id, name, first_name, last_name, email, role, verification_status,
                    home_latitude, home_longitude, service_radius_km,
                    is_legal_guardian, guardian_verification_status`,
         [
@@ -776,7 +791,9 @@ function createAuthService(pool) {
           emailNotificationsEnabled,
           smsNotificationsEnabled,
           isLegalGuardian,
-          TERMS_VERSION
+          TERMS_VERSION,
+          normalizedFirstName,
+          normalizedLastName
         ]
       );
       rows[0].senior_name = normalizedSeniorName || null;
@@ -865,7 +882,7 @@ function createAuthService(pool) {
     try {
       await client.query('BEGIN');
       const { rows } = await client.query(
-        `SELECT u.id, u.senior_id, u.name, u.email, u.role, u.is_active,
+        `SELECT u.id, u.senior_id, u.name, u.first_name, u.last_name, u.email, u.role, u.is_active,
               u.verification_status,
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
@@ -899,7 +916,7 @@ function createAuthService(pool) {
   async function authenticate(token) {
     await ensureSchema();
     const { rows } = await pool.query(
-      `SELECT u.id, u.senior_id, u.name, u.email, u.role, u.is_active,
+      `SELECT u.id, u.senior_id, u.name, u.first_name, u.last_name, u.email, u.role, u.is_active,
               u.verification_status,
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,

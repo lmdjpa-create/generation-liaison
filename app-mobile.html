@@ -299,7 +299,8 @@
         <div id="register-section" style="display: none;">
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Créer un Compte</h2>
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Créez votre accès Génération Liaison</p>
-            <input type="text" id="reg-name" placeholder="Prénom et Nom">
+            <input type="text" id="reg-first-name" name="given-name" autocomplete="given-name" maxlength="120" placeholder="Prénom" aria-label="Prénom">
+            <input type="text" id="reg-last-name" name="family-name" autocomplete="family-name" maxlength="120" placeholder="Nom de famille" aria-label="Nom de famille">
             <input type="email" id="reg-email" name="username" autocomplete="username" placeholder="Adresse e-mail">
             <label class="terms-consent" for="reg-terms-accepted">
                 <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
@@ -1719,7 +1720,7 @@
 
     function afficherAccueilSenior(user) {
         const displayName = user.name || user.seniorName || 'Senior';
-        const firstName = displayName.trim().split(/\s+/)[0] || 'Senior';
+        const firstName = user.firstName || displayName.trim().split(/\s+/)[0] || 'Senior';
         document.getElementById('welcome-senior-name').textContent = firstName;
         document.getElementById('welcome-aidant-name').textContent = firstName;
         document.getElementById('date-senior').textContent = new Date().toLocaleDateString(window.generationLiaisonLocale(), {
@@ -4825,7 +4826,8 @@
         document.getElementById('screen-senior').classList.add('active');
         document.getElementById('auth-email').value = '';
         document.getElementById('auth-password').value = '';
-        document.getElementById('reg-name').value = '';
+        document.getElementById('reg-first-name').value = '';
+        document.getElementById('reg-last-name').value = '';
         document.getElementById('reg-email').value = '';
         document.getElementById('reg-senior-name').value = '';
         document.getElementById('reg-password').value = '';
@@ -4899,7 +4901,9 @@
         }
         termsError.hidden = true;
 
-        const name = document.getElementById('reg-name').value.trim();
+        const firstName = document.getElementById('reg-first-name').value.trim();
+        const lastName = document.getElementById('reg-last-name').value.trim();
+        const name = `${firstName} ${lastName}`;
         const email = document.getElementById('reg-email').value.trim();
         const seniorName = document.getElementById('reg-senior-name').value.trim();
         const password = document.getElementById('reg-password').value;
@@ -4911,7 +4915,7 @@
             document.getElementById('reg-sms-notifications').checked;
         const notificationPhone = document.getElementById('reg-notification-phone').value.trim();
 
-        if (!name || !email || password.length < 12) {
+        if (!firstName || !lastName || !email || password.length < 12) {
             showToast('Complétez les champs et choisissez un mot de passe de 12 caractères minimum.', false);
             return;
         }
@@ -4937,6 +4941,8 @@
         try {
             const credentials = {
                 name,
+                firstName,
+                lastName,
                 email,
                 seniorName: role === 'senior' ? name : seniorName,
                 password,
