@@ -63,6 +63,19 @@ async function sendSeniorUnlinkCode(email, code) {
   if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
 }
 
+async function sendSeniorInvitation(email, appUrl) {
+  const result = await getResendClient().emails.send({
+    from: process.env.NOTIFICATIONS_FROM_EMAIL,
+    to: email,
+    subject: 'Invitation à découvrir Génération Liaison',
+    text: `Un proche vous invite à découvrir Génération Liaison.\n\n` +
+      `Vous pouvez ouvrir l’application en ligne ou trouver les indications pour la télécharger ici :\n${appUrl}\n\n` +
+      `Si un proche demande accès à votre profil, vous restez libre d’accepter ou de refuser dans votre espace. ` +
+      `Si vous ne souhaitez pas utiliser l’application, vous pouvez ignorer ce message.`
+  });
+  if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
+}
+
 function configureWebPush() {
   const { WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY, WEB_PUSH_SUBJECT } = process.env;
   if (!WEB_PUSH_PUBLIC_KEY && !WEB_PUSH_PRIVATE_KEY && !WEB_PUSH_SUBJECT) return;
@@ -308,5 +321,6 @@ module.exports = {
   publicConfiguration,
   sendPasswordResetEmail,
   sendSeniorUnlinkCode,
+  sendSeniorInvitation,
   startDeliveryWorker
 };

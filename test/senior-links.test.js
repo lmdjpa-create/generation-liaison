@@ -13,6 +13,9 @@ let server;
 let baseUrl;
 let sentCode;
 let failEmail = false;
+let emailConfigured = true;
+let failInvitation = false;
+const sentInvitations = [];
 
 before(async () => {
   db = new PGlite();
@@ -31,10 +34,14 @@ before(async () => {
   process.env.DATABASE_URL = 'postgresql://isolated-test';
   process.env.ADMIN_EMAILS = 'admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
-  delivery.isConfigured = () => ({ email: true });
+  delivery.isConfigured = () => ({ email: emailConfigured });
   delivery.sendSeniorUnlinkCode = async (email, code) => {
     if (failEmail) throw new Error('test delivery failure');
     sentCode = { email, code };
+  };
+  delivery.sendSeniorInvitation = async (email, url) => {
+    if (failInvitation) throw new Error('test invitation delivery failure');
+    sentInvitations.push({ email, url });
   };
   const app = require('../server');
   server = app.listen(0);
@@ -69,6 +76,44 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('invites seniors by email without granting access and reports delivery problems', async () => {
+  const aidant = await register('invite-aidant@example.test', 'aidant');
+  const existing = await register('invite-senior@example.test', 'senior');
+  const path = '/api/senior-links/requests';
+  const invite = email => request(path, { user: aidant, body: { email } });
+
+  const missing = await invite('invite-new@example.test');
+  const registered = await invite('invite-senior@example.test');
+  assert.equal(missing.status, 202);
+  assert.deepEqual(missing.data, registered.data);
+  assert.deepEqual(sentInvitations.slice(-2), [
+    { email: 'invite-new@example.test', url: 'https://generation-liaison.onrender.com/' },
+    { email: 'invite-senior@example.test', url: 'https://generation-liaison.onrender.com/' }
+  ]);
+  assert.equal((await request('/api/senior-links', { user: existing })).data.requests.length, 1);
+  assert.equal((await request('/api/logs/all', { user: aidant, seniorId: existing.user.seniorId })).status, 403);
+
+  const count = sentInvitations.length;
+  assert.match((await invite('invite-new@example.test')).data.message, /déjà été demandée récemment/);
+  assert.equal(sentInvitations.length, count);
+
+  emailConfigured = false;
+  assert.match((await invite('invite-unconfigured@example.test')).data.message, /n’a pas été envoyé.*pas configuré/);
+  emailConfigured = true;
+  failInvitation = true;
+  assert.match((await invite('invite-failure@example.test')).data.message, /n’a pas pu être envoyé/);
+  failInvitation = false;
+  const anotherAidant = await register('invite-retry-aidant@example.test', 'aidant');
+  const retry = await request(path, { user: anotherAidant, body: { email: 'invite-failure@example.test' } });
+  assert.match(retry.data.message, /transmis au service d’envoi/);
+
+  const newSenior = await register('invite-new@example.test', 'senior');
+  assert.equal((await request('/api/senior-links', { user: newSenior })).data.requests.length, 0);
+  await request(path, { user: anotherAidant, body: { email: 'invite-new@example.test' } });
+  assert.equal((await request('/api/senior-links', { user: newSenior })).data.requests.length, 1);
+  assert.equal((await request('/api/logs/all', { user: anotherAidant, seniorId: newSenior.user.seniorId })).status, 403);
+});
 
 test('personal agenda events can be compared only after the linked owner accepts', async () => {
   const senior = await register('agenda-senior@example.test', 'senior');

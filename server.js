@@ -46,6 +46,7 @@ const adminAccessCodeHash = adminAccessCode.length >= 32
   : null;
 const assistantMessageTimes = new Map();
 const seniorLinkRequestTimes = new Map();
+const seniorInvitationTimes = new Map();
 
 app.use(cors());
 app.use(express.json());
@@ -3877,12 +3878,37 @@ app.post('/api/senior-links/requests', requireAuth, async (req, res) => {
         'senior_link', rows[0].id);
     }
     await client.query('COMMIT');
-    res.status(202).json({ message: 'Si ce compte senior existe et peut recevoir la demande, elle lui sera présentée dans son espace.' });
   } catch (error) {
     if (client) await client.query('ROLLBACK');
-    sendApiError(res, error, 'Impossible d’envoyer la demande.');
+    return sendApiError(res, error, 'Impossible d’envoyer la demande.');
   } finally {
     if (client) client.release();
+  }
+
+  const message = 'Si ce compte senior existe et peut recevoir la demande, elle lui sera présentée dans son espace.';
+  if (!notificationDelivery.isConfigured().email) {
+    return res.status(202).json({ message: `${message} L’e-mail d’invitation n’a pas été envoyé : le service e-mail n’est pas configuré.` });
+  }
+
+  const invitationKey = createHash('sha256').update(email).digest('hex');
+  for (const [key, time] of seniorInvitationTimes) {
+    if (now - time >= 10 * 60_000) seniorInvitationTimes.delete(key);
+  }
+  if (seniorInvitationTimes.has(invitationKey)) {
+    return res.status(202).json({ message: `${message} Une invitation a déjà été demandée récemment pour cette adresse.` });
+  }
+  seniorInvitationTimes.set(invitationKey, now);
+  try {
+    const appUrl = new URL(process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com');
+    if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password) {
+      throw new Error('PUBLIC_APP_URL doit être une URL HTTPS valide.');
+    }
+    await notificationDelivery.sendSeniorInvitation(email, new URL('/', appUrl).toString());
+    return res.status(202).json({ message: `${message} L’e-mail d’invitation a été transmis au service d’envoi.` });
+  } catch (error) {
+    seniorInvitationTimes.delete(invitationKey);
+    console.error('Échec de l’envoi de l’invitation senior :', error);
+    return res.status(202).json({ message: `${message} L’e-mail d’invitation n’a pas pu être envoyé. Réessayez plus tard.` });
   }
 });
 
