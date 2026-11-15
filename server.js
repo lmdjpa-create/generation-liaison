@@ -2122,6 +2122,12 @@ app.post('/api/admin/account-closure-requests/:requestId/ai-review', requireAuth
          (SELECT count(*) FROM partner_scope) AS service_partners,
          (SELECT count(*) FROM app_logs item
           WHERE item.senior_id = target.senior_id) AS liaison_logs,
+         (SELECT count(*) FROM app_shared_tasks item
+          WHERE (target.role = 'senior' AND item.senior_id = target.senior_id)
+             OR (target.role = 'aidant' AND EXISTS (
+               SELECT 1 FROM app_aidant_senior_links link
+               WHERE link.aidant_user_id = target.user_id AND link.senior_profile_id = item.senior_id
+             ))) AS shared_tasks,
          (SELECT count(*) FROM related_recipient_scope) AS planning_recipients,
          (SELECT count(*) FROM planning_recipient_notes item
           WHERE item.recipient_id IN (SELECT id FROM related_recipient_scope)) AS shared_notes,
@@ -2171,6 +2177,7 @@ app.post('/api/admin/account-closure-requests/:requestId/ai-review', requireAuth
       ['teamMemberships', account.team_memberships],
       ['servicePartners', account.service_partners],
       ['liaisonLogs', account.liaison_logs],
+      ['sharedTasks', account.shared_tasks],
       ['planningRecipients', account.planning_recipients],
       ['sharedNotes', account.shared_notes],
       ['careVisits', account.care_visits],
@@ -5835,6 +5842,112 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger l’agenda.');
   }
+});
+
+async function withSharedTasks(req, res, operation) {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Accès aux tâches non autorisé.' });
+  }
+  if (!req.authUser.seniorId) {
+    return res.status(409).json({ error: 'Sélectionnez une personne accompagnée.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    if (req.authUser.role === 'aidant') {
+      const link = await client.query(
+        `SELECT 1 FROM app_aidant_senior_links
+         WHERE aidant_user_id = $1 AND senior_profile_id = $2 AND suspended_at IS NULL
+         FOR SHARE`,
+        [req.authUser.id, req.authUser.seniorId]
+      );
+      if (!link.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Ce profil senior n’est plus associé à votre compte.' });
+      }
+    }
+    const accounts = await client.query(
+      `SELECT id FROM app_users
+       WHERE is_active = TRUE AND
+         ((id = $1 AND role = $3 AND (role != 'aidant' OR NOT is_legal_guardian OR guardian_verification_status = 'approved'))
+          OR (senior_id = $2 AND role = 'senior'))
+       FOR SHARE`,
+      [req.authUser.id, req.authUser.seniorId, req.authUser.role]
+    );
+    if (accounts.rows.length !== (req.authUser.role === 'senior' ? 1 : 2)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce profil senior n’est pas disponible.' });
+    }
+    const result = await operation(client, req.authUser.seniorId);
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
+    return res.status(result.status).json(result.body);
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    return sendApiError(res, error, 'Impossible de gérer les tâches partagées.');
+  } finally {
+    if (client) client.release();
+  }
+}
+
+app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
+  const { rows } = await client.query(
+    `SELECT id, title, completed, to_char(due_date, 'YYYY-MM-DD') AS "dueDate"
+     FROM app_shared_tasks WHERE senior_id = $1
+     ORDER BY completed, due_date NULLS LAST, created_at, id`, [seniorId]
+  );
+  return { status: 200, body: { tasks: rows } };
+}));
+
+app.post('/api/shared-tasks', requireAuth, (req, res) => {
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  if (!title || title.length > 120) {
+    return res.status(400).json({ error: 'Indiquez une tâche de 120 caractères maximum.' });
+  }
+  const dueDate = req.body?.dueDate === undefined ? null : req.body.dueDate;
+  if (dueDate !== null && (!isValidIsoDate(dueDate) || dueDate.startsWith('0000-'))) {
+    return res.status(400).json({ error: 'Choisissez une date valide.' });
+  }
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const id = randomUUID();
+    await client.query('INSERT INTO app_shared_tasks (id, senior_id, title, due_date) VALUES ($1, $2, $3, $4)',
+      [id, seniorId, title, dueDate]);
+    return { status: 201, body: { id } };
+  });
+});
+
+app.patch('/api/shared-tasks/:id', requireAuth, (req, res) => {
+  const hasCompleted = Object.prototype.hasOwnProperty.call(req.body || {}, 'completed');
+  const hasDueDate = Object.prototype.hasOwnProperty.call(req.body || {}, 'dueDate');
+  if (!isValidUuid(req.params.id) || (!hasCompleted && !hasDueDate) ||
+      (hasCompleted && typeof req.body.completed !== 'boolean') ||
+      (hasDueDate && req.body.dueDate !== null &&
+       (!isValidIsoDate(req.body.dueDate) || req.body.dueDate.startsWith('0000-')))) {
+    return res.status(400).json({ error: 'Tâche ou état invalide.' });
+  }
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const { rows } = await client.query(
+      `UPDATE app_shared_tasks SET
+         completed = CASE WHEN $1::boolean THEN $2::boolean ELSE completed END,
+         due_date = CASE WHEN $3::boolean THEN $4::date ELSE due_date END
+       WHERE id = $5 AND senior_id = $6 RETURNING id`,
+      [hasCompleted, hasCompleted ? req.body.completed : null,
+        hasDueDate, hasDueDate ? req.body.dueDate : null, req.params.id, seniorId]
+    );
+    return rows.length ? { status: 200, body: { updated: true } }
+      : { status: 404, body: { error: 'Tâche introuvable.' } };
+  });
+});
+
+app.delete('/api/shared-tasks/:id', requireAuth, (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Tâche invalide.' });
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const { rows } = await client.query('DELETE FROM app_shared_tasks WHERE id = $1 AND senior_id = $2 RETURNING id',
+      [req.params.id, seniorId]);
+    return rows.length ? { status: 200, body: { deleted: true } }
+      : { status: 404, body: { error: 'Tâche introuvable.' } };
+  });
 });
 
 app.post('/api/agenda/events', requireAuth, async (req, res) => {

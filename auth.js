@@ -615,6 +615,17 @@ function createAuthService(pool) {
         );
         CREATE INDEX IF NOT EXISTS app_personal_events_owner_date_idx
           ON app_personal_events (owner_user_id, starts_at);
+        CREATE TABLE IF NOT EXISTS app_shared_tasks (
+          id UUID PRIMARY KEY,
+          senior_id UUID NOT NULL REFERENCES senior_profiles(id) ON DELETE CASCADE,
+          title VARCHAR(120) NOT NULL,
+          completed BOOLEAN NOT NULL DEFAULT FALSE,
+          due_date DATE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        ALTER TABLE app_shared_tasks ADD COLUMN IF NOT EXISTS due_date DATE;
+        CREATE INDEX IF NOT EXISTS app_shared_tasks_senior_idx
+          ON app_shared_tasks (senior_id, created_at);
         CREATE TABLE IF NOT EXISTS app_agenda_share_requests (
           id UUID PRIMARY KEY,
           requester_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
