@@ -652,6 +652,32 @@
       }
     }
 
+    async function updatePremium(account, choice, button) {
+      if (!choice) {
+        setStatus('Choisissez une formule.', true);
+        return;
+      }
+      const days = { month: 31, quarter: 92, year: 366, trial: 14 }[choice];
+      const body = choice === 'none'
+        ? { status: 'inactive' }
+        : {
+          status: choice === 'trial' ? 'trial' : 'active',
+          until: days ? new Date(Date.now() + days * 86400000).toISOString() : null
+        };
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/accounts/${encodeURIComponent(account.id)}/premium`, {
+          method: 'PATCH',
+          body
+        });
+        setStatus('Abonnement mis à jour.');
+        await loadOverview();
+      } catch (error) {
+        setStatus(error.message, true);
+        button.disabled = false;
+      }
+    }
+
     async function updateAccount(account, button) {
       button.disabled = true;
       try {
@@ -1030,6 +1056,31 @@
           button.addEventListener('click', () => updateAccount(account, button));
           action.append(button);
         }
+        const premium = document.createElement('div');
+        premium.style.marginTop = '8px';
+        const premiumBadge = document.createElement('span');
+        premiumBadge.className = `badge${account.premiumActive ? '' : ' off'}`;
+        premiumBadge.textContent = account.premiumActive
+          ? `${account.premiumStatus === 'trial' ? 'Essai' : 'Premium'}${account.premiumUntil ? ` jusqu’au ${new Date(account.premiumUntil).toLocaleDateString('fr-FR')}` : ''}`
+          : 'Sans abonnement';
+        const premiumChoice = document.createElement('select');
+        premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
+        premiumChoice.style.margin = '0 8px';
+        [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
+          ['year', 'Premium 12 mois'], ['forever', 'Premium sans fin'],
+          ['trial', 'Essai 14 jours'], ['none', 'Retirer l’abonnement']].forEach(([value, label]) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          premiumChoice.append(option);
+        });
+        const premiumButton = document.createElement('button');
+        premiumButton.className = 'button secondary';
+        premiumButton.type = 'button';
+        premiumButton.textContent = 'Appliquer';
+        premiumButton.addEventListener('click', () => updatePremium(account, premiumChoice.value, premiumButton));
+        premium.append(premiumBadge, premiumChoice, premiumButton);
+        action.append(premium);
         row.append(action);
         tbody.append(row);
       });

@@ -1504,6 +1504,7 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
       pool.query(
         `SELECT user_account.id, user_account.name, user_account.email, user_account.role,
                 user_account.is_active, user_account.verification_status,
+                user_account.premium_status, user_account.premium_until,
                 user_account.senior_id, user_account.is_legal_guardian,
                 user_account.guardian_verification_status,
                 (SELECT COUNT(*)::int
@@ -1678,6 +1679,9 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
         },
         seniorProfileId: row.senior_id,
         linkedSeniors: row.linked_seniors || [],
+        premiumStatus: row.premium_status,
+        premiumUntil: row.premium_until,
+        premiumActive: hasActivePremium(row),
         administrator: adminEmails.has(row.email.toLowerCase()),
         profileName: row.profile_name,
         teamCount: row.team_count,
@@ -2127,6 +2131,42 @@ app.patch('/api/admin/accounts/:accountId', requireAuth, requireAdmin, async (re
     sendApiError(res, error, 'Impossible de modifier ce compte.');
   } finally {
     if (client) client.release();
+  }
+});
+
+app.patch('/api/admin/accounts/:accountId/premium', requireAuth, requireAdmin, async (req, res) => {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(req.params.accountId)) {
+    return res.status(400).json({ error: 'Identifiant de compte invalide.' });
+  }
+  const status = req.body?.status;
+  if (!['active', 'trial', 'inactive'].includes(status)) {
+    return res.status(400).json({ error: 'Choisissez un abonnement actif, un essai ou aucun abonnement.' });
+  }
+  let until = null;
+  if (status !== 'inactive' && req.body.until) {
+    until = new Date(req.body.until);
+    if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'La date de fin doit être dans le futur.' });
+    }
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_users
+       SET premium_status = $2, premium_until = $3
+       WHERE id = $1
+       RETURNING id, premium_status, premium_until`,
+      [req.params.accountId, status, until]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Compte introuvable.' });
+    res.json({
+      accountId: rows[0].id,
+      premiumStatus: rows[0].premium_status,
+      premiumUntil: rows[0].premium_until,
+      premiumActive: hasActivePremium(rows[0])
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier l’abonnement.');
   }
 });
 
