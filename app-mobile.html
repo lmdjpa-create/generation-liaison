@@ -335,7 +335,6 @@
         #main-app-senior .btn-video { background: #59428c; animation: none; }
         #main-app-senior .btn-success { background: #17684f; }
         #main-app-senior .btn-danger { background: #a32222 !important; }
-        #main-app-senior .senior-logout { background: white; color: #8b1e25; border: 2px solid #8b1e25; border-radius: 12px; font-weight: 700; cursor: pointer; }
         #main-app-senior .senior-disclosure > summary { display: list-item; }
         #main-app-senior .senior-disclosure:not(.senior-explanation) > summary,
         .senior-mode .senior-tab-disclosure > summary {
@@ -383,13 +382,41 @@
             color: white;
         }
         #screen-settings .form-card .account-closure button { background: #8b1e25; }
+        #screen-settings #settings-logout { width: 100%; margin: 0 0 14px; border: 2px solid #8b1e25; border-radius: 12px; background: white; color: #8b1e25; font-weight: 700; cursor: pointer; }
         :is(#screen-aidant, #screen-pro) .form-card .notification-actions button.decline { background: #8b1e25; }
         #screen-agenda :is(.calendar-toolbar, .calendar-day) button[aria-pressed="true"] {
             background: #17684f;
             color: white;
         }
         #screen-video-call .btn-danger { background: #a32222 !important; }
-        .nav-item { min-height: 56px; flex-basis: 76px; font-size: 0.875rem; }
+        #nav-bar {
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+            align-items: stretch;
+            gap: 0;
+            padding: 8px 8px calc(env(safe-area-inset-bottom) + 8px);
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: #9ab9ac #f0f6f3;
+        }
+        #nav-bar .nav-item {
+            box-sizing: border-box;
+            flex: 1 0 76px;
+            min-width: 76px;
+            min-height: 64px;
+            justify-content: center;
+            gap: 2px;
+            padding: 4px 3px;
+            border-radius: 12px;
+            color: #435d69;
+            font-size: 0.875rem;
+            line-height: 1.15;
+            text-align: center;
+        }
+        #nav-bar .nav-item.active { background: #e6f4ee; color: #155e48; }
+        #nav-bar .nav-icon { display: grid; place-items: center; min-height: 27px; margin: 0; font-size: 1.45rem; line-height: 1; }
+        #nav-bar .nav-item.active .nav-icon { padding: 0; background: transparent; }
+        #notification-unread-count:not([hidden]) { color: #8b1e25; font-size: 0.75rem; font-weight: 700; }
         @media (max-width: 480px) {
             :is(#main-app-senior, #screen-aidant) .action-tiles { grid-template-columns: 1fr; }
             :is(#main-app-senior, #screen-aidant) .action-tile { flex-direction: row; text-align: left; }
@@ -674,7 +701,6 @@
             <button type="button" class="action-tile" onclick="actionSenior('Repas livré avec succès', 'meal_delivery')"><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">👍</span>Oui, reçu</button>
             <button type="button" class="action-tile" onclick="actionSenior('Alerte : Repas non reçu', 'meal_delivery')"><span class="tile-icon" aria-hidden="true" style="background:#fff0ee;">👎</span>Non, problème</button>
         </div>
-        <button type="button" class="senior-logout" onclick="deconnecterUtilisateur()">Se déconnecter</button>
     </div>
 </div>
 
@@ -970,6 +996,7 @@
 
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
+    <button id="settings-logout" type="button" onclick="deconnecterUtilisateur()">Se déconnecter</button>
     <section class="form-card" id="settings-account-profile">
       <details class="senior-tab-disclosure">
         <summary>Mon profil</summary>
@@ -1304,35 +1331,32 @@
 </div>
 
 <!-- 🧭 BARRE DE NAVIGATION -->
-<div class="nav-bar" id="nav-bar" style="display:none;">
+<nav class="nav-bar" id="nav-bar" aria-label="Navigation principale" style="display:none;">
     <button id="nav-senior" class="nav-item active" onclick="switchScreen('senior')">
-        <span class="nav-icon">🏠</span><span>Accueil</span>
+        <span class="nav-icon" aria-hidden="true">🏠</span><span>Accueil</span>
     </button>
     <button id="nav-aidant" class="nav-item" onclick="switchScreen('aidant')">
-        <span class="nav-icon">💚</span><span>Proches</span>
+        <span class="nav-icon" aria-hidden="true">💚</span><span>Proches</span>
     </button>
     <button id="nav-pro" class="nav-item" onclick="switchScreen('pro')">
-        <span class="nav-icon">🩺</span><span>Pro</span>
+        <span class="nav-icon" aria-hidden="true">🩺</span><span>Pro</span>
     </button>
     <button id="nav-directory" class="nav-item" onclick="switchScreen('directory')" style="display:none;">
-        <span class="nav-icon">🔎</span><span>Annuaire</span>
+        <span class="nav-icon" aria-hidden="true">🔎</span><span>Annuaire</span>
     </button>
     <button id="nav-contacts" class="nav-item" onclick="switchScreen('contacts')" style="display:none;">
-        <span class="nav-icon">📞</span><span>Contacts</span>
+        <span class="nav-icon" aria-hidden="true">📞</span><span>Contacts</span>
     </button>
     <button id="nav-agenda" class="nav-item" onclick="ouvrirAgenda()" style="display:none;">
-        <span class="nav-icon">🗓️</span><span>Agenda</span>
+        <span class="nav-icon" aria-hidden="true">🗓️</span><span>Agenda</span>
     </button>
     <button id="nav-notifications" class="nav-item" onclick="ouvrirNotifications()" style="display:none;">
-        <span class="nav-icon">🔔</span><span>Notifications et messages</span><span id="notification-unread-count" hidden></span>
+        <span class="nav-icon" aria-hidden="true">🔔</span><span>Notifications et messages</span><span id="notification-unread-count" hidden></span>
     </button>
     <button id="nav-settings" class="nav-item" onclick="switchScreen('settings')" style="display:none;">
-        <span class="nav-icon">☰</span><span>Plus</span>
+        <span class="nav-icon" aria-hidden="true">☰</span><span>Plus</span>
     </button>
-    <button id="nav-logout" class="nav-item" onclick="deconnecterUtilisateur()">
-        <span class="nav-icon">↪</span><span>Déconnexion</span>
-    </button>
-</div>
+</nav>
 
 <script>
     const SERVER_URL = window.APP_API_BASE_URL || window.location.origin;
@@ -1737,7 +1761,6 @@
         const screenId = pendingGuardian && screenName === 'aidant' ? 'senior' : screenName;
         document.getElementById(`screen-${screenId}`).classList.add('active');
         document.getElementById(`nav-${screenName === 'messages' ? 'notifications' : screenName}`).classList.add('active');
-        document.getElementById('nav-logout').classList.remove('active');
         if (screenName === 'agenda' || screenName === 'directory') {
             const isAidant = connectedUser.role === 'aidant';
             const context = document.getElementById(`${screenName}-senior-context`);
@@ -2053,7 +2076,6 @@
         if (pendingProfessional) {
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
             document.getElementById('screen-pro').classList.add('active');
-            document.getElementById('nav-logout').style.display = 'flex';
             chargerProfessionalVerificationDocuments();
             chargerPreferencesNotification();
             return;
@@ -2062,7 +2084,6 @@
             activeSeniorProfileId = '';
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
             document.getElementById('screen-senior').classList.add('active');
-            document.getElementById('nav-logout').style.display = 'flex';
             chargerLegalGuardianDocuments();
             return;
         }

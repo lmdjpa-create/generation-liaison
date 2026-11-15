@@ -411,6 +411,7 @@
     'Choisissez une image JPEG ou PNG valide (2 Mo maximum).': 'Choose a valid JPEG or PNG image (up to 2 MB).',
     'Compte créé et photo enregistrée, mais son affichage est indisponible.': 'Account created and photo saved, but it could not be displayed.',
     'Compte créé, mais la photo n’a pas été enregistrée.': 'Account created, but the photo was not saved.',
+    'Navigation principale': 'Main navigation',
     'Photo de profil (URL http(s))': 'Profile photo (http(s) URL)',
     'Aucune photo enregistrée pour l’instant.': 'No photo saved yet.',
     'Durée habituelle du rendez-vous': 'Typical appointment length',

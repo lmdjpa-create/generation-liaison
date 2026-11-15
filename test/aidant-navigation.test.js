@@ -187,6 +187,14 @@ test('senior selection is in settings and remains reachable from agenda and dire
   assert.deepEqual(calls, ['settings', 'aidant-senior-select']);
 });
 
+test('sign out is in settings rather than the navigation bar', () => {
+  const nav = source.slice(source.indexOf('<nav class="nav-bar"'), source.indexOf('</nav>', source.indexOf('<nav class="nav-bar"')));
+  const settings = source.slice(source.indexOf('<div id="screen-settings"'), source.indexOf('<div id="screen-agenda"'));
+  assert.doesNotMatch(nav, /deconnecterUtilisateur/);
+  assert.match(settings, /id="settings-logout"[^>]*onclick="deconnecterUtilisateur\(\)"/);
+  assert.match(source, /id="legal-guardian-logout"/);
+});
+
 test('aidant sections expand to full-width tiles and collapse again', () => {
   const classes = new Set();
   const details = {
