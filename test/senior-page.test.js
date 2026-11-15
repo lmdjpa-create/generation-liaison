@@ -278,7 +278,7 @@ test('next appointment displays Paris time, handles empty and failed loads, and 
 });
 
 test('companionship and daily services have one control each on the senior home', () => {
-  const tiles = extract('        <div class="action-tiles">', '        <section class="form-card emergency-call-card"');
+  const tiles = extract('<div id="screen-more"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   assert.doesNotMatch(tiles, /ouvrirSectionSenior/);
   for (const label of ['Un peu de compagnie', 'Services du quotidien']) {
@@ -288,7 +288,7 @@ test('companionship and daily services have one control each on the senior home'
   assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🏠<\/span>Services du quotidien<\/summary>/);
   assert.match(tiles, /switchScreen\('directory'\)/);
   assert.doesNotMatch(tiles, /Mon agenda/);
-  assert.match(source, /<button[^>]*onclick="switchScreen\('agenda'\)"[^>]*>Voir l’agenda<\/button>/);
+  assert.doesNotMatch(dashboard, /Voir l’agenda/);
 });
 
 test('senior feature sections keep their content collapsed and can open programmatically', () => {
@@ -324,14 +324,12 @@ test('senior feature sections keep their content collapsed and can open programm
   }
 });
 
-test('companionship and wellbeing appear once directly after the directory and notifications', () => {
+test('companionship, wellbeing, video call, meal delivery and emergency lead the senior home', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
-  const directory = dashboard.indexOf("switchScreen('directory')");
-  const notifications = dashboard.indexOf('onclick="ouvrirNotifications()"');
-  const assistant = dashboard.indexOf('id="senior-assistant-details"');
-  const wellbeing = dashboard.indexOf('id="wellbeing-checkin-details"');
-  const emergency = dashboard.indexOf('class="form-card emergency-call-card"');
-  assert.ok(directory < notifications && notifications < assistant && assistant < wellbeing && wellbeing < emergency);
+  const order = ['id="senior-weather-card"', 'id="senior-next-visit"', 'id="senior-assistant-details"',
+    'id="wellbeing-checkin-details"', 'onclick="declencherVisio()"', 'Livraison de repas',
+    'class="form-card emergency-call-card"', 'id="senior-more-button"'].map(item => dashboard.indexOf(item));
+  assert.ok(order.every((position, index) => position >= 0 && (index === 0 || order[index - 1] < position)));
   assert.equal(dashboard.split('id="senior-assistant-details"').length - 1, 1);
   assert.equal(dashboard.split('id="wellbeing-checkin-details"').length - 1, 1);
 });
@@ -610,10 +608,10 @@ test('safety actions remain visible outside the closed check-in and retain the r
 });
 
 test('one senior shortcut alongside the other tiles opens the separate messages and notifications page', () => {
-  const emergency = source.indexOf('<section class="form-card emergency-call-card"');
+  const more = source.indexOf('id="screen-more"');
   const shortcut = source.indexOf('onclick="ouvrirNotifications()"');
-  const tiles = extract('        <div class="action-tiles">', '        <section class="form-card emergency-call-card"');
-  assert.ok(shortcut >= 0 && shortcut < emergency);
+  const tiles = extract('<div id="screen-more"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  assert.ok(shortcut > more);
   assert.match(tiles, /<button type="button" class="action-tile" onclick="ouvrirNotifications\(\)"/);
   assert.match(tiles, /id="home-notification-count-senior"/);
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
