@@ -12,14 +12,17 @@ const googleCalendar = require('./google-calendar');
 const { assertLegacyBookingsSafeForLink, assertScheduleAvailable, lockScheduleParticipants } = require('./schedule-conflicts');
 const { startTaskReminderWorker } = require('./task-reminders');
 const { createPlanningGoogleSync } = require('./planning-google-sync');
-const { generateReply, generateWellbeingAssessment } = require('./ai-assistant');
+const { generateReply, generateWellbeingAssessment, suggestMessageRewrite, reviewSiteMetrics } = require('./ai-assistant');
+const { createSiteMonitor, siteArea } = require('./site-monitor');
+const { startSiteAlertWorker } = require('./site-monitor-alerts');
 const {
   availableSlots,
   dateInTimeZone,
   getDailyRange,
   isValidIsoDate,
   isValidTimeZone,
-  normalizeWeeklyAvailability
+  normalizeWeeklyAvailability,
+  zonedDateTimeToUtc
 } = require('./directory');
 
 require('dotenv').config();
@@ -48,8 +51,16 @@ const adminAccessCodeHash = adminAccessCode.length >= 32
 const assistantMessageTimes = new Map();
 const seniorLinkRequestTimes = new Map();
 const seniorInvitationTimes = new Map();
+const siteMonitor = createSiteMonitor();
 
 app.use(cors());
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') && !req.path.startsWith('/api/admin/site-monitor')) {
+    const area = siteArea(req.path);
+    res.on('finish', () => siteMonitor.record(res.statusCode, area));
+  }
+  next();
+});
 app.use(express.json());
 app.get('/admin', (req, res) => res.sendFile('admin.html', { root: path.join(__dirname, 'dist') }));
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -708,6 +719,37 @@ function limitAssistantMessages(userId) {
   return true;
 }
 
+app.post('/api/messages/rewrite', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') {
+    return res.status(403).json({ error: 'Cette aide est réservée au compte senior.' });
+  }
+  const { message, confirmed } = req.body || {};
+  if (confirmed !== true) {
+    return res.status(400).json({ error: 'Confirmez l’envoi de votre brouillon à OpenAI.' });
+  }
+  if (typeof message !== 'string' || !message.trim() || message.length > 2000) {
+    return res.status(400).json({ error: 'Écrivez un message de 1 à 2 000 caractères.' });
+  }
+  if (!limitAssistantMessages(req.authUser.id)) {
+    return res.status(429).json({ error: 'Vous avez fait plusieurs demandes. Réessayez dans une minute.' });
+  }
+  try {
+    const { rows } = await pool.query('SELECT enabled FROM app_ai_settings WHERE id = 1');
+    if (rows[0]?.enabled !== true) {
+      return res.status(503).json({ error: 'L’assistant IA est actuellement désactivé par l’équipe.' });
+    }
+    const suggestion = await suggestMessageRewrite({
+      message: message.trim(), apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+    });
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ suggestion });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    sendApiError(res, error, 'Impossible de préparer une proposition.');
+  }
+});
+
 app.get('/api/assistant/conversation', requireAuth, async (req, res) => {
   if (req.authUser.role !== 'senior') {
     return res.status(403).json({ error: 'Cette conversation est réservée au compte senior.' });
@@ -866,6 +908,31 @@ app.post('/api/assistant/handoff', requireAuth, async (req, res) => {
     sendApiError(res, error, 'Impossible de transmettre votre demande à l’équipe.');
   } finally {
     client?.release();
+  }
+});
+
+app.get('/api/admin/site-monitor', requireAuth, requireAdmin, (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  res.json(siteMonitor.snapshot());
+});
+
+app.post('/api/admin/site-monitor/review', requireAuth, requireAdmin, async (req, res) => {
+  if (req.body?.confirmed !== true) {
+    return res.status(400).json({ error: 'Confirmez l’envoi des compteurs anonymes à OpenAI.' });
+  }
+  if (!limitAssistantMessages(req.authUser.id)) {
+    return res.status(429).json({ error: 'Vous avez fait plusieurs demandes. Réessayez dans une minute.' });
+  }
+  try {
+    const metrics = siteMonitor.snapshot();
+    const review = await reviewSiteMetrics({
+      metrics, apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+    });
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ metrics, review });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    sendApiError(res, error, 'Impossible d’analyser les compteurs.');
   }
 });
 
@@ -2810,6 +2877,138 @@ app.delete('/api/account/profile-photo', requireAuth, async (req, res) => {
   }
 });
 
+function requireFamilyAlbum(req, res, next) {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'L’album est réservé au senior et à ses aidants associés.' });
+  }
+  return requireAidantSeniorContext(req, res, next);
+}
+
+app.get('/api/family-album', requireAuth, requireFamilyAlbum, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT photo.id, photo.approved, photo.created_at AS "createdAt",
+              photo.author_user_id AS "authorId", author.name AS "authorName"
+       FROM app_family_photos photo JOIN app_users author ON author.id = photo.author_user_id
+       WHERE photo.senior_profile_id = $1
+         AND (photo.approved OR $2 = 'senior' OR photo.author_user_id = $3)
+       ORDER BY photo.created_at DESC, photo.id DESC`,
+      [req.authUser.seniorId, req.authUser.role, req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ photos: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger l’album.');
+  }
+});
+
+app.get('/api/family-album/:id/photo', requireAuth, requireFamilyAlbum, async (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(404).json({ error: 'Photo introuvable.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT file_data, content_type FROM app_family_photos
+       WHERE id = $1 AND senior_profile_id = $2
+         AND (approved OR $3 = 'senior' OR author_user_id = $4)`,
+      [req.params.id, req.authUser.seniorId, req.authUser.role, req.authUser.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Photo introuvable.' });
+    res.set({ 'Cache-Control': 'private, no-store', 'Content-Type': rows[0].content_type, 'X-Content-Type-Options': 'nosniff' });
+    res.send(rows[0].file_data);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger la photo.');
+  }
+});
+
+app.post('/api/family-album', requireAuth, requireFamilyAlbum, (req, res, next) => {
+  parseAccountPhoto(req, res, error => {
+    if (error?.type === 'entity.too.large') return res.status(413).json({ error: 'La photo ne doit pas dépasser 2 Mo.' });
+    if (error) return next(error);
+    next();
+  });
+}, async (req, res) => {
+  const contentType = req.get('content-type')?.split(';')[0].trim().toLowerCase();
+  if (!['image/jpeg', 'image/png'].includes(contentType) || !matchesDocumentSignature(req.body, contentType)) {
+    return res.status(400).json({ error: 'Choisissez une image JPEG ou PNG valide (2 Mo maximum).' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows: activeUsers } = await client.query(
+      `SELECT id FROM app_users WHERE id = $1 AND is_active = TRUE FOR SHARE`,
+      [req.authUser.id]
+    );
+    if (!activeUsers[0]) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce compte n’est plus actif.' });
+    }
+    if (req.authUser.role === 'aidant') {
+      const { rows: links } = await client.query(
+        `SELECT link.senior_profile_id FROM app_aidant_senior_links link
+         JOIN app_users senior ON senior.senior_id = link.senior_profile_id
+         WHERE link.aidant_user_id = $1 AND link.senior_profile_id = $2
+           AND link.suspended_at IS NULL AND senior.role = 'senior' AND senior.is_active = TRUE
+         FOR SHARE OF link, senior`,
+        [req.authUser.id, req.authUser.seniorId]
+      );
+      if (!links[0]) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Ce profil senior n’est plus associé à votre compte.' });
+      }
+    }
+    await client.query('SELECT id FROM senior_profiles WHERE id = $1 FOR UPDATE', [req.authUser.seniorId]);
+    const { rows } = await client.query('SELECT COUNT(*)::int AS count FROM app_family_photos WHERE senior_profile_id = $1', [req.authUser.seniorId]);
+    if (rows[0].count >= 50) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({ error: 'L’album contient déjà 50 photos. Supprimez une photo avant d’en ajouter une.' });
+    }
+    const id = randomUUID();
+    const approved = req.authUser.role === 'senior';
+    await client.query(
+      `INSERT INTO app_family_photos (id, senior_profile_id, author_user_id, content_type, file_data, approved)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, req.authUser.seniorId, req.authUser.id, contentType, req.body, approved]
+    );
+    await client.query('COMMIT');
+    res.status(201).json({ id, approved });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’ajouter la photo.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/family-album/:id/approve', requireAuth, requireFamilyAlbum, async (req, res) => {
+  if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Seul le senior peut accepter une photo.' });
+  if (!isValidUuid(req.params.id)) return res.status(404).json({ error: 'Photo introuvable.' });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_family_photos SET approved = TRUE WHERE id = $1 AND senior_profile_id = $2 RETURNING id`,
+      [req.params.id, req.authUser.seniorId]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Photo introuvable.' });
+    res.json({ approved: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’accepter la photo.');
+  }
+});
+
+app.delete('/api/family-album/:id', requireAuth, requireFamilyAlbum, async (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(404).json({ error: 'Photo introuvable.' });
+  try {
+    const { rows } = await pool.query(
+      `DELETE FROM app_family_photos WHERE id = $1 AND senior_profile_id = $2
+       AND ($3 = 'senior' OR author_user_id = $4) RETURNING id`,
+      [req.params.id, req.authUser.seniorId, req.authUser.role, req.authUser.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Photo introuvable.' });
+    res.json({ deleted: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de supprimer la photo.');
+  }
+});
+
 app.get('/api/calendar/google/callback', async (req, res) => {
   const { code, state, error: authorizationError } = req.query;
   if (typeof state !== 'string' || state.length > 256) {
@@ -4370,6 +4569,58 @@ async function findMessageLink(client, userId, contactId, lock = false) {
   return saved.rows.length === 2 ? { ...rows[0], linked: false } : null;
 }
 
+function maySendPrivateMessage(contact) {
+  return contact.linked || (
+    hasActivePremium({ premium_status: contact.own_premium_status, premium_until: contact.own_premium_until }) &&
+    hasActivePremium(contact)
+  );
+}
+
+app.post('/api/messages/multiple', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') {
+    return res.status(403).json({ error: 'Cet envoi est réservé au compte senior.' });
+  }
+  const recipients = req.body?.recipients;
+  const body = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  if (!Array.isArray(recipients) || recipients.length < 1 || recipients.length > 20 ||
+      !recipients.every(isValidUuid) ||
+      new Set(recipients.map(id => id.toLowerCase())).size !== recipients.length) {
+    return res.status(400).json({ error: 'Choisissez entre 1 et 20 correspondants différents.' });
+  }
+  if (!body || body.length > 2000) {
+    return res.status(400).json({ error: 'Écrivez un message de 1 à 2 000 caractères.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const ids = recipients.map(id => id.toLowerCase()).sort();
+    for (const id of ids) {
+      const contact = await findMessageLink(client, req.authUser.id, id, true);
+      if (!contact || !maySendPrivateMessage(contact)) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Un correspondant n’est plus autorisé ou nécessite un accès premium. Aucun message n’a été envoyé.' });
+      }
+    }
+    for (const recipientId of ids) {
+      const id = randomUUID();
+      await client.query(
+        'INSERT INTO app_private_messages (id, sender_id, recipient_id, body) VALUES ($1, $2, $3, $4)',
+        [id, req.authUser.id, recipientId, body]
+      );
+      await insertAppNotification(client, recipientId, 'private_message', 'Nouveau message',
+        'Vous avez reçu un nouveau message. Ouvrez la messagerie pour le lire.', 'private_message', id);
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ sent: ids.length });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’envoyer les messages.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
 app.get('/api/messages/:contactId', requireAuth, async (req, res) => {
   if (!isValidUuid(req.params.contactId)) return res.status(400).json({ error: 'Correspondant invalide.' });
   if (req.query.focus !== undefined && !isValidUuid(req.query.focus)) {
@@ -4419,9 +4670,7 @@ app.post('/api/messages/:contactId', requireAuth, async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Ce correspondant n’est pas associé à votre compte.' });
     }
-    if (!contact.linked && (
-        !hasActivePremium({ premium_status: contact.own_premium_status, premium_until: contact.own_premium_until }) ||
-        !hasActivePremium(contact))) {
+    if (!maySendPrivateMessage(contact)) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Les deux personnes doivent disposer d’un accès premium actif pour envoyer un message.' });
     }
@@ -5843,26 +6092,52 @@ async function listAgendaPartners(user) {
   return [];
 }
 
-async function loadPersonalAgenda(user, start, end, otherEvents) {
+function personalOccurrencesQuery(source) {
+  return `WITH originals AS (${source}),
+    occurrences AS (
+      SELECT originals.*, CASE WHEN recurrence = 'none'
+        OR day::date = (starts_at AT TIME ZONE 'Europe/Paris')::date THEN starts_at
+        ELSE (day::date + (starts_at AT TIME ZONE 'Europe/Paris')::time) AT TIME ZONE 'Europe/Paris'
+        END AS occurrence_at
+      FROM originals
+      CROSS JOIN LATERAL generate_series($2::date::timestamp, ($3::date - 1)::timestamp, INTERVAL '1 day') day
+      WHERE day::date >= (starts_at AT TIME ZONE 'Europe/Paris')::date AND (
+        (recurrence = 'none' AND day::date = (starts_at AT TIME ZONE 'Europe/Paris')::date)
+        OR (recurrence = 'weekly' AND (day::date - (starts_at AT TIME ZONE 'Europe/Paris')::date) % 7 = 0)
+        OR (recurrence IN ('monthly', 'yearly')
+          AND (recurrence = 'monthly' OR EXTRACT(MONTH FROM day) = EXTRACT(MONTH FROM starts_at AT TIME ZONE 'Europe/Paris'))
+          AND EXTRACT(DAY FROM day) = LEAST(
+            EXTRACT(DAY FROM starts_at AT TIME ZONE 'Europe/Paris'),
+            EXTRACT(DAY FROM (date_trunc('month', day) + INTERVAL '1 month - 1 day'))
+          ))
+      )
+    )
+    SELECT * FROM occurrences ORDER BY occurrence_at`;
+}
+
+async function loadPersonalAgenda(user, start, end, otherEvents, next = false) {
   const bounds = `$2::date::timestamp AT TIME ZONE 'Europe/Paris'`;
   const endBounds = `$3::date::timestamp AT TIME ZONE 'Europe/Paris'`;
   const { rows: own } = await pool.query(
-    `SELECT id, title, starts_at, duration_minutes FROM app_personal_events
-     WHERE owner_user_id = $1 AND starts_at >= ${bounds} AND starts_at < ${endBounds}`,
+    personalOccurrencesQuery(`SELECT id, title, starts_at, duration_minutes, recurrence FROM app_personal_events
+     WHERE owner_user_id = $1 AND starts_at < ${endBounds}
+       AND (recurrence <> 'none' OR starts_at >= ${bounds})`),
     [user.id, start, end]
   );
-  const partners = await listAgendaPartners(user);
+  const partners = next ? [] : await listAgendaPartners(user);
   const partnerIds = partners.map(partner => partner.id);
   const { rows: shared } = partnerIds.length ? await pool.query(
-    `SELECT event.id, event.title, event.starts_at, event.duration_minutes, owner.name AS owner_name
+    personalOccurrencesQuery(`SELECT event.id, event.title, event.starts_at, event.duration_minutes, event.recurrence, owner.name AS owner_name
      FROM app_agenda_share_requests share
      JOIN app_personal_events event ON event.owner_user_id = share.owner_user_id
      JOIN app_users owner ON owner.id = share.owner_user_id
      WHERE share.requester_user_id = $1 AND share.status = 'accepted'
        AND share.owner_user_id = ANY($4::uuid[])
-       AND event.starts_at >= ${bounds} AND event.starts_at < ${endBounds}`,
+       AND event.starts_at < ${endBounds}
+       AND (event.recurrence <> 'none' OR event.starts_at >= ${bounds})`),
     [user.id, start, end, partnerIds]
   ) : { rows: [] };
+  for (const event of [...own, ...shared]) event.starts_at = event.occurrence_at;
   const span = event => {
     const from = new Date(event.scheduledAt || event.starts_at).getTime();
     return [from, from + (event.durationMinutes || event.duration_minutes) * 60000];
@@ -5878,12 +6153,12 @@ async function loadPersonalAgenda(user, start, end, otherEvents) {
   return [
     ...own.map(row => ({
       id: row.id, kind: 'personal', scheduledAt: row.starts_at, durationMinutes: row.duration_minutes,
-      title: row.title, person: null, status: 'confirmed',
-      conflict: overlaps(row, [...otherEvents, ...own.filter(item => item.id !== row.id)].concat(shared))
+      title: row.title, person: null, status: 'confirmed', recurrence: row.recurrence,
+      conflict: !next && overlaps(row, [...otherEvents, ...own.filter(item => item.id !== row.id)].concat(shared))
     })),
     ...shared.map(row => ({
       id: row.id, kind: 'shared', scheduledAt: row.starts_at, durationMinutes: row.duration_minutes,
-      title: row.title, person: row.owner_name, status: 'confirmed', conflict: overlaps(row, mine)
+      title: row.title, person: row.owner_name, status: 'confirmed', recurrence: row.recurrence, conflict: overlaps(row, mine)
     }))
   ];
 }
@@ -6005,16 +6280,24 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
     }));
     let personalEvents;
     if (next) {
-      const { rows: own } = await pool.query(
-        `SELECT id, title, starts_at, duration_minutes FROM app_personal_events
-         WHERE owner_user_id = $1 AND starts_at >= CURRENT_TIMESTAMP
-         ORDER BY starts_at LIMIT 1`,
+      const today = dateInTimeZone(new Date(), 'Europe/Paris');
+      const endDate = new Date(`${today}T12:00:00Z`);
+      endDate.setUTCDate(endDate.getUTCDate() + 370);
+      personalEvents = (await loadPersonalAgenda(req.authUser, today, endDate.toISOString().slice(0, 10), [], true))
+        .filter(event => new Date(event.scheduledAt) >= new Date());
+      const { rows: upcoming } = await pool.query(
+        `SELECT id, title, starts_at, duration_minutes, recurrence FROM app_personal_events
+         WHERE owner_user_id = $1 AND starts_at >= CURRENT_TIMESTAMP ORDER BY starts_at LIMIT 1`,
         [req.authUser.id]
       );
-      personalEvents = own.map(row => ({
-        id: row.id, kind: 'personal', scheduledAt: row.starts_at,
-        durationMinutes: row.duration_minutes, title: row.title, person: null, status: 'confirmed'
-      }));
+      if (upcoming[0]) {
+        const row = upcoming[0];
+        personalEvents.push({
+          id: row.id, kind: 'personal', scheduledAt: row.starts_at,
+          durationMinutes: row.duration_minutes, title: row.title, person: null,
+          status: 'confirmed', recurrence: row.recurrence
+        });
+      }
     } else {
       personalEvents = await loadPersonalAgenda(req.authUser, start, end, planningEvents);
     }
@@ -6243,23 +6526,32 @@ app.post('/api/agenda/events', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
   }
   const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
-  const startsAt = new Date(req.body?.start);
+  const start = req.body?.start;
+  const localStart = typeof start === 'string' && /^(\d{4}-\d{2}-\d{2})T([0-2]\d:[0-5]\d)$/.exec(start);
+  const startsAt = localStart
+    ? (isValidIsoDate(localStart[1]) && Number(localStart[2].slice(0, 2)) < 24
+      ? zonedDateTimeToUtc(localStart[1], localStart[2], 'Europe/Paris') : null)
+    : new Date(start);
   const duration = Number(req.body?.durationMinutes);
+  const recurrence = req.body?.recurrence === undefined ? 'none' : req.body.recurrence;
   if (!title || title.length > 120) {
     return res.status(400).json({ error: 'Indiquez un titre de 120 caractères maximum.' });
   }
-  if (typeof req.body?.start !== 'string' || !Number.isFinite(startsAt.getTime())) {
+  if (typeof start !== 'string' || !startsAt || !Number.isFinite(startsAt.getTime())) {
     return res.status(400).json({ error: 'Choisissez une date et une heure valides.' });
   }
   if (!Number.isInteger(duration) || duration < 5 || duration > 1440) {
     return res.status(400).json({ error: 'Choisissez une durée entre 5 minutes et 24 heures.' });
   }
+  if (!['none', 'weekly', 'monthly', 'yearly'].includes(recurrence)) {
+    return res.status(400).json({ error: 'Choisissez une répétition valide.' });
+  }
   try {
     const id = randomUUID();
     await pool.query(
-      `INSERT INTO app_personal_events (id, owner_user_id, title, starts_at, duration_minutes)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [id, req.authUser.id, title, startsAt.toISOString(), duration]
+      `INSERT INTO app_personal_events (id, owner_user_id, title, starts_at, duration_minutes, recurrence)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, req.authUser.id, title, startsAt.toISOString(), duration, recurrence]
     );
     res.status(201).json({ id });
   } catch (error) {
@@ -7072,6 +7364,7 @@ if (require.main === module) {
     .then(() => {
       notificationDelivery.startDeliveryWorker(pool);
       startTaskReminderWorker(pool, insertAppNotification);
+      startSiteAlertWorker(pool, siteMonitor, adminEmails, insertAppNotification);
       startDirectoryBookingCleanup();
       startPlanningGoogleSync();
       startAssistantConversationCleanup();

@@ -668,6 +668,41 @@
           </details>
         </section>
         <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure" id="senior-album-details">
+            <summary>📷 Album familial</summary>
+            <p class="helper-text">Les photos acceptées sont visibles par vos aidants associés. Une photo proposée par un aidant attend votre accord. Les photos peuvent contenir des informations de localisation.</p>
+            <form id="senior-album-form" class="form-grid">
+              <label for="senior-album-file">Choisir une photo à partager</label>
+              <input id="senior-album-file" type="file" accept="image/jpeg,image/png" required>
+              <button type="submit">Partager la photo avec mes aidants</button>
+            </form>
+            <p id="senior-album-status" role="status" aria-live="polite"></p>
+            <div id="senior-album-list"></div>
+          </details>
+        </section>
+        <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure" id="senior-journal-details">
+            <summary>📰 Journal du quotidien</summary>
+            <p class="helper-text">Nouvelles parmi les 100 dernières et étapes des interventions visibles des 30 derniers jours. Ce journal ne surveille pas votre sécurité.</p>
+            <div id="senior-journal-list" aria-live="polite"></div>
+          </details>
+        </section>
+        <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure">
+            <summary>🎲 Jeu gratuit : les couleurs</summary>
+            <p class="helper-text">Pour le plaisir, seul ou à tour de rôle avec un proche présent. Rien n’est enregistré ni partagé.</p>
+            <p class="helper-text">Les autres jeux seront payants ; ils ne sont pas encore disponibles et aucun paiement n’est proposé.</p>
+            <p id="color-game-question" aria-live="polite">Choisissez le mot : Rouge</p>
+            <div class="action-tiles">
+              <button type="button" onclick="repondreJeuCouleur('Rouge')">Rouge</button>
+              <button type="button" onclick="repondreJeuCouleur('Bleu')">Bleu</button>
+              <button type="button" onclick="repondreJeuCouleur('Vert')">Vert</button>
+            </div>
+            <p id="color-game-status" role="status" aria-live="polite"></p>
+            <button type="button" onclick="nouvelleCouleur()">Autre couleur</button>
+          </details>
+        </section>
+        <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure" id="senior-following-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📍</span>Suivi des interventions</summary>
             <div id="senior-live-following" aria-live="polite">Chargement du suivi…</div>
@@ -747,6 +782,15 @@
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
     </div>
+    <section class="form-card">
+      <details class="senior-disclosure">
+        <summary>💚 Soutien et répit pour les aidants</summary>
+        <p>Vous pouvez demander un relais pour prendre du temps pour vous. Parlez-en à une personne de confiance ou à un professionnel ; les solutions et leurs conditions dépendent de votre situation.</p>
+        <p>Pour trouver une plateforme près de chez vous, consultez l’annuaire public :</p>
+        <a href="https://www.pour-les-personnes-agees.gouv.fr/annuaire-points-dinformation-et-plateformes-de-repit" target="_blank" rel="noopener noreferrer">Trouver une plateforme d’accompagnement et de répit</a>
+        <p>Si vous accompagnez une personne en situation de handicap, le <a href="tel:0800360360">0 800 360 360</a> peut vous orienter. En cas d’urgence, appelez le 15 ou le 112.</p>
+      </details>
+    </section>
     <section class="form-card" id="aidant-no-senior-panel" style="display:none;">
         <h3>Aucun profil senior associé</h3>
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.</p>
@@ -775,6 +819,26 @@
         <button type="button" id="aidant-tasks-refresh">Actualiser les tâches</button>
         <p id="aidant-tasks-status" role="status" aria-live="polite"></p>
         <div id="aidant-tasks-list"></div>
+      </details>
+    </section>
+    <section class="form-card">
+      <details class="senior-disclosure" id="aidant-album-details">
+        <summary>📷 Album familial</summary>
+        <p class="helper-text">Le senior doit accepter chaque photo proposée avant son partage avec les aidants associés. Les photos peuvent contenir des informations de localisation.</p>
+        <form id="aidant-album-form" class="form-grid">
+          <label for="aidant-album-file">Choisir une photo à proposer</label>
+          <input id="aidant-album-file" type="file" accept="image/jpeg,image/png" required>
+          <button type="submit">Proposer la photo au senior</button>
+        </form>
+        <p id="aidant-album-status" role="status" aria-live="polite"></p>
+        <div id="aidant-album-list"></div>
+      </details>
+    </section>
+    <section class="form-card">
+      <details class="senior-disclosure" id="aidant-journal-details">
+        <summary>📰 Journal du quotidien</summary>
+        <p class="helper-text">Nouvelles parmi les 100 dernières et étapes des interventions autorisées des 30 derniers jours. Ce journal ne surveille pas la sécurité du senior.</p>
+        <div id="aidant-journal-list" aria-live="polite"></div>
       </details>
     </section>
     <section class="form-card">
@@ -975,6 +1039,23 @@
             <form id="message-form-senior">
                 <label for="message-text-senior">Votre message</label>
                 <textarea id="message-text-senior" maxlength="2000" required></textarea>
+                <button id="message-dictation-senior" type="button">🎙️ Dicter mon message</button>
+                <p class="helper-text">La dictée dépend du navigateur : son fournisseur peut traiter votre voix. Vérifiez le texte avant de l’envoyer.</p>
+                <p id="message-dictation-status" class="helper-text" role="status" aria-live="polite"></p>
+                <button id="message-rewrite-senior" type="button">✨ Aide à la rédaction</button>
+                <p class="helper-text">L’aide à la rédaction envoie votre brouillon à OpenAI après votre confirmation. Elle peut faire des erreurs.</p>
+                <p id="message-rewrite-status" class="helper-text" role="status" aria-live="polite"></p>
+                <div id="message-rewrite-result" hidden>
+                    <p>Proposition à vérifier :</p>
+                    <p id="message-rewrite-text"></p>
+                    <button id="message-rewrite-apply" type="button">Utiliser la proposition</button>
+                    <button id="message-rewrite-dismiss" type="button">Garder mon texte</button>
+                </div>
+                <details>
+                    <summary>Envoyer aussi à plusieurs proches</summary>
+                    <p class="helper-text">Cochez chaque destinataire. Chacun reçoit une copie privée et ne voit pas les autres destinataires.</p>
+                    <div id="message-multiple-contacts"></div>
+                </details>
                 <button type="submit">Envoyer</button>
             </form>
             <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
@@ -1031,6 +1112,17 @@
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
     <button id="settings-logout" type="button" onclick="deconnecterUtilisateur()">Se déconnecter</button>
+    <section class="form-card" id="settings-senior-voice" style="display:none;">
+      <details class="senior-tab-disclosure">
+        <summary>🔊 Lecture à voix haute</summary>
+        <p class="helper-text">La lecture est activée par défaut sur cet appareil lorsque l’application est ouverte. Les personnes autour de vous peuvent l’entendre. Le navigateur peut demander une première action avant de parler.</p>
+        <label class="notification-choice"><input id="senior-voice-enabled" type="checkbox"> Lire les informations à voix haute</label>
+        <label for="senior-voice-choice">Choisir une voix</label>
+        <select id="senior-voice-choice"><option value="">Voix de l’appareil</option></select>
+        <button id="senior-voice-stop" type="button">Arrêter la lecture</button>
+        <p id="senior-voice-status" class="helper-text" role="status" aria-live="polite"></p>
+      </details>
+    </section>
     <section class="form-card" id="settings-account-profile">
       <details class="senior-tab-disclosure">
         <summary>Mon profil</summary>
@@ -1256,11 +1348,19 @@
     </details>
     <section class="form-card" id="personal-event-card">
       <details class="senior-tab-disclosure">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Ajouter un rendez-vous</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Ajouter un rendez-vous ou un anniversaire</summary>
         <form id="personal-event-form">
             <input id="personal-event-title" type="text" maxlength="120" placeholder="Titre du rendez-vous" aria-label="Titre du rendez-vous" required>
-            <input id="personal-event-start" type="datetime-local" aria-label="Date et heure" required>
+            <input id="personal-event-start" type="datetime-local" aria-label="Date et heure de Paris" required>
             <input id="personal-event-duration" type="number" min="5" max="1440" step="5" value="60" aria-label="Durée en minutes" required>
+            <label for="personal-event-recurrence">Répéter</label>
+            <select id="personal-event-recurrence">
+                <option value="none">Une seule fois</option>
+                <option value="weekly">Chaque semaine</option>
+                <option value="monthly">Chaque mois</option>
+                <option value="yearly">Chaque année (anniversaire)</option>
+            </select>
+            <p class="helper-text">Si le jour n’existe pas dans un mois ou une année, le rendez-vous est placé le dernier jour du mois.</p>
             <button type="submit">Ajouter</button>
         </form>
         <p id="personal-event-message" class="helper-text" aria-live="polite"></p>
@@ -1413,6 +1513,15 @@
     let contactsLoadId = 0;
     let contactPhotoUrls = [];
     let activeSeniorProfileId = localStorage.getItem('generation-liaison-active-senior') || '';
+    let messageDictation = null;
+    let messageRewriteRevision = 0;
+    let messageRewriteOriginal = '';
+    let seniorVoiceTimer = null;
+    let seniorVoiceLastText = '';
+    let seniorVoiceUserId = '';
+    let familyAlbumRevision = 0;
+    let familyAlbumUrls = [];
+    let familyJournalRevision = 0;
     let wellbeingLoadedDate = null;
     let currentWellbeingCheckin = null;
     let wellbeingSafetyTimer = null;
@@ -1801,11 +1910,16 @@
             return;
         }
 
+        if (screenName !== 'messages') {
+            annulerDicteeMessage();
+            annulerPropositionMessage();
+        }
         document.querySelectorAll('.screen-container').forEach(s => s.classList.remove('active'));
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         const screenId = pendingGuardian && screenName === 'aidant' ? 'senior' : screenName;
         document.getElementById(`screen-${screenId}`).classList.add('active');
         document.getElementById(`nav-${screenName === 'messages' ? 'notifications' : screenName}`).classList.add('active');
+        planifierLectureSenior();
         if (screenName === 'agenda' || screenName === 'directory') {
             const isAidant = connectedUser.role === 'aidant';
             const context = document.getElementById(`${screenName}-senior-context`);
@@ -1841,6 +1955,8 @@
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerSyntheseAidant();
             chargerLogs();
+            if (document.getElementById('aidant-album-details').open) chargerAlbumFamilial('aidant');
+            if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
             chargerCheckinsPartages();
             chargerSuiviPartage('aidant');
             chargerConsentements('aidant');
@@ -1848,6 +1964,8 @@
         } else if (screenName === 'senior') {
             chargerProchainRendezVous();
             chargerSyntheseSenior();
+            if (document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
+            if (document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
             chargerCheckinBienEtre();
             chargerSuiviPartage('senior');
             chargerConsentements('senior');
@@ -2052,6 +2170,9 @@
     }
 
     async function setAuthenticatedView(user) {
+        annulerDicteeMessage();
+        annulerPropositionMessage();
+        reinitialiserAlbumJournal();
         document.getElementById('aidant-daily-summary').hidden = true;
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
@@ -2074,6 +2195,7 @@
         }
         connectedUser = user;
         currentUser = user;
+        initialiserLectureSenior();
         reinitialiserPhotosContacts();
         reinitialiserProfil();
         if (user.hasAccountPhoto) void chargerPhotoProfil();
@@ -2790,8 +2912,9 @@
             status.textContent = 'La confirmation vocale n’est pas disponible. Utilisez le bouton de confirmation.';
             return;
         }
+        let recognition;
         try {
-            const recognition = new Recognition();
+            recognition = new Recognition();
             recognition.lang = window.generationLiaisonLocale();
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
@@ -2812,13 +2935,20 @@
                 }
             };
             recognition.onerror = errorEvent => {
+                window.generationLiaisonListenings?.delete(recognition);
                 status.textContent = errorEvent.error === 'not-allowed'
                     ? 'L’accès au microphone a été refusé. Confirmez avec le bouton.'
                     : 'La confirmation vocale a échoué. Confirmez avec le bouton.';
             };
-            recognition.onend = () => { button.disabled = false; };
+            recognition.onend = () => {
+                window.generationLiaisonListenings?.delete(recognition);
+                button.disabled = false;
+            };
+            window.speechSynthesis?.cancel();
+            (window.generationLiaisonListenings ||= new Set()).add(recognition);
             recognition.start();
         } catch (error) {
+            window.generationLiaisonListenings?.delete(recognition);
             button.disabled = false;
             status.textContent = 'Impossible de démarrer la confirmation vocale. Confirmez avec le bouton.';
         }
@@ -3074,8 +3204,9 @@
             button.disabled = true;
             return;
         }
+        let recognition;
         try {
-            const recognition = new Recognition();
+            recognition = new Recognition();
             recognition.lang = window.generationLiaisonLocale();
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
@@ -3088,13 +3219,20 @@
                 input.focus();
             };
             recognition.onerror = errorEvent => {
+                window.generationLiaisonListenings?.delete(recognition);
                 status.textContent = errorEvent.error === 'not-allowed'
                     ? 'L’accès au microphone a été refusé. Vous pouvez écrire votre réponse.'
                     : 'La dictée a échoué. Vous pouvez écrire votre réponse.';
             };
-            recognition.onend = () => { button.disabled = false; };
+            recognition.onend = () => {
+                window.generationLiaisonListenings?.delete(recognition);
+                button.disabled = false;
+            };
+            window.speechSynthesis?.cancel();
+            (window.generationLiaisonListenings ||= new Set()).add(recognition);
             recognition.start();
         } catch (error) {
+            window.generationLiaisonListenings?.delete(recognition);
             button.disabled = false;
             status.textContent = 'Impossible de démarrer la dictée. Vous pouvez écrire votre réponse.';
         }
@@ -4197,6 +4335,21 @@
             result.contacts.forEach(contact => select.add(new Option(
                 `${contact.name}${contact.canSend ? '' : ' · premium requis pour envoyer'}`, contact.id
             )));
+            if (role === 'senior') {
+                const list = document.getElementById('message-multiple-contacts');
+                list.replaceChildren();
+                result.contacts.forEach(contact => {
+                    const label = document.createElement('label');
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.value = contact.id;
+                    input.disabled = !contact.canSend;
+                    label.append(input, document.createTextNode(
+                        ` ${contact.name}${contact.canSend ? '' : ' · premium requis pour envoyer'}`
+                    ));
+                    list.append(label, document.createElement('br'));
+                });
+            }
             if (result.contacts.some(contact => contact.id === previous)) select.value = previous;
             status.textContent = result.contacts.length ? '' : 'Aucun contact pour le moment. Ajoutez-en dans Contacts.';
             return true;
@@ -4251,6 +4404,310 @@
         }
     }
 
+    let couleurJeu = 'Rouge';
+
+    function nouvelleCouleur() {
+        const couleurs = ['Rouge', 'Bleu', 'Vert'];
+        const autres = couleurs.filter(couleur => couleur !== couleurJeu);
+        couleurJeu = autres[Math.floor(Math.random() * autres.length)];
+        document.getElementById('color-game-question').textContent = `Choisissez le mot : ${couleurJeu}`;
+        document.getElementById('color-game-status').textContent = '';
+    }
+
+    function repondreJeuCouleur(couleur) {
+        document.getElementById('color-game-status').textContent = couleur === couleurJeu
+            ? 'Bravo ! Vous pouvez choisir une autre couleur.' : 'Ce n’est pas ce mot. Vous pouvez réessayer.';
+    }
+
+    function annulerDicteeMessage() {
+        const recognition = messageDictation;
+        if (!recognition) return;
+        messageDictation = null;
+        document.getElementById('message-dictation-senior').textContent =
+            window.generationLiaisonTranslate('🎙️ Dicter mon message');
+        document.getElementById('message-dictation-senior').disabled = false;
+        document.getElementById('message-dictation-status').textContent = '';
+        try {
+            recognition.abort();
+        } catch (error) {
+            console.error('Impossible d’arrêter la dictée :', error);
+        }
+    }
+
+    function cleLectureSenior(suffix) {
+        return `generation-liaison-voice-${seniorVoiceUserId}-${suffix}`;
+    }
+
+    function arreterLectureSenior() {
+        clearTimeout(seniorVoiceTimer);
+        seniorVoiceTimer = null;
+        seniorVoiceLastText = '';
+        if (window.speechSynthesis) window.speechSynthesis.cancel();
+    }
+
+    function actualiserVoixSenior() {
+        const select = document.getElementById('senior-voice-choice');
+        const selected = seniorVoiceUserId ? localStorage.getItem(cleLectureSenior('voice')) || '' : '';
+        const voices = window.speechSynthesis?.getVoices() || [];
+        select.replaceChildren(new Option(window.generationLiaisonTranslate('Voix de l’appareil'), ''));
+        voices.forEach(voice => select.add(new Option(`${voice.name} (${voice.lang})`, voice.voiceURI)));
+        select.value = voices.some(voice => voice.voiceURI === selected) ? selected : '';
+    }
+
+    function initialiserLectureSenior() {
+        arreterLectureSenior();
+        seniorVoiceUserId = connectedUser?.role === 'senior' ? connectedUser.id : '';
+        document.getElementById('settings-senior-voice').style.display = seniorVoiceUserId ? 'block' : 'none';
+        const enabled = document.getElementById('senior-voice-enabled');
+        const supported = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
+        enabled.disabled = !supported;
+        enabled.checked = Boolean(seniorVoiceUserId) && localStorage.getItem(cleLectureSenior('enabled')) !== 'false';
+        document.getElementById('senior-voice-status').textContent = supported
+            ? '' : window.generationLiaisonTranslate('La lecture vocale n’est pas disponible sur cet appareil.');
+        actualiserVoixSenior();
+    }
+
+    function texteVisibleLectureSenior(root) {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        const parts = [];
+        let node;
+        while ((node = walker.nextNode())) {
+            const text = node.nodeValue.trim();
+            if (!text || /^Chargement/.test(text)) continue;
+            let element = node.parentElement;
+            let visible = true;
+            while (element && element !== root.parentElement) {
+                if (element.hidden || element.getAttribute('aria-hidden') === 'true' ||
+                    ['SCRIPT', 'STYLE', 'SELECT', 'TEXTAREA', 'INPUT'].includes(element.tagName)) {
+                    visible = false;
+                    break;
+                }
+                if (element.tagName === 'DETAILS' && !element.open) {
+                    const summary = element.querySelector('summary');
+                    if (!summary?.contains(node)) { visible = false; break; }
+                }
+                const style = window.getComputedStyle(element);
+                if (style.display === 'none' || style.visibility === 'hidden') {
+                    visible = false;
+                    break;
+                }
+                element = element.parentElement;
+            }
+            if (visible) parts.push(text);
+        }
+        return parts.join('. ');
+    }
+
+    function planifierLectureSenior() {
+        clearTimeout(seniorVoiceTimer);
+        if (!seniorVoiceUserId || connectedUser?.id !== seniorVoiceUserId ||
+            !document.getElementById('senior-voice-enabled').checked || document.hidden || messageDictation || window.generationLiaisonListenings?.size ||
+            !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
+        seniorVoiceTimer = setTimeout(() => {
+            if (connectedUser?.id !== seniorVoiceUserId || document.hidden || messageDictation || window.generationLiaisonListenings?.size ||
+                !document.getElementById('senior-voice-enabled').checked) return;
+            const screen = document.querySelector('.screen-container.active');
+            if (!screen) return;
+            const root = screen.id === 'screen-senior' ? document.getElementById('main-app-senior') : screen;
+            const text = texteVisibleLectureSenior(root);
+            const key = `${seniorVoiceUserId}:${screen.id}:${text}`;
+            if (!text || key === seniorVoiceLastText) return;
+            seniorVoiceLastText = key;
+            window.speechSynthesis.cancel();
+            const voiceId = localStorage.getItem(cleLectureSenior('voice')) || '';
+            const voice = window.speechSynthesis.getVoices().find(item => item.voiceURI === voiceId);
+            const characters = Array.from(text);
+            for (let offset = 0; offset < characters.length; offset += 1000) {
+                const utterance = new SpeechSynthesisUtterance(characters.slice(offset, offset + 1000).join(''));
+                utterance.lang = window.generationLiaisonLocale();
+                if (voice) utterance.voice = voice;
+                utterance.onerror = event => {
+                    if (event.error === 'canceled' || event.error === 'interrupted') return;
+                    if (connectedUser?.id === seniorVoiceUserId) {
+                        document.getElementById('senior-voice-status').textContent =
+                            window.generationLiaisonTranslate('La lecture a échoué. Vérifiez le son et les réglages de votre appareil.');
+                    }
+                };
+                window.speechSynthesis.speak(utterance);
+            }
+        }, 800);
+    }
+
+    function configurerLectureSenior() {
+        const enabled = document.getElementById('senior-voice-enabled');
+        enabled.addEventListener('change', () => {
+            if (!seniorVoiceUserId) return;
+            localStorage.setItem(cleLectureSenior('enabled'), String(enabled.checked));
+            arreterLectureSenior();
+            if (enabled.checked) planifierLectureSenior();
+        });
+        document.getElementById('senior-voice-choice').addEventListener('change', event => {
+            if (!seniorVoiceUserId) return;
+            localStorage.setItem(cleLectureSenior('voice'), event.target.value);
+            arreterLectureSenior();
+            planifierLectureSenior();
+        });
+        document.getElementById('senior-voice-stop').addEventListener('click', event => {
+            event.stopPropagation();
+            const lastText = seniorVoiceLastText;
+            arreterLectureSenior();
+            seniorVoiceLastText = lastText;
+        });
+        window.speechSynthesis?.addEventListener('voiceschanged', actualiserVoixSenior);
+        const observer = new MutationObserver(records => {
+            const screen = document.querySelector('.screen-container.active');
+            if (screen && records.some(record => screen.contains(record.target))) planifierLectureSenior();
+        });
+        document.querySelectorAll('.screen-container').forEach(screen => observer.observe(screen, {
+            childList: true, characterData: true, subtree: true
+        }));
+        document.addEventListener('click', planifierLectureSenior);
+        document.addEventListener('keydown', planifierLectureSenior);
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                annulerDicteeMessage();
+                arreterLectureSenior();
+            }
+            else planifierLectureSenior();
+        });
+    }
+
+    function dicterMessageSenior() {
+        if (connectedUser?.role !== 'senior') return;
+        const button = document.getElementById('message-dictation-senior');
+        const status = document.getElementById('message-dictation-status');
+        const input = document.getElementById('message-text-senior');
+        const select = document.getElementById('message-contact-senior');
+        const t = value => window.generationLiaisonTranslate(value);
+        if (messageDictation) {
+            try {
+                messageDictation.stop();
+                button.disabled = true;
+            } catch (error) {
+                annulerDicteeMessage();
+                status.textContent = t('Impossible d’arrêter la dictée. Vous pouvez écrire votre message.');
+            }
+            return;
+        }
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Recognition) {
+            status.textContent = t('La dictée n’est pas disponible sur cet appareil. Vous pouvez écrire votre message.');
+            return;
+        }
+        const userId = connectedUser.id;
+        const contactId = select.value;
+        let recognition;
+        let finished = false;
+        try {
+            if (window.speechSynthesis) window.speechSynthesis.cancel();
+            recognition = new Recognition();
+            messageDictation = recognition;
+            recognition.lang = window.generationLiaisonLocale();
+            recognition.interimResults = false;
+            recognition.maxAlternatives = 1;
+            button.textContent = t('Arrêter la dictée');
+            status.textContent = t('Écoute en cours. Parlez puis arrêtez la dictée.');
+            recognition.onresult = event => {
+                if (messageDictation !== recognition || connectedUser?.id !== userId || select.value !== contactId) return;
+                const spoken = event.results[event.resultIndex][0].transcript.trim();
+                if (!spoken) return;
+                const separator = input.value && !/\s$/.test(input.value) ? ' ' : '';
+                const text = `${input.value}${separator}${spoken}`;
+                input.value = text.slice(0, input.maxLength);
+                annulerPropositionMessage();
+                finished = true;
+                status.textContent = t(text.length > input.maxLength
+                    ? 'Le message est trop long : la fin de la dictée a été coupée. Vérifiez le texte.'
+                    : 'Dictée ajoutée. Vérifiez le message avant de l’envoyer.');
+                input.focus();
+            };
+            recognition.onerror = event => {
+                if (messageDictation !== recognition) return;
+                finished = true;
+                status.textContent = t(event.error === 'not-allowed' || event.error === 'service-not-allowed'
+                    ? 'L’accès au microphone a été refusé. Vous pouvez écrire votre message.'
+                    : 'La dictée a échoué. Vous pouvez écrire votre message.');
+            };
+            recognition.onend = () => {
+                if (messageDictation !== recognition) return;
+                messageDictation = null;
+                button.disabled = false;
+                button.textContent = t('🎙️ Dicter mon message');
+                if (!finished) status.textContent = t('Aucune parole reconnue. Vous pouvez réessayer ou écrire votre message.');
+            };
+            recognition.start();
+        } catch (error) {
+            if (messageDictation === recognition) messageDictation = null;
+            button.disabled = false;
+            button.textContent = t('🎙️ Dicter mon message');
+            status.textContent = t('Impossible de démarrer la dictée. Vous pouvez écrire votre message.');
+        }
+    }
+
+    function annulerPropositionMessage() {
+        messageRewriteRevision++;
+        messageRewriteOriginal = '';
+        document.getElementById('message-rewrite-result').hidden = true;
+        document.getElementById('message-rewrite-text').textContent = '';
+        document.getElementById('message-rewrite-status').textContent = '';
+    }
+
+    async function proposerReformulationMessage() {
+        if (connectedUser?.role !== 'senior') return;
+        const input = document.getElementById('message-text-senior');
+        const status = document.getElementById('message-rewrite-status');
+        const button = document.getElementById('message-rewrite-senior');
+        const select = document.getElementById('message-contact-senior');
+        const t = value => window.generationLiaisonTranslate(value);
+        if (!input.value.trim()) {
+            status.textContent = t('Écrivez ou dictez un message avant de demander une proposition.');
+            return;
+        }
+        if (!window.confirm(t('Votre brouillon sera envoyé à OpenAI pour proposer une reformulation. Évitez les informations sensibles. Continuer ?'))) return;
+        annulerDicteeMessage();
+        annulerPropositionMessage();
+        const revision = messageRewriteRevision;
+        const original = input.value;
+        const contactId = select.value;
+        const userId = connectedUser.id;
+        button.disabled = true;
+        status.textContent = t('Préparation de la proposition…');
+        try {
+            const result = await seniorLinksRequest('/api/messages/rewrite', {
+                method: 'POST', body: { message: original, confirmed: true }
+            });
+            if (revision !== messageRewriteRevision || connectedUser?.id !== userId ||
+                select.value !== contactId || input.value !== original) return;
+            messageRewriteOriginal = original;
+            document.getElementById('message-rewrite-text').textContent = result.suggestion;
+            document.getElementById('message-rewrite-result').hidden = false;
+            status.textContent = t('Vérifiez la proposition avant de l’utiliser.');
+        } catch (error) {
+            if (revision === messageRewriteRevision && connectedUser?.id === userId) {
+                status.textContent = error.message || t('Impossible de préparer une proposition.');
+            }
+        } finally {
+            button.disabled = false;
+        }
+    }
+
+    function configurerDicteeMessagerie() {
+        document.getElementById('message-dictation-senior').addEventListener('click', dicterMessageSenior);
+        document.getElementById('message-rewrite-senior').addEventListener('click', proposerReformulationMessage);
+        document.getElementById('message-rewrite-dismiss').addEventListener('click', annulerPropositionMessage);
+        document.getElementById('message-text-senior').addEventListener('input', annulerPropositionMessage);
+        document.getElementById('message-rewrite-apply').addEventListener('click', () => {
+            const input = document.getElementById('message-text-senior');
+            if (input.value !== messageRewriteOriginal || !messageRewriteOriginal) {
+                annulerPropositionMessage();
+                return;
+            }
+            input.value = document.getElementById('message-rewrite-text').textContent;
+            annulerPropositionMessage();
+            input.focus();
+        });
+    }
+
     function rafraichirConversationVisible() {
         const role = connectedUser?.role;
         if (!role || !openMessageConversations[role]) return;
@@ -4265,7 +4722,9 @@
         const select = document.getElementById(`message-contact-${role}`);
         const text = document.getElementById(`message-text-${role}`);
         const status = document.getElementById(`message-status-${role}`);
-        if (!select.value) {
+        const selected = role === 'senior'
+            ? Array.from(document.querySelectorAll('#message-multiple-contacts input:checked:not(:disabled)')) : [];
+        if (!selected.length && !select.value) {
             status.textContent = 'Choisissez un correspondant.';
             return;
         }
@@ -4275,17 +4734,44 @@
             status.textContent = 'Écrivez un message avant de l’envoyer.';
             return;
         }
-        const button = document.querySelector(`#message-form-${role} button`);
+        if (selected.length > 20) {
+            status.textContent = 'Choisissez 20 correspondants maximum.';
+            return;
+        }
+        if (selected.length) {
+            const names = selected.map(input => input.parentElement.textContent.trim()).join(', ');
+            if (!window.confirm(`Envoyer une copie privée à : ${names} ?`)) return;
+        }
+        if (role === 'senior') {
+            annulerDicteeMessage();
+            annulerPropositionMessage();
+        }
+        const button = document.querySelector(`#message-form-${role} button[type="submit"]`);
+        const userId = connectedUser.id;
         button.disabled = true;
         try {
-            await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
-                method: 'POST', body: { message }
-            });
-            text.value = '';
-            status.textContent = 'Message envoyé.';
-            if (select.value === contactId) await ouvrirConversation(role);
+            if (selected.length) {
+                await seniorLinksRequest('/api/messages/multiple', {
+                    method: 'POST', body: { message, recipients: selected.map(input => input.value) }
+                });
+            } else {
+                await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
+                    method: 'POST', body: { message }
+                });
+            }
+            if (connectedUser?.id !== userId || connectedUser?.role !== role) return;
+            if (text.value.trim() === message) text.value = '';
+            selected.forEach(input => { input.checked = false; });
+            if (select.value === contactId && (!selected.length || selected.some(input => input.value === contactId))) {
+                await ouvrirConversation(role);
+            }
+            if (connectedUser?.id === userId && connectedUser?.role === role) {
+                status.textContent = selected.length ? 'Messages envoyés séparément.' : 'Message envoyé.';
+            }
         } catch (error) {
-            status.textContent = error.message || 'Impossible d’envoyer le message.';
+            if (connectedUser?.id === userId && connectedUser?.role === role) {
+                status.textContent = error.message || 'Impossible d’envoyer le message.';
+            }
         } finally {
             button.disabled = false;
         }
@@ -4619,8 +5105,11 @@
             if (event.kind === 'personal') {
                 const remove = document.createElement('button');
                 remove.type = 'button';
-                remove.textContent = 'Supprimer ce rendez-vous';
+                remove.textContent = event.recurrence && event.recurrence !== 'none'
+                    ? 'Supprimer tous les rendez-vous de cette série' : 'Supprimer ce rendez-vous';
                 remove.addEventListener('click', async () => {
+                    if (event.recurrence && event.recurrence !== 'none' &&
+                        !window.confirm('Supprimer tous les rendez-vous de cette série ?')) return;
                     try {
                         await planningRequest(`/api/agenda/events/${event.id}`, { method: 'DELETE' });
                         chargerCalendrier();
@@ -5784,6 +6273,7 @@
             switchScreen('settings');
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
+            reinitialiserAlbumJournal();
             reinitialiserTachesPartagees();
             reinitialiserAnnuairePartage();
             directoryLoadId++;
@@ -6113,6 +6603,10 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
+        arreterLectureSenior();
+        annulerDicteeMessage();
+        annulerPropositionMessage();
+        reinitialiserAlbumJournal();
         reinitialiserPhotosContacts();
         reinitialiserProfil();
         nextVisitLoadId++;
@@ -6362,6 +6856,167 @@
         }
     }
 
+    function reinitialiserAlbumJournal() {
+        familyAlbumRevision++;
+        familyJournalRevision++;
+        familyAlbumUrls.forEach(url => URL.revokeObjectURL(url));
+        familyAlbumUrls = [];
+        ['senior', 'aidant'].forEach(role => {
+            document.getElementById(`${role}-album-list`).replaceChildren();
+            document.getElementById(`${role}-album-status`).textContent = '';
+            document.getElementById(`${role}-album-file`).value = '';
+            document.getElementById(`${role}-journal-list`).replaceChildren();
+        });
+    }
+
+    async function chargerAlbumFamilial(role) {
+        if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId)) return;
+        const revision = ++familyAlbumRevision;
+        const userId = connectedUser.id;
+        const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
+        const current = () => revision === familyAlbumRevision && connectedUser?.id === userId &&
+            connectedUser?.role === role && (role !== 'aidant' || activeSeniorProfileId === seniorId);
+        const list = document.getElementById(`${role}-album-list`);
+        const status = document.getElementById(`${role}-album-status`);
+        familyAlbumUrls.forEach(url => URL.revokeObjectURL(url));
+        familyAlbumUrls = [];
+        list.replaceChildren();
+        status.textContent = 'Chargement des photos…';
+        try {
+            const result = await planningRequest('/api/family-album');
+            if (!current()) return;
+            status.textContent = result.photos.length ? '' : 'Aucune photo pour le moment.';
+            for (const photo of result.photos) {
+                const card = document.createElement('div');
+                card.className = 'progress-item';
+                card.append(makeTextElement('p', `${photo.authorName} · ${formatDateTime(photo.createdAt)}${photo.approved ? '' : ' · En attente de votre accord'}`));
+                if (!photo.approved && role === 'aidant') card.firstChild.textContent =
+                    `${photo.authorName} · ${formatDateTime(photo.createdAt)} · En attente de l’accord du senior`;
+                const image = document.createElement('img');
+                image.alt = `Photo partagée par ${photo.authorName}`;
+                image.style.cssText = 'max-width:100%;max-height:300px;object-fit:contain;';
+                card.append(image);
+                if (role === 'senior' && !photo.approved) {
+                    const approve = makeTextElement('button', 'Accepter et partager');
+                    approve.type = 'button';
+                    approve.addEventListener('click', async () => {
+                        approve.disabled = true;
+                        try {
+                            await planningRequest(`/api/family-album/${encodeURIComponent(photo.id)}/approve`, { method: 'POST' });
+                            if (current()) await chargerAlbumFamilial(role);
+                        } catch (error) {
+                            if (current()) { status.textContent = error.message; approve.disabled = false; }
+                        }
+                    });
+                    card.append(approve);
+                }
+                if (role === 'senior' || photo.authorId === userId) {
+                    const remove = makeTextElement('button', 'Supprimer');
+                    remove.type = 'button';
+                    remove.addEventListener('click', async () => {
+                        if (!window.confirm('Supprimer cette photo de l’album ?')) return;
+                        remove.disabled = true;
+                        try {
+                            await planningRequest(`/api/family-album/${encodeURIComponent(photo.id)}`, { method: 'DELETE' });
+                            if (current()) await chargerAlbumFamilial(role);
+                        } catch (error) {
+                            if (current()) { status.textContent = error.message; remove.disabled = false; }
+                        }
+                    });
+                    card.append(remove);
+                }
+                list.append(card);
+                const response = await fetch(`${SERVER_URL}/api/family-album/${encodeURIComponent(photo.id)}/photo`, {
+                    headers: authHeaders(), cache: 'no-store'
+                });
+                if (!response.ok) throw new Error('Impossible de charger une photo de l’album.');
+                const blob = await response.blob();
+                if (!current()) return;
+                const url = URL.createObjectURL(blob);
+                familyAlbumUrls.push(url);
+                image.src = url;
+            }
+        } catch (error) {
+            if (current()) status.textContent = error.message || 'Impossible de charger l’album.';
+        }
+    }
+
+    async function chargerJournalQuotidien(role) {
+        if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId)) return;
+        const revision = ++familyJournalRevision;
+        const userId = connectedUser.id;
+        const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
+        const container = document.getElementById(`${role}-journal-list`);
+        container.textContent = 'Chargement du journal…';
+        const [logs, following] = await Promise.allSettled([
+            planningRequest('/api/logs/all'), planningRequest('/api/planning/following')
+        ]);
+        if (revision !== familyJournalRevision || connectedUser?.id !== userId ||
+            connectedUser?.role !== role || (role === 'aidant' && activeSeniorProfileId !== seniorId)) return;
+        container.replaceChildren();
+        const entries = [];
+        if (logs.status === 'fulfilled') logs.value.forEach(log => {
+            entries.push({ date: log.created_at, text: log.content });
+        });
+        if (following.status === 'fulfilled') following.value.visits.forEach(visit => {
+            progressArray(visit.progress).forEach(event => {
+                entries.push({ date: event.createdAt, text: `${visit.visitType} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}` });
+            });
+        });
+        entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+        entries.forEach(entry => {
+            const item = document.createElement('div');
+            item.className = 'progress-item';
+            item.append(makeTextElement('strong', formatDateTime(entry.date)), document.createElement('br'),
+                makeTextElement('span', entry.text));
+            container.append(item);
+        });
+        if (logs.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les nouvelles.', 'helper-text'));
+        if (following.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les interventions.', 'helper-text'));
+        if (!entries.length && logs.status === 'fulfilled' && following.status === 'fulfilled') {
+            container.append(makeTextElement('p', 'Aucune nouvelle pour le moment.', 'helper-text'));
+        }
+    }
+
+    function configurerAlbumJournal() {
+        ['senior', 'aidant'].forEach(role => {
+            document.getElementById(`${role}-album-details`).addEventListener('toggle', event => {
+                if (event.currentTarget.open) chargerAlbumFamilial(role);
+            });
+            document.getElementById(`${role}-journal-details`).addEventListener('toggle', event => {
+                if (event.currentTarget.open) chargerJournalQuotidien(role);
+            });
+            document.getElementById(`${role}-album-form`).addEventListener('submit', async event => {
+                event.preventDefault();
+                if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId)) return;
+                const revision = familyAlbumRevision;
+                const userId = connectedUser.id;
+                const seniorId = activeSeniorProfileId;
+                const file = document.getElementById(`${role}-album-file`).files[0];
+                const status = document.getElementById(`${role}-album-status`);
+                const button = event.currentTarget.querySelector('button');
+                try {
+                    verifierPhotoProfil(file);
+                    button.disabled = true;
+                    const response = await fetch(`${SERVER_URL}/api/family-album`, {
+                        method: 'POST', headers: { ...authHeaders(), 'Content-Type': file.type }, body: file
+                    });
+                    await readResponse(response);
+                    if (revision !== familyAlbumRevision) return;
+                    event.target.reset();
+                    await chargerAlbumFamilial(role);
+                    if (connectedUser?.id === userId && (role !== 'aidant' || activeSeniorProfileId === seniorId)) {
+                        status.textContent = role === 'senior' ? 'Photo partagée.' : 'Photo proposée au senior.';
+                    }
+                } catch (error) {
+                    if (revision === familyAlbumRevision) status.textContent = error.message || 'Impossible d’ajouter la photo.';
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        });
+    }
+
     function chargerLogs() {
         const logsList = document.getElementById('logs-list');
         logsList.innerHTML = 'Chargement du journal...';
@@ -6520,6 +7175,9 @@
 
     async function initApp() {
         configurerTuilesAidant();
+        configurerAlbumJournal();
+        configurerDicteeMessagerie();
+        configurerLectureSenior();
         configurerProfil();
         configurerFormulairesCoordination();
         configurerFormulairesInformationsPersonne();
@@ -6555,6 +7213,10 @@
                     const role = connectedUser.role;
                     if (!await chargerCorrespondants(role)) return;
                     const select = document.getElementById(`message-contact-${role}`);
+                    if (role === 'senior') {
+                        annulerDicteeMessage();
+                        annulerPropositionMessage();
+                    }
                     select.value = notification.senderUserId;
                     if (!select.value) {
                         showToast('Ce correspondant n’est plus associé à votre compte.', false);
@@ -6585,6 +7247,10 @@
         });
         ['senior', 'aidant', 'pro'].forEach(role => {
             document.getElementById(`message-contact-${role}`).addEventListener('change', () => {
+                if (role === 'senior') {
+                    annulerDicteeMessage();
+                    annulerPropositionMessage();
+                }
                 document.getElementById(`message-list-${role}`).replaceChildren();
             });
             document.getElementById(`message-form-${role}`).addEventListener('submit', event => {
@@ -6641,8 +7307,9 @@
                 const startValue = document.getElementById('personal-event-start').value;
                 await planningRequest('/api/agenda/events', { method: 'POST', body: {
                     title: document.getElementById('personal-event-title').value,
-                    start: new Date(startValue).toISOString(),
-                    durationMinutes: Number(document.getElementById('personal-event-duration').value)
+                    start: startValue,
+                    durationMinutes: Number(document.getElementById('personal-event-duration').value),
+                    recurrence: document.getElementById('personal-event-recurrence').value
                 } });
                 message.textContent = 'Rendez-vous ajouté.';
                 document.getElementById('personal-event-title').value = '';

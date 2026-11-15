@@ -133,6 +133,51 @@ test('professional summary uses only professional-accessible data and shows pend
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
 });
 
+test('daily journal sorts shared updates and reports unavailable sources', async () => {
+  const children = [];
+  const container = {
+    textContent: '',
+    replaceChildren() { children.length = 0; },
+    append(item) { children.push(item); }
+  };
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' }, activeSeniorProfileId: 'senior-1', familyJournalRevision: 0,
+    document: {
+      getElementById: () => container,
+      createElement: tag => ({ tag, children: [], append(...items) { this.children.push(...items); } })
+    },
+    makeTextElement: (tag, text) => ({ tag, text }),
+    formatDateTime: value => value,
+    stageLabel: value => value,
+    progressArray: value => value,
+    planningRequest: async path => path === '/api/logs/all'
+      ? [{ created_at: '2028-01-01T10:00:00Z', content: 'Nouvelle familiale' }]
+      : { visits: [{ visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent' }] }] }
+  };
+  const start = source.indexOf('    async function chargerJournalQuotidien(role)');
+  const end = source.indexOf('    function configurerAlbumJournal()', start);
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
+  await context.loadJournal('aidant');
+  assert.equal(children[0].children[2].text, 'Visite — arrived : Présent');
+  assert.equal(children[1].children[2].text, 'Nouvelle familiale');
+  context.planningRequest = async path => {
+    if (path === '/api/logs/all') throw new Error('unavailable');
+    return { visits: [] };
+  };
+  await context.loadJournal('aidant');
+  assert.equal(children[0].text, 'Impossible de charger les nouvelles.');
+  let release;
+  context.planningRequest = path => path === '/api/logs/all'
+    ? new Promise(resolve => { release = resolve; })
+    : Promise.resolve({ visits: [] });
+  const pending = context.loadJournal('aidant');
+  context.activeSeniorProfileId = 'senior-2';
+  container.replaceChildren();
+  release([{ created_at: '2028-01-01T10:00:00Z', content: 'Ancien profil' }]);
+  await pending;
+  assert.equal(children.length, 0);
+});
+
 test('the login screen offers a registration button that opens the registration form', () => {
   const login = source.slice(source.indexOf('<form id="login-section"'), source.indexOf('<!-- Bloc Inscription -->'));
   assert.match(login, /<button id="register-open"[^>]*type="button"[^>]*onclick="basculerFormulaire\(true\)"[^>]*>S’inscrire<\/button>/);
@@ -226,7 +271,9 @@ function createView(response) {
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
       'chargerAssistantConversation', 'chargerProchainRendezVous', 'afficherProchainRendezVous', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
-      'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage'
+      'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage',
+      'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
+      'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'planifierLectureSenior'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
     definirVueCalendrier: view => { context.calendarView = view; calls.push('definirVueCalendrier'); },

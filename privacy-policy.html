@@ -140,6 +140,7 @@
           <li>Demandes d’association et de retrait d’accès aux profils seniors, décisions, dates et code de confirmation conservé sous forme hachée jusqu’à son utilisation ;</li>
           <li>Messages adressés à l’assistant IA ou à l’équipe, si vous utilisez ces fonctions ;</li>
           <li>Messages échangés avec les contacts enregistrés mutuellement ou les seniors et aidants associés, avec leurs dates et leur état de lecture ;</li>
+          <li>Photos et dates d’envoi de l’album familial, leur auteur et leur statut d’acceptation. Les fichiers peuvent contenir des métadonnées, notamment de localisation ;</li>
           <li>Intitulés, état, éventuelle échéance et personne qui s’est proposée pour les tâches partagées avec les aidants associés au profil senior, ainsi que leur date de création ;</li>
           <li>Professionnels vérifiés enregistrés dans l’annuaire partagé du profil senior et date de leur ajout ;</li>
           <li>Réponse quotidienne de bien-être, réponse de l’assistant IA, résultat indicatif de détection d’un risque, réponse du senior à la vérification et choix des aidants destinataires, si vous utilisez le check-in ;</li>
@@ -156,7 +157,8 @@
           <li>Créer et gérer les comptes et les espaces correspondant aux différents rôles ;</li>
           <li>Afficher votre civilité et votre photo de profil dans votre compte. La photo des intervenants est obligatoire pour la validation de leur compte et visible des personnes qui les ont ajoutés à leurs contacts. Pour les autres comptes, le partage avec ces contacts est activé par défaut et peut être désactivé dans les réglages. Vous pouvez remplacer la photo et, hors comptes intervenants, la supprimer ; elle est effacée du compte lors de sa clôture ;</li>
           <li>Organiser les services, rendez-vous, interventions et échanges avec l’équipe ;</li>
-          <li>Permettre les échanges entre contacts enregistrés mutuellement ou seniors et aidants associés et indiquer à l’expéditeur qu’un message a été ouvert ;</li>
+          <li>Permettre les échanges entre contacts enregistrés mutuellement ou seniors et aidants associés et indiquer à l’expéditeur qu’un message a été ouvert. Lors d’un envoi à plusieurs personnes choisies, chaque destinataire reçoit une copie privée sans voir les autres ;</li>
+          <li>Partager les photos de l’album avec les aidants actifs associés : les photos proposées par les aidants ne sont partagées qu’après acceptation du senior. Le senior peut supprimer toute photo et l’auteur peut supprimer les siennes. La clôture du compte senior efface l’album de la base active et la clôture du compte d’un auteur efface ses photos ; les sauvegardes restent soumises à la durée de conservation du prestataire ;</li>
           <li>Organiser les tâches du quotidien entre le senior et ses aidants associés. Tous les aidants actifs associés peuvent les consulter, les modifier et les supprimer ; les aidants qui le souhaitent peuvent activer des rappels concernant leurs tâches ou celles sans volontaire ;</li>
           <li>Retrouver les professionnels vérifiés enregistrés dans l’annuaire partagé, consultable et modifiable par le senior et ses aidants actifs associés ;</li>
           <li>Vérifier les justificatifs des professionnels ;</li>
@@ -224,12 +226,14 @@
           d’urgence ni un dispositif de surveillance ou d’alerte automatique.
         </p>
         <p>
-          La dictée vocale facultative utilise les fonctions du navigateur ou de l’appareil. Selon le navigateur
-          et son fournisseur, la dictée et la confirmation vocale d’urgence peuvent traiter l’audio en dehors
-          de Génération Liaison.
-          L’application ne conserve pas l’audio et ne l’envoie pas à OpenAI ; seul le texte que vous soumettez
-          est transmis pour préparer la réponse IA. La lecture vocale de la réponse utilise la fonction vocale
-          disponible sur votre navigateur ou appareil.
+          La dictée vocale facultative, notamment dans la messagerie, utilise les fonctions du navigateur ou de
+          l’appareil. Selon leur fournisseur, la dictée et la confirmation vocale d’urgence peuvent traiter l’audio
+          en dehors de Génération Liaison. L’application ne conserve pas l’audio et ne l’envoie pas à OpenAI.
+          Si vous demandez une reformulation dans la messagerie et confirmez, votre seul brouillon est envoyé à
+          OpenAI avec le paramètre de non-stockage de l’API ; la proposition n’est pas enregistrée ni envoyée à votre
+          contact sans votre action. Pour le check-in, le texte soumis est transmis pour préparer la réponse IA.
+          La lecture vocale utilise les voix disponibles sur votre appareil ou navigateur ; elle peut être entendue
+          par votre entourage et peut être désactivée dans les réglages.
         </p>
         <p>
           Si le senior choisit un numéro de secours puis confirme une deuxième fois par bouton ou par la phrase vocale

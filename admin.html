@@ -159,6 +159,18 @@
       <div class="layout">
         <section class="panel">
           <div class="panel-head">
+            <div><h2>Surveillance technique et aide IA</h2><p>Compteurs anonymes des requêtes API reçues par ce serveur pendant les 15 dernières minutes. Ils sont remis à zéro au redémarrage et ne détectent pas une panne complète du serveur.</p></div>
+          </div>
+          <p id="site-monitor-status" role="status" aria-live="polite">Chargement des compteurs…</p>
+          <div id="site-monitor-areas" aria-live="polite"></div>
+          <p class="hint">Les réponses 4xx peuvent correspondre à des refus ou saisies normales. Aucun message, nom, adresse, chemin ou contenu client n’est collecté. Les demandes d’aide des seniors restent dans la rubrique ci-dessous.</p>
+          <p class="hint">À partir de trois erreurs serveur dans une rubrique en 15 minutes, une notification est créée pour les administrateurs actifs, au maximum une fois par rubrique toutes les 30 minutes. La réception externe dépend des réglages de notification.</p>
+          <button id="site-monitor-review" class="button secondary" type="button">Demander une analyse IA</button>
+          <p class="hint">Seuls ces compteurs sont transmis à OpenAI après confirmation. L’IA propose des vérifications ; l’équipe décide et intervient elle-même.</p>
+          <p id="site-monitor-review-status" role="status" aria-live="polite" style="white-space:pre-wrap"></p>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
             <div><h2>Partenaires des services du quotidien</h2><p>Activation et formule de rémunération. Les tarifs restent à définir.</p></div>
           </div>
           <div class="table-wrap"><table>
@@ -391,6 +403,48 @@
       row.append(cell);
       tbody.replaceChildren(row);
     }
+
+    async function loadSiteMonitor() {
+      try {
+        const metrics = await adminRequest('/api/admin/site-monitor');
+        document.getElementById('site-monitor-status').textContent =
+          `${metrics.requests} requêtes API, ${metrics.serverErrors} réponses serveur 5xx et ${metrics.clientErrors} réponses 4xx. Suivi depuis ${formatDate(metrics.observedSince)}.`;
+        const container = document.getElementById('site-monitor-areas');
+        container.replaceChildren();
+        const labels = {
+          connexion: 'Connexion et comptes', messagerie: 'Messagerie et assistant', agenda: 'Agenda et planning',
+          notifications: 'Notifications', annuaire: 'Annuaire', autres: 'Autres fonctions'
+        };
+        Object.entries(labels).forEach(([key, label]) => {
+          const counts = metrics.byArea[key];
+          if (!counts || (!counts.serverErrors && !counts.clientErrors)) return;
+          const item = document.createElement('p');
+          item.textContent = `${label} : ${counts.serverErrors} réponses 5xx et ${counts.clientErrors} réponses 4xx sur ${counts.requests} requêtes.`;
+          container.append(item);
+        });
+      } catch (error) {
+        document.getElementById('site-monitor-areas').replaceChildren();
+        document.getElementById('site-monitor-status').textContent =
+          error.message || 'Impossible de charger les compteurs.';
+      }
+    }
+
+    document.getElementById('site-monitor-review').addEventListener('click', async event => {
+      if (!window.confirm('Envoyer uniquement les compteurs anonymes à OpenAI pour obtenir des pistes de vérification ?')) return;
+      const status = document.getElementById('site-monitor-review-status');
+      event.currentTarget.disabled = true;
+      status.textContent = 'Analyse en cours…';
+      try {
+        const result = await adminRequest('/api/admin/site-monitor/review', {
+          method: 'POST', body: { confirmed: true }
+        });
+        status.textContent = result.review;
+      } catch (error) {
+        status.textContent = error.message || 'Impossible d’analyser les compteurs.';
+      } finally {
+        event.currentTarget.disabled = false;
+      }
+    });
 
     async function loadAssistantHandoffs() {
       try {
@@ -1241,6 +1295,7 @@
         renderVisits(result.careVisits);
         renderRedEvaluations(result.redEvaluations || []);
         renderAccounts(result.accounts, result.limits);
+        await loadSiteMonitor();
         await loadSeniorLinkRemovals();
         await loadAccountClosureRequests();
         await loadAssistantHandoffs();

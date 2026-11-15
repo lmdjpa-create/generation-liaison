@@ -167,6 +167,17 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
         CREATE INDEX IF NOT EXISTS app_aidant_senior_links_profile_idx
           ON app_aidant_senior_links (senior_profile_id, aidant_user_id);
+        CREATE TABLE IF NOT EXISTS app_family_photos (
+          id UUID PRIMARY KEY,
+          senior_profile_id UUID NOT NULL REFERENCES senior_profiles(id) ON DELETE CASCADE,
+          author_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          content_type VARCHAR(32) NOT NULL CHECK (content_type IN ('image/jpeg', 'image/png')),
+          file_data BYTEA NOT NULL,
+          approved BOOLEAN NOT NULL DEFAULT FALSE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS app_family_photos_profile_idx
+          ON app_family_photos (senior_profile_id, created_at DESC);
         CREATE TABLE IF NOT EXISTS app_aidant_link_requests (
           id UUID PRIMARY KEY,
           aidant_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
@@ -204,6 +215,10 @@ function createAuthService(pool) {
           entity_id UUID,
           read_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS app_site_alert_state (
+          area VARCHAR(32) PRIMARY KEY,
+          last_sent_at TIMESTAMPTZ NOT NULL
         );
         ALTER TABLE app_notifications
           ALTER COLUMN notification_type TYPE VARCHAR(64),
@@ -624,6 +639,7 @@ function createAuthService(pool) {
           duration_minutes INTEGER NOT NULL CHECK (duration_minutes BETWEEN 5 AND 1440),
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE app_personal_events ADD COLUMN IF NOT EXISTS recurrence VARCHAR(10) NOT NULL DEFAULT 'none';
         CREATE INDEX IF NOT EXISTS app_personal_events_owner_date_idx
           ON app_personal_events (owner_user_id, starts_at);
         CREATE TABLE IF NOT EXISTS app_shared_tasks (
@@ -1051,6 +1067,11 @@ function createAuthService(pool) {
         [userId]
       );
       await client.query('DELETE FROM app_sessions WHERE user_id = $1', [userId]);
+      await client.query(
+        `DELETE FROM app_family_photos
+         WHERE author_user_id = $1 OR senior_profile_id = (SELECT senior_id FROM app_users WHERE id = $1)`,
+        [userId]
+      );
       await client.query('DELETE FROM app_push_subscriptions WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM app_google_calendar_oauth_states WHERE user_id = $1', [userId]);
       await client.query(

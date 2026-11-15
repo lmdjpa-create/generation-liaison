@@ -7,6 +7,8 @@ const { TERMS_VERSION, createAuthService } = require('../auth');
 const { assertScheduleAvailable, lockScheduleParticipants } = require('../schedule-conflicts');
 const { randomUUID } = require('node:crypto');
 const { createDueTaskReminder } = require('../task-reminders');
+const { createSiteMonitor } = require('../site-monitor');
+const { createSiteAlerts } = require('../site-monitor-alerts');
 
 const adminCode = 'test-administrator-code-at-least-32-characters';
 let db;
@@ -33,7 +35,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   delivery.isConfigured = () => ({ email: emailConfigured });
   delivery.sendSeniorUnlinkCode = async (email, code) => {
@@ -78,6 +80,172 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('technical alerts require repeated server errors and deduplicate across processes', async () => {
+  const admin = await register('alerts-admin@example.test', 'senior');
+  const pool = { async connect() { return { query: db.query.bind(db), release() {} }; } };
+  const monitor = createSiteMonitor();
+  const sent = [];
+  const notify = async (client, id, type, title, message, entityType, entityId) => {
+    sent.push({ id, type, title, message, entityType, entityId });
+  };
+  const emails = new Set(['alerts-admin@example.test']);
+  const now = new Date('2026-01-01T10:00:00Z');
+  monitor.record(500, 'messagerie');
+  monitor.record(503, 'messagerie');
+  monitor.record(403, 'messagerie');
+  assert.equal(await createSiteAlerts(pool, monitor, emails, notify, now), 0);
+  monitor.record(502, 'messagerie');
+  assert.equal(await createSiteAlerts(pool, monitor, emails, notify, now), 1);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].id, admin.user.id);
+  assert.equal(sent[0].type, 'site_error_alert');
+  assert.match(sent[0].message, /messagerie/);
+  assert.doesNotMatch(JSON.stringify(sent), /private|@|\/api\//);
+  const secondProcess = createSiteMonitor();
+  for (let i = 0; i < 3; i++) secondProcess.record(500, 'messagerie');
+  assert.equal(await createSiteAlerts(pool, secondProcess, emails, notify, new Date('2026-01-01T10:29:00Z')), 0);
+  assert.equal(await createSiteAlerts(pool, secondProcess, emails, notify, new Date('2026-01-01T10:30:00Z')), 1);
+  const failingMonitor = createSiteMonitor();
+  for (let i = 0; i < 3; i++) failingMonitor.record(500, 'agenda');
+  await assert.rejects(createSiteAlerts(pool, failingMonitor, emails, async () => {
+    throw new Error('Insertion impossible');
+  }, now), /Insertion impossible/);
+  assert.equal((await db.query("SELECT area FROM app_site_alert_state WHERE area = 'agenda'")).rows.length, 0);
+  assert.equal(await createSiteAlerts(pool, failingMonitor, emails, notify, now), 1);
+  await assert.rejects(createSiteAlerts(pool, secondProcess, new Set(['unknown@example.test']), notify),
+    /Aucun compte administrateur actif/);
+});
+
+test('site diagnostics are restricted to administrators and share only anonymous counts', async () => {
+  const admin = await register('monitor-admin@example.test', 'senior');
+  const senior = await register('monitor-senior@example.test', 'senior');
+  const path = '/api/admin/site-monitor';
+  assert.equal((await request(path)).status, 401);
+  assert.equal((await request(path, { user: senior, admin: true })).status, 403);
+  assert.equal((await request(path, { user: admin })).status, 403);
+  assert.equal((await request('/api/messages/private-identifier')).status, 401);
+  const metrics = await request(path, { user: admin, admin: true });
+  assert.ok(metrics.data.byArea.messagerie.clientErrors >= 1);
+  assert.doesNotMatch(JSON.stringify(metrics.data), /private-identifier/);
+  assert.equal((await request(`${path}/review`, { user: admin, admin: true, body: {} })).status, 400);
+  const originalFetch = global.fetch;
+  const oldKey = process.env.OPENAI_API_KEY;
+  let payload;
+  global.fetch = async (url, options) => {
+    if (url === 'https://api.openai.com/v1/responses') {
+      payload = JSON.parse(options.body);
+      return new Response(JSON.stringify({ output_text: 'Vérifier les journaux techniques.' }), { status: 200 });
+    }
+    return originalFetch(url, options);
+  };
+  process.env.OPENAI_API_KEY = 'test-key';
+  try {
+    const result = await request(`${path}/review`, {
+      user: admin, admin: true, body: { confirmed: true, privateText: 'Ne pas transmettre' }
+    });
+    assert.equal(result.status, 200);
+    assert.equal(result.data.review, 'Vérifier les journaux techniques.');
+    assert.equal(payload.store, false);
+    assert.deepEqual(JSON.parse(payload.input[0].content), result.data.metrics);
+    assert.deepEqual(Object.keys(result.data.metrics).sort(),
+      ['byArea', 'clientErrors', 'observedSince', 'requests', 'serverErrors', 'windowMinutes']);
+    assert.deepEqual(Object.keys(result.data.metrics.byArea).sort(),
+      ['agenda', 'annuaire', 'autres', 'connexion', 'messagerie', 'notifications']);
+    assert.doesNotMatch(JSON.stringify(payload), /Ne pas transmettre|monitor-senior/);
+  } finally {
+    global.fetch = originalFetch;
+    if (oldKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = oldKey;
+  }
+});
+
+test('message writing assistance requires explicit confirmation and never sends the draft', async () => {
+  const senior = await register('rewrite-senior@example.test', 'senior');
+  const aidant = await register('rewrite-aidant@example.test', 'aidant');
+  const originalFetch = global.fetch;
+  const oldKey = process.env.OPENAI_API_KEY;
+  let sentPayload;
+  global.fetch = async (url, options) => {
+    if (url === 'https://api.openai.com/v1/responses') {
+      sentPayload = JSON.parse(options.body);
+      return new Response(JSON.stringify({ output_text: 'Bonjour, comment allez-vous ?' }), { status: 200 });
+    }
+    return originalFetch(url, options);
+  };
+  process.env.OPENAI_API_KEY = 'test-key';
+  try {
+    const path = '/api/messages/rewrite';
+    assert.equal((await request(path, { user: aidant, body: { message: 'Bonjour', confirmed: true } })).status, 403);
+    assert.equal((await request(path, { user: senior, body: { message: 'Bonjour' } })).status, 400);
+    assert.equal((await request(path, { user: senior, body: { message: 'a'.repeat(2001), confirmed: true } })).status, 400);
+    await db.query('UPDATE app_ai_settings SET enabled = FALSE WHERE id = 1');
+    assert.equal((await request(path, { user: senior, body: { message: 'Bonjour', confirmed: true } })).status, 503);
+    await db.query('UPDATE app_ai_settings SET enabled = TRUE WHERE id = 1');
+    const result = await request(path, { user: senior, body: { message: 'Bonjour, ça va ?', confirmed: true } });
+    assert.equal(result.status, 200);
+    assert.equal(result.data.suggestion, 'Bonjour, comment allez-vous ?');
+    assert.equal(sentPayload.store, false);
+    assert.deepEqual(sentPayload.input, [{ role: 'user', content: 'Bonjour, ça va ?' }]);
+    assert.equal((await db.query('SELECT COUNT(*)::int AS count FROM app_private_messages')).rows[0].count, 0);
+  } finally {
+    global.fetch = originalFetch;
+    if (oldKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = oldKey;
+    await db.query('UPDATE app_ai_settings SET enabled = TRUE WHERE id = 1');
+  }
+});
+
+test('family photos require senior approval, active links and remain private between profiles', async () => {
+  const senior = await register('album-senior@example.test', 'senior');
+  const aidant = await register('album-aidant@example.test', 'aidant');
+  const other = await register('album-other@example.test', 'aidant');
+  const stranger = await register('album-stranger@example.test', 'senior');
+  const seniorId = senior.user.seniorId;
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1), ($3, $2, $3)`, [aidant.user.id, seniorId, other.user.id]);
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lX4AAAAASUVORK5CYII=', 'base64');
+  const headers = user => ({
+    Authorization: `Bearer ${user.token}`,
+    ...(user.user.role === 'aidant' ? { 'X-Senior-Profile-Id': seniorId } : {})
+  });
+  const upload = (user, body = image) => fetch(`${baseUrl}/api/family-album`, {
+    method: 'POST', headers: { ...headers(user), 'Content-Type': 'image/png' }, body
+  });
+  assert.equal((await upload(aidant, Buffer.from('not an image'))).status, 400);
+  assert.equal((await upload(aidant, Buffer.alloc(2 * 1024 * 1024 + 1))).status, 413);
+  const response = await upload(aidant);
+  assert.equal(response.status, 201);
+  const photo = await response.json();
+  assert.equal(photo.approved, false);
+  const path = `/api/family-album/${photo.id}/photo`;
+  assert.equal((await request('/api/family-album', { user: other, seniorId })).data.photos.length, 0);
+  assert.equal((await fetch(`${baseUrl}${path}`, { headers: headers(other) })).status, 404);
+  assert.equal((await fetch(`${baseUrl}${path}`, { headers: headers(stranger) })).status, 404);
+  assert.equal((await request(`/api/family-album/${photo.id}/approve`, { user: aidant, seniorId, body: {} })).status, 403);
+  assert.equal((await request(`/api/family-album/${photo.id}/approve`, { user: senior, body: {} })).status, 200);
+  const shared = await fetch(`${baseUrl}${path}`, { headers: headers(other) });
+  assert.equal(shared.status, 200);
+  assert.equal(shared.headers.get('cache-control'), 'private, no-store');
+  assert.deepEqual(Buffer.from(await shared.arrayBuffer()), image);
+  assert.equal((await request(`/api/family-album/${photo.id}`, { user: other, seniorId, method: 'DELETE' })).status, 404);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1 AND senior_profile_id = $2', [other.user.id, seniorId]);
+  assert.equal((await fetch(`${baseUrl}${path}`, { headers: headers(other) })).status, 403);
+  assert.equal((await request(`/api/family-album/${photo.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await fetch(`${baseUrl}${path}`, { headers: headers(aidant) })).status, 404);
+  const next = await (await upload(senior)).json();
+  assert.equal(next.approved, true);
+  await db.query(
+    `INSERT INTO app_family_photos (id, senior_profile_id, author_user_id, content_type, file_data, approved)
+     SELECT gen_random_uuid(), $1, $2, 'image/png', $3, TRUE FROM generate_series(1, 49)`,
+    [seniorId, senior.user.id, image]
+  );
+  assert.equal((await upload(senior)).status, 409);
+  assert.equal((await request('/api/account/closure-request', {
+    user: senior, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  assert.equal((await db.query('SELECT COUNT(*)::int AS count FROM app_family_photos WHERE senior_profile_id = $1', [seniorId])).rows[0].count, 0);
+});
 
 test('civility and private profile photos are saved, isolated and removed on account closure', async () => {
   const senior = await register('profile-senior@example.test', 'senior');
@@ -565,6 +733,86 @@ test('all contact roles can exchange premium messages only after mutually adding
   assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior })).status, 403);
 });
 
+test('a senior sends private copies only to explicitly authorized recipients', async () => {
+  const senior = await register('group-senior@example.test', 'senior');
+  const aidant1 = await register('group-aidant1@example.test', 'aidant');
+  const aidant2 = await register('group-aidant2@example.test', 'aidant');
+  const contact = await register('group-contact@example.test', 'senior');
+  const stranger = await register('group-stranger@example.test', 'senior');
+  for (const aidant of [aidant1, aidant2]) {
+    await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+      VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  }
+  assert.equal((await request('/api/contacts', { user: senior, body: { email: 'group-contact@example.test' } })).status, 201);
+  assert.equal((await request('/api/contacts', { user: contact, body: { email: 'group-senior@example.test' } })).status, 201);
+  const path = '/api/messages/multiple';
+  const send = (user, recipients, message = 'Bonjour à tous') => request(path, { user, body: { recipients, message } });
+  assert.equal((await send(aidant1, [senior.user.id])).status, 403);
+  assert.equal((await send(senior, [])).status, 400);
+  assert.equal((await send(senior, Array(21).fill(aidant1.user.id))).status, 400);
+  assert.equal((await send(senior, [aidant1.user.id], ' ')).status, 400);
+  assert.equal((await send(senior, [aidant1.user.id, aidant1.user.id])).status, 400);
+  assert.equal((await send(senior, [aidant1.user.id, stranger.user.id])).status, 403);
+  assert.equal((await send(senior, [aidant1.user.id, contact.user.id])).status, 403);
+  let rows = await db.query('SELECT id FROM app_private_messages WHERE sender_id = $1', [senior.user.id]);
+  assert.equal(rows.rows.length, 0);
+  const result = await send(senior, [aidant1.user.id, aidant2.user.id]);
+  assert.equal(result.status, 201);
+  assert.equal(result.data.sent, 2);
+  rows = await db.query('SELECT recipient_id, body FROM app_private_messages WHERE sender_id = $1', [senior.user.id]);
+  assert.deepEqual(rows.rows.map(row => row.recipient_id).sort(), [aidant1.user.id, aidant2.user.id].sort());
+  assert.ok(rows.rows.every(row => row.body === 'Bonjour à tous'));
+  const conversation = await request(`/api/messages/${senior.user.id}`, { user: aidant1 });
+  assert.equal(conversation.data.messages.length, 1);
+  assert.equal(JSON.stringify(conversation.data).includes(aidant2.user.id), false);
+  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = ANY($1::uuid[])`,
+    [[senior.user.id, contact.user.id]]);
+  assert.equal((await send(senior, [aidant1.user.id, contact.user.id], 'Bonjour')).status, 201);
+  await db.query(`UPDATE app_users SET premium_until = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [contact.user.id]);
+  assert.equal((await send(senior, [aidant1.user.id, contact.user.id], 'Accès expiré')).status, 403);
+  assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM app_private_messages WHERE body = 'Accès expiré'")).rows[0].count, 0);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1', [aidant2.user.id]);
+  assert.equal((await send(senior, [aidant1.user.id, aidant2.user.id], 'Refusé')).status, 403);
+  assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM app_private_messages WHERE body = 'Refusé'")).rows[0].count, 0);
+});
+
+test('recurring personal dates preserve Paris time, privacy and series deletion', async () => {
+  const senior = await register('recurring-senior@example.test', 'senior');
+  const other = await register('recurring-other@example.test', 'senior');
+  const create = (title, start, recurrence) => request('/api/agenda/events', {
+    user: senior, body: { title, start, durationMinutes: 30, recurrence }
+  });
+  assert.equal((await create('Invalide', '2024-01-01T10:00:00Z', 'daily')).status, 400);
+  assert.equal((await create('Heure inexistante', '2024-03-31T02:30', 'weekly')).status, 400);
+  const local = await create('Heure de Paris', '2024-03-25T10:00', 'none');
+  assert.equal(local.status, 201);
+  const weekly = await create('Rendez-vous régulier', '2024-03-24T09:00:00Z', 'weekly');
+  const birthday = await create('Anniversaire', '2024-02-29T09:00:00Z', 'yearly');
+  const monthly = await create('Fin du mois', '2024-01-31T09:00:00Z', 'monthly');
+  assert.equal(weekly.status, 201);
+  assert.equal(birthday.status, 201);
+  assert.equal(monthly.status, 201);
+  const calendar = (user, start, end) => request(`/api/planning/calendar?start=${start}&end=${end}`, { user });
+  let result = await calendar(senior, '2024-03-24', '2024-04-02');
+  assert.equal(result.status, 200);
+  assert.deepEqual(result.data.events.filter(event => event.id === weekly.data.id).map(event => event.scheduledAt),
+    ['2024-03-24T09:00:00.000Z', '2024-03-31T08:00:00.000Z']);
+  assert.equal(result.data.events.find(event => event.id === local.data.id).scheduledAt, '2024-03-25T09:00:00.000Z');
+  assert.deepEqual((await calendar(other, '2024-03-24', '2024-04-02')).data.events, []);
+  result = await calendar(senior, '2025-02-27', '2025-03-02');
+  assert.deepEqual(result.data.events.filter(event => event.id === birthday.data.id).map(event => event.scheduledAt),
+    ['2025-02-28T09:00:00.000Z']);
+  assert.deepEqual(result.data.events.filter(event => event.id === monthly.data.id).map(event => event.scheduledAt),
+    ['2025-02-28T09:00:00.000Z']);
+  assert.equal((await request(`/api/agenda/events/${weekly.data.id}`, { user: other, method: 'DELETE' })).status, 404);
+  assert.equal((await request(`/api/agenda/events/${weekly.data.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await calendar(senior, '2024-03-24', '2024-04-02')).data.events.some(event => event.id === weekly.data.id), false);
+  result = await request('/api/planning/calendar?next=1', { user: senior });
+  assert.equal(result.status, 200);
+  assert.ok(result.data.events[0]);
+  assert.ok(new Date(result.data.events[0].scheduledAt) >= new Date());
+});
+
 test('next senior appointment uses confirmed own events without a 42-day limit', async () => {
   const senior = await register('next-senior@example.test', 'senior');
   const other = await register('next-other@example.test', 'senior');
@@ -663,8 +911,16 @@ test('personal agenda events can be compared only after the linked owner accepts
   const compared = await request(path, { user: aidant });
   assert.deepEqual(compared.data.events.map(event => [event.kind, event.conflict]).sort(), [['personal', true], ['shared', true]]);
   assert.deepEqual((await request(path, { user: senior })).data.events.map(event => event.kind), ['personal']);
+  const series = await request('/api/agenda/events', {
+    user: senior, body: { title: 'Régulier', start: at('12'), durationMinutes: 30, recurrence: 'weekly' }
+  });
+  const nextWeek = new Date(Date.parse(day) + 7 * 86400000).toISOString().slice(0, 10);
+  const afterNextWeek = new Date(Date.parse(day) + 8 * 86400000).toISOString().slice(0, 10);
+  const weeklyPath = `/api/planning/calendar?start=${nextWeek}&end=${afterNextWeek}`;
+  assert.equal((await request(weeklyPath, { user: aidant })).data.events.find(event => event.id === series.data.id).kind, 'shared');
 
   assert.equal((await request(`/api/agenda/shares/${shareId}`, { user: aidant, body: { decision: 'revoke' } })).status, 200);
+  assert.deepEqual((await request(weeklyPath, { user: aidant })).data.events, []);
   assert.equal((await request(path, { user: aidant })).data.events.length, 1);
   const mine = compared.data.events.find(event => event.kind === 'personal');
   assert.equal((await request(`/api/agenda/events/${mine.id}`, { user: stranger, method: 'DELETE' })).status, 404);

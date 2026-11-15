@@ -370,6 +370,48 @@
       'This feature is not an emergency service and does not monitor your safety. If you are in immediate danger, call 112 or 15.',
     'Votre réponse': 'Your answer',
     '🎙️ Dicter ma réponse': '🎙️ Dictate my answer',
+    '🎙️ Dicter mon message': '🎙️ Dictate my message',
+    'Arrêter la dictée': 'Stop dictation',
+    '✨ Aide à la rédaction': '✨ Writing assistance',
+    'La dictée dépend du navigateur : son fournisseur peut traiter votre voix. Vérifiez le texte avant de l’envoyer.':
+      'Dictation depends on your browser: its provider may process your voice. Check the text before sending it.',
+    'L’aide à la rédaction envoie votre brouillon à OpenAI après votre confirmation. Elle peut faire des erreurs.':
+      'Writing assistance sends your draft to OpenAI after your confirmation. It can make mistakes.',
+    'Proposition à vérifier :': 'Suggestion to check:',
+    'Utiliser la proposition': 'Use suggestion',
+    'Garder mon texte': 'Keep my text',
+    'La dictée n’est pas disponible sur cet appareil. Vous pouvez écrire votre message.':
+      'Dictation is unavailable on this device. You can type your message.',
+    'Écoute en cours. Parlez puis arrêtez la dictée.': 'Listening. Speak, then stop dictation.',
+    'Le message est trop long : la fin de la dictée a été coupée. Vérifiez le texte.':
+      'The message is too long: the end of the dictation was cut off. Check the text.',
+    'Dictée ajoutée. Vérifiez le message avant de l’envoyer.': 'Dictation added. Check the message before sending it.',
+    'L’accès au microphone a été refusé. Vous pouvez écrire votre message.':
+      'Microphone access was denied. You can type your message.',
+    'La dictée a échoué. Vous pouvez écrire votre message.': 'Dictation failed. You can type your message.',
+    'Aucune parole reconnue. Vous pouvez réessayer ou écrire votre message.':
+      'No speech was recognized. You can try again or type your message.',
+    'Impossible de démarrer la dictée. Vous pouvez écrire votre message.':
+      'Unable to start dictation. You can type your message.',
+    'Impossible d’arrêter la dictée. Vous pouvez écrire votre message.':
+      'Unable to stop dictation. You can type your message.',
+    'Écrivez ou dictez un message avant de demander une proposition.':
+      'Type or dictate a message before requesting a suggestion.',
+    'Votre brouillon sera envoyé à OpenAI pour proposer une reformulation. Évitez les informations sensibles. Continuer ?':
+      'Your draft will be sent to OpenAI to suggest a rewrite. Avoid sensitive information. Continue?',
+    'Préparation de la proposition…': 'Preparing the suggestion…',
+    'Vérifiez la proposition avant de l’utiliser.': 'Check the suggestion before using it.',
+    'Impossible de préparer une proposition.': 'Unable to prepare a suggestion.',
+    '🔊 Lecture à voix haute': '🔊 Read aloud',
+    'La lecture est activée par défaut sur cet appareil lorsque l’application est ouverte. Les personnes autour de vous peuvent l’entendre. Le navigateur peut demander une première action avant de parler.':
+      'Reading aloud is enabled by default on this device while the app is open. People around you can hear it. Your browser may require an initial action before speaking.',
+    'Lire les informations à voix haute': 'Read information aloud',
+    'Choisir une voix': 'Choose a voice',
+    'Voix de l’appareil': 'Device voice',
+    'Arrêter la lecture': 'Stop reading',
+    'La lecture vocale n’est pas disponible sur cet appareil.': 'Speech is not available on this device.',
+    'La lecture a échoué. Vérifiez le son et les réglages de votre appareil.':
+      'Reading failed. Check your device sound and settings.',
     'Dicter le compte-rendu': 'Dictate the report',
     'La dictée dépend du navigateur et peut être traitée par son fournisseur. L’audio n’est ni conservé par Génération Liaison ni envoyé à OpenAI ; seul le texte que vous soumettez est transmis à OpenAI.':
       'Dictation depends on your browser and may be processed by its provider. Audio is not stored by Generation Liaison or sent to OpenAI; only the text you submit is sent to OpenAI.',

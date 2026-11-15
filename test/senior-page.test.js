@@ -13,6 +13,130 @@ function extract(start, end) {
   return source.slice(first, last);
 }
 
+function voiceTestContext() {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '', textContent: '', hidden: false, disabled: false, maxLength: 2000, style: {},
+    handlers: {}, addEventListener(type, handler) { this.handlers[type] = handler; }, focus() {}
+  };
+  const context = {
+    document: { getElementById: element },
+    window: { generationLiaisonTranslate: value => value, generationLiaisonLocale: () => 'fr-FR' },
+    connectedUser: { id: 'senior', role: 'senior' },
+    messageDictation: null, messageRewriteRevision: 0, messageRewriteOriginal: '',
+    console, clearTimeout, setTimeout
+  };
+  element('message-contact-senior').value = 'contact';
+  vm.runInNewContext(extract('    function annulerDicteeMessage()', '    function rafraichirConversationVisible()'), context);
+  return { context, element };
+}
+
+test('message dictation handles unsupported devices, microphone errors and stale results', () => {
+  const { context, element } = voiceTestContext();
+  context.dicterMessageSenior();
+  assert.match(element('message-dictation-status').textContent, /pas disponible/);
+  let recognition;
+  context.window.SpeechRecognition = function() {
+    recognition = this;
+    this.start = () => {};
+    this.stop = () => {};
+    this.abort = () => {};
+  };
+  context.dicterMessageSenior();
+  recognition.onerror({ error: 'not-allowed' });
+  recognition.onend();
+  assert.match(element('message-dictation-status').textContent, /refusé/);
+  element('message-text-senior').value = 'a'.repeat(1999);
+  context.dicterMessageSenior();
+  recognition.onresult({ resultIndex: 0, results: [[{ transcript: 'bonjour' }]] });
+  assert.equal(element('message-text-senior').value.length, 2000);
+  assert.match(element('message-dictation-status').textContent, /coupée/);
+  context.annulerDicteeMessage();
+  element('message-text-senior').value = 'original';
+  recognition.onresult({ resultIndex: 0, results: [[{ transcript: 'tardif' }]] });
+  assert.equal(element('message-text-senior').value, 'original');
+});
+
+test('AI message suggestion requires confirmation and only applies after an explicit choice', async () => {
+  const { context, element } = voiceTestContext();
+  let calls = 0;
+  let resolve;
+  context.seniorLinksRequest = async () => {
+    calls++;
+    return new Promise(done => { resolve = done; });
+  };
+  context.window.confirm = () => false;
+  element('message-text-senior').value = 'Bonjour';
+  await context.proposerReformulationMessage();
+  assert.equal(calls, 0);
+  context.window.confirm = () => true;
+  const pending = context.proposerReformulationMessage();
+  element('message-text-senior').value = 'Modifié';
+  resolve({ suggestion: 'Proposition périmée' });
+  await pending;
+  assert.equal(element('message-rewrite-result').hidden, true);
+  const next = context.proposerReformulationMessage();
+  resolve({ suggestion: 'Bonjour, comment allez-vous ?' });
+  await next;
+  assert.equal(element('message-text-senior').value, 'Modifié');
+  assert.equal(element('message-rewrite-result').hidden, false);
+  context.configurerDicteeMessagerie();
+  element('message-rewrite-apply').handlers.click();
+  assert.equal(element('message-text-senior').value, 'Bonjour, comment allez-vous ?');
+  assert.equal(element('message-rewrite-result').hidden, true);
+});
+
+test('screen reader defaults on, persists settings and reads only visible text', () => {
+  const { context, element } = voiceTestContext();
+  const values = new Map();
+  const voice = { name: 'Claire', lang: 'fr-FR', voiceURI: 'claire' };
+  const spoken = [];
+  const screen = { id: 'screen-messages' };
+  const root = { tagName: 'DIV', parentElement: null, hidden: false, getAttribute: () => null };
+  const visible = { tagName: 'P', parentElement: root, hidden: false, getAttribute: () => null };
+  const hidden = { tagName: 'P', parentElement: root, hidden: true, getAttribute: () => null };
+  let nodes = [{ nodeValue: 'Bonjour', parentElement: visible }, { nodeValue: 'Secret caché', parentElement: hidden }];
+  const timers = [];
+  Object.assign(context, {
+    seniorVoiceUserId: '', seniorVoiceTimer: null, seniorVoiceLastText: '',
+    localStorage: { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) },
+    NodeFilter: { SHOW_TEXT: 4 },
+    Option: function(text, value) { this.text = text; this.value = value; },
+    SpeechSynthesisUtterance: function(text) { this.text = text; },
+    setTimeout: fn => { timers.push(fn); return timers.length; },
+    clearTimeout: () => {}
+  });
+  const select = element('senior-voice-choice');
+  select.replaceChildren = () => {};
+  select.add = () => {};
+  context.window.SpeechSynthesisUtterance = context.SpeechSynthesisUtterance;
+  context.window.speechSynthesis = {
+    getVoices: () => [voice], cancel() {}, speak: utterance => spoken.push(utterance), addEventListener() {}
+  };
+  context.window.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
+  context.document.hidden = false;
+  context.document.querySelector = () => screen;
+  context.document.createTreeWalker = () => {
+    let index = 0;
+    return { nextNode: () => nodes[index++] || null };
+  };
+  context.initialiserLectureSenior();
+  assert.equal(element('senior-voice-enabled').checked, true);
+  values.set('generation-liaison-voice-senior-voice', 'claire');
+  assert.equal(context.texteVisibleLectureSenior(root), 'Bonjour');
+  context.texteVisibleLectureSenior = () => 'Bonjour';
+  context.planifierLectureSenior();
+  timers.pop()();
+  assert.equal(spoken[0].text, 'Bonjour');
+  assert.equal(spoken[0].voice, voice);
+  context.document.hidden = true;
+  context.planifierLectureSenior();
+  assert.equal(spoken.length, 1);
+  values.set('generation-liaison-voice-senior-enabled', 'false');
+  context.initialiserLectureSenior();
+  assert.equal(element('senior-voice-enabled').checked, false);
+});
+
 test('message contacts show premium requirements per contact instead of per account', async () => {
   const select = {
     value: '', options: [],
@@ -20,9 +144,14 @@ test('message contacts show premium requirements per contact instead of per acco
     add(option) { this.options.push(option); }
   };
   const status = { textContent: '' };
+  const list = { children: [], replaceChildren() { this.children = []; }, append(...items) { this.children.push(...items); } };
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
-    document: { getElementById: id => id.startsWith('message-contact-') ? select : status },
+    document: {
+      getElementById: id => id.startsWith('message-contact-') ? select : id === 'message-multiple-contacts' ? list : status,
+      createElement: () => ({ append(...items) { this.children = items; } }),
+      createTextNode: text => ({ textContent: text })
+    },
     Option: function(text, value) { this.text = text; this.value = value; },
     seniorLinksRequest: async () => ({
       premium: false, contacts: [
@@ -38,7 +167,70 @@ test('message contacts show premium requirements per contact instead of per acco
   assert.equal(await context.loadContacts('senior'), true);
   assert.equal(select.options[1].text, 'Aidant');
   assert.match(select.options[2].text, /premium requis/);
+  assert.equal(list.children[0].children[0].disabled, false);
+  assert.equal(list.children[2].children[0].disabled, true);
   assert.equal(status.textContent, '');
+});
+
+test('multiple message delivery confirms selected recipients and keeps the draft on failure', async () => {
+  const chosen = [
+    { value: 'a', checked: true, parentElement: { textContent: 'Alice' } },
+    { value: 'b', checked: true, parentElement: { textContent: 'Bruno' } }
+  ];
+  const nodes = {
+    'message-contact-senior': { value: '' },
+    'message-text-senior': { value: 'Bonjour' },
+    'message-status-senior': { textContent: '' }
+  };
+  let confirmed = false;
+  let calls = [];
+  let fails = false;
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    document: {
+      getElementById: id => nodes[id],
+      querySelectorAll: () => chosen.filter(item => item.checked),
+      querySelector: () => ({ disabled: false })
+    },
+    window: { confirm: () => confirmed },
+    annulerDicteeMessage() {}, annulerPropositionMessage() {},
+    ouvrirConversation: async () => {},
+    seniorLinksRequest: async (url, options) => {
+      calls.push({ url, options });
+      if (fails) throw new Error('Envoi impossible');
+    }
+  };
+  vm.runInNewContext(extract('    async function envoyerMessage(role)', '    async function repondreInvitation('), context);
+  await context.envoyerMessage('senior');
+  assert.equal(calls.length, 0);
+  confirmed = true;
+  fails = true;
+  await context.envoyerMessage('senior');
+  assert.equal(nodes['message-text-senior'].value, 'Bonjour');
+  assert.ok(chosen.every(item => item.checked));
+  fails = false;
+  await context.envoyerMessage('senior');
+  assert.equal(calls[1].url, '/api/messages/multiple');
+  assert.deepEqual(Array.from(calls[1].options.body.recipients), ['a', 'b']);
+  assert.equal(nodes['message-text-senior'].value, '');
+  assert.ok(chosen.every(item => !item.checked));
+});
+
+test('the optional color game can be played locally without sending data', () => {
+  const elements = {
+    'color-game-question': { textContent: '' }, 'color-game-status': { textContent: '' }
+  };
+  const context = {
+    document: { getElementById: id => elements[id] },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.repondreJeuCouleur('Vert');
+  assert.match(elements['color-game-status'].textContent, /réessayer/);
+  context.repondreJeuCouleur('Rouge');
+  assert.match(elements['color-game-status'].textContent, /Bravo/);
+  context.nouvelleCouleur();
+  assert.match(elements['color-game-question'].textContent, /Bleu/);
 });
 
 test('senior settings remain accessible from navigation without a dashboard shortcut', () => {
@@ -815,6 +1007,8 @@ test('opening a senior message notification opens the separate page and conversa
     }),
     makeTextElement: () => ({}),
     formatDateTime: () => '',
+    annulerDicteeMessage() {},
+    annulerPropositionMessage() {},
     chargerCorrespondants: async () => true,
     ouvrirConversation: async (role, focus) => { calls.push([role, focus]); return true; },
     showToast: message => { throw new Error(message); }

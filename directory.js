@@ -126,5 +126,6 @@ module.exports = {
   getDailyRange,
   isValidIsoDate,
   isValidTimeZone,
-  normalizeWeeklyAvailability
+  normalizeWeeklyAvailability,
+  zonedDateTimeToUtc
 };

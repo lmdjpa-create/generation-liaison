@@ -1175,6 +1175,7 @@ test('closes an account only after confirming its password and records the erasu
   assert.ok(result.requestId);
   assert.ok(result.requestedAt);
   assert.deepEqual(deletedTables.sort(), [
+    'app_family_photos',
     'app_google_calendar_oauth_states',
     'app_push_subscriptions',
     'app_sessions',

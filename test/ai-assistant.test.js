@@ -3,7 +3,8 @@ const { test } = require('node:test');
 const {
   generateReply,
   generateWellbeingAssessment,
-  generateWellbeingReply
+  generateWellbeingReply,
+  suggestMessageRewrite
 } = require('../ai-assistant');
 
 test('requires an OpenAI API key configured on the server', async () => {
@@ -11,6 +12,26 @@ test('requires an OpenAI API key configured on the server', async () => {
     generateReply({ name: 'Jeanne', messages: [], apiKey: '' }),
     error => error.status === 503
   );
+});
+
+test('message rewrite sends only the draft with storage disabled and rejects oversized output', async () => {
+  const originalFetch = global.fetch;
+  let payload;
+  let output = 'Bonjour, comment allez-vous ?';
+  global.fetch = async (url, options) => {
+    payload = JSON.parse(options.body);
+    return new Response(JSON.stringify({ output_text: output }), { status: 200 });
+  };
+  try {
+    assert.equal(await suggestMessageRewrite({ message: 'Bonjour, ça va ?', apiKey: 'test-key' }), output);
+    assert.equal(payload.store, false);
+    assert.deepEqual(payload.input, [{ role: 'user', content: 'Bonjour, ça va ?' }]);
+    assert.match(payload.instructions, /n'invente aucune information/);
+    output = 'a'.repeat(2001);
+    await assert.rejects(suggestMessageRewrite({ message: 'Bonjour', apiKey: 'test-key' }), error => error.status === 502);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test('sends only the supplied conversation and disables API response storage', async () => {
