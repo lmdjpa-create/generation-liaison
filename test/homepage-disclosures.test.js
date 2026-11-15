@@ -32,6 +32,13 @@ test('homepage shows a clearly labelled example of the activity log before the a
   assert.match(source, /<figcaption>Un aperçu du carnet de liaison avec des données fictives\.<\/figcaption>/);
 });
 
+test('homepage preview is immediately discoverable and prioritized for loading', () => {
+  const image = source.match(/<img\b[^>]*src="\/homepage-images\/apercu-carnet\.png"[^>]*>/);
+  assert.ok(image);
+  assert.match(image[0], /\bfetchpriority="high"/);
+  assert.doesNotMatch(image[0], /\bloading="lazy"/);
+});
+
 test('opening the app does not wait for a connection check', () => {
   const script = source.slice(source.lastIndexOf('<script>') + '<script>'.length, source.lastIndexOf('</script>'));
   let requests = 0;

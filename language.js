@@ -641,6 +641,7 @@
   } catch (error) {
     console.warn('Unable to read the saved language preference.', error);
   }
+  document.documentElement.lang = language;
 
   const textNodes = [];
   const attributes = [];

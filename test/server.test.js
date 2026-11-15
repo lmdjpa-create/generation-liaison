@@ -128,7 +128,8 @@ test('serves the shared French and English language selector', async () => {
   assert.match(response.headers.get('content-type'), /javascript/);
   const source = fs.readFileSync(path.join(projectRoot, 'language.js'), 'utf8');
   assert.match(source, /generationLiaisonSetLanguage/);
-  for (const page of ['index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'admin.html']) {
+  assert.match(fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8'), /<script src="\/language\.js" defer><\/script>/);
+  for (const page of ['aidant.html', 'pro.html', 'app-mobile.html', 'admin.html']) {
     assert.match(fs.readFileSync(path.join(projectRoot, page), 'utf8'), /<script src="\/language\.js"><\/script>/);
   }
 
@@ -166,6 +167,11 @@ test('serves the shared French and English language selector', async () => {
   assert.equal(window.generationLiaisonTranslate('Un nom saisi par un utilisateur'), 'Un nom saisi par un utilisateur');
   assert.equal(document.documentElement.lang, 'en');
   assert.equal(storedValues.get('generation-liaison-language'), 'en');
+  const reloadedDocument = { documentElement: { lang: 'fr' }, addEventListener() {} };
+  const reloadedWindow = { localStorage: window.localStorage, dispatchEvent() {} };
+  vm.runInNewContext(source, { window: reloadedWindow, document: reloadedDocument, console });
+  assert.equal(reloadedDocument.documentElement.lang, 'en');
+  assert.equal(reloadedWindow.generationLiaisonTranslate('Se connecter'), 'Sign in');
   window.generationLiaisonSetLanguage('fr');
   assert.equal(window.generationLiaisonTranslate('Se connecter'), 'Se connecter');
 });
@@ -258,6 +264,16 @@ test('homepage exposes public downloads and legal links without developer tools'
   assert.match(html, /href="\/cgv\.html">Tarifs et CGV/);
   const terms = await (await fetch(`${baseUrl}/cgu.html`)).text();
   assert.match(terms, /id="mentions-legales"/);
+});
+
+test('homepage defers translations and includes accessibility styles in its initial HTML', async () => {
+  const html = await (await fetch(`${baseUrl}/`)).text();
+  const accessibilityCss = fs.readFileSync(path.join(projectRoot, 'accessibility.css'), 'utf8');
+  assert.match(html, /<script src="\/language\.js" defer><\/script>/);
+  assert.ok(html.includes(`<style>\n${accessibilityCss}\n</style>`));
+  assert.doesNotMatch(html, /<link[^>]+href="\/accessibility\.css"/);
+  const mobile = await (await fetch(`${baseUrl}/app-mobile.html`)).text();
+  assert.match(mobile, /<link rel="stylesheet" href="\/accessibility\.css">/);
 });
 
 test('serves the homepage activity log preview', async () => {
@@ -359,8 +375,8 @@ test('declares production environment variables without hardcoding secrets', () 
 test('Play Console release has a new version and builds an app bundle', () => {
   const gradle = fs.readFileSync(path.join(projectRoot, 'android', 'app', 'build.gradle'), 'utf8');
   const releaseScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'build-android-release.js'), 'utf8');
-  assert.match(gradle, /versionCode 6/);
-  assert.match(gradle, /versionName "1\.1\.4"/);
+  assert.match(gradle, /versionCode 7/);
+  assert.match(gradle, /versionName "1\.1\.5"/);
   assert.match(releaseScript, /'assembleRelease', 'bundleRelease'/);
   assert.match(releaseScript, /app-release\.aab/);
   assert.match(releaseScript, /app-generation-liaison\.aab/);

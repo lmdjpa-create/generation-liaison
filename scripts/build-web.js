@@ -56,6 +56,15 @@ for (const page of pages) {
   const sourcePath = path.join(root, page);
   let content = fs.readFileSync(sourcePath, 'utf8');
 
+  if (page === 'index.html') {
+    const stylesheet = '<link rel="stylesheet" href="/accessibility.css">';
+    if (!content.includes(stylesheet)) {
+      throw new Error('Homepage accessibility stylesheet reference is missing.');
+    }
+    const accessibilityCss = fs.readFileSync(path.join(root, 'accessibility.css'), 'utf8');
+    content = content.replace(stylesheet, () => `<style>\n${accessibilityCss}\n</style>`);
+  }
+
   if ((page === 'app-mobile.html' || page === 'reset-password.html') && apiUrl) {
     content = content.replace(
       'const SERVER_URL = window.APP_API_BASE_URL || window.location.origin;',
