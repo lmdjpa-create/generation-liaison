@@ -24,10 +24,10 @@ test('homepage keeps direct application access and the emergency warning visible
   assert.match(source, /<\/div>\s*<p class="info-note">Génération Liaison ne remplace ni un professionnel de santé ni un service d’urgence\.[\s\S]*?15 ou le 112\.<\/p>/);
 });
 
-test('homepage shows a clearly labelled example of the activity log before the application link', () => {
+test('homepage shows a clearly labelled example beside direct application access', () => {
   const image = source.indexOf('src="/homepage-images/apercu-carnet.png"');
   const link = source.indexOf('class="landing-login" href="/app-mobile.html"');
-  assert.ok(image >= 0 && image < link);
+  assert.ok(link >= 0 && image > link);
   assert.match(source, /<img[^>]+alt="Aperçu du fil d’actualité[^"]+"/);
   assert.match(source, /<figcaption>Un aperçu du carnet de liaison avec des données fictives\.<\/figcaption>/);
 });

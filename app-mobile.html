@@ -533,6 +533,7 @@
             <details class="senior-disclosure senior-explanation">
                 <summary>Explications</summary>
                 <p class="helper-text">Ces tâches sont visibles et modifiables par vous et tous vos aidants associés. Évitez les informations médicales.</p>
+                <p class="helper-text">Chacun peut se proposer pour une tâche. Vous pouvez libérer une tâche si la personne n’est plus disponible ; cela n’envoie pas de notification.</p>
                 <p class="helper-text">Dates selon l’heure de Paris ; aucun rappel n’est envoyé.</p>
             </details>
             <form id="senior-tasks-form" class="form-grid">
@@ -644,6 +645,7 @@
       <details class="senior-disclosure" id="aidant-tasks-details">
         <summary>Tâches du quotidien</summary>
         <p class="helper-text">Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Évitez les informations médicales.</p>
+        <p class="helper-text">Vous pouvez vous proposer pour une tâche et vous retirer ensuite. Le senior peut aussi libérer une tâche. Aucune notification n’est envoyée.</p>
         <p class="helper-text">Dates selon l’heure de Paris ; aucun rappel n’est envoyé.</p>
         <form id="aidant-tasks-form" class="form-grid">
             <label for="aidant-task-title">Nouvelle tâche</label>
@@ -1134,6 +1136,12 @@
     </form>
       </details>
     </section>
+    <section class="form-card">
+        <h3>Annuaire partagé</h3>
+        <p class="helper-text">Les professionnels enregistrés ici sont visibles et modifiables par le senior et ses aidants associés.</p>
+        <button id="shared-directory-refresh" type="button">Actualiser l’annuaire partagé</button>
+        <div id="shared-directory-results" aria-live="polite"></div>
+    </section>
     <div id="directory-results" aria-live="polite">Recherchez un professionnel pour voir les profils disponibles.</div>
     <section class="form-card">
         <h3>Mes demandes de rendez-vous</h3>
@@ -1243,6 +1251,9 @@
         registration: { key: '', communes: [] }
     };
     let directoryOffset = 0;
+    let directoryLoadId = 0;
+    let directorySearchParams = null;
+    let sharedDirectoryLoadId = 0;
     const serviceFamilyLoadIds = { senior: 0, aidant: 0 };
     const serviceLabels = {
         meal_delivery: window.generationLiaisonTranslate('Livraison de repas'),
@@ -1619,6 +1630,7 @@
             chargerDirectoryBookings(true);
         } else if (screenName === 'directory') {
             chargerAnnuaire();
+            chargerAnnuairePartage();
             chargerDirectoryBookings(false);
         } else if (screenName === 'agenda') {
             calendarDate = dateCheckinBienEtre();
@@ -1825,6 +1837,9 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         reinitialiserTachesPartagees();
+        reinitialiserAnnuairePartage();
+        directoryLoadId++;
+        document.getElementById('directory-results').replaceChildren();
         if (connectedUser?.id !== user.id) {
             wellbeingLoadedDate = null;
             openMessageConversations = {};
@@ -2128,6 +2143,26 @@
                     method: 'PATCH', body: { dueDate: dateInput.value || null }
                 }));
                 dateDetails.append(dateSummary, dateLabel, saveDate);
+                const assignment = document.createElement('p');
+                assignment.textContent = task.assigned
+                    ? `${window.generationLiaisonTranslate('Prise en charge par')} : ${task.assigneeName || window.generationLiaisonTranslate('Personne indisponible')}`
+                    : window.generationLiaisonTranslate('Personne ne s’est encore proposé');
+                const assignmentButton = document.createElement('button');
+                assignmentButton.type = 'button';
+                if (!task.assigned && !task.completed) {
+                    assignmentButton.textContent = window.generationLiaisonTranslate('Je m’en charge');
+                    assignmentButton.addEventListener('click', () => modifierTachePartagee(role, `${task.id}/claim`, { method: 'POST' }));
+                } else if (task.assigned && (task.assignedToMe || role === 'senior')) {
+                    assignmentButton.textContent = window.generationLiaisonTranslate(task.assignedToMe ? 'Je me retire' : 'Libérer la tâche');
+                    assignmentButton.addEventListener('click', () => {
+                        if (task.assignedToMe || window.confirm(window.generationLiaisonTranslate('Libérer cette tâche pour que quelqu’un d’autre puisse s’en charger ?'))) {
+                            return modifierTachePartagee(role, `${task.id}/claim`, { method: 'DELETE' });
+                        }
+                    });
+                } else {
+                    assignmentButton.hidden = true;
+                }
+                assignmentButton.setAttribute('aria-label', `${assignmentButton.textContent} : ${task.title}`);
                 toggle.addEventListener('click', () => modifierTachePartagee(role, task.id, {
                     method: 'PATCH', body: { completed: !task.completed }
                 }));
@@ -2136,7 +2171,7 @@
                         modifierTachePartagee(role, task.id, { method: 'DELETE' });
                     }
                 });
-                row.append(title, state, dateText, toggle, remove, dateDetails);
+                row.append(title, state, dateText, toggle, remove, dateDetails, assignment, assignmentButton);
                 list.append(row);
             }
         } catch (error) {
@@ -2831,6 +2866,7 @@
             event.preventDefault();
             chargerAnnuaire();
         });
+        document.getElementById('shared-directory-refresh').addEventListener('click', chargerAnnuairePartage);
         document.getElementById('directory-location-button').addEventListener('change', async () => {
             const status = document.getElementById('directory-location-status');
             const button = document.getElementById('directory-location-button');
@@ -2965,25 +3001,28 @@
 
     async function chargerAnnuaire(offset = 0, append = false) {
         const results = document.getElementById('directory-results');
+        const loadId = ++directoryLoadId;
         if (!append) {
             results.replaceChildren(makeTextElement('p', 'Recherche des professionnels…', 'helper-text'));
             directoryOffset = 0;
+            directorySearchParams = null;
         }
         try {
-            const city = document.getElementById('directory-search-city').value.trim();
-            const postcode = document.getElementById('directory-search-postcode').value.trim();
-            const location = city || postcode
-                ? await choisirCommune('directory', 'directory-search-city', 'directory-search-postcode', 'directory-city-select', 'directory-city-label')
-                : directoryLocation;
-            const radiusKm = Number(document.getElementById('directory-search-radius').value);
-            if (!Number.isInteger(radiusKm) || radiusKm < 1 || radiusKm > 500) {
-                throw new Error('Choisissez un rayon entier compris entre 1 et 500 km.');
-            }
-            const result = await planningRequest('/api/directory/search', {
-                method: 'POST',
-                body: {
-                    q: document.getElementById('directory-search-query').value.trim(),
-                    offset,
+            let params = directorySearchParams;
+            if (!append) {
+                const city = document.getElementById('directory-search-city').value.trim();
+                const postcode = document.getElementById('directory-search-postcode').value.trim();
+                const query = document.getElementById('directory-search-query').value.trim();
+                const radiusKm = Number(document.getElementById('directory-search-radius').value);
+                const location = city || postcode
+                    ? await choisirCommune('directory', 'directory-search-city', 'directory-search-postcode', 'directory-city-select', 'directory-city-label')
+                    : directoryLocation;
+                if (loadId !== directoryLoadId) return;
+                if (!Number.isInteger(radiusKm) || radiusKm < 1 || radiusKm > 500) {
+                    throw new Error('Choisissez un rayon entier compris entre 1 et 500 km.');
+                }
+                params = {
+                    q: query,
                     limit: 20,
                     ...(location ? {
                         latitude: location.latitude,
@@ -2995,14 +3034,44 @@
                         postalCode: postcode || location?.postalCode || '',
                         communeCode: location?.communeCode || ''
                     } : {})
-                }
-            });
-            if (!append) results.replaceChildren();
-            else results.querySelector('.directory-load-more')?.remove();
-            if (!result.professionals.length && !append) {
-                results.append(makeTextElement('p', 'Aucun professionnel ne correspond à cette recherche.', 'helper-text'));
+                };
             }
-            result.professionals.forEach(professional => results.append(creerCarteAnnuaire(professional)));
+            if (!params) return;
+            const result = await planningRequest('/api/directory/search', {
+                method: 'POST',
+                body: { ...params, offset }
+            });
+            if (loadId !== directoryLoadId) return;
+            let verified;
+            if (!append) {
+                directorySearchParams = params;
+                results.replaceChildren();
+                if (result.localityStatus === 'unavailable') {
+                    results.append(makeTextElement('p', window.generationLiaisonTranslate('Impossible d’identifier la commune à partir du GPS : les recherches locales extérieures ne sont pas disponibles.'), 'helper-text'));
+                }
+                if (result.publicDirectoryStatus === 'unavailable') {
+                    results.append(makeTextElement('p', window.generationLiaisonTranslate('L’annuaire public est indisponible. Les autres résultats restent affichés ; réessayez plus tard.'), 'helper-text'));
+                } else if (result.publicDirectoryStatus === 'not_requested' && result.localityStatus !== 'unavailable') {
+                    results.append(makeTextElement('p', window.generationLiaisonTranslate('Pour consulter l’annuaire public, indiquez un nom ou une activité et une commune ou un code postal.'), 'helper-text'));
+                }
+                verified = document.createElement('section');
+                verified.id = 'directory-verified-results';
+                verified.append(makeTextElement('h3', window.generationLiaisonTranslate('Professionnels vérifiés')));
+                const others = document.createElement('section');
+                others.append(makeTextElement('h3', window.generationLiaisonTranslate('Autres résultats non vérifiés')));
+                others.append(makeTextElement('p', window.generationLiaisonTranslate('Leur distance n’est pas calculée : ils peuvent être hors du rayon. Certains résultats concernent le département ou toute la France. La réservation en ligne n’est pas disponible.'), 'helper-text'));
+                const external = result.professionals.filter(professional => professional.external);
+                if (!external.length) others.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun autre résultat disponible.'), 'helper-text'));
+                external.forEach(professional => others.append(creerCarteAnnuaire(professional)));
+                results.append(verified, others);
+            } else {
+                verified = document.getElementById('directory-verified-results');
+                verified.querySelector('.directory-load-more')?.remove();
+                verified.querySelector('.directory-page-error')?.remove();
+            }
+            const professionals = result.professionals.filter(professional => !professional.external);
+            if (!professionals.length && !append) verified.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun professionnel vérifié ne correspond à cette recherche.'), 'helper-text'));
+            professionals.forEach(professional => verified.append(creerCarteAnnuaire(professional)));
             directoryOffset = result.nextOffset ?? offset;
             if (result.hasMore) {
                 const more = makeTextElement('button', 'Afficher plus de professionnels');
@@ -3010,14 +3079,75 @@
                 more.className = 'btn-submit';
                 more.classList.add('directory-load-more');
                 more.addEventListener('click', () => chargerAnnuaire(directoryOffset, true));
-                results.append(more);
+                verified.append(more);
             }
         } catch (error) {
-            results.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger l’annuaire.', 'helper-text'));
+            if (loadId !== directoryLoadId) return;
+            if (append) {
+                const verified = document.getElementById('directory-verified-results');
+                verified.querySelector('.directory-page-error')?.remove();
+                verified.append(makeTextElement('p', error.message || 'Impossible de charger la suite de l’annuaire.', 'helper-text directory-page-error'));
+            } else {
+                results.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger l’annuaire.', 'helper-text'));
+            }
         }
     }
 
-    function creerCarteAnnuaire(professional) {
+    function reinitialiserAnnuairePartage() {
+        sharedDirectoryLoadId++;
+        document.getElementById('shared-directory-results').replaceChildren();
+    }
+
+    async function chargerAnnuairePartage() {
+        const container = document.getElementById('shared-directory-results');
+        const loadId = ++sharedDirectoryLoadId;
+        container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate('Chargement de l’annuaire partagé…'), 'helper-text'));
+        try {
+            const result = await planningRequest('/api/shared-directory');
+            if (loadId !== sharedDirectoryLoadId) return;
+            container.replaceChildren();
+            if (!result.professionals.length) {
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun professionnel enregistré dans cet annuaire.'), 'helper-text'));
+            }
+            result.professionals.forEach(professional => {
+                if (professional.name) {
+                    container.append(creerCarteAnnuaire(professional, true));
+                } else {
+                    const card = document.createElement('article');
+                    card.className = 'directory-result';
+                    card.append(makeTextElement('p', window.generationLiaisonTranslate('Ce professionnel n’est plus disponible dans l’annuaire.'), 'helper-text'));
+                    card.append(boutonAnnuairePartage(professional.id, true));
+                    container.append(card);
+                }
+            });
+        } catch (error) {
+            if (loadId !== sharedDirectoryLoadId) return;
+            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger l’annuaire partagé.', 'helper-text'));
+        }
+    }
+
+    function boutonAnnuairePartage(id, shared) {
+        const button = makeTextElement('button', window.generationLiaisonTranslate(shared
+            ? 'Retirer de l’annuaire partagé' : 'Ajouter à l’annuaire partagé'));
+        button.type = 'button';
+        button.addEventListener('click', async () => {
+            const loadId = sharedDirectoryLoadId;
+            button.disabled = true;
+            try {
+                await planningRequest(`/api/shared-directory/${encodeURIComponent(id)}`, { method: shared ? 'DELETE' : 'POST' });
+                if (loadId !== sharedDirectoryLoadId) return;
+                await chargerAnnuairePartage();
+                showToast(shared ? 'Professionnel retiré de l’annuaire partagé' : 'Professionnel ajouté à l’annuaire partagé');
+            } catch (error) {
+                if (loadId === sharedDirectoryLoadId) showToast(error.message || 'Impossible de modifier l’annuaire partagé.', false);
+            } finally {
+                button.disabled = false;
+            }
+        });
+        return button;
+    }
+
+    function creerCarteAnnuaire(professional, shared = false) {
         const card = document.createElement('article');
         card.className = 'directory-result';
         const avatarWrap = document.createElement('div');
@@ -3068,6 +3198,7 @@
         if (Number.isInteger(professional.distanceKm)) {
             card.append(makeTextElement('p', `À environ ${professional.distanceKm} km · rayon indiqué : ${professional.serviceRadiusKm} km.`, 'helper-text'));
         }
+        card.append(boutonAnnuairePartage(professional.id, shared));
 
         const slots = document.createElement('div');
         const dateLabel = makeTextElement('label', window.generationLiaisonTranslate('Date du rendez-vous'));
@@ -5137,6 +5268,9 @@
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
             reinitialiserTachesPartagees();
+            reinitialiserAnnuairePartage();
+            directoryLoadId++;
+            document.getElementById('directory-results').replaceChildren();
             calendarLoadId++;
             calendarRequestsLoadId++;
             directoryBookingsLoadId++;
@@ -5463,6 +5597,9 @@
         planningRefreshTimer = null;
         connectedUser = null;
         reinitialiserTachesPartagees();
+        reinitialiserAnnuairePartage();
+        directoryLoadId++;
+        document.getElementById('directory-results').replaceChildren();
         document.body.classList.remove('senior-mode');
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');

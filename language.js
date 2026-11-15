@@ -14,6 +14,8 @@
     'Administration Génération Liaison': 'Administration — Génération Liaison',
     'Le lien au quotidien': 'Connected every day',
     'Bien entouré, mieux accompagné': 'Better supported, together',
+    'Un espace simple pour garder le lien et organiser le quotidien avec vos proches.':
+      'A simple space to stay connected and organize everyday life with your loved ones.',
     'Un espace simple pour faciliter les échanges entre les seniors, leurs proches et les professionnels, avec un accès séparé aux services du quotidien.':
       'A simple space for seniors, their families, and professionals to stay connected, with separate access to everyday services.',
     'Suivi partagé': 'Shared updates',
@@ -49,6 +51,41 @@
     'À faire': 'To do',
     'Supprimer cette tâche pour tous ?': 'Delete this task for everyone?',
     'Tâches partagées': 'Shared tasks',
+    'Annuaire partagé': 'Shared directory',
+    'Les professionnels enregistrés ici sont visibles et modifiables par le senior et ses aidants associés.':
+      'Professionals saved here can be viewed and managed by the senior and their linked caregivers.',
+    'Actualiser l’annuaire partagé': 'Refresh shared directory',
+    'Chargement de l’annuaire partagé…': 'Loading shared directory…',
+    'Aucun professionnel enregistré dans cet annuaire.': 'No professionals saved in this directory.',
+    'Ce professionnel n’est plus disponible dans l’annuaire.': 'This professional is no longer available in the directory.',
+    'Ajouter à l’annuaire partagé': 'Add to shared directory',
+    'Retirer de l’annuaire partagé': 'Remove from shared directory',
+    'Professionnel ajouté à l’annuaire partagé': 'Professional added to the shared directory',
+    'Professionnel retiré de l’annuaire partagé': 'Professional removed from the shared directory',
+    'Impossible de modifier l’annuaire partagé.': 'Unable to update the shared directory.',
+    'Professionnels vérifiés': 'Verified professionals',
+    'Autres résultats non vérifiés': 'Other unverified results',
+    'Leur distance n’est pas calculée : ils peuvent être hors du rayon. Certains résultats concernent le département ou toute la France. La réservation en ligne n’est pas disponible.':
+      'Their distance is not calculated: they may be outside the radius. Some results cover the department or all of France. Online booking is not available.',
+    'Aucun autre résultat disponible.': 'No other results available.',
+    'Aucun professionnel vérifié ne correspond à cette recherche.': 'No verified professional matches this search.',
+    'Impossible d’identifier la commune à partir du GPS : les recherches locales extérieures ne sont pas disponibles.':
+      'The municipality could not be identified from GPS: local external searches are unavailable.',
+    'L’annuaire public est indisponible. Les autres résultats restent affichés ; réessayez plus tard.':
+      'The public directory is unavailable. Other results are still shown; try again later.',
+    'Pour consulter l’annuaire public, indiquez un nom ou une activité et une commune ou un code postal.':
+      'To search the public directory, enter a name or activity and a municipality or postal code.',
+    'Chacun peut se proposer pour une tâche. Vous pouvez libérer une tâche si la personne n’est plus disponible ; cela n’envoie pas de notification.':
+      'Anyone can volunteer for a task. You can release a task if the person is no longer available; no notification is sent.',
+    'Vous pouvez vous proposer pour une tâche et vous retirer ensuite. Le senior peut aussi libérer une tâche. Aucune notification n’est envoyée.':
+      'You can volunteer for a task and withdraw later. The senior can also release a task. No notification is sent.',
+    'Prise en charge par': 'Handled by',
+    'Personne indisponible': 'Person unavailable',
+    'Personne ne s’est encore proposé': 'Nobody has volunteered yet',
+    'Je m’en charge': 'I will take care of it',
+    'Je me retire': 'Withdraw',
+    'Libérer la tâche': 'Release task',
+    'Libérer cette tâche pour que quelqu’un d’autre puisse s’en charger ?': 'Release this task so someone else can take care of it?',
     'Vérification de la connexion...': 'Checking connection...',
     'Se connecter': 'Sign in',
     'S’inscrire': 'Sign up',

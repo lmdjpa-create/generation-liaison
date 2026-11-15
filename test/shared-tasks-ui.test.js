@@ -131,6 +131,56 @@ test('task summary and date labels distinguish overdue and today in Paris, exclu
   assert.equal(rows[4].children[2].textContent, 'Date prévue : 28/02/2028');
 });
 
+test('task assignment shows who volunteered and offers only allowed actions', async () => {
+  const elements = new Map();
+  function makeElement() {
+    return {
+      textContent: '', value: '', children: [], events: {}, hidden: false,
+      replaceChildren(...children) { this.children = children; },
+      append(...children) { this.children.push(...children); },
+      setAttribute() {},
+      addEventListener(type, handler) { this.events[type] = handler; }
+    };
+  }
+  const getElementById = id => {
+    if (!elements.has(id)) elements.set(id, makeElement());
+    return elements.get(id);
+  };
+  const requests = [];
+  const tasks = [
+    { id: 'open', title: 'Courses', completed: false, dueDate: null, assigned: false },
+    { id: 'mine', title: 'Repas', completed: false, dueDate: null, assigned: true, assignedToMe: true, assigneeName: 'Camille' },
+    { id: 'other', title: 'Appel', completed: false, dueDate: null, assigned: true, assignedToMe: false, assigneeName: 'Marie' },
+    { id: 'inactive', title: 'Courrier', completed: false, dueDate: null, assigned: true, assignedToMe: false, assigneeName: null }
+  ];
+  const context = {
+    sharedTasksLoadId: 0,
+    window: { generationLiaisonTranslate: value => value, confirm: () => true },
+    document: { getElementById, createElement: makeElement },
+    dateCheckinBienEtre: () => '2028-02-29',
+    planningRequest: async (url, options) => { requests.push({ url, options }); return { tasks }; }
+  };
+  const start = source.indexOf('    function reinitialiserTachesPartagees()');
+  const end = source.indexOf('    async function seniorLinksRequest', start);
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadTasks = chargerTachesPartagees;`, context);
+  await context.loadTasks('aidant');
+  let rows = getElementById('aidant-tasks-list').children;
+  assert.equal(rows[0].children[7].textContent, 'Je m’en charge');
+  assert.equal(rows[1].children[6].textContent, 'Prise en charge par : Camille');
+  assert.equal(rows[1].children[7].textContent, 'Je me retire');
+  assert.equal(rows[2].children[7].hidden, true);
+  assert.equal(rows[3].children[6].textContent, 'Prise en charge par : Personne indisponible');
+  await rows[0].children[7].events.click();
+  assert.equal(requests[1].url, '/api/shared-tasks/open/claim');
+  assert.equal(requests[1].options.method, 'POST');
+  await context.loadTasks('senior');
+  rows = getElementById('senior-tasks-list').children;
+  assert.equal(rows[3].children[7].textContent, 'Libérer la tâche');
+  await rows[3].children[7].events.click();
+  assert.equal(requests.at(-2).url, '/api/shared-tasks/inactive/claim');
+  assert.equal(requests.at(-2).options.method, 'DELETE');
+});
+
 test('the date used for task status follows Paris across midnight', () => {
   const start = source.indexOf('    function dateCheckinBienEtre()');
   const end = source.indexOf('    function authHeaders', start);
