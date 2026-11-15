@@ -689,7 +689,7 @@
   window.generationLiaisonSetLanguage = setLanguage;
 
   document.addEventListener('DOMContentLoaded', () => {
-    const control = document.createElement('label');
+    const control = document.createElement('div');
     control.className = 'gl-language-switch';
 
     control.setAttribute('role', 'group');

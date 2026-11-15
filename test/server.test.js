@@ -176,6 +176,50 @@ test('serves the shared French and English language selector', async () => {
   assert.equal(window.generationLiaisonTranslate('Se connecter'), 'Se connecter');
 });
 
+test('language selector is a named group with working language buttons', () => {
+  const source = fs.readFileSync(path.join(projectRoot, 'language.js'), 'utf8');
+  const handlers = {};
+  const createElement = tagName => ({
+    tagName, attributes: {}, children: [], events: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    getAttribute(name) { return this.attributes[name]; },
+    hasAttribute(name) { return Object.hasOwn(this.attributes, name); },
+    addEventListener(name, callback) { this.events[name] = callback; },
+    append(...children) { this.children.push(...children); }
+  });
+  const body = createElement('body');
+  body.insertBefore = element => body.append(element);
+  body.querySelectorAll = () => [body.children[0], ...body.children[0].children];
+  const document = {
+    documentElement: { lang: 'fr' }, body, head: createElement('head'),
+    createElement, querySelectorAll: () => [],
+    createTreeWalker: () => ({ nextNode: () => false }),
+    addEventListener(name, callback) { handlers[name] = callback; }
+  };
+  const window = {
+    localStorage: { getItem: () => null, setItem() {} },
+    addEventListener(name, callback) { (handlers[name] ||= []).push(callback); },
+    dispatchEvent(event) { for (const callback of handlers[event.type] || []) callback(event); }
+  };
+  vm.runInNewContext(source, {
+    document, window, console, NodeFilter: { SHOW_TEXT: 4 },
+    CustomEvent: class { constructor(type) { this.type = type; } }
+  });
+  handlers.DOMContentLoaded();
+  const group = body.children[0];
+  assert.equal(group.tagName, 'div');
+  assert.equal(group.getAttribute('role'), 'group');
+  assert.equal(group.getAttribute('aria-label'), 'Langue');
+  const [french, english] = group.children;
+  assert.equal(french.getAttribute('aria-pressed'), 'true');
+  assert.equal(english.getAttribute('aria-label'), 'English');
+  english.events.click();
+  assert.equal(document.documentElement.lang, 'en');
+  assert.equal(group.getAttribute('aria-label'), 'Language');
+  assert.equal(french.getAttribute('aria-pressed'), 'false');
+  assert.equal(english.getAttribute('aria-pressed'), 'true');
+});
+
 test('homepage opens the real app and no longer exposes demo data', () => {
   const homepage = fs.readFileSync(path.join(projectRoot, 'index.html'), 'utf8');
   assert.match(homepage, /href="\/app-mobile\.html"/);
@@ -375,8 +419,8 @@ test('declares production environment variables without hardcoding secrets', () 
 test('Play Console release has a new version and builds an app bundle', () => {
   const gradle = fs.readFileSync(path.join(projectRoot, 'android', 'app', 'build.gradle'), 'utf8');
   const releaseScript = fs.readFileSync(path.join(projectRoot, 'scripts', 'build-android-release.js'), 'utf8');
-  assert.match(gradle, /versionCode 7/);
-  assert.match(gradle, /versionName "1\.1\.5"/);
+  assert.match(gradle, /versionCode 8/);
+  assert.match(gradle, /versionName "1\.1\.6"/);
   assert.match(releaseScript, /'assembleRelease', 'bundleRelease'/);
   assert.match(releaseScript, /app-release\.aab/);
   assert.match(releaseScript, /app-generation-liaison\.aab/);
