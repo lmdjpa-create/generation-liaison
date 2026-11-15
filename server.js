@@ -15,6 +15,7 @@ const { createPlanningGoogleSync } = require('./planning-google-sync');
 const { generateReply, generateWellbeingAssessment, suggestMessageRewrite, reviewSiteMetrics } = require('./ai-assistant');
 const { createSiteMonitor, siteArea } = require('./site-monitor');
 const { startSiteAlertWorker } = require('./site-monitor-alerts');
+const { createWeatherService } = require('./weather');
 const {
   availableSlots,
   dateInTimeZone,
@@ -52,10 +53,13 @@ const assistantMessageTimes = new Map();
 const seniorLinkRequestTimes = new Map();
 const seniorInvitationTimes = new Map();
 const siteMonitor = createSiteMonitor();
+const weatherService = createWeatherService({ apiKey: process.env.OPEN_METEO_API_KEY });
+const weatherRequestTimes = new Map();
 
 app.use(cors());
 app.use((req, res, next) => {
-  if (req.path.startsWith('/api/') && !req.path.startsWith('/api/admin/site-monitor')) {
+  if (req.path.startsWith('/api/') && !req.path.startsWith('/api/admin/site-monitor') &&
+      !(req.path === '/api/weather' && !process.env.OPEN_METEO_API_KEY)) {
     const area = siteArea(req.path);
     res.on('finish', () => siteMonitor.record(res.statusCode, area));
   }
@@ -247,6 +251,36 @@ function requireAidantSeniorContext(req, res, next) {
   }
   return next();
 }
+
+app.post('/api/weather', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!['senior', 'aidant'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'La météo est réservée aux espaces senior et aidant.' });
+  }
+  if (!hasValidCoordinates(req.body?.latitude, req.body?.longitude)) {
+    return res.status(400).json({ error: 'La commune choisie est invalide.' });
+  }
+  if (!process.env.OPEN_METEO_API_KEY) {
+    return res.status(503).json({ error: 'La météo n’est pas encore configurée.' });
+  }
+  const now = Date.now();
+  for (const [id, times] of weatherRequestTimes) {
+    if (times[times.length - 1] <= now - 60_000) weatherRequestTimes.delete(id);
+  }
+  const recent = (weatherRequestTimes.get(req.authUser.id) || []).filter(time => time > now - 60_000);
+  if (recent.length >= 20) {
+    return res.status(429).json({ error: 'Trop de demandes météo. Réessayez dans une minute.' });
+  }
+  recent.push(now);
+  weatherRequestTimes.set(req.authUser.id, recent);
+  try {
+    const result = await weatherService.getWeather(req.body.latitude, req.body.longitude);
+    return res.json(result);
+  } catch {
+    console.error('Le service météo est indisponible ou a renvoyé une réponse invalide.');
+    return res.status(503).json({ error: 'La météo est momentanément indisponible. Réessayez plus tard.' });
+  }
+});
 
 function addUserAccessFlags(user) {
   return {

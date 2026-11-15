@@ -108,6 +108,11 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS home_longitude DOUBLE PRECISION,
           ADD COLUMN IF NOT EXISTS service_radius_km SMALLINT NOT NULL DEFAULT 30;
         ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS account_commune_name VARCHAR(120),
+          ADD COLUMN IF NOT EXISTS account_commune_code VARCHAR(5),
+          ADD COLUMN IF NOT EXISTS account_commune_latitude DOUBLE PRECISION,
+          ADD COLUMN IF NOT EXISTS account_commune_longitude DOUBLE PRECISION;
+        ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS notification_phone VARCHAR(16),
           ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE,
           ADD COLUMN IF NOT EXISTS sms_notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -730,6 +735,11 @@ function createAuthService(pool) {
         return false;
       })(),
       photoUrl: row.profile_photo_url || null,
+      accountCommune: row.account_commune_name && row.account_commune_code &&
+        Number.isFinite(row.account_commune_latitude) && Number.isFinite(row.account_commune_longitude)
+        ? { name: row.account_commune_name, code: row.account_commune_code,
+            latitude: row.account_commune_latitude, longitude: row.account_commune_longitude }
+        : null,
       hasHomeLocation: row.home_latitude !== null && row.home_latitude !== undefined &&
         row.home_longitude !== null && row.home_longitude !== undefined
     };
@@ -748,6 +758,8 @@ function createAuthService(pool) {
     homeLatitude,
     homeLongitude,
     serviceRadiusKm,
+    accountCommune,
+    requireAccountCommune = false,
     notificationPhone,
     emailNotificationsEnabled = false,
     smsNotificationsEnabled = false,
@@ -814,6 +826,21 @@ function createAuthService(pool) {
          !Number.isInteger(serviceRadiusKm) || serviceRadiusKm < 1 || serviceRadiusKm > 500)) {
       throw new AuthError(400, 'Pour un compte intervenant, enregistrez une position au domicile et un rayon de 1 à 500 km.');
     }
+    if (typeof requireAccountCommune !== 'boolean') {
+      throw new AuthError(400, 'Vérifiez les informations de votre compte.');
+    }
+    if (role !== 'pro' && requireAccountCommune && !accountCommune) {
+      throw new AuthError(400, 'Choisissez la commune de votre compte.');
+    }
+    if (accountCommune !== undefined && accountCommune !== null &&
+        (role === 'pro' || typeof accountCommune !== 'object' ||
+         typeof accountCommune.name !== 'string' || !accountCommune.name.trim() ||
+         accountCommune.name.trim().length > 120 || typeof accountCommune.code !== 'string' ||
+         !/^[0-9A-Z]{5}$/.test(accountCommune.code) ||
+         !Number.isFinite(accountCommune.latitude) || accountCommune.latitude < -90 || accountCommune.latitude > 90 ||
+         !Number.isFinite(accountCommune.longitude) || accountCommune.longitude < -180 || accountCommune.longitude > 180)) {
+      throw new AuthError(400, 'Choisissez une commune de compte valide.');
+    }
 
     const userId = randomUUID();
     const seniorId = randomUUID();
@@ -836,15 +863,17 @@ function createAuthService(pool) {
             email_notifications_enabled, sms_notifications_enabled, is_legal_guardian,
             guardian_verification_status,
             email_notifications_consent_at, sms_notifications_consent_at, terms_accepted_at, terms_version,
-            first_name, last_name, civility)
+            first_name, last_name, civility, account_commune_name, account_commune_code,
+            account_commune_latitude, account_commune_longitude)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                  CASE WHEN $15 THEN 'pending' ELSE 'not_required' END,
                  CASE WHEN $13 THEN CURRENT_TIMESTAMP ELSE NULL END,
                  CASE WHEN $14 THEN CURRENT_TIMESTAMP ELSE NULL END,
-                 CURRENT_TIMESTAMP, $16, $17, $18, $19)
+                 CURRENT_TIMESTAMP, $16, $17, $18, $19, $20, $21, $22, $23)
          RETURNING id, senior_id, name, first_name, last_name, civility, share_account_photo, email, role, verification_status,
                    home_latitude, home_longitude, service_radius_km,
-                   is_legal_guardian, guardian_verification_status`,
+                   is_legal_guardian, guardian_verification_status, account_commune_name, account_commune_code,
+                   account_commune_latitude, account_commune_longitude`,
         [
           userId,
           seniorId,
@@ -864,7 +893,11 @@ function createAuthService(pool) {
           TERMS_VERSION,
           normalizedFirstName,
           normalizedLastName,
-          civility
+          civility,
+          accountCommune?.name.trim() || null,
+          accountCommune?.code || null,
+          accountCommune?.latitude ?? null,
+          accountCommune?.longitude ?? null
         ]
       );
       rows[0].senior_name = normalizedSeniorName || null;
@@ -957,6 +990,7 @@ function createAuthService(pool) {
               u.verification_status,
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
+              u.account_commune_name, u.account_commune_code, u.account_commune_latitude, u.account_commune_longitude,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
               u.password_salt, u.password_hash,
@@ -992,6 +1026,7 @@ function createAuthService(pool) {
               u.verification_status,
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
+              u.account_commune_name, u.account_commune_code, u.account_commune_latitude, u.account_commune_longitude,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
               s.name AS senior_name
@@ -1056,6 +1091,10 @@ function createAuthService(pool) {
              civility = 'unspecified',
              home_latitude = NULL,
              home_longitude = NULL,
+             account_commune_name = NULL,
+             account_commune_code = NULL,
+             account_commune_latitude = NULL,
+             account_commune_longitude = NULL,
              google_calendar_refresh_token = NULL,
              google_calendar_connected_at = NULL,
              notification_phone = NULL,

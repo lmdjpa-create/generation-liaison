@@ -37,6 +37,7 @@ before(async () => {
   process.env.DATABASE_URL = 'postgresql://isolated-test';
   process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
+  process.env.OPEN_METEO_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
   delivery.sendSeniorUnlinkCode = async (email, code) => {
     if (failEmail) throw new Error('test delivery failure');
@@ -74,12 +75,61 @@ async function register(email, role, isLegalGuardian = false) {
     body: {
       name: email, email, password: 'a-test-password-123', role, isLegalGuardian,
       ...(role === 'pro' ? { homeLatitude: 48.8566, homeLongitude: 2.3522, serviceRadiusKm: 30 } : {}),
+      ...(role !== 'pro' ? { accountCommune: { name: 'Paris', code: '75056', latitude: 48.86, longitude: 2.35 } } : {}),
       acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION
     }
   });
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('weather requires a valid session and valid coordinates and reports missing configuration', async () => {
+  const senior = await register('weather-senior@example.test', 'senior');
+  const aidant = await register('weather-aidant@example.test', 'aidant');
+  const coordinates = { latitude: 48.86, longitude: 2.35 };
+  assert.equal((await request('/api/weather', { body: coordinates })).status, 401);
+  assert.equal((await request('/api/weather', { user: { token: 'a'.repeat(64) }, body: coordinates })).status, 401);
+  assert.equal((await request('/api/weather', { user: senior, body: { latitude: 91, longitude: 2 } })).status, 400);
+  for (const user of [senior, aidant]) {
+    const response = await request('/api/weather', { user, body: coordinates });
+    assert.equal(response.status, 503);
+    assert.match(response.data.error, /pas encore configurée/);
+  }
+});
+
+test('account municipality is required, private, validated and cleared on account closure', async () => {
+  const accountCommune = { name: 'Lyon', code: '69123', latitude: 45.76, longitude: 4.84 };
+  const base = {
+    name: 'Compte météo', email: 'account-weather@example.test', password: 'a-test-password-123',
+    role: 'senior', acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION, requireAccountCommune: true
+  };
+  const invalid = await request('/api/auth/register', {
+    body: { ...base, email: 'invalid-weather@example.test', accountCommune: { ...accountCommune, latitude: 91 } }
+  });
+  assert.equal(invalid.status, 400);
+  assert.equal((await request('/api/auth/register', { body: base })).status, 400);
+  const created = await request('/api/auth/register', { body: { ...base, accountCommune } });
+  assert.equal(created.status, 201);
+  assert.deepEqual(created.data.user.accountCommune, accountCommune);
+  const user = created.data;
+  assert.deepEqual((await request('/api/auth/me', { user })).data.user.accountCommune, accountCommune);
+  const login = await request('/api/auth/login', { body: { email: base.email, password: base.password } });
+  assert.equal(login.status, 200);
+  assert.deepEqual(login.data.user.accountCommune, accountCommune);
+  const other = await register('other-weather@example.test', 'aidant');
+  assert.equal((await request('/api/auth/me', { user: other })).data.user.accountCommune.name, 'Paris');
+  assert.equal((await request('/api/account/closure-request', { user, body: { password: base.password } })).status, 200);
+  const saved = await db.query(
+    'SELECT account_commune_name, account_commune_code, account_commune_latitude, account_commune_longitude FROM app_users WHERE id = $1',
+    [user.user.id]
+  );
+  assert.ok(Object.values(saved.rows[0]).every(value => value === null));
+  const legacy = await request('/api/auth/register', {
+    body: { ...base, email: 'legacy-weather@example.test', requireAccountCommune: undefined }
+  });
+  assert.equal(legacy.status, 201);
+  assert.equal(legacy.data.user.accountCommune, null);
+});
 
 test('technical alerts require repeated server errors and deduplicate across processes', async () => {
   const admin = await register('alerts-admin@example.test', 'senior');
@@ -534,6 +584,7 @@ test('all account roles store separate names without altering legacy accounts', 
       acceptedTermsVersion: TERMS_VERSION
     };
     if (role === 'pro') Object.assign(body, { homeLatitude: 43.7, homeLongitude: 0.1, serviceRadiusKm: 30 });
+    else body.accountCommune = { name: 'Paris', code: '75056', latitude: 48.86, longitude: 2.35 };
     const created = await request('/api/auth/register', { body });
     assert.equal(created.status, 201);
     assert.equal(created.data.user.name, 'Marie Claire Dupont Martin');

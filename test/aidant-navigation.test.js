@@ -273,6 +273,7 @@ function createView(response) {
       'chargerAssistantConversation', 'chargerProchainRendezVous', 'afficherProchainRendezVous', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
       'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage',
       'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
+      'reinitialiserMeteo', 'chargerMeteo',
       'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'planifierLectureSenior'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',

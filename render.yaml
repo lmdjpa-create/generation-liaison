@@ -37,6 +37,9 @@ services:
       - key: OPENAI_MODEL
         value: gpt-4.1-mini
 
+      - key: OPEN_METEO_API_KEY
+        sync: false
+
       - key: FIREBASE_SERVICE_ACCOUNT_JSON
         sync: false
 

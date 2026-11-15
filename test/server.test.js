@@ -1021,6 +1021,7 @@ test('allows an aidant account to register before any senior has joined', async 
     email: 'camille@example.com',
     password: 'motdepassevalide',
     role: 'aidant',
+    accountCommune: { name: 'Paris', code: '75056', latitude: 48.86, longitude: 2.35 },
     acceptedTerms: true,
     acceptedTermsVersion: '2026-11-03.1'
   });
@@ -1071,6 +1072,7 @@ test('registers legal guardians as pending and limits them to verification until
     password: 'motdepassevalide',
     role: 'aidant',
     isLegalGuardian: true,
+    accountCommune: { name: 'Paris', code: '75056', latitude: 48.86, longitude: 2.35 },
     acceptedTerms: true,
     acceptedTermsVersion: '2026-11-03.1'
   });

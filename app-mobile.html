@@ -489,6 +489,17 @@
                 <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>
                 <option value="senior">👴 Senior</option>
             </select>
+            <section id="reg-account-commune-fields" class="form-card" style="text-align:left;">
+                <h3>Commune du compte (obligatoire)</h3>
+                <p class="helper-text">Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.</p>
+                <p class="helper-text">Saisissez au moins la ville ou le code postal.</p>
+                <label for="reg-account-city">Ville</label>
+                <input id="reg-account-city" type="text" autocomplete="address-level2" oninput="reinitialiserCommuneCompte()">
+                <label for="reg-account-postcode">Code postal français</label>
+                <input id="reg-account-postcode" type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code" oninput="reinitialiserCommuneCompte()">
+                <label id="reg-account-city-label" for="reg-account-city-select" hidden>Choisissez votre commune</label>
+                <select id="reg-account-city-select" hidden></select>
+            </section>
             <section id="professional-registration-fields" class="form-card" style="display:none; text-align:left;">
                 <h3>Justificatifs professionnels</h3>
                 <p class="helper-text">Le compte intervenant reste en attente jusqu’à la vérification manuelle de la pièce d’identité et du Kbis. Fichiers acceptés : PDF, JPEG ou PNG (10 Mo maximum par pièce). Seul l’administrateur peut les consulter.</p>
@@ -538,6 +549,28 @@
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
 
+        <section class="form-card" id="senior-weather-card" aria-labelledby="senior-weather-title">
+            <h2 id="senior-weather-title">Météo</h2>
+            <p id="senior-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
+            <button type="button" onclick="chargerMeteo('senior')">Actualiser</button>
+            <details id="senior-weather-week" hidden>
+                <summary>Voir les prévisions de la semaine</summary>
+                <ul id="senior-weather-days"></ul>
+            </details>
+            <details id="senior-weather-location">
+                <summary>Choisir ou changer ma commune</summary>
+                <label for="senior-weather-search">Ville ou code postal français</label>
+                <input id="senior-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('senior')">
+                <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé.</p>
+                <button type="button" onclick="rechercherMeteo('senior')">Rechercher</button>
+                <label id="senior-weather-choice-label" for="senior-weather-choice" hidden>Choisissez votre commune</label>
+                <select id="senior-weather-choice" hidden></select>
+                <button id="senior-weather-confirm" type="button" onclick="confirmerCommuneMeteo('senior')" hidden>Afficher la météo</button>
+                <p id="senior-weather-search-status" role="status" aria-live="polite"></p>
+                <button id="senior-weather-account" type="button" onclick="utiliserCommuneCompteMeteo('senior')" hidden>Utiliser la commune du compte</button>
+            </details>
+            <p class="helper-text">Prévisions fournies par <a href="https://open-meteo.com/">Open-Meteo</a>.</p>
+        </section>
         <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
             <div>
                 <p class="next-visit-label">Prochaine visite</p>
@@ -760,6 +793,28 @@
             <h2>Bonjour <span id="welcome-aidant-name">!</span></h2>
         </div>
     </div>
+    <section class="form-card" id="aidant-weather-card" aria-labelledby="aidant-weather-title">
+        <h2 id="aidant-weather-title">Météo</h2>
+        <p id="aidant-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
+        <button type="button" onclick="chargerMeteo('aidant')">Actualiser</button>
+        <details id="aidant-weather-week" hidden>
+            <summary>Voir les prévisions de la semaine</summary>
+            <ul id="aidant-weather-days"></ul>
+        </details>
+        <details id="aidant-weather-location">
+            <summary>Choisir ou changer ma commune</summary>
+            <label for="aidant-weather-search">Ville ou code postal français</label>
+            <input id="aidant-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('aidant')">
+            <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé.</p>
+            <button type="button" onclick="rechercherMeteo('aidant')">Rechercher</button>
+            <label id="aidant-weather-choice-label" for="aidant-weather-choice" hidden>Choisissez votre commune</label>
+            <select id="aidant-weather-choice" hidden></select>
+            <button id="aidant-weather-confirm" type="button" onclick="confirmerCommuneMeteo('aidant')" hidden>Afficher la météo</button>
+            <p id="aidant-weather-search-status" role="status" aria-live="polite"></p>
+            <button id="aidant-weather-account" type="button" onclick="utiliserCommuneCompteMeteo('aidant')" hidden>Utiliser la commune du compte</button>
+        </details>
+        <p class="helper-text">Prévisions fournies par <a href="https://open-meteo.com/">Open-Meteo</a>.</p>
+    </section>
     <div class="header-mobile next-visit-card" style="flex-direction:row;">
         <div>
             <p class="next-visit-label">Suivi de <span id="senior-name-aidant">Senior</span></p>
@@ -1112,6 +1167,14 @@
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
     <button id="settings-logout" type="button" onclick="deconnecterUtilisateur()">Se déconnecter</button>
+    <section class="form-card" id="settings-weather" style="display:none;">
+      <details class="senior-tab-disclosure">
+        <summary>Météo</summary>
+        <p class="helper-text">La météo est activée par défaut sur cet appareil. La commune du compte ou celle choisie est utilisée pour les prévisions.</p>
+        <label class="notification-choice"><input id="weather-enabled" type="checkbox" checked onchange="reglerMeteo(this.checked)"> Afficher la météo sur l’accueil</label>
+        <p id="weather-settings-status" role="status" aria-live="polite"></p>
+      </details>
+    </section>
     <section class="form-card" id="settings-senior-voice" style="display:none;">
       <details class="senior-tab-disclosure">
         <summary>🔊 Lecture à voix haute</summary>
@@ -1552,7 +1615,8 @@
     let directoryLocation = null;
     const communeSearches = {
         directory: { key: '', communes: [] },
-        registration: { key: '', communes: [] }
+        registration: { key: '', communes: [] },
+        account: { key: '', communes: [] }
     };
     let directoryOffset = 0;
     let directoryLoadId = 0;
@@ -2025,6 +2089,7 @@
             isProfessional ? 'Photo de profil (obligatoire)' : 'Photo de profil (facultative)'
         );
         document.getElementById('professional-registration-fields').style.display = isProfessional ? 'block' : 'none';
+        document.getElementById('reg-account-commune-fields').style.display = isProfessional ? 'none' : 'block';
         document.getElementById('reg-senior-fields').style.display = role === 'aidant' ? 'block' : 'none';
         afficherChampsTutelle();
         if (!isProfessional) {
@@ -2122,6 +2187,202 @@
         return valid;
     }
 
+    let meteoLoadId = 0;
+    let meteoSearchId = 0;
+    let meteoCommunes = [];
+
+    function texteMeteo(value) {
+        return window.generationLiaisonTranslate(value);
+    }
+
+    function reinitialiserMeteo() {
+        meteoLoadId++;
+        meteoSearchId++;
+        meteoCommunes = [];
+        ['senior', 'aidant'].forEach(role => {
+            document.getElementById(`${role}-weather-status`).textContent = texteMeteo('Choisissez votre commune pour voir la météo.');
+            document.getElementById(`${role}-weather-card`).hidden = false;
+            document.getElementById(`${role}-weather-week`).hidden = true;
+            document.getElementById(`${role}-weather-week`).open = false;
+            document.getElementById(`${role}-weather-days`).replaceChildren();
+            document.getElementById(`${role}-weather-location`).open = false;
+            document.getElementById(`${role}-weather-search`).value = '';
+            document.getElementById(`${role}-weather-search-status`).textContent = '';
+            document.getElementById(`${role}-weather-choice`).replaceChildren();
+            document.getElementById(`${role}-weather-choice`).hidden = true;
+            document.getElementById(`${role}-weather-choice-label`).hidden = true;
+            document.getElementById(`${role}-weather-confirm`).hidden = true;
+            document.getElementById(`${role}-weather-account`).hidden = true;
+        });
+    }
+
+    function descriptionMeteo(code) {
+        if (code === 0) return 'ciel dégagé';
+        if ([1, 2, 3].includes(code)) return 'ciel nuageux';
+        if ([45, 48].includes(code)) return 'brouillard';
+        if ([51, 53, 55, 56, 57].includes(code)) return 'bruine';
+        if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return 'pluie';
+        if ([71, 73, 75, 77, 85, 86].includes(code)) return 'neige';
+        if ([95, 96, 99].includes(code)) return 'orage';
+        return 'conditions indisponibles';
+    }
+
+    async function chargerMeteo(role) {
+        const userId = connectedUser?.id;
+        if (!userId || connectedUser.role !== role) return;
+        const loadId = ++meteoLoadId;
+        const status = document.getElementById(`${role}-weather-status`);
+        document.getElementById(`${role}-weather-account`).hidden = !connectedUser.accountCommune;
+        const week = document.getElementById(`${role}-weather-week`);
+        week.hidden = true;
+        document.getElementById(`${role}-weather-days`).replaceChildren();
+        let commune;
+        try {
+            const enabled = localStorage.getItem(`generation-liaison-weather-enabled-${userId}`) !== 'false';
+            document.getElementById('weather-enabled').checked = enabled;
+            document.getElementById(`${role}-weather-card`).hidden = !enabled;
+            if (!enabled) return;
+            const stored = localStorage.getItem(`generation-liaison-weather-${userId}`);
+            commune = stored ? JSON.parse(stored) : connectedUser.accountCommune;
+            if (!commune) {
+                status.textContent = texteMeteo('Choisissez votre commune pour voir la météo.');
+                return;
+            }
+            if (typeof commune.name !== 'string' || !commune.name || commune.name.length > 120 ||
+                !Number.isFinite(commune.latitude) || commune.latitude < -90 || commune.latitude > 90 ||
+                !Number.isFinite(commune.longitude) || commune.longitude < -180 || commune.longitude > 180) {
+                throw new Error('invalid location');
+            }
+        } catch {
+            status.textContent = texteMeteo('Impossible de lire la commune enregistrée. Choisissez-la à nouveau.');
+            return;
+        }
+        const english = window.generationLiaisonLocale() === 'en-US';
+        status.textContent = english ? `Loading weather for ${commune.name}…` : `Chargement de la météo pour ${commune.name}…`;
+        try {
+            const response = await fetch(`${SERVER_URL}/api/weather`, {
+                method: 'POST',
+                headers: { ...authHeaders(false), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latitude: commune.latitude, longitude: commune.longitude })
+            });
+            const result = await readResponse(response);
+            if (loadId !== meteoLoadId || connectedUser?.id !== userId || connectedUser.role !== role) return;
+            const condition = texteMeteo(descriptionMeteo(result.code));
+            status.textContent = english
+                ? `Today in ${commune.name}: ${Math.round(result.temperature)} °C, ${condition}.`
+                : `Aujourd’hui à ${commune.name} : ${Math.round(result.temperature)} °C, ${condition}.`;
+            const list = document.getElementById(`${role}-weather-days`);
+            result.days.forEach(day => {
+                const date = new Date(`${day.date}T12:00:00`);
+                const label = new Intl.DateTimeFormat(window.generationLiaisonLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
+                const item = document.createElement('li');
+                item.textContent = `${label} : ${texteMeteo(descriptionMeteo(day.code))}, ${Math.round(day.min)} ${english ? 'to' : 'à'} ${Math.round(day.max)} °C.`;
+                list.append(item);
+            });
+            week.hidden = false;
+        } catch (error) {
+            if (loadId !== meteoLoadId || connectedUser?.id !== userId || connectedUser.role !== role) return;
+            status.textContent = texteMeteo(error instanceof TypeError || error instanceof SyntaxError
+                ? 'La météo est momentanément indisponible. Réessayez plus tard.'
+                : error.message);
+        }
+    }
+
+    function annulerRechercheMeteo(role) {
+        meteoSearchId++;
+        meteoCommunes = [];
+        document.getElementById(`${role}-weather-choice`).hidden = true;
+        document.getElementById(`${role}-weather-choice-label`).hidden = true;
+        document.getElementById(`${role}-weather-confirm`).hidden = true;
+        document.getElementById(`${role}-weather-search-status`).textContent = '';
+    }
+
+    async function rechercherMeteo(role) {
+        if (!connectedUser || connectedUser.role !== role) return;
+        const userId = connectedUser.id;
+        const value = document.getElementById(`${role}-weather-search`).value.trim();
+        annulerRechercheMeteo(role);
+        const searchId = meteoSearchId;
+        const status = document.getElementById(`${role}-weather-search-status`);
+        status.textContent = texteMeteo('Recherche de la commune…');
+        try {
+            const postalCode = /^\d{5}$/.test(value) ? value : '';
+            const communes = await rechercherCommunes(postalCode ? '' : value, postalCode);
+            if (searchId !== meteoSearchId || connectedUser?.id !== userId || connectedUser.role !== role) return;
+            meteoCommunes = communes;
+            const select = document.getElementById(`${role}-weather-choice`);
+            select.replaceChildren(new Option(texteMeteo('Choisissez une commune'), ''),
+                ...communes.map(commune => new Option(`${commune.nom} (${commune.codesPostaux.join(', ')})`, commune.code)));
+            if (communes.length === 1) {
+                select.value = communes[0].code;
+                confirmerCommuneMeteo(role);
+                return;
+            }
+            select.hidden = false;
+            document.getElementById(`${role}-weather-choice-label`).hidden = false;
+            document.getElementById(`${role}-weather-confirm`).hidden = false;
+            status.textContent = texteMeteo('Plusieurs communes trouvées. Choisissez la vôtre.');
+        } catch (error) {
+            if (searchId !== meteoSearchId || connectedUser?.id !== userId || connectedUser.role !== role) return;
+            status.textContent = texteMeteo(error instanceof TypeError
+                ? 'Le service de recherche des communes est indisponible.'
+                : error.message);
+        }
+    }
+
+    function confirmerCommuneMeteo(role) {
+        if (!connectedUser || connectedUser.role !== role) return;
+        const code = document.getElementById(`${role}-weather-choice`).value;
+        const commune = meteoCommunes.find(item => item.code === code);
+        const status = document.getElementById(`${role}-weather-search-status`);
+        if (!commune) {
+            status.textContent = texteMeteo('Choisissez une commune dans la liste.');
+            return;
+        }
+        try {
+            localStorage.setItem(`generation-liaison-weather-${connectedUser.id}`, JSON.stringify({
+                name: commune.nom, latitude: commune.centre.coordinates[1], longitude: commune.centre.coordinates[0]
+            }));
+        } catch {
+            status.textContent = texteMeteo('Impossible d’enregistrer la commune sur cet appareil.');
+            return;
+        }
+        annulerRechercheMeteo(role);
+        document.getElementById(`${role}-weather-location`).open = false;
+        void chargerMeteo(role);
+    }
+
+    function reglerMeteo(enabled) {
+        const role = connectedUser?.role;
+        if (!['senior', 'aidant'].includes(role)) return;
+        const status = document.getElementById('weather-settings-status');
+        try {
+            localStorage.setItem(`generation-liaison-weather-enabled-${connectedUser.id}`, String(enabled));
+        } catch {
+            document.getElementById('weather-enabled').checked = !enabled;
+            status.textContent = texteMeteo('Impossible d’enregistrer le réglage météo sur cet appareil.');
+            return;
+        }
+        status.textContent = '';
+        reinitialiserMeteo();
+        if (enabled) void chargerMeteo(role);
+        else document.getElementById(`${role}-weather-card`).hidden = true;
+    }
+
+    function utiliserCommuneCompteMeteo(role) {
+        if (!connectedUser || connectedUser.role !== role || !connectedUser.accountCommune) return;
+        try {
+            localStorage.removeItem(`generation-liaison-weather-${connectedUser.id}`);
+        } catch {
+            document.getElementById(`${role}-weather-search-status`).textContent =
+                texteMeteo('Impossible de supprimer la commune enregistrée sur cet appareil.');
+            return;
+        }
+        annulerRechercheMeteo(role);
+        document.getElementById(`${role}-weather-location`).open = false;
+        void chargerMeteo(role);
+    }
+
     async function choisirCommune(kind, cityId, postcodeId, selectId, labelId) {
         const city = document.getElementById(cityId).value.trim();
         const postcode = document.getElementById(postcodeId).value.trim();
@@ -2153,6 +2414,13 @@
         };
     }
 
+    function reinitialiserCommuneCompte() {
+        communeSearches.account.key = '';
+        communeSearches.account.communes = [];
+        document.getElementById('reg-account-city-select').hidden = true;
+        document.getElementById('reg-account-city-label').hidden = true;
+    }
+
     function ajouterDistanceAuRendezVous(card, distanceKm, outsideServiceRadius) {
         if (!Number.isInteger(distanceKm)) return;
         card.append(makeTextElement(
@@ -2170,6 +2438,7 @@
     }
 
     async function setAuthenticatedView(user) {
+        reinitialiserMeteo();
         annulerDicteeMessage();
         annulerPropositionMessage();
         reinitialiserAlbumJournal();
@@ -2195,6 +2464,10 @@
         }
         connectedUser = user;
         currentUser = user;
+        if (['senior', 'aidant'].includes(user.role) &&
+            !(user.role === 'aidant' && user.isLegalGuardian && user.guardianVerificationStatus !== 'approved')) {
+            void chargerMeteo(user.role);
+        }
         initialiserLectureSenior();
         reinitialiserPhotosContacts();
         reinitialiserProfil();
@@ -2224,6 +2497,8 @@
                 role === user.role ? 'block' : 'none';
         });
         document.getElementById('settings-account-closure').style.display = 'block';
+        document.getElementById('settings-weather').style.display =
+            ['senior', 'aidant'].includes(user.role) && !pendingAccess ? 'block' : 'none';
         document.getElementById('settings-senior-links').style.display = user.role === 'senior' ? 'block' : 'none';
         document.getElementById('settings-aidant-links').style.display =
             user.role === 'aidant' && !pendingAccess ? 'block' : 'none';
@@ -6603,6 +6878,7 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
+        reinitialiserMeteo();
         arreterLectureSenior();
         annulerDicteeMessage();
         annulerPropositionMessage();
@@ -6678,6 +6954,10 @@
         document.querySelectorAll('#professional-registration-fields [type="file"], #professional-verification-documents-form [type="file"]')
             .forEach(input => { input.value = ''; });
         document.getElementById('reg-role').value = 'aidant';
+        document.getElementById('reg-account-city').value = '';
+        document.getElementById('reg-account-postcode').value = '';
+        document.getElementById('reg-account-city-select').replaceChildren();
+        reinitialiserCommuneCompte();
         registrationHomeCoordinates = null;
         document.getElementById('reg-home-city').value = '';
         document.getElementById('reg-home-postcode').value = '';
@@ -6804,8 +7084,18 @@
                 emailNotificationsEnabled,
                 smsNotificationsEnabled,
                 acceptedTerms: true,
-                acceptedTermsVersion: '2026-11-03.1'
+                acceptedTermsVersion: '2026-11-03.1',
+                requireAccountCommune: role !== 'pro'
             };
+            if (role !== 'pro') {
+                const commune = await choisirCommune(
+                    'account', 'reg-account-city', 'reg-account-postcode', 'reg-account-city-select', 'reg-account-city-label'
+                );
+                credentials.accountCommune = {
+                    name: commune.name, code: commune.communeCode,
+                    latitude: commune.latitude, longitude: commune.longitude
+                };
+            }
             if (role === 'pro') {
                 const serviceRadiusKm = Number(document.getElementById('reg-service-radius').value);
                 if (!registrationHomeCoordinates) {
