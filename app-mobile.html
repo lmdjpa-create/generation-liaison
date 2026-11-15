@@ -528,6 +528,26 @@
           <div id="wellbeing-safety-result" aria-live="polite"></div>
         </section>
         <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure" id="senior-tasks-details">
+            <summary>Tâches du quotidien</summary>
+            <details class="senior-disclosure senior-explanation">
+                <summary>Explications</summary>
+                <p class="helper-text">Ces tâches sont visibles et modifiables par vous et tous vos aidants associés. Évitez les informations médicales.</p>
+                <p class="helper-text">Dates selon l’heure de Paris ; aucun rappel n’est envoyé.</p>
+            </details>
+            <form id="senior-tasks-form" class="form-grid">
+                <label for="senior-task-title">Nouvelle tâche</label>
+                <input id="senior-task-title" maxlength="120" required>
+                <label for="senior-task-date">Date prévue (facultative)</label>
+                <input id="senior-task-date" type="date" min="0001-01-01" max="9999-12-31">
+                <button type="submit">Ajouter</button>
+            </form>
+            <button type="button" id="senior-tasks-refresh">Actualiser les tâches</button>
+            <p id="senior-tasks-status" role="status" aria-live="polite"></p>
+            <div id="senior-tasks-list"></div>
+          </details>
+        </section>
+        <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure" id="senior-following-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📍</span>Suivi des interventions</summary>
             <details class="senior-disclosure senior-explanation">
@@ -620,6 +640,23 @@
         <button type="button" onclick="switchScreen('settings')">Gérer mes profils seniors</button>
     </section>
     <div id="aidant-senior-content" style="display:none;">
+    <section class="form-card">
+      <details class="senior-disclosure" id="aidant-tasks-details">
+        <summary>Tâches du quotidien</summary>
+        <p class="helper-text">Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Évitez les informations médicales.</p>
+        <p class="helper-text">Dates selon l’heure de Paris ; aucun rappel n’est envoyé.</p>
+        <form id="aidant-tasks-form" class="form-grid">
+            <label for="aidant-task-title">Nouvelle tâche</label>
+            <input id="aidant-task-title" maxlength="120" required>
+            <label for="aidant-task-date">Date prévue (facultative)</label>
+            <input id="aidant-task-date" type="date" min="0001-01-01" max="9999-12-31">
+            <button type="submit">Ajouter</button>
+        </form>
+        <button type="button" id="aidant-tasks-refresh">Actualiser les tâches</button>
+        <p id="aidant-tasks-status" role="status" aria-live="polite"></p>
+        <div id="aidant-tasks-list"></div>
+      </details>
+    </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-checkins-details">
         <summary>Check-ins de bien-être partagés</summary>
@@ -1019,6 +1056,10 @@
     </div>
     <h3 id="calendar-title" aria-live="polite"></h3>
     <p id="calendar-message" class="helper-text" aria-live="polite"></p>
+    <section class="form-card" id="calendar-week-summary" aria-labelledby="calendar-week-summary-title" hidden>
+        <h3 id="calendar-week-summary-title">Rendez-vous de la semaine</h3>
+        <div id="calendar-week-summary-content" aria-live="polite"></div>
+    </section>
     <div id="calendar-scroll" class="calendar-scroll" hidden><div id="calendar-grid" class="calendar-grid"></div></div>
     <section class="form-card" id="calendar-selected-day" aria-live="polite"></section>
     <details class="senior-disclosure senior-explanation">
@@ -1192,6 +1233,7 @@
     let calendarDate = '';
     let calendarEvents = [];
     let calendarLoadId = 0;
+    let sharedTasksLoadId = 0;
     let calendarRequestsLoadId = 0;
     let calendarSettingsLoadId = 0;
     let directoryBookingsLoadId = 0;
@@ -1782,6 +1824,7 @@
     async function setAuthenticatedView(user) {
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
+        reinitialiserTachesPartagees();
         if (connectedUser?.id !== user.id) {
             wellbeingLoadedDate = null;
             openMessageConversations = {};
@@ -2017,6 +2060,101 @@
         }
         const response = await fetch(`${SERVER_URL}${path}`, requestOptions);
         return readResponse(response);
+    }
+
+    function reinitialiserTachesPartagees() {
+        sharedTasksLoadId++;
+        for (const role of ['senior', 'aidant']) {
+            document.getElementById(`${role}-tasks-list`).replaceChildren();
+            document.getElementById(`${role}-tasks-status`).textContent = '';
+            document.getElementById(`${role}-task-title`).value = '';
+            document.getElementById(`${role}-task-date`).value = '';
+            document.getElementById(`${role}-tasks-details`).open = false;
+        }
+    }
+
+    async function chargerTachesPartagees(role) {
+        const loadId = ++sharedTasksLoadId;
+        const list = document.getElementById(`${role}-tasks-list`);
+        const status = document.getElementById(`${role}-tasks-status`);
+        list.replaceChildren();
+        status.textContent = window.generationLiaisonTranslate('Chargement des tâches…');
+        try {
+            const result = await planningRequest('/api/shared-tasks');
+            if (loadId !== sharedTasksLoadId) return;
+            const today = dateCheckinBienEtre();
+            const pending = result.tasks.filter(task => !task.completed);
+            const overdue = pending.filter(task => task.dueDate && task.dueDate < today);
+            status.textContent = result.tasks.length
+                ? `${window.generationLiaisonTranslate('À faire')} : ${pending.length} · ${window.generationLiaisonTranslate('En retard')} : ${overdue.length} · ${window.generationLiaisonTranslate('Terminées')} : ${result.tasks.length - pending.length}`
+                : window.generationLiaisonTranslate('Aucune tâche pour le moment.');
+            for (const task of result.tasks) {
+                const row = document.createElement('div');
+                row.className = 'card';
+                const title = document.createElement('span');
+                title.textContent = task.title;
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.textContent = window.generationLiaisonTranslate(task.completed ? 'Marquer à faire' : 'Marquer terminée');
+                toggle.setAttribute('aria-label', `${toggle.textContent} : ${task.title}`);
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.textContent = window.generationLiaisonTranslate('Supprimer');
+                remove.setAttribute('aria-label', `${remove.textContent} : ${task.title}`);
+                const state = document.createElement('p');
+                state.textContent = window.generationLiaisonTranslate(task.completed ? 'Terminée' : 'À faire');
+                const dateText = document.createElement('p');
+                dateText.textContent = task.dueDate
+                    ? `${window.generationLiaisonTranslate('Date prévue')} : ${new Date(`${task.dueDate}T00:00:00Z`).toLocaleDateString(window.generationLiaisonLocale(), { timeZone: 'UTC' })}`
+                    : window.generationLiaisonTranslate('Sans date prévue');
+                if (!task.completed && task.dueDate && task.dueDate <= today) {
+                    dateText.textContent += ` — ${window.generationLiaisonTranslate(task.dueDate < today ? 'En retard' : 'Aujourd’hui')}`;
+                }
+                const dateDetails = document.createElement('details');
+                const dateSummary = document.createElement('summary');
+                dateSummary.textContent = window.generationLiaisonTranslate('Modifier la date');
+                const dateLabel = document.createElement('label');
+                dateLabel.textContent = window.generationLiaisonTranslate('Date prévue (facultative)');
+                const dateInput = document.createElement('input');
+                dateInput.type = 'date';
+                dateInput.min = '0001-01-01';
+                dateInput.max = '9999-12-31';
+                dateInput.value = task.dueDate || '';
+                dateLabel.append(dateInput);
+                const saveDate = document.createElement('button');
+                saveDate.type = 'button';
+                saveDate.textContent = window.generationLiaisonTranslate('Enregistrer la date');
+                saveDate.addEventListener('click', () => modifierTachePartagee(role, task.id, {
+                    method: 'PATCH', body: { dueDate: dateInput.value || null }
+                }));
+                dateDetails.append(dateSummary, dateLabel, saveDate);
+                toggle.addEventListener('click', () => modifierTachePartagee(role, task.id, {
+                    method: 'PATCH', body: { completed: !task.completed }
+                }));
+                remove.addEventListener('click', () => {
+                    if (window.confirm(window.generationLiaisonTranslate('Supprimer cette tâche pour tous ?'))) {
+                        modifierTachePartagee(role, task.id, { method: 'DELETE' });
+                    }
+                });
+                row.append(title, state, dateText, toggle, remove, dateDetails);
+                list.append(row);
+            }
+        } catch (error) {
+            if (loadId === sharedTasksLoadId) status.textContent = error.message || 'Impossible de charger les tâches.';
+        }
+    }
+
+    async function modifierTachePartagee(role, id, options) {
+        const loadId = ++sharedTasksLoadId;
+        try {
+            await planningRequest(`/api/shared-tasks/${id}`, options);
+            if (loadId === sharedTasksLoadId) await chargerTachesPartagees(role);
+        } catch (error) {
+            if (loadId === sharedTasksLoadId) {
+                document.getElementById(`${role}-tasks-list`).replaceChildren();
+                document.getElementById(`${role}-tasks-status`).textContent = error.message || 'Impossible de modifier la tâche.';
+            }
+        }
     }
 
     async function seniorLinksRequest(path, options = {}) {
@@ -3771,6 +3909,29 @@
             : calendarView === 'month'
                 ? selected.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
                 : `Semaine du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        const summary = document.getElementById('calendar-week-summary');
+        const summaryContent = document.getElementById('calendar-week-summary-content');
+        summary.hidden = calendarView !== 'week';
+        summaryContent.replaceChildren();
+        if (calendarView === 'week') {
+            let hasEvents = false;
+            for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
+                const dayEvents = calendarEvents
+                    .filter(event => calendarEventDate(event.scheduledAt) === dateInputValue(date))
+                    .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+                if (!dayEvents.length) continue;
+                hasEvents = true;
+                summaryContent.append(makeTextElement('h4', date.toLocaleDateString('fr-FR', {
+                    weekday: 'long', day: 'numeric', month: 'long'
+                })));
+                dayEvents.forEach(event => {
+                    summaryContent.append(makeTextElement('p', `${calendarEventLabel(event)} · ${event.durationMinutes} min`,
+                        `calendar-event${event.status === 'pending' ? ' pending' : ''}`));
+                });
+            }
+            if (!hasEvents) summaryContent.append(makeTextElement('p',
+                window.generationLiaisonTranslate('Aucun rendez-vous pour cette semaine.'), 'helper-text'));
+        }
         document.getElementById('calendar-scroll').hidden = calendarView === 'day';
         grid.replaceChildren();
         if (calendarView !== 'day') {
@@ -3897,6 +4058,8 @@
         message.textContent = 'Chargement de l’agenda…';
         document.getElementById('calendar-grid').replaceChildren();
         document.getElementById('calendar-selected-day').replaceChildren();
+        document.getElementById('calendar-week-summary').hidden = true;
+        document.getElementById('calendar-week-summary-content').replaceChildren();
         try {
             const result = await planningRequest(`/api/planning/calendar?start=${dateInputValue(start)}&end=${dateInputValue(end)}`);
             if (loadId !== calendarLoadId || connectedUser?.id !== userId) return;
@@ -4915,6 +5078,38 @@
     }
 
     function configurerFormulairesCoordination() {
+        for (const role of ['senior', 'aidant']) {
+            const details = document.getElementById(`${role}-tasks-details`);
+            details.addEventListener('toggle', () => {
+                if (details.open && connectedUser?.role === role) chargerTachesPartagees(role);
+            });
+            document.getElementById(`${role}-tasks-refresh`).addEventListener('click', () => chargerTachesPartagees(role));
+            document.getElementById(`${role}-tasks-form`).addEventListener('submit', async event => {
+                event.preventDefault();
+                const input = document.getElementById(`${role}-task-title`);
+                const dateInput = document.getElementById(`${role}-task-date`);
+                const button = event.currentTarget.querySelector('button[type="submit"]');
+                const loadId = ++sharedTasksLoadId;
+                button.disabled = true;
+                try {
+                    await planningRequest('/api/shared-tasks', {
+                        method: 'POST', body: { title: input.value, dueDate: dateInput.value || null }
+                    });
+                    if (loadId === sharedTasksLoadId) {
+                        input.value = '';
+                        dateInput.value = '';
+                        await chargerTachesPartagees(role);
+                    }
+                } catch (error) {
+                    if (loadId === sharedTasksLoadId) {
+                        document.getElementById(`${role}-tasks-list`).replaceChildren();
+                        document.getElementById(`${role}-tasks-status`).textContent = error.message || 'Impossible d’ajouter la tâche.';
+                    }
+                } finally {
+                    button.disabled = false;
+                }
+            });
+        }
         document.getElementById('reg-role').addEventListener('change', afficherChampsInscriptionProfessionnel);
         document.getElementById('reg-legal-guardian').addEventListener('change', afficherChampsTutelle);
         document.getElementById('aidant-link-form').addEventListener('submit', async event => {
@@ -4941,6 +5136,7 @@
             switchScreen('settings');
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
+            reinitialiserTachesPartagees();
             calendarLoadId++;
             calendarRequestsLoadId++;
             directoryBookingsLoadId++;
@@ -5266,6 +5462,7 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
+        reinitialiserTachesPartagees();
         document.body.classList.remove('senior-mode');
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');

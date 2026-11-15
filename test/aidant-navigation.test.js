@@ -92,7 +92,7 @@ function createView(response) {
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
       'chargerAssistantConversation', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
-      'chargerParametresGooglePlanning'
+      'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
     definirVueCalendrier: view => { context.calendarView = view; calls.push('definirVueCalendrier'); },

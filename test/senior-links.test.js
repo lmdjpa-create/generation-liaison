@@ -77,6 +77,88 @@ async function register(email, role, isLegalGuardian = false) {
   return result.data;
 }
 
+test('shared tasks are isolated by senior and require an active association', async () => {
+  const senior = await register('task-senior@example.test', 'senior');
+  const other = await register('task-other@example.test', 'senior');
+  const aidant = await register('task-aidant@example.test', 'aidant');
+  const stranger = await register('task-stranger@example.test', 'aidant');
+  const guardian = await register('task-guardian@example.test', 'aidant', true);
+  const options = { user: aidant, seniorId: senior.user.seniorId };
+  assert.equal((await request('/api/shared-tasks')).status, 401);
+  assert.equal((await request('/api/shared-tasks', { user: aidant })).status, 409);
+  assert.equal((await request('/api/shared-tasks', options)).status, 403);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1), ($1, $3, $1), ($4, $2, $4)`,
+  [aidant.user.id, senior.user.seniorId, other.user.seniorId, guardian.user.id]);
+  assert.equal((await request('/api/shared-tasks', { user: guardian, seniorId: senior.user.seniorId })).status, 403);
+  assert.equal((await request('/api/shared-tasks', { user: senior, body: { title: '  ' } })).status, 400);
+  assert.equal((await request('/api/shared-tasks', { user: senior, body: { title: 'x'.repeat(121) } })).status, 400);
+  const created = await request('/api/shared-tasks', { user: senior, body: { title: '  Acheter du pain  ' } });
+  assert.equal(created.status, 201);
+  const id = created.data.id;
+  assert.deepEqual((await request('/api/shared-tasks', options)).data.tasks,
+    [{ id, title: 'Acheter du pain', completed: false, dueDate: null }]);
+  const aidantCreated = await request('/api/shared-tasks', { ...options, body: { title: 'Appeler le voisin' } });
+  assert.equal(aidantCreated.status, 201);
+  assert.equal((await request('/api/shared-tasks', { user: senior })).data.tasks.length, 2);
+  assert.equal((await request(`/api/shared-tasks/${aidantCreated.data.id}`, { ...options, method: 'DELETE' })).status, 200);
+  assert.deepEqual((await request('/api/shared-tasks', { user: aidant, seniorId: other.user.seniorId })).data.tasks, []);
+  assert.equal((await request(`/api/shared-tasks/${id}`, {
+    user: aidant, seniorId: other.user.seniorId, method: 'PATCH', body: { completed: true }
+  })).status, 404);
+  assert.equal((await request(`/api/shared-tasks/${id}`, {
+    ...options, method: 'PATCH', body: { completed: 'true' }
+  })).status, 400);
+  assert.equal((await request(`/api/shared-tasks/${id}`, {
+    ...options, method: 'PATCH', body: { completed: true }
+  })).status, 200);
+  assert.equal((await request('/api/shared-tasks', { user: senior })).data.tasks[0].completed, true);
+  assert.equal((await request('/api/shared-tasks', { user: stranger, seniorId: senior.user.seniorId })).status, 403);
+  await db.query("UPDATE app_sessions SET expires_at = CURRENT_TIMESTAMP - INTERVAL '1 second' WHERE user_id = $1", [stranger.user.id]);
+  assert.equal((await request('/api/shared-tasks', { user: stranger })).status, 401);
+  await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [senior.user.id]);
+  assert.equal((await request('/api/shared-tasks', options)).status, 403);
+  await db.query('UPDATE app_users SET is_active = TRUE WHERE id = $1', [senior.user.id]);
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request('/api/shared-tasks', options)).status, 403);
+  assert.equal((await request(`/api/shared-tasks/${id}`, { ...options, method: 'DELETE' })).status, 403);
+  assert.equal((await request(`/api/shared-tasks/${id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request('/api/shared-tasks', { user: senior })).data.tasks.length, 0);
+});
+
+test('shared task dates are optional, validated, editable and ordered by urgency', async () => {
+  const senior = await register('task-date-senior@example.test', 'senior');
+  const other = await register('task-date-other@example.test', 'senior');
+  const aidant = await register('task-date-aidant@example.test', 'aidant');
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1), ($1, $3, $1)`, [aidant.user.id, senior.user.seniorId, other.user.seniorId]);
+  const opts = { user: aidant, seniorId: senior.user.seniorId };
+  for (const dueDate of ['2025-02-29', '0000-01-01', '', 10]) {
+    assert.equal((await request('/api/shared-tasks', { ...opts, body: { title: 'Tâche', dueDate } })).status, 400);
+  }
+  const makeTask = async (title, dueDate) =>
+    (await request('/api/shared-tasks', { ...opts, body: { title, dueDate } })).data.id;
+  const undated = await makeTask('Sans date', null);
+  const later = await makeTask('Plus tard', '2028-03-01');
+  const earlier = await makeTask('D’abord', '2028-02-29');
+  let tasks = (await request('/api/shared-tasks', opts)).data.tasks;
+  assert.deepEqual(tasks.map(task => [task.id, task.dueDate]),
+    [[earlier, '2028-02-29'], [later, '2028-03-01'], [undated, null]]);
+  const patch = (id, body, selected = opts) => request(`/api/shared-tasks/${id}`, {
+    ...selected, method: 'PATCH', body
+  });
+  assert.equal((await patch(earlier, { dueDate: '2027-02-29' })).status, 400);
+  assert.equal((await patch(earlier, { dueDate: '2027-01-01' },
+    { user: aidant, seniorId: other.user.seniorId })).status, 404);
+  assert.equal((await patch(earlier, { completed: true })).status, 200);
+  assert.equal((await patch(later, { dueDate: null })).status, 200);
+  assert.equal((await patch(undated, { dueDate: '2026-01-15' })).status, 200);
+  tasks = (await request('/api/shared-tasks', { user: senior })).data.tasks;
+  assert.deepEqual(tasks.map(task => [task.id, task.dueDate, task.completed]),
+    [[undated, '2026-01-15', false], [later, null, false], [earlier, '2028-02-29', true]]);
+});
+
 test('all account roles store separate names without altering legacy accounts', async () => {
   for (const role of ['senior', 'aidant', 'pro']) {
     const email = `separate-name-${role}@example.test`;

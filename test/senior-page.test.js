@@ -140,6 +140,7 @@ test('day view displays only the selected day and preserves week and month views
       { kind: 'visit', title: 'Autre jour', scheduledAt: '2026-03-28T22:30:00Z', durationMinutes: 30 }
     ],
     connectedUser: { role: 'senior' },
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: element, createElement: node },
     makeTextElement: (tag, text, className) => ({ tag, textContent: text, className }),
     Date, Intl
@@ -151,6 +152,7 @@ test('day view displays only the selected day and preserves week and month views
   context.setView('day');
   context.render();
   assert.equal(element('calendar-scroll').hidden, true);
+  assert.equal(element('calendar-week-summary').hidden, true);
   assert.match(element('calendar-title').textContent, /29 mars 2026/);
   const details = element('calendar-selected-day').children;
   assert.equal(details.filter(item => item.tag === 'p').length, 2);
@@ -167,10 +169,88 @@ test('day view displays only the selected day and preserves week and month views
   assert.equal(element('calendar-scroll').hidden, false);
   assert.equal(element('calendar-grid').children.length, 14);
   assert.equal(element('calendar-week').attrs['aria-pressed'], 'true');
+  assert.equal(element('calendar-week-summary').hidden, false);
+  assert.ok(element('calendar-week-summary-content').children.some(item =>
+    item.textContent === 'Aucun rendez-vous pour cette semaine.'));
   context.setView('month');
   context.render();
+  assert.equal(element('calendar-week-summary').hidden, true);
   assert.equal(element('calendar-month').attrs['aria-pressed'], 'true');
   assert.ok(element('calendar-grid').children.length > 14);
+});
+
+test('weekly summary orders authorized events by Paris day and time', () => {
+  const elements = new Map();
+  const node = () => ({
+    children: [], attrs: {}, hidden: false, classList: { add() {} },
+    replaceChildren(...items) { this.children = items; },
+    append(...items) { this.children.push(...items); },
+    setAttribute(name, value) { this.attrs[name] = value; },
+    addEventListener() {}
+  });
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, node());
+    return elements.get(id);
+  };
+  const context = {
+    calendarDate: '2026-03-29', calendarView: 'week',
+    calendarEvents: [
+      { kind: 'visit', title: 'Dernier', scheduledAt: '2026-03-29T10:00:00Z', durationMinutes: 30 },
+      { kind: 'directory', title: 'À confirmer', status: 'pending', scheduledAt: '2026-03-29T08:00:00Z', durationMinutes: 30 },
+      { kind: 'personal', title: 'Minuit', scheduledAt: '2026-03-28T23:30:00Z', durationMinutes: 60 },
+      { kind: 'visit', title: 'Hors semaine', scheduledAt: '2026-03-29T22:00:00Z', durationMinutes: 30 }
+    ],
+    connectedUser: { role: 'senior' },
+    window: { generationLiaisonTranslate: text => text },
+    document: { getElementById: element, createElement: node },
+    makeTextElement: (tag, text, className) => ({ tag, textContent: text, className }),
+    Date, Intl
+  };
+  vm.runInNewContext(
+    `${extract('    function dateInputValue(date)', '    async function chargerPartagesAgenda()')}\n` +
+    'globalThis.render = renderCalendar;', context
+  );
+  context.render();
+  const children = element('calendar-week-summary-content').children;
+  assert.equal(element('calendar-week-summary').hidden, false);
+  assert.equal(children.length, 4);
+  assert.match(children[0].textContent, /dimanche 29 mars/);
+  assert.match(children[1].textContent, /00:30.*Minuit/);
+  assert.match(children[2].textContent, /10:00.*À confirmer.*en attente/);
+  assert.match(children[3].textContent, /12:00.*Dernier/);
+  assert.ok(children.every(item => !item.textContent?.includes('Hors semaine')));
+});
+
+test('weekly summary is cleared while the agenda reloads and remains hidden on failure', async () => {
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      hidden: false, textContent: '', children: ['Ancien rendez-vous'],
+      replaceChildren() { this.children = []; }
+    });
+    return elements.get(id);
+  };
+  let rejectRequest;
+  const context = {
+    connectedUser: { id: 'senior' }, calendarDate: '2026-12-31',
+    calendarView: 'week', calendarLoadId: 0,
+    document: { getElementById: element },
+    planningRequest: () => new Promise((resolve, reject) => { rejectRequest = reject; }),
+    Date
+  };
+  vm.runInNewContext(
+    `${extract('    function dateInputValue(date)', '    function dateTimeInputValue(date)')}\n` +
+    `${extract('    function calendarBounds()', '    function calendarEventDate(value)')}\n` +
+    `${extract('    async function chargerCalendrier()', '    async function chargerModificationsGoogle()')}\n` +
+    'globalThis.loadCalendar = chargerCalendrier;', context
+  );
+  const loading = context.loadCalendar();
+  assert.equal(element('calendar-week-summary').hidden, true);
+  assert.deepEqual(element('calendar-week-summary-content').children, []);
+  rejectRequest(new Error('Connexion indisponible'));
+  await loading;
+  assert.equal(element('calendar-week-summary').hidden, true);
+  assert.equal(element('calendar-message').textContent, 'Connexion indisponible');
 });
 
 test('calendar arrows move by day, week or month across date boundaries', () => {
