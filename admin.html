@@ -54,6 +54,8 @@
     .panel-head p { margin: 4px 0 0; color: var(--muted); font-size: .88rem; }
 
     .table-wrap { overflow-x: auto; }
+    .admin-content table { font-size: 1rem; }
+    .admin-content th, .admin-content td { padding: 14px 16px; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     th, td { padding: 11px 12px; border-bottom: 1px solid #edf1ee; vertical-align: middle; }
     th { color: var(--muted); font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; }
@@ -124,13 +126,14 @@
     .topbar .brand-mark { background: rgba(255, 255, 255, .18); }
     .topbar .button.secondary { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .45); color: #fff; }
     .topbar .button.secondary:hover { background: rgba(255, 255, 255, .26); }
-    .admin-body { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
-    .side-nav { position: sticky; top: 92px; display: grid; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
-    .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font-weight: 700; text-align: left; }
+    .shell { width: min(1800px, calc(100% - 32px)); }
+    .admin-body { display: block; }
+    .side-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+    .nav-item { display: flex; flex: 1 1 auto; align-items: center; justify-content: center; gap: 8px; min-height: 48px; padding: 10px 16px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font-weight: 700; white-space: nowrap; }
     .nav-item:hover { background: var(--mint); }
     .nav-item.active { background: var(--green); color: #fff; }
     .admin-content { min-width: 0; }
-    .admin-content .stats { margin-top: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .admin-content .stats { margin-top: 0; grid-template-columns: repeat(6, minmax(0, 1fr)); }
     .stat-card { border-left: 5px solid var(--green); box-shadow: var(--shadow); }
     .panel { box-shadow: var(--shadow); }
     .panel + .panel { margin-top: 16px; }
@@ -144,12 +147,9 @@
     .account-line + .account-line { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
     .account-line select { min-width: 170px; }
     .account-line .button { min-height: 40px; padding: 6px 14px; }
-    @media (max-width: 900px) {
-      .admin-body { grid-template-columns: 1fr; }
-      .side-nav { position: static; display: flex; overflow-x: auto; }
-      .nav-item { width: auto; flex: 0 0 auto; white-space: nowrap; }
-      .topbar { position: static; }
-    }
+    @media (max-width: 1050px) { .admin-content .stats { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+    @media (max-width: 700px) { .admin-content .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
   </style>
   <link rel="stylesheet" href="/accessibility.css">
 </head>
