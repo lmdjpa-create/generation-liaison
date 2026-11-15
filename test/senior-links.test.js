@@ -3,7 +3,7 @@ const { before, after, test } = require('node:test');
 const { PGlite } = require('@electric-sql/pglite');
 const pg = require('pg');
 const delivery = require('../notification-delivery');
-const { TERMS_VERSION } = require('../auth');
+const { TERMS_VERSION, createAuthService } = require('../auth');
 const { assertScheduleAvailable, lockScheduleParticipants } = require('../schedule-conflicts');
 const { randomUUID } = require('node:crypto');
 
@@ -32,7 +32,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   delivery.isConfigured = () => ({ email: emailConfigured });
   delivery.sendSeniorUnlinkCode = async (email, code) => {
@@ -70,12 +70,109 @@ async function register(email, role, isLegalGuardian = false) {
   const result = await request('/api/auth/register', {
     body: {
       name: email, email, password: 'a-test-password-123', role, isLegalGuardian,
+      ...(role === 'pro' ? { homeLatitude: 48.8566, homeLongitude: 2.3522, serviceRadiusKm: 30 } : {}),
       acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION
     }
   });
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('civility and private profile photos are saved, isolated and removed on account closure', async () => {
+  const senior = await register('profile-senior@example.test', 'senior');
+  const other = await register('profile-other@example.test', 'senior');
+  const path = '/api/account/profile-photo';
+  const headers = { Authorization: `Bearer ${senior.token}` };
+  assert.equal(senior.user.civility, 'unspecified');
+  assert.equal(senior.user.hasAccountPhoto, false);
+  assert.equal((await request('/api/account/profile', { user: senior, method: 'PUT', body: { civility: 'invalid' } })).status, 400);
+  assert.equal((await request('/api/account/profile', { user: senior, method: 'PUT', body: { civility: 'mrs' } })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: senior })).data.user.civility, 'mrs');
+  const login = await request('/api/auth/login', { body: { email: 'profile-senior@example.test', password: 'a-test-password-123' } });
+  assert.equal(login.data.user.civility, 'mrs');
+  assert.equal((await fetch(`${baseUrl}${path}`)).status, 401);
+  assert.equal((await fetch(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${other.token}` } })).status, 404);
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lX4AAAAASUVORK5CYII=', 'base64');
+  const upload = (body, contentType) => fetch(`${baseUrl}${path}`, {
+    method: 'PUT', headers: { ...headers, 'Content-Type': contentType }, body
+  });
+  assert.equal((await upload(Buffer.from('not a photo'), 'image/png')).status, 400);
+  assert.equal((await upload(image, 'image/svg+xml')).status, 400);
+  assert.equal((await upload(Buffer.alloc(2 * 1024 * 1024 + 1), 'image/png')).status, 413);
+  assert.equal((await upload(image, 'image/png')).status, 200);
+  assert.equal((await request('/api/auth/me', { user: senior })).data.user.hasAccountPhoto, true);
+  const photo = await fetch(`${baseUrl}${path}`, { headers });
+  assert.equal(photo.headers.get('cache-control'), 'private, no-store');
+  assert.equal(photo.headers.get('x-content-type-options'), 'nosniff');
+  assert.deepEqual(Buffer.from(await photo.arrayBuffer()), image);
+  assert.equal((await fetch(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${other.token}` } })).status, 404);
+  assert.equal((await fetch(`${baseUrl}${path}`, { method: 'DELETE', headers })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: senior })).data.user.hasAccountPhoto, false);
+  assert.equal((await upload(image, 'image/png')).status, 200);
+  assert.equal((await request('/api/account/closure-request', {
+    user: senior, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  const stored = await db.query('SELECT account_photo, account_photo_content_type, civility FROM app_users WHERE id = $1', [senior.user.id]);
+  assert.deepEqual(stored.rows[0], { account_photo: null, account_photo_content_type: null, civility: 'unspecified' });
+});
+
+test('contact photos require sharing and a saved contact, and respect revocation', async () => {
+  const owner = await register('photo-owner@example.test', 'aidant');
+  const viewer = await register('photo-viewer@example.test', 'senior');
+  const stranger = await register('photo-stranger@example.test', 'senior');
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lX4AAAAASUVORK5CYII=', 'base64');
+  const path = `/api/contacts/${owner.user.id}/photo`;
+  const get = user => fetch(`${baseUrl}${path}`, { headers: { Authorization: `Bearer ${user.token}` } });
+  assert.equal(owner.user.shareAccountPhoto, true);
+  assert.equal((await request('/api/auth/me', { user: owner })).data.user.shareAccountPhoto, true);
+  assert.equal((await fetch(`${baseUrl}/api/account/profile-photo`, {
+    method: 'PUT', headers: { Authorization: `Bearer ${owner.token}`, 'Content-Type': 'image/png' }, body: image
+  })).status, 200);
+  assert.equal((await request('/api/contacts', { user: viewer, body: { contactUserId: owner.user.id } })).status, 201);
+  assert.equal((await request('/api/contacts', { user: viewer })).data.contacts[0].hasSharedPhoto, true);
+  const response = await get(viewer);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), image);
+  assert.equal((await get(stranger)).status, 404);
+  assert.equal((await request('/api/account/profile', {
+    user: owner, method: 'PUT', body: { civility: 'mr', shareAccountPhoto: false }
+  })).status, 200);
+  assert.equal((await get(viewer)).status, 404);
+  await createAuthService(new pg.Pool()).ensureSchema();
+  assert.equal((await request('/api/auth/me', { user: owner })).data.user.shareAccountPhoto, false);
+  const login = await request('/api/auth/login', { body: { email: 'photo-owner@example.test', password: 'a-test-password-123' } });
+  assert.equal(login.data.user.shareAccountPhoto, false);
+});
+
+test('a professional photo is required for approval and is visible only to saved contacts', async () => {
+  const admin = await register('photo-admin@example.test', 'senior');
+  const professional = await register('photo-pro@example.test', 'pro');
+  const senior = await register('photo-pro-viewer@example.test', 'senior');
+  const stranger = await register('photo-pro-stranger@example.test', 'senior');
+  const decision = () => request(`/api/admin/accounts/${professional.user.id}/verification`, {
+    user: admin, admin: true, method: 'PATCH', body: { verificationStatus: 'approved' }
+  });
+  assert.equal((await decision()).status, 409);
+  for (const type of ['identity', 'kbis']) {
+    await db.query(
+      `INSERT INTO app_professional_verification_documents (id, user_id, document_type, content_type, file_data)
+       VALUES ($1, $2, $3, 'application/pdf', $4)`,
+      [randomUUID(), professional.user.id, type, Buffer.from('%PDF-test')]
+    );
+  }
+  const image = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lX4AAAAASUVORK5CYII=', 'base64');
+  const headers = { Authorization: `Bearer ${professional.token}` };
+  assert.equal((await fetch(`${baseUrl}/api/account/profile-photo`, {
+    method: 'PUT', headers: { ...headers, 'Content-Type': 'image/png' }, body: image
+  })).status, 200);
+  assert.equal((await decision()).status, 200);
+  assert.equal((await fetch(`${baseUrl}/api/account/profile-photo`, { method: 'DELETE', headers })).status, 403);
+  assert.equal((await request('/api/contacts', { user: senior, body: { contactUserId: professional.user.id } })).status, 201);
+  const photoPath = `${baseUrl}/api/contacts/${professional.user.id}/photo`;
+  assert.equal((await fetch(photoPath, { headers: { Authorization: `Bearer ${senior.token}` } })).status, 200);
+  assert.equal((await fetch(photoPath, { headers: { Authorization: `Bearer ${stranger.token}` } })).status, 404);
+});
 
 test('shared tasks are isolated by senior and require an active association', async () => {
   const senior = await register('task-senior@example.test', 'senior');

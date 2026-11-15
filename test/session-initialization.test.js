@@ -51,6 +51,8 @@ function createApp(response) {
     setAuthenticatedView: async user => calls.push({ user }),
     showToast: (message, success) => calls.push({ message, success }),
     configurerFormulairesCoordination() {},
+    configurerProfil() {},
+    configurerTuilesAidant() {},
     configurerPreferencesNotification() {},
     configurerAnnuaire() {},
     configurerExplicationsSenior() {},

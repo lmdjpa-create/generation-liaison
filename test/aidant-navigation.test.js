@@ -86,6 +86,9 @@ function createView(response) {
     SERVER_URL: '',
     authHeaders: () => ({}),
     afficherAccueilSenior() {},
+    reinitialiserPhotosContacts() {},
+    reinitialiserProfil() {},
+    chargerPhotoProfil() {},
     updatePlanningDateTitle() {},
     ...Object.fromEntries([
       'chargerNotifications', 'chargerPreferencesNotification', 'chargerCorrespondants', 'chargerLogs',
@@ -155,6 +158,38 @@ test('aidant functions start collapsed without removing their content', () => {
   }
 });
 
+test('aidant shortcuts pair notifications and agenda without duplicate controls', () => {
+  const aidant = source.slice(source.indexOf('<div id="screen-aidant"'), source.indexOf('<!-- 🩺 3.'));
+  const shortcuts = aidant.match(/<div id="aidant-shortcuts"[\s\S]*?<\/div>/);
+  assert.ok(shortcuts);
+  assert.match(shortcuts[0], /onclick="ouvrirNotifications\(\)"/);
+  assert.match(shortcuts[0], /onclick="ouvrirAgenda\(\)"/);
+  assert.equal((aidant.match(/onclick="ouvrirAgenda\(\)"/g) || []).length, 1);
+});
+
+test('aidant sections expand to full-width tiles and collapse again', () => {
+  const classes = new Set();
+  const details = {
+    open: false,
+    parentElement: { classList: { toggle(name, enabled) {
+      if (enabled) classes.add(name); else classes.delete(name);
+    } } },
+    addEventListener(name, handler) { this[name] = handler; }
+  };
+  const start = source.indexOf('    function configurerTuilesAidant()');
+  const end = source.indexOf('    async function initApp()', start);
+  assert.ok(start >= 0 && end > start);
+  const context = { document: { querySelectorAll: () => [details] } };
+  vm.runInNewContext(`${source.slice(start, end)}\nconfigurerTuilesAidant();`, context);
+  assert.equal(classes.has('aidant-tile-open'), false);
+  details.open = true;
+  details.toggle();
+  assert.equal(classes.has('aidant-tile-open'), true);
+  details.open = false;
+  details.toggle();
+  assert.equal(classes.has('aidant-tile-open'), false);
+});
+
 test('a failed senior-profile request is not presented as an empty association list', async () => {
   const { context, element } = createView({ error: 'Network error' });
   await context.openView({ id: 'aidant', role: 'aidant' });
@@ -167,7 +202,7 @@ test('an aidant with a linked senior still opens the selected senior workspace',
   const { context, element, calls } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
   await context.openView({ id: 'aidant', role: 'aidant', seniorName: 'Ancien profil' });
   assert.equal(element('aidant-no-senior-panel').style.display, 'none');
-  assert.equal(element('aidant-senior-content').style.display, 'block');
+  assert.equal(element('aidant-senior-content').style.display, 'grid');
   assert.equal(element('senior-name-aidant').textContent, 'Profil lié');
   assert.ok(calls.includes('chargerLogs'));
 });

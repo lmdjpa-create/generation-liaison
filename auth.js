@@ -84,6 +84,13 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS first_name VARCHAR(120),
           ADD COLUMN IF NOT EXISTS last_name VARCHAR(120);
         ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS civility VARCHAR(16) NOT NULL DEFAULT 'unspecified'
+            CHECK (civility IN ('mr', 'mrs', 'unspecified')),
+          ADD COLUMN IF NOT EXISTS account_photo BYTEA,
+          ADD COLUMN IF NOT EXISTS account_photo_content_type VARCHAR(32),
+          ADD COLUMN IF NOT EXISTS share_account_photo BOOLEAN NOT NULL DEFAULT TRUE;
+        ALTER TABLE app_users ALTER COLUMN share_account_photo SET DEFAULT TRUE;
+        ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
         ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS verification_status VARCHAR(16) NOT NULL DEFAULT 'approved',
@@ -189,14 +196,17 @@ function createAuthService(pool) {
         CREATE TABLE IF NOT EXISTS app_notifications (
           id UUID PRIMARY KEY,
           user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
-          notification_type VARCHAR(32) NOT NULL,
+          notification_type VARCHAR(64) NOT NULL,
           title VARCHAR(160) NOT NULL,
           message VARCHAR(500) NOT NULL,
-          entity_type VARCHAR(24),
+          entity_type VARCHAR(64),
           entity_id UUID,
           read_at TIMESTAMPTZ,
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE app_notifications
+          ALTER COLUMN notification_type TYPE VARCHAR(64),
+          ALTER COLUMN entity_type TYPE VARCHAR(64);
         CREATE TABLE IF NOT EXISTS app_private_messages (
           id UUID PRIMARY KEY,
           sender_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
@@ -671,6 +681,9 @@ function createAuthService(pool) {
       name: row.name,
       firstName: row.first_name || null,
       lastName: row.last_name || null,
+      civility: row.civility || 'unspecified',
+      hasAccountPhoto: row.has_account_photo === true,
+      shareAccountPhoto: row.share_account_photo === true,
       email: row.email,
       role: row.role,
       isActive: row.is_active !== false,
@@ -703,6 +716,7 @@ function createAuthService(pool) {
     name,
     firstName,
     lastName,
+    civility = 'unspecified',
     email,
     password,
     role,
@@ -748,6 +762,9 @@ function createAuthService(pool) {
     }
     if (!roles.has(role)) {
       throw new AuthError(400, 'Sélectionnez un rôle valide.');
+    }
+    if (!['mr', 'mrs', 'unspecified'].includes(civility)) {
+      throw new AuthError(400, 'Sélectionnez une civilité valide.');
     }
     if (typeof isLegalGuardian !== 'boolean' || (isLegalGuardian && role !== 'aidant')) {
       throw new AuthError(400, 'Le statut de tuteur légal est réservé aux comptes aidants.');
@@ -796,13 +813,13 @@ function createAuthService(pool) {
             email_notifications_enabled, sms_notifications_enabled, is_legal_guardian,
             guardian_verification_status,
             email_notifications_consent_at, sms_notifications_consent_at, terms_accepted_at, terms_version,
-            first_name, last_name)
+            first_name, last_name, civility)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                  CASE WHEN $15 THEN 'pending' ELSE 'not_required' END,
                  CASE WHEN $13 THEN CURRENT_TIMESTAMP ELSE NULL END,
                  CASE WHEN $14 THEN CURRENT_TIMESTAMP ELSE NULL END,
-                 CURRENT_TIMESTAMP, $16, $17, $18)
-         RETURNING id, senior_id, name, first_name, last_name, email, role, verification_status,
+                 CURRENT_TIMESTAMP, $16, $17, $18, $19)
+         RETURNING id, senior_id, name, first_name, last_name, civility, share_account_photo, email, role, verification_status,
                    home_latitude, home_longitude, service_radius_km,
                    is_legal_guardian, guardian_verification_status`,
         [
@@ -823,7 +840,8 @@ function createAuthService(pool) {
           isLegalGuardian,
           TERMS_VERSION,
           normalizedFirstName,
-          normalizedLastName
+          normalizedLastName,
+          civility
         ]
       );
       rows[0].senior_name = normalizedSeniorName || null;
@@ -917,7 +935,8 @@ function createAuthService(pool) {
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
               u.premium_status, u.premium_until,
-              u.profile_photo_url, u.password_salt, u.password_hash,
+              u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
+              u.password_salt, u.password_hash,
               s.name AS senior_name
          FROM app_users u
          JOIN senior_profiles s ON s.id = u.senior_id
@@ -951,7 +970,8 @@ function createAuthService(pool) {
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
               u.premium_status, u.premium_until,
-              u.profile_photo_url, s.name AS senior_name
+              u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
+              s.name AS senior_name
        FROM app_sessions session
        JOIN app_users u ON u.id = session.user_id
        JOIN senior_profiles s ON s.id = u.senior_id
@@ -1007,6 +1027,10 @@ function createAuthService(pool) {
              profile_photo_url = NULL,
              profile_photo = NULL,
              profile_photo_content_type = NULL,
+             account_photo = NULL,
+             account_photo_content_type = NULL,
+             share_account_photo = FALSE,
+             civility = 'unspecified',
              home_latitude = NULL,
              home_longitude = NULL,
              google_calendar_refresh_token = NULL,

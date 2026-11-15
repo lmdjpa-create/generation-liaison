@@ -156,6 +156,7 @@
         .notification-actions button.decline { background: #8d3939; }
         .notification-choice { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0; color: #34495e; }
         .notification-choice input { width: auto; margin: 3px 0 0; }
+        .notification-choice[hidden] { display: none; }
         .terms-consent { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0; padding: 12px; border: 1px solid #b9c9c1; border-radius: 8px; background: #f0f7f3; text-align: left; color: #34495e; line-height: 1.5; }
         .terms-consent input { flex: 0 0 auto; width: 24px; height: 24px; padding: 0; margin: 2px 0 0; }
         .terms-error { margin: 0 0 12px; color: #b42318; font-weight: 700; text-align: left; }
@@ -278,8 +279,42 @@
         .tile-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; font-size: 1.6rem; }
         .aidant-greeting { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; }
         .aidant-avatar { display: grid; place-items: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-dark); font-size: 1.5rem; }
+        .account-avatar { display: inline-grid; place-items: center; width: 52px; height: 52px; border-radius: 50%; overflow: hidden; background: var(--brand-soft); font-size: 1.5rem; vertical-align: middle; }
+        .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .account-avatar img[hidden], .account-avatar span[hidden] { display: none; }
         .aidant-greeting h2 { margin: 0; font-size: 1.25rem; color: var(--ink); }
         .aidant-greeting p { margin: 2px 0 0; color: #3f6a5c; font-size: 0.9rem; }
+        #aidant-senior-content {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            align-items: start;
+            gap: 12px;
+        }
+        #aidant-senior-content > .form-card { margin: 0; padding: 0; min-width: 0; }
+        #aidant-senior-content > .form-card.aidant-tile-open { grid-column: 1 / -1; padding: 14px; }
+        #aidant-senior-content > .form-card > .senior-disclosure:not(.senior-explanation) > summary {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            min-height: 132px;
+            height: 100%;
+            border: 1px solid #e3eee9;
+            border-radius: 12px;
+            background: white;
+            color: var(--ink);
+            text-align: center;
+            overflow-wrap: anywhere;
+        }
+        #aidant-senior-content > .form-card.aidant-tile-open > .senior-disclosure > summary { min-height: 80px; margin-bottom: 14px; }
+        #aidant-senior-content .senior-explanation[data-help-enhanced] > summary { display: none; }
+        #aidant-senior-content summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+        #screen-aidant #aidant-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
+        #screen-aidant #aidant-shortcuts .action-tile { min-height: 132px; justify-content: center; flex-direction: column; text-align: center; }
+        @media (max-width: 300px) {
+            #aidant-senior-content { grid-template-columns: 1fr; }
+            #screen-aidant #aidant-shortcuts { grid-template-columns: 1fr; }
+        }
         #main-app-senior button, #main-app-senior .senior-disclosure > summary, #screen-aidant .senior-disclosure > summary,
         #main-app-senior .emergency-call-actions a {
             box-sizing: border-box;
@@ -391,6 +426,15 @@
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Créez votre accès Génération Liaison</p>
             <input type="text" id="reg-first-name" name="given-name" autocomplete="given-name" maxlength="120" placeholder="Prénom" aria-label="Prénom">
             <input type="text" id="reg-last-name" name="family-name" autocomplete="family-name" maxlength="120" placeholder="Nom de famille" aria-label="Nom de famille">
+            <label for="reg-civility">Civilité</label>
+            <select id="reg-civility">
+                <option value="unspecified">Non défini</option>
+                <option value="mr">Monsieur</option>
+                <option value="mrs">Madame</option>
+            </select>
+            <label for="reg-account-photo" id="reg-account-photo-label">Photo de profil (facultative)</label>
+            <input id="reg-account-photo" type="file" accept="image/jpeg,image/png">
+            <p class="helper-text">JPEG ou PNG, 2 Mo maximum. La photo est partagée par défaut avec les personnes qui vous ont ajouté à leurs contacts. Les intervenants doivent en ajouter une ; les autres peuvent désactiver le partage dans les réglages.</p>
             <input type="email" id="reg-email" name="username" autocomplete="username" placeholder="Adresse e-mail">
             <label class="terms-consent" for="reg-terms-accepted">
                 <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
@@ -462,7 +506,7 @@
     </section>
     <!-- TABLEAU DE BORD LAZ -->
     <div id="main-app-senior" style="display: none; text-align: center;">
-        <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! 👴</h1>
+        <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
 
         <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
@@ -637,7 +681,7 @@
 <!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->
 <div id="screen-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
     <div class="aidant-greeting">
-        <div class="aidant-avatar" aria-hidden="true">🤝</div>
+        <div class="account-avatar aidant-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></div>
         <div>
             <h2>Bonjour <span id="welcome-aidant-name">!</span></h2>
         </div>
@@ -647,9 +691,11 @@
             <p class="next-visit-label">Suivi de <span id="senior-name-aidant">Senior</span></p>
             <p class="next-visit-text">Espace Proches 👨‍👩‍👧‍👦</p>
         </div>
-        <button type="button" onclick="ouvrirAgenda()">Agenda</button>
     </div>
-    <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
+    <div id="aidant-shortcuts" class="action-tiles">
+        <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
+        <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
+    </div>
     <section class="form-card" id="aidant-senior-selector" style="display:none;">
         <label for="aidant-senior-select">Profil senior</label>
         <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
@@ -663,7 +709,7 @@
     <div id="aidant-senior-content" style="display:none;">
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-tasks-details">
-        <summary>Tâches du quotidien</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">✅</span>Tâches du quotidien</summary>
         <p class="helper-text">Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Évitez les informations médicales.</p>
         <details class="senior-disclosure senior-explanation" data-help-for="#aidant-tasks-refresh">
           <summary>Explications</summary>
@@ -686,20 +732,20 @@
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-checkins-details">
-        <summary>Check-ins de bien-être partagés</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Check-ins de bien-être partagés</summary>
         <p class="helper-text">Vous ne voyez ici que les réponses que la personne a choisi de vous transmettre. Ce partage n’est pas un service d’urgence ni une surveillance automatique.</p>
         <div id="aidant-wellbeing-shared" aria-live="polite">Chargement des messages partagés…</div>
       </details>
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-feed-details">
-        <summary>Fil d’actualité en direct</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span>Fil d’actualité en direct</summary>
         <div class="card" id="logs-list" style="text-align: left;">Chargement du journal...</div>
       </details>
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-following-details">
-        <summary>Suivi des interventions</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📍</span>Suivi des interventions</summary>
         <div id="aidant-live-following" aria-live="polite">Chargement du suivi…</div>
       </details>
         <details class="senior-disclosure senior-explanation" data-help-for="#aidant-following-details > summary">
@@ -711,13 +757,13 @@
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-consents-details">
-        <summary>Autorisation de partage</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔐</span>Autorisation de partage</summary>
         <div id="aidant-sharing-consents" style="margin-top:12px;"></div>
       </details>
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-team-message-details">
-        <summary>Message à l’équipe</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Message à l’équipe</summary>
         <form id="aidant-person-note-form" class="form-grid" style="margin-top:14px;">
             <select id="aidant-note-recipient" required><option value="">Choisir une équipe autorisée</option></select>
             <select id="aidant-note-importance" required aria-label="Importance de l’information">
@@ -732,7 +778,7 @@
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-services-details">
-        <summary>Services du quotidien</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🏠</span>Services du quotidien</summary>
         <p class="helper-text">Repas, coiffure et ménage à domicile. Cet espace est distinct du suivi des soins et ne transmet aucune donnée médicale aux prestataires. Les demandes doivent être confirmées par le partenaire ; les tarifs et paiements restent à définir.</p>
         <div id="aidant-service-area" aria-live="polite">Chargement des services…</div>
       </details>
@@ -756,7 +802,7 @@
     </section>
     <div id="professional-workspace">
     <div class="header-mobile" style="background: #34495e;">
-        <h3 style="margin:0;">Espace intervenants 🩺</h3>
+        <h3 style="margin:0;">Espace intervenants <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h3>
         <span style="font-size:0.85rem; opacity:0.9;">Espaces séparés : soins et services du quotidien</span>
     </div>
     <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
@@ -928,6 +974,31 @@
 
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
+    <section class="form-card" id="settings-account-profile">
+      <details class="senior-tab-disclosure">
+        <summary>Mon profil</summary>
+        <div class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></div>
+        <form id="account-profile-form" class="form-grid">
+          <label for="account-civility">Civilité</label>
+          <select id="account-civility">
+            <option value="unspecified">Non défini</option>
+            <option value="mr">Monsieur</option>
+            <option value="mrs">Madame</option>
+          </select>
+          <label id="account-photo-sharing-label" class="notification-choice"><input id="account-photo-sharing" type="checkbox"> Partager ma photo avec les personnes qui m’ont ajouté à leurs contacts</label>
+          <p id="account-photo-professional-note" class="helper-text" hidden>Pour les intervenants, une photo est obligatoire et visible par les personnes qui les ont ajoutés à leurs contacts. Vous pouvez la remplacer.</p>
+          <button type="submit">Enregistrer mon profil</button>
+        </form>
+        <form id="account-photo-form" class="form-grid">
+          <label for="account-photo-file" id="account-photo-file-label">Photo de profil (facultative)</label>
+          <input id="account-photo-file" type="file" accept="image/jpeg,image/png" required>
+          <p class="helper-text">JPEG ou PNG, 2 Mo maximum.</p>
+          <button type="submit">Enregistrer la photo</button>
+        </form>
+        <button type="button" id="account-photo-delete" hidden>Supprimer la photo</button>
+        <p id="account-profile-status" role="status" aria-live="polite"></p>
+      </details>
+    </section>
 <section class="form-card" style="text-align:left;" id="settings-aidant-links">
         <h3>Mes profils seniors</h3>
         <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior pour lui envoyer une invitation à découvrir l’application. S’il ne possède pas encore de compte, faites une nouvelle demande après son inscription. Il devra l’accepter avant que vous puissiez consulter son profil.</p>
@@ -1269,6 +1340,11 @@
     const USER_KEY = 'generation-liaison-mobile-user';
     const PUSH_TOKEN_KEY = 'generation-liaison-push-token';
     let connectedUser = null;
+    let accountPhotoObjectUrl = null;
+    let accountProfileRevision = 0;
+    let accountPhotoLoadId = 0;
+    let contactsLoadId = 0;
+    let contactPhotoUrls = [];
     let activeSeniorProfileId = localStorage.getItem('generation-liaison-active-senior') || '';
     let wellbeingLoadedDate = null;
     let currentWellbeingCheckin = null;
@@ -1390,13 +1466,22 @@
         remote.append(badge);
     }
 
+    function reinitialiserPhotosContacts() {
+        contactsLoadId++;
+        contactPhotoUrls.forEach(url => URL.revokeObjectURL(url));
+        contactPhotoUrls = [];
+    }
+
     async function chargerContacts() {
         const container = document.getElementById('contacts-list');
         if (!container) return;
+        reinitialiserPhotosContacts();
+        const loadId = contactsLoadId;
         container.replaceChildren(makeTextElement('p', 'Chargement des contacts…', 'helper-text'));
 
         try {
             const result = await seniorLinksRequest('/api/contacts');
+            if (loadId !== contactsLoadId) return;
             const contacts = result.contacts;
             container.replaceChildren();
             if (!contacts.length) {
@@ -1412,7 +1497,7 @@
                 header.className = 'directory-result-header';
 
                 const initials = (contact.name || 'P').split(/\s+/).filter(Boolean).slice(0, 2).map(part => part[0]).join('').toUpperCase() || 'P';
-                if (contact.photoUrl) {
+                if (contact.photoUrl && !contact.hasSharedPhoto) {
                     const image = document.createElement('img');
                     image.className = 'directory-photo';
                     image.src = contact.photoUrl;
@@ -1424,6 +1509,29 @@
                     placeholder.className = 'directory-photo placeholder';
                     placeholder.textContent = initials;
                     header.append(placeholder);
+                }
+                if (contact.hasSharedPhoto) {
+                    void (async () => {
+                        try {
+                            const response = await fetch(`${SERVER_URL}/api/contacts/${encodeURIComponent(contact.id)}/photo`, {
+                                headers: authHeaders(false), cache: 'no-store'
+                            });
+                            if (!response.ok) throw new Error('Impossible de charger la photo du contact.');
+                            const blob = await response.blob();
+                            if (loadId !== contactsLoadId) return;
+                            const url = URL.createObjectURL(blob);
+                            contactPhotoUrls.push(url);
+                            const image = document.createElement('img');
+                            image.className = 'directory-photo';
+                            image.alt = `${contact.name} photo de profil`;
+                            image.src = url;
+                            header.replaceChild(image, header.firstChild);
+                        } catch (error) {
+                            if (loadId !== contactsLoadId) return;
+                            console.error('Chargement de la photo du contact impossible :', error);
+                            card.append(makeTextElement('p', 'Impossible de charger la photo du contact.', 'helper-text'));
+                        }
+                    })();
                 }
 
                 const info = document.createElement('div');
@@ -1463,6 +1571,7 @@
                 container.append(card);
             });
         } catch (error) {
+            if (loadId !== contactsLoadId) return;
             container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les contacts.', 'helper-text'));
         }
     }
@@ -1718,6 +1827,9 @@
     function afficherChampsInscriptionProfessionnel() {
         const role = document.getElementById('reg-role').value;
         const isProfessional = role === 'pro';
+        document.getElementById('reg-account-photo-label').textContent = window.generationLiaisonTranslate(
+            isProfessional ? 'Photo de profil (obligatoire)' : 'Photo de profil (facultative)'
+        );
         document.getElementById('professional-registration-fields').style.display = isProfessional ? 'block' : 'none';
         document.getElementById('reg-senior-fields').style.display = role === 'aidant' ? 'block' : 'none';
         afficherChampsTutelle();
@@ -1880,6 +1992,9 @@
         }
         connectedUser = user;
         currentUser = user;
+        reinitialiserPhotosContacts();
+        reinitialiserProfil();
+        if (user.hasAccountPhoto) void chargerPhotoProfil();
         document.body.classList.toggle('senior-mode', user.role === 'senior');
         document.querySelectorAll('.senior-tab-disclosure').forEach(details => {
             details.open = user.role !== 'senior';
@@ -1961,7 +2076,7 @@
             }
             document.getElementById('aidant-senior-selector').style.display = hasSenior ? 'block' : 'none';
             document.getElementById('aidant-no-senior-panel').style.display = hasSenior ? 'none' : 'block';
-            document.getElementById('aidant-senior-content').style.display = hasSenior ? 'block' : 'none';
+            document.getElementById('aidant-senior-content').style.display = hasSenior ? 'grid' : 'none';
             document.querySelector('#aidant-no-senior-panel h3').textContent = window.generationLiaisonTranslate(
                 loadError ? 'Profils seniors indisponibles' : 'Aucun profil senior associé'
             );
@@ -2112,6 +2227,143 @@
         }
         const response = await fetch(`${SERVER_URL}${path}`, requestOptions);
         return readResponse(response);
+    }
+
+    function afficherAvatarProfil() {
+        const emoji = { mr: '👨', mrs: '👩', unspecified: '🧑' }[connectedUser?.civility] || '🧑';
+        document.querySelectorAll('.account-avatar').forEach(avatar => {
+            const image = avatar.querySelector('img');
+            const fallback = avatar.querySelector('span');
+            fallback.textContent = emoji;
+            fallback.hidden = Boolean(accountPhotoObjectUrl);
+            image.hidden = !accountPhotoObjectUrl;
+            if (accountPhotoObjectUrl) image.src = accountPhotoObjectUrl;
+            else image.removeAttribute('src');
+        });
+        document.getElementById('account-photo-delete').hidden = !connectedUser?.hasAccountPhoto || connectedUser.role === 'pro';
+    }
+
+    function reinitialiserProfil() {
+        accountProfileRevision++;
+        accountPhotoLoadId++;
+        if (accountPhotoObjectUrl) URL.revokeObjectURL(accountPhotoObjectUrl);
+        accountPhotoObjectUrl = null;
+        document.getElementById('account-photo-file').value = '';
+        document.getElementById('account-profile-status').textContent = '';
+        document.getElementById('account-civility').value = connectedUser?.civility || 'unspecified';
+        document.getElementById('account-photo-sharing').checked = connectedUser?.shareAccountPhoto === true;
+        document.getElementById('account-photo-sharing-label').hidden = connectedUser?.role === 'pro';
+        document.getElementById('account-photo-professional-note').hidden = connectedUser?.role !== 'pro';
+        document.getElementById('account-photo-file-label').textContent = window.generationLiaisonTranslate(
+            connectedUser?.role === 'pro' ? 'Photo de profil (obligatoire)' : 'Photo de profil (facultative)'
+        );
+        afficherAvatarProfil();
+    }
+
+    async function chargerPhotoProfil() {
+        if (!connectedUser?.hasAccountPhoto) return false;
+        const revision = accountProfileRevision;
+        const loadId = ++accountPhotoLoadId;
+        try {
+            const response = await fetch(`${SERVER_URL}/api/account/profile-photo`, { headers: authHeaders(false), cache: 'no-store' });
+            if (!response.ok) throw new Error('Impossible de charger votre photo de profil.');
+            const blob = await response.blob();
+            if (revision !== accountProfileRevision || loadId !== accountPhotoLoadId) return false;
+            const previous = accountPhotoObjectUrl;
+            accountPhotoObjectUrl = URL.createObjectURL(blob);
+            afficherAvatarProfil();
+            if (previous) URL.revokeObjectURL(previous);
+            return true;
+        } catch (error) {
+            if (revision !== accountProfileRevision || loadId !== accountPhotoLoadId) return false;
+            console.error('Chargement de la photo de profil impossible :', error);
+            document.getElementById('account-profile-status').textContent =
+                window.generationLiaisonTranslate('Impossible de charger votre photo de profil.');
+            return false;
+        }
+    }
+
+    function verifierPhotoProfil(file) {
+        if (!file || !['image/jpeg', 'image/png'].includes(file.type) || file.size > 2 * 1024 * 1024 || !file.size) {
+            throw new Error(window.generationLiaisonTranslate('Choisissez une image JPEG ou PNG valide (2 Mo maximum).'));
+        }
+    }
+
+    async function enregistrerPhotoProfil(file) {
+        verifierPhotoProfil(file);
+        const revision = accountProfileRevision;
+        const response = await fetch(`${SERVER_URL}/api/account/profile-photo`, {
+            method: 'PUT', headers: { ...authHeaders(false), 'Content-Type': file.type }, body: file
+        });
+        await readResponse(response);
+        if (revision !== accountProfileRevision || !connectedUser) return false;
+        connectedUser.hasAccountPhoto = true;
+        afficherAvatarProfil();
+        return chargerPhotoProfil();
+    }
+
+    function configurerProfil() {
+        const status = document.getElementById('account-profile-status');
+        document.getElementById('account-profile-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const revision = accountProfileRevision;
+            try {
+                const { civility, shareAccountPhoto } = await planningRequest('/api/account/profile', {
+                    method: 'PUT', body: {
+                        civility: document.getElementById('account-civility').value,
+                        shareAccountPhoto: document.getElementById('account-photo-sharing').checked
+                    }
+                });
+                if (revision !== accountProfileRevision || !connectedUser) return;
+                connectedUser.civility = civility;
+                connectedUser.shareAccountPhoto = shareAccountPhoto;
+                afficherAvatarProfil();
+                status.textContent = window.generationLiaisonTranslate('Profil enregistré.');
+            } catch (error) {
+                if (revision === accountProfileRevision) status.textContent = error.message || 'Impossible de modifier votre profil.';
+            }
+        });
+        document.getElementById('account-photo-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const revision = accountProfileRevision;
+            const button = event.currentTarget.querySelector('button[type="submit"]');
+            const deleteButton = document.getElementById('account-photo-delete');
+            button.disabled = true;
+            deleteButton.disabled = true;
+            try {
+                const loaded = await enregistrerPhotoProfil(document.getElementById('account-photo-file').files[0]);
+                if (revision !== accountProfileRevision) return;
+                document.getElementById('account-photo-file').value = '';
+                if (loaded) status.textContent = window.generationLiaisonTranslate('Photo de profil enregistrée.');
+            } catch (error) {
+                if (revision === accountProfileRevision) status.textContent = error.message || 'Impossible d’enregistrer votre photo de profil.';
+            } finally {
+                button.disabled = false;
+                deleteButton.disabled = false;
+            }
+        });
+        document.getElementById('account-photo-delete').addEventListener('click', async event => {
+            const revision = accountProfileRevision;
+            const button = event.currentTarget;
+            const uploadButton = document.querySelector('#account-photo-form button[type="submit"]');
+            button.disabled = true;
+            uploadButton.disabled = true;
+            try {
+                await planningRequest('/api/account/profile-photo', { method: 'DELETE' });
+                if (revision !== accountProfileRevision || !connectedUser) return;
+                accountPhotoLoadId++;
+                if (accountPhotoObjectUrl) URL.revokeObjectURL(accountPhotoObjectUrl);
+                accountPhotoObjectUrl = null;
+                connectedUser.hasAccountPhoto = false;
+                afficherAvatarProfil();
+                status.textContent = window.generationLiaisonTranslate('Photo de profil supprimée.');
+            } catch (error) {
+                if (revision === accountProfileRevision) status.textContent = error.message || 'Impossible de supprimer votre photo de profil.';
+            } finally {
+                button.disabled = false;
+                uploadButton.disabled = false;
+            }
+        });
     }
 
     function reinitialiserTachesPartagees() {
@@ -5665,6 +5917,8 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
+        reinitialiserPhotosContacts();
+        reinitialiserProfil();
         nextVisitLoadId++;
         nextVisitEvent = null;
         nextVisitMessage = 'Chargement du prochain rendez-vous…';
@@ -5719,6 +5973,8 @@
         document.getElementById('auth-password').value = '';
         document.getElementById('reg-first-name').value = '';
         document.getElementById('reg-last-name').value = '';
+        document.getElementById('reg-civility').value = 'unspecified';
+        document.getElementById('reg-account-photo').value = '';
         document.getElementById('reg-email').value = '';
         document.getElementById('reg-senior-name').value = '';
         document.getElementById('reg-password').value = '';
@@ -5794,6 +6050,8 @@
 
         const firstName = document.getElementById('reg-first-name').value.trim();
         const lastName = document.getElementById('reg-last-name').value.trim();
+        const civility = document.getElementById('reg-civility').value;
+        const accountPhoto = document.getElementById('reg-account-photo').files[0];
         const name = `${firstName} ${lastName}`;
         const email = document.getElementById('reg-email').value.trim();
         const seniorName = document.getElementById('reg-senior-name').value.trim();
@@ -5809,6 +6067,18 @@
         if (!firstName || !lastName || !email || password.length < 12) {
             showToast('Complétez les champs et choisissez un mot de passe de 12 caractères minimum.', false);
             return;
+        }
+        if (role === 'pro' && !accountPhoto) {
+            showToast(window.generationLiaisonTranslate('Ajoutez une photo de profil pour créer un compte intervenant.'), false);
+            return;
+        }
+        if (accountPhoto) {
+            try {
+                verifierPhotoProfil(accountPhoto);
+            } catch (error) {
+                showToast(error.message, false);
+                return;
+            }
         }
         if (role === 'pro' && (
             !document.querySelector('#professional-registration-fields [data-document-type="identity"]').files?.[0] ||
@@ -5834,6 +6104,7 @@
                 name,
                 firstName,
                 lastName,
+                civility,
                 email,
                 seniorName: role === 'senior' ? name : seniorName,
                 password,
@@ -5865,18 +6136,31 @@
                     document.getElementById('legal-guardian-registration-fields'),
                     true
                 );
-                showToast(window.generationLiaisonTranslate('Compte créé. Votre dossier est en attente de vérification.'));
             } else if (role === 'pro') {
                 await envoyerJustificatifsProfessionnels(
                     document.getElementById('professional-registration-fields'),
                     true
                 );
-                showToast('Compte créé. Votre dossier est en attente de vérification.');
-            } else {
-                showToast('Compte créé avec succès');
             }
+            if (accountPhoto) {
+                try {
+                    const loaded = await enregistrerPhotoProfil(accountPhoto);
+                    if (!loaded) {
+                        showToast(window.generationLiaisonTranslate('Compte créé et photo enregistrée, mais son affichage est indisponible.'), false);
+                        return;
+                    }
+                } catch (error) {
+                    showToast(`${window.generationLiaisonTranslate('Compte créé, mais la photo n’a pas été enregistrée.')} ${error.message}`, false);
+                    return;
+                }
+            }
+            showToast(isLegalGuardian || role === 'pro'
+                ? window.generationLiaisonTranslate('Compte créé. Votre dossier est en attente de vérification.')
+                : 'Compte créé avec succès');
         } catch (error) {
-            showToast(connectedUser?.role === 'pro' && connectedUser.verificationStatus !== 'approved'
+            showToast((connectedUser?.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
+                (connectedUser?.role === 'aidant' && connectedUser.isLegalGuardian &&
+                    connectedUser.guardianVerificationStatus !== 'approved')
                 ? `Compte créé, mais justificatifs à envoyer : ${error.message}`
                 : error.message || 'Création du compte impossible.', false);
         }
@@ -5983,7 +6267,17 @@
             .catch(error => showToast(error.message, false));
     }
 
+    function configurerTuilesAidant() {
+        document.querySelectorAll('#aidant-senior-content > .form-card > details:not(.senior-explanation)').forEach(details => {
+            const update = () => details.parentElement.classList.toggle('aidant-tile-open', details.open);
+            details.addEventListener('toggle', update);
+            update();
+        });
+    }
+
     async function initApp() {
+        configurerTuilesAidant();
+        configurerProfil();
         configurerFormulairesCoordination();
         configurerFormulairesInformationsPersonne();
         configurerPreferencesNotification();

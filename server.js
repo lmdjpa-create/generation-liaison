@@ -66,6 +66,8 @@ function canAccessAccountSettings(req) {
   return (req.method === 'GET' && req.path === '/api/notifications/config') ||
     (['GET', 'PUT'].includes(req.method) && req.path === '/api/notifications/preferences') ||
     (['POST', 'DELETE'].includes(req.method) && req.path === '/api/notifications/push-subscriptions') ||
+    (req.method === 'PUT' && req.path === '/api/account/profile') ||
+    (['GET', 'PUT', 'DELETE'].includes(req.method) && req.path === '/api/account/profile-photo') ||
     (req.method === 'POST' && req.path === '/api/account/closure-request');
 }
 
@@ -1191,6 +1193,7 @@ app.get('/api/contacts', requireAuth, async (req, res) => {
       `SELECT c.id, c.contact_user_id, c.nickname,
               u.name, u.email, u.role, u.notification_phone AS phone,
               u.profile_photo_url AS photo_url,
+              ((u.role = 'pro' OR u.share_account_photo) AND u.account_photo IS NOT NULL AND u.is_active) AS has_shared_photo,
               u.premium_status, u.premium_until
        FROM app_user_contacts c
        JOIN app_users u ON u.id = c.contact_user_id
@@ -1206,6 +1209,7 @@ app.get('/api/contacts', requireAuth, async (req, res) => {
         role: row.role,
         phone: row.phone || null,
         photoUrl: row.photo_url || null,
+        hasSharedPhoto: row.has_shared_photo,
         premium: hasActivePremium(row)
       }))
     });
@@ -1273,6 +1277,25 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
     });
   } catch (error) {
     sendApiError(res, error, 'Impossible d’ajouter ce contact.');
+  }
+});
+
+app.get('/api/contacts/:contactId/photo', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.contactId)) return res.status(400).json({ error: 'Contact invalide.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.account_photo, u.account_photo_content_type FROM app_user_contacts c
+       JOIN app_users u ON u.id = c.contact_user_id
+       WHERE c.user_id = $1 AND c.contact_user_id = $2 AND u.is_active = TRUE
+         AND (u.role = 'pro' OR u.share_account_photo = TRUE) AND u.account_photo IS NOT NULL`,
+      [req.authUser.id, req.params.contactId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Photo de contact indisponible.' });
+    res.set({ 'Cache-Control': 'private, no-store', 'Content-Type': rows[0].account_photo_content_type,
+      'X-Content-Type-Options': 'nosniff' });
+    res.send(rows[0].account_photo);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger la photo du contact.');
   }
 });
 
@@ -1876,7 +1899,7 @@ app.patch('/api/admin/accounts/:accountId/verification', requireAuth, requireAdm
     client = await pool.connect();
     await client.query('BEGIN');
     const { rows: targetRows } = await client.query(
-      `SELECT id, name, role, verification_status
+      `SELECT id, name, role, verification_status, (account_photo IS NOT NULL) AS has_account_photo
        FROM app_users WHERE id = $1 FOR UPDATE`,
       [req.params.accountId]
     );
@@ -1889,6 +1912,10 @@ app.patch('/api/admin/accounts/:accountId/verification', requireAuth, requireAdm
       return res.status(409).json({ error: 'Seuls les dossiers en attente peuvent être examinés.' });
     }
     if (verificationStatus === 'approved') {
+      if (!targetRows[0].has_account_photo) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'Une photo de profil est requise avant validation.' });
+      }
       const { rows: documents } = await client.query(
         `SELECT COUNT(DISTINCT document_type)::int AS count
          FROM app_professional_verification_documents
@@ -2702,6 +2729,84 @@ app.post('/api/auth/password-reset/confirm', async (req, res) => {
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: req.authUser });
+});
+
+app.put('/api/account/profile', requireAuth, async (req, res) => {
+  const { civility, shareAccountPhoto } = req.body || {};
+  if (!['mr', 'mrs', 'unspecified'].includes(civility)) {
+    return res.status(400).json({ error: 'Sélectionnez une civilité valide.' });
+  }
+  if (shareAccountPhoto !== undefined && typeof shareAccountPhoto !== 'boolean') {
+    return res.status(400).json({ error: 'Choisissez une option de partage valide.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      'UPDATE app_users SET civility = $1, share_account_photo = COALESCE($2, share_account_photo) WHERE id = $3 RETURNING share_account_photo',
+      [civility, shareAccountPhoto ?? null, req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ civility, shareAccountPhoto: rows[0].share_account_photo });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier votre profil.');
+  }
+});
+
+app.get('/api/account/profile-photo', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT account_photo, account_photo_content_type FROM app_users WHERE id = $1',
+      [req.authUser.id]
+    );
+    if (!rows[0]?.account_photo) return res.status(404).json({ error: 'Aucune photo de profil enregistrée.' });
+    res.set({
+      'Cache-Control': 'private, no-store',
+      'Content-Type': rows[0].account_photo_content_type,
+      'X-Content-Type-Options': 'nosniff'
+    });
+    res.send(rows[0].account_photo);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger votre photo de profil.');
+  }
+});
+
+const parseAccountPhoto = express.raw({ type: ['image/jpeg', 'image/png'], limit: '2mb' });
+app.put('/api/account/profile-photo', requireAuth, (req, res, next) => {
+  parseAccountPhoto(req, res, error => {
+    if (error?.type === 'entity.too.large') {
+      return res.status(413).json({ error: 'La photo ne doit pas dépasser 2 Mo.' });
+    }
+    if (error) return next(error);
+    next();
+  });
+}, async (req, res) => {
+  const contentType = req.get('content-type')?.split(';')[0].trim().toLowerCase();
+  if (!['image/jpeg', 'image/png'].includes(contentType) || !matchesDocumentSignature(req.body, contentType)) {
+    return res.status(400).json({ error: 'Choisissez une image JPEG ou PNG valide (2 Mo maximum).' });
+  }
+  try {
+    await pool.query(
+      'UPDATE app_users SET account_photo = $1, account_photo_content_type = $2 WHERE id = $3',
+      [req.body, contentType, req.authUser.id]
+    );
+    res.json({ uploaded: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer votre photo de profil.');
+  }
+});
+
+app.delete('/api/account/profile-photo', requireAuth, async (req, res) => {
+  if (req.authUser.role === 'pro') {
+    return res.status(403).json({ error: 'Une photo de profil est obligatoire pour les intervenants. Vous pouvez la remplacer.' });
+  }
+  try {
+    await pool.query(
+      'UPDATE app_users SET account_photo = NULL, account_photo_content_type = NULL WHERE id = $1',
+      [req.authUser.id]
+    );
+    res.json({ deleted: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de supprimer votre photo de profil.');
+  }
 });
 
 app.get('/api/calendar/google/callback', async (req, res) => {
