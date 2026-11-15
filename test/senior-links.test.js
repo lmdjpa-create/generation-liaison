@@ -408,6 +408,72 @@ test('all contact roles can exchange premium messages only after mutually adding
   assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior })).status, 403);
 });
 
+test('next senior appointment uses confirmed own events without a 42-day limit', async () => {
+  const senior = await register('next-senior@example.test', 'senior');
+  const other = await register('next-other@example.test', 'senior');
+  const aidant = await register('next-aidant@example.test', 'aidant');
+  const pro = await register('next-pro@example.test', 'senior');
+  await db.query(`UPDATE app_users SET role = 'pro', verification_status = 'approved'
+    WHERE id = $1`, [pro.user.id]);
+  const path = '/api/planning/calendar?next=1';
+  assert.equal((await request(path)).status, 401);
+  assert.equal((await request(path, { user: aidant })).status, 403);
+  assert.deepEqual((await request(path, { user: senior })).data.events, []);
+  const when = days => new Date(Date.now() + days * 86400000);
+  const addEvent = (user, title, days) => db.query(
+    `INSERT INTO app_personal_events (id, owner_user_id, title, starts_at, duration_minutes)
+     VALUES ($1, $2, $3, $4, 30)`, [randomUUID(), user.user.id, title, when(days)]
+  );
+  await addEvent(senior, 'Passé', -1);
+  await addEvent(other, 'Privé', 1);
+  await addEvent(senior, 'Dans deux mois', 70);
+  assert.equal((await request(path, { user: senior })).data.events[0].title, 'Dans deux mois');
+
+  const pendingId = randomUUID();
+  const confirmedId = randomUUID();
+  await db.query(`INSERT INTO app_directory_bookings
+    (id, requester_user_id, professional_user_id, senior_profile_id, scheduled_at, duration_minutes, status, hold_expires_at)
+    VALUES ($1, $3, $4, $5, $6, 30, 'pending', CURRENT_TIMESTAMP + INTERVAL '1 day'),
+           ($2, $3, $4, $5, $7, 30, 'confirmed', NULL)`,
+    [pendingId, confirmedId, senior.user.id, pro.user.id, senior.user.seniorId, when(2), when(3)]);
+  let result = await request(path, { user: senior });
+  assert.equal(result.status, 200);
+  assert.equal(result.data.events.length, 1);
+  assert.equal(result.data.events[0].id, confirmedId);
+  await addEvent(senior, 'Plus tôt', 1);
+  result = await request(path, { user: senior });
+  assert.equal(result.data.events[0].title, 'Plus tôt');
+  assert.deepEqual((await request(path, { user: other })).data.events.map(event => event.title), ['Privé']);
+
+  const organization = randomUUID();
+  const recipient = randomUUID();
+  const partner = randomUUID();
+  const visit = randomUUID();
+  const service = randomUUID();
+  await db.query(`INSERT INTO planning_organizations (id, name, coordinator_user_id) VALUES ($1, 'Equipe', $2)`,
+    [organization, pro.user.id]);
+  await db.query(`INSERT INTO planning_org_members (organization_id, user_id, role) VALUES ($1, $2, 'professional')`,
+    [organization, pro.user.id]);
+  await db.query(`INSERT INTO planning_recipients (id, organization_id, senior_id, name, consent_at, created_by)
+    VALUES ($1, $2, $3, 'Personne', CURRENT_TIMESTAMP, $4)`,
+    [recipient, organization, senior.user.seniorId, pro.user.id]);
+  await db.query(`INSERT INTO planning_visits
+    (id, organization_id, recipient_id, assigned_user_id, scheduled_at, duration_minutes, visit_type, created_by, acceptance_status)
+    VALUES ($1, $2, $3, $4, $5, 30, 'Visite prévue', $4, 'accepted')`,
+    [visit, organization, recipient, pro.user.id, when(0.5)]);
+  assert.equal((await request(path, { user: senior })).data.events[0].id, visit);
+  await db.query(`INSERT INTO planning_service_partners
+    (id, organization_id, user_id, service_type, display_name) VALUES ($1, $2, $3, 'hairdresser', 'Coiffure')`,
+    [partner, organization, pro.user.id]);
+  await db.query(`INSERT INTO planning_service_bookings
+    (id, organization_id, recipient_id, partner_id, created_by, requested_at, status)
+    VALUES ($1, $2, $3, $4, $5, $6, 'confirmed')`,
+    [service, organization, recipient, partner, pro.user.id, when(0.25)]);
+  assert.equal((await request(path, { user: senior })).data.events[0].id, service);
+  await db.query('UPDATE planning_recipients SET consent_revoked_at = CURRENT_TIMESTAMP WHERE id = $1', [recipient]);
+  assert.equal((await request(path, { user: senior })).data.events[0].title, 'Plus tôt');
+});
+
 test('personal agenda events can be compared only after the linked owner accepts', async () => {
   const senior = await register('agenda-senior@example.test', 'senior');
   const aidant = await register('agenda-aidant@example.test', 'aidant');

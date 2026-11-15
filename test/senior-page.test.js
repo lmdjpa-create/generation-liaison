@@ -47,16 +47,59 @@ test('senior settings remain accessible from navigation without a dashboard shor
   assert.match(source, /<button id="nav-settings"[^>]*onclick="switchScreen\('settings'\)"/);
 });
 
-test('companionship and daily services shortcuts are available alongside the directory', () => {
+test('next appointment displays Paris time, handles empty and failed loads, and ignores stale responses', async () => {
+  const text = { textContent: '' };
+  let response = { events: [{ title: 'Médecin', scheduledAt: '2026-03-29T08:30:00Z' }] };
+  let resolveRequest;
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    nextVisitLoadId: 0, nextVisitEvent: null, nextVisitMessage: '',
+    document: { getElementById: () => text },
+    window: { generationLiaisonTranslate: value => value, generationLiaisonLocale: () => 'fr-FR' },
+    planningRequest: async path => {
+      assert.equal(path, '/api/planning/calendar?next=1');
+      if (response instanceof Error) throw response;
+      if (response === null) return new Promise(resolve => { resolveRequest = resolve; });
+      return response;
+    },
+    console: { error() {} }, Intl, Date
+  };
+  vm.runInNewContext(
+    `${extract('    function afficherProchainRendezVous()', '    function renderCalendar()')}\n` +
+    'globalThis.loadNext = chargerProchainRendezVous;', context
+  );
+  await context.loadNext();
+  assert.match(text.textContent, /29 mars 2026/);
+  assert.match(text.textContent, /10:30.*Médecin/);
+  response = { events: [] };
+  await context.loadNext();
+  assert.equal(text.textContent, 'Aucun rendez-vous à venir.');
+  response = new Error('offline');
+  await context.loadNext();
+  assert.equal(text.textContent, 'Impossible de charger le prochain rendez-vous.');
+  response = null;
+  const old = context.loadNext();
+  context.connectedUser = null;
+  resolveRequest({ events: [{ title: 'Ancien compte', scheduledAt: '2026-03-29T08:30:00Z' }] });
+  await old;
+  assert.equal(text.textContent, 'Impossible de charger le prochain rendez-vous.');
+});
+
+test('companionship and daily services have one control each on the senior home', () => {
   const tiles = extract('        <div class="action-tiles">', '        <section class="form-card emergency-call-card"');
-  assert.match(tiles, /ouvrirSectionSenior\('senior-assistant-details', 'assistant-chat-panel'\)/);
-  assert.match(tiles, /ouvrirSectionSenior\('senior-services-details', 'senior-service-area'\)/);
+  const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  assert.doesNotMatch(tiles, /ouvrirSectionSenior/);
+  for (const label of ['Un peu de compagnie', 'Services du quotidien']) {
+    assert.equal(dashboard.split(label).length - 1, 1, label);
+  }
+  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🤝<\/span>Un peu de compagnie<\/summary>/);
+  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🏠<\/span>Services du quotidien<\/summary>/);
   assert.match(tiles, /switchScreen\('directory'\)/);
   assert.doesNotMatch(tiles, /Mon agenda/);
   assert.match(source, /<button[^>]*onclick="switchScreen\('agenda'\)"[^>]*>Voir l’agenda<\/button>/);
 });
 
-test('senior feature tiles keep their content collapsed and shortcuts open their destinations', () => {
+test('senior feature sections keep their content collapsed and can open programmatically', () => {
   for (const [id, content] of [
     ['senior-following-details', 'senior-live-following'],
     ['senior-note-details', 'senior-person-note-form'],
@@ -83,11 +126,22 @@ test('senior feature tiles keep their content collapsed and shortcuts open their
     ['senior-services-details', 'senior-service-area'],
     ['senior-assistant-details', 'assistant-chat-panel']
   ]) {
-    assert.ok(source.includes(`ouvrirSectionSenior('${details}', '${target}')`));
     context.openSection(details, target);
     assert.equal(element(details).open, true);
     assert.equal(element(target).scrolled, true);
   }
+});
+
+test('companionship and wellbeing appear once directly after the directory and notifications', () => {
+  const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  const directory = dashboard.indexOf("switchScreen('directory')");
+  const notifications = dashboard.indexOf('onclick="ouvrirNotifications()"');
+  const assistant = dashboard.indexOf('id="senior-assistant-details"');
+  const wellbeing = dashboard.indexOf('id="wellbeing-checkin-details"');
+  const emergency = dashboard.indexOf('class="form-card emergency-call-card"');
+  assert.ok(directory < notifications && notifications < assistant && assistant < wellbeing && wellbeing < emergency);
+  assert.equal(dashboard.split('id="senior-assistant-details"').length - 1, 1);
+  assert.equal(dashboard.split('id="wellbeing-checkin-details"').length - 1, 1);
 });
 
 test('sharing consent management is removed from the senior home but available in settings', () => {
@@ -112,7 +166,7 @@ test('agenda shows the selected day before collapsed explanations and retains Go
   assert.match(agenda, /id="calendar-day"[^>]*aria-pressed="true"/);
   assert.ok(agenda.indexOf('id="calendar-selected-day"') < agenda.indexOf('Explications sur l’agenda'));
   assert.ok(agenda.indexOf('id="calendar-selected-day"') < agenda.indexOf('id="calendar-google-settings"'));
-  assert.match(agenda, /<details class="senior-disclosure senior-explanation">\s*<summary>Explications sur l’agenda<\/summary>[\s\S]*?chevauche/);
+  assert.match(agenda, /<details class="senior-disclosure senior-explanation" data-help-for="#calendar-today">\s*<summary>Explications sur l’agenda<\/summary>[\s\S]*?chevauche/);
   assert.match(agenda, /<summary>Explications<\/summary>[\s\S]*?la mise en pause ne supprime pas/i);
   assert.match(agenda, /id="calendar-google-sync-toggle"/);
   assert.match(agenda, /id="calendar-google-requests"/);
@@ -294,7 +348,7 @@ test('a new day re-enables the senior check-in form', () => {
 
 test('check-in is collapsed while safety follow-up remains outside the collapsed content', () => {
   const checkin = extract('        <section class="form-card" id="wellbeing-checkin-panel"',
-    '        <section class="form-card" style="text-align:left;">');
+    '        <section class="form-card emergency-call-card"');
   assert.match(checkin, /<details class="senior-disclosure" id="wellbeing-checkin-details">/);
   assert.match(checkin, /<\/details>\s*<div id="wellbeing-safety-result"/);
 });
@@ -664,7 +718,7 @@ test('automatic native permission requests respect previously refused permission
 
 test('emergency details are optional while numbers, confirmation and status stay accessible', () => {
   const emergency = extract('<section class="form-card emergency-call-card"', '<section class="form-card" id="notifications-panel-senior"');
-  assert.match(emergency, /<details class="senior-disclosure senior-explanation">\s*<summary>Explications sur l’appel<\/summary>/);
+  assert.match(emergency, /<details class="senior-disclosure senior-explanation" data-help-for="\[data-emergency-number\]">\s*<summary>Explications sur l’appel<\/summary>/);
   assert.match(emergency, /<button type="button" data-emergency-number="15">/);
   assert.match(emergency, /<button type="button" data-emergency-number="112">/);
   assert.match(emergency, /<\/details>\s*<div class="emergency-call-actions">\s*<button type="button" id="emergency-call-confirm-click">/);
@@ -714,42 +768,6 @@ test('emergency calls require confirmation and can be confirmed again after a co
   assert.equal(element('emergency-call-confirm-click').disabled, false);
 });
 
-test('explanations open after two seconds of hover and remain usable without hover', () => {
-  const summary = { listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } };
-  const details = {
-    open: false, listeners: {},
-    querySelector: () => summary,
-    addEventListener(type, handler) { this.listeners[type] = handler; }
-  };
-  const timers = new Map();
-  let nextId = 0;
-  const context = {
-    document: { querySelectorAll: () => [details] },
-    setTimeout: (callback, delay) => { timers.set(++nextId, { callback, delay }); return nextId; },
-    clearTimeout: id => timers.delete(id)
-  };
-  vm.runInNewContext(
-    `${extract('    function configurerExplicationsSenior()', '    function ouvrirAgenda()')}\n` +
-    'globalThis.configure = configurerExplicationsSenior;', context
-  );
-  context.configure();
-  summary.listeners.pointerenter({ pointerType: 'mouse' });
-  assert.equal(details.open, false);
-  assert.equal(timers.get(1).delay, 2000);
-  summary.listeners.pointerleave();
-  assert.equal(timers.size, 0);
-  summary.listeners.pointerenter({ pointerType: 'touch' });
-  assert.equal(timers.size, 0);
-  summary.listeners.pointerenter({ pointerType: 'mouse' });
-  timers.get(2).callback();
-  assert.equal(details.open, true);
-  details.open = false;
-  summary.listeners.pointerenter({ pointerType: 'mouse' });
-  details.open = true;
-  details.listeners.toggle();
-  assert.equal(timers.has(3), false);
-});
-
 test('the notification shortcut opens the separate page', () => {
   const calls = [];
   const context = {
@@ -757,7 +775,7 @@ test('the notification shortcut opens the separate page', () => {
     switchScreen: screen => calls.push(screen)
   };
   vm.runInNewContext(
-    `${extract('    function ouvrirNotifications()', '    function configurerExplicationsSenior()')}\n` +
+    `${extract('    function ouvrirNotifications()', '    function ouvrirAgenda()')}\n` +
     'globalThis.openNotifications = ouvrirNotifications;', context
   );
   context.openNotifications();

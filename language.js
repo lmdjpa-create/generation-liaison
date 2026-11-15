@@ -27,6 +27,9 @@
     'Alertes et assistance': 'Alerts and support',
     'Services du quotidien': 'Everyday services',
     'Tâches du quotidien': 'Everyday tasks',
+    'Chargement du prochain rendez-vous…': 'Loading your next appointment…',
+    'Aucun rendez-vous à venir.': 'No upcoming appointments.',
+    'Impossible de charger le prochain rendez-vous.': 'Unable to load your next appointment.',
     'Ces tâches sont visibles et modifiables par vous et tous vos aidants associés. Évitez les informations médicales.':
       'These tasks are visible and editable by you and all your linked caregivers. Avoid medical information.',
     'Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Évitez les informations médicales.':
@@ -51,6 +54,8 @@
     'À faire': 'To do',
     'Supprimer cette tâche pour tous ?': 'Delete this task for everyone?',
     'Tâches partagées': 'Shared tasks',
+    'Pour une urgence, appelez les secours.': 'In an emergency, call the emergency services.',
+    'Appuyez sur le micro pour dicter votre compte-rendu de visite.': 'Press the microphone to dictate your visit report.',
     'Annuaire partagé': 'Shared directory',
     'Les professionnels enregistrés ici sont visibles et modifiables par le senior et ses aidants associés.':
       'Professionals saved here can be viewed and managed by the senior and their linked caregivers.',

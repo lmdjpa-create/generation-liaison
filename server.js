@@ -5753,7 +5753,12 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
   if (!['senior', 'aidant', 'pro'].includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
   }
-  const { start, end } = req.query;
+  const next = req.query.next === '1';
+  if (next && req.authUser.role !== 'senior') {
+    return res.status(403).json({ error: 'Accès au prochain rendez-vous non autorisé.' });
+  }
+  const start = next ? '0001-01-01' : req.query.start;
+  const end = next ? '9999-12-31' : req.query.end;
   const validDate = value => {
     if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
     const date = new Date(`${value}T00:00:00.000Z`);
@@ -5761,7 +5766,7 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
   };
   if (!validDate(start) || !validDate(end) ||
       Date.parse(`${end}T00:00:00Z`) <= Date.parse(`${start}T00:00:00Z`) ||
-      Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`) > 42 * 86400000) {
+      (!next && Date.parse(`${end}T00:00:00Z`) - Date.parse(`${start}T00:00:00Z`) > 42 * 86400000)) {
     return res.status(400).json({ error: 'Choisissez une période valide de 42 jours maximum.' });
   }
   try {
@@ -5792,6 +5797,7 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
        CROSS JOIN bounds
        WHERE bounds.authorized AND recipient.consent_at IS NOT NULL AND recipient.consent_revoked_at IS NULL
          AND visit.acceptance_status = 'accepted'
+         AND (NOT $7::boolean OR (visit.scheduled_at >= CURRENT_TIMESTAMP AND visit.status = 'scheduled'))
          AND visit.scheduled_at >= bounds.start_at AND visit.scheduled_at < bounds.end_at
          AND (($3 IN ('senior', 'aidant') AND recipient.senior_id = $5)
            OR ($3 = 'pro' AND (visit.assigned_user_id = $4 OR ($6 AND EXISTS (
@@ -5810,6 +5816,7 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
        CROSS JOIN bounds
        WHERE bounds.authorized AND recipient.consent_at IS NOT NULL AND recipient.consent_revoked_at IS NULL
          AND booking.status IN ('confirmed', 'completed')
+         AND (NOT $7::boolean OR (booking.requested_at >= CURRENT_TIMESTAMP AND booking.status = 'confirmed'))
          AND booking.requested_at >= bounds.start_at AND booking.requested_at < bounds.end_at
          AND (($3 IN ('senior', 'aidant') AND recipient.senior_id = $5)
            OR ($3 = 'pro' AND ((partner.user_id = $4 AND EXISTS (
@@ -5832,6 +5839,8 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
        JOIN app_users professional ON professional.id = booking.professional_user_id
        CROSS JOIN bounds
        WHERE bounds.authorized AND booking.status IN ('pending', 'confirmed')
+         AND (NOT $7::boolean OR (booking.scheduled_at >= CURRENT_TIMESTAMP AND booking.status = 'confirmed'
+                                  AND booking.senior_profile_id = $5))
          AND (booking.status <> 'pending' OR booking.hold_expires_at > CURRENT_TIMESTAMP)
          AND booking.scheduled_at >= bounds.start_at AND booking.scheduled_at < bounds.end_at
          AND (($3 = 'pro' AND booking.professional_user_id = $4)
@@ -5841,8 +5850,9 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
               AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
                           WHERE link.aidant_user_id = booking.requester_user_id
                             AND link.senior_profile_id = $5)))))
-       ORDER BY scheduled_at`,
-      [start, end, req.authUser.role, req.authUser.id, req.authUser.seniorId, req.authUser.isCoordinator]
+       ORDER BY scheduled_at
+       LIMIT CASE WHEN $7::boolean THEN 1 ELSE NULL END`,
+      [start, end, req.authUser.role, req.authUser.id, req.authUser.seniorId, req.authUser.isCoordinator, next]
     );
     res.set('Cache-Control', 'private, no-store');
     const planningEvents = rows.map(row => ({
@@ -5854,9 +5864,24 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
       person: row.person,
       status: row.status
     }));
-    const personalEvents = await loadPersonalAgenda(req.authUser, start, end, planningEvents);
-    res.json({ events: [...planningEvents, ...personalEvents]
-      .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt)) });
+    let personalEvents;
+    if (next) {
+      const { rows: own } = await pool.query(
+        `SELECT id, title, starts_at, duration_minutes FROM app_personal_events
+         WHERE owner_user_id = $1 AND starts_at >= CURRENT_TIMESTAMP
+         ORDER BY starts_at LIMIT 1`,
+        [req.authUser.id]
+      );
+      personalEvents = own.map(row => ({
+        id: row.id, kind: 'personal', scheduledAt: row.starts_at,
+        durationMinutes: row.duration_minutes, title: row.title, person: null, status: 'confirmed'
+      }));
+    } else {
+      personalEvents = await loadPersonalAgenda(req.authUser, start, end, planningEvents);
+    }
+    const events = [...planningEvents, ...personalEvents]
+      .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
+    res.json({ events: next ? events.slice(0, 1) : events });
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger l’agenda.');
   }

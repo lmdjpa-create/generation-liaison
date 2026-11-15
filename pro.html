@@ -15,7 +15,7 @@
 		.container {
 			max-width: 600px;
 			margin: 0 auto;
-			background: white;
+			background: rgba(255, 255, 255, 0.65);
 			padding: 30px;
 			border-radius: 15px;
 			box-shadow: 0 5px 15px rgba(0,0,0,0.05);
@@ -86,9 +86,9 @@
 			margin-top: 15px;
 			color: #7f8c8d;
 		}
-	      html { padding-top: 230px; } body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; box-sizing: border-box; height: 230px; padding-top: 44px; background: url(logo-generation-liaison.jpg) center bottom / contain no-repeat; background-origin: content-box; }
   </style>
 	<link rel="stylesheet" href="/accessibility.css">
+	<script src="/help-bubbles.js" defer></script>
 </head>
 <body>
 
@@ -98,7 +98,10 @@
 		<span class="status-badge">Visite chez <span id="senior-name">Senior</span></span>
 	</div>
 
-	<p style="text-align: center; color: #7f8c8d;">Appuyez sur le micro pour dicter votre compte-rendu de visite :</p>
+	<details data-help-for="#mic-btn">
+		<summary>Explications</summary>
+		<div class="gl-help-bubble"><p>Appuyez sur le micro pour dicter votre compte-rendu de visite.</p></div>
+	</details>
 
 	<!-- Bouton Micro interactif -->
 	<button id="mic-btn" class="btn-mic" type="button" aria-label="Dicter le compte-rendu" onclick="toggleEcoute()">🎙️</button>

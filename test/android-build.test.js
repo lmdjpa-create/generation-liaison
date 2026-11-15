@@ -11,7 +11,7 @@ test('Android web assets omit downloadable builds, including stale files from a 
     for (const entry of [
       'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html',
       'reset-password.html', 'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html',
-      'language.js', 'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css',
+      'language.js', 'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js',
       'homepage-images', 'push-service-worker.js', 'scripts'
     ]) {
       fs.cpSync(path.join(root, entry), path.join(fixture, entry), { recursive: true });

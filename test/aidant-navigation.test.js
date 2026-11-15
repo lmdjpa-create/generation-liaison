@@ -75,6 +75,9 @@ function createView(response) {
     setInterval: () => 1,
     dateInputValue: () => '2026-01-01',
     planningRefreshTimer: null,
+    nextVisitLoadId: 0,
+    nextVisitEvent: null,
+    nextVisitMessage: '',
     connectedUser: null,
     currentUser: null,
     activeSeniorProfileId: '',
@@ -92,7 +95,7 @@ function createView(response) {
       'chargerContacts', 'chargerGestionAssociations', 'chargerDirectoryProfile',
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
-      'chargerAssistantConversation', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
+      'chargerAssistantConversation', 'chargerProchainRendezVous', 'afficherProchainRendezVous', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
       'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
@@ -146,7 +149,7 @@ test('aidant functions start collapsed without removing their content', () => {
     ['aidant-team-message-details', 'aidant-person-note-form'],
     ['aidant-services-details', 'aidant-service-area']
   ]) {
-    const section = source.match(new RegExp(`<details class="senior-disclosure" id="${id}">([\\s\\S]*?)</details>`));
+    const section = source.match(new RegExp(`<details class="senior-disclosure" id="${id}">([\\s\\S]*?)</section>`));
     assert.ok(section);
     assert.match(section[1], new RegExp(`id="${content}"`));
   }
