@@ -140,6 +140,10 @@
     tbody tr:hover { background: #f8fbf9; }
     .welcome h1 { color: var(--green-dark); }
     .button:hover { filter: brightness(1.06); }
+    .account-line { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .account-line + .account-line { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+    .account-line select { min-width: 170px; }
+    .account-line .button { min-height: 40px; padding: 6px 14px; }
     @media (max-width: 900px) {
       .admin-body { grid-template-columns: 1fr; }
       .side-nav { position: static; display: flex; overflow-x: auto; }
@@ -1087,18 +1091,20 @@
         const state = document.createElement('span');
         state.className = `badge${account.active ? '' : ' off'}`;
         state.textContent = account.active ? 'Actif' : 'Suspendu';
-        action.append(state);
+        const stateLine = document.createElement('div');
+        stateLine.className = 'account-line';
+        stateLine.append(state);
+        action.append(stateLine);
         if (!account.administrator) {
           const button = document.createElement('button');
           button.className = 'button secondary';
-          button.style.marginLeft = '8px';
           button.type = 'button';
           button.textContent = account.active ? 'Suspendre' : 'Réactiver';
           button.addEventListener('click', () => updateAccount(account, button));
-          action.append(button);
+          stateLine.append(button);
         }
         const premium = document.createElement('div');
-        premium.style.marginTop = '8px';
+        premium.className = 'account-line';
         const premiumBadge = document.createElement('span');
         premiumBadge.className = `badge${account.premiumActive ? '' : ' off'}`;
         premiumBadge.textContent = account.premiumActive
@@ -1106,7 +1112,6 @@
           : 'Sans abonnement';
         const premiumChoice = document.createElement('select');
         premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
-        premiumChoice.style.margin = '0 8px';
         [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
           ['year', 'Premium 12 mois'], ['forever', 'Premium sans fin'],
           ['trial', 'Essai 14 jours'], ['none', 'Retirer l’abonnement']].forEach(([value, label]) => {
