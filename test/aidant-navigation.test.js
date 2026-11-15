@@ -98,6 +98,10 @@ test('senior summary uses the calendar and accessible updates without requesting
   assert.match(elements.get('senior-summary-visit').textContent, /Rendez-vous prévu/);
   assert.equal(elements.get('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui ou en retard : 0');
   assert.equal(elements.get('senior-summary-messages').textContent, 'Messages non lus : 1');
+  assert.equal(elements.get('senior-summary-notifications').textContent, '');
+  assert.equal(elements.get('senior-summary-notifications').hidden, true);
+  assert.equal(elements.get('senior-summary-following').hidden, true);
+  assert.equal(elements.get('senior-summary-logs').hidden, true);
   assert.ok(paths.some(path => path === '/api/planning/calendar?start=2028-02-29&end=2028-03-01'));
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
 });
@@ -148,10 +152,12 @@ test('daily journal sorts shared updates and reports unavailable sources', async
     },
     makeTextElement: (tag, text) => ({ tag, text }),
     formatDateTime: value => value,
+    dateCheckinBienEtre: () => '2028-01-03',
+    calendarEventDate: value => value.slice(0, 10),
     stageLabel: value => value,
     progressArray: value => value,
     planningRequest: async path => path === '/api/logs/all'
-      ? [{ created_at: '2028-01-01T10:00:00Z', content: 'Nouvelle familiale' }]
+      ? [{ created_at: '2028-01-01T10:00:00Z', content: 'Nouvelle familiale' }, { created_at: '2028-01-03T08:00:00Z', content: 'Nouvelle du jour' }]
       : { visits: [{ visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent' }] }] }
   };
   const start = source.indexOf('    async function chargerJournalQuotidien(role)');
