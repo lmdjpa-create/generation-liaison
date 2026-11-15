@@ -121,7 +121,7 @@
     /* Refonte : barre latérale, cartes et tableaux plus lisibles */
     :root { --green-dark: #0e5c43; --shadow: 0 6px 18px rgba(24, 53, 46, .06); }
     body { background: linear-gradient(180deg, #eaf4ee 0, #f3f7f4 260px); }
-    .topbar { position: sticky; top: 12px; z-index: 5; background: linear-gradient(135deg, #147d5b, #0e5c43); border: 0; color: #fff; box-shadow: var(--shadow); }
+    .topbar { background: linear-gradient(135deg, #147d5b, #0e5c43); border: 0; color: #fff; box-shadow: var(--shadow); }
     .topbar .muted { color: #d6eee3; }
     .topbar .brand-mark { background: rgba(255, 255, 255, .18); }
     .topbar .button.secondary { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .45); color: #fff; }
@@ -269,7 +269,7 @@
           </div>
           <div id="senior-link-removals" aria-live="polite">Chargement des demandes…</div>
         </section>
-        <section class="panel" data-section="accounts">
+        <section class="panel" data-section="accounts" data-also="overview">
           <div class="panel-head">
             <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
           </div>
@@ -1584,7 +1584,7 @@
       const panels = Array.from(document.querySelectorAll('.panel[data-section]'));
       const stats = document.getElementById('stats');
       function show(target) {
-        panels.forEach(panel => { panel.hidden = panel.dataset.section !== target; });
+        panels.forEach(panel => { panel.hidden = ![panel.dataset.section, panel.dataset.also].includes(target); });
         stats.hidden = target !== 'overview';
         nav.querySelectorAll('.nav-item').forEach(item => {
           const active = item.dataset.target === target;
