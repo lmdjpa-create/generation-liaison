@@ -57,6 +57,9 @@ test('both home pages offer weather before the other dashboard cards', () => {
   assert.ok(senior > source.indexOf('id="welcome-senior-name"') && senior < source.indexOf('id="senior-next-visit"'));
   assert.ok(aidant > source.indexOf('id="welcome-aidant-name"') && aidant < source.indexOf('id="aidant-daily-summary"'));
   assert.match(source, /id="settings-weather"[\s\S]*id="weather-enabled"[^>]*type="checkbox"[^>]*checked/);
+  const warning = 'Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.';
+  assert.ok(source.slice(senior, source.indexOf('id="senior-next-visit"')).includes(warning));
+  assert.ok(source.slice(aidant, source.indexOf('id="aidant-daily-summary"')).includes(warning));
 });
 
 test('multiple communes require a choice and show seven days', async () => {

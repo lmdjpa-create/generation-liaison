@@ -23,6 +23,8 @@
     'Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.':
       'This municipality will be used by default for weather. Its search uses the public municipality service and its approximate center will be sent to Open-Meteo for forecasts. GPS is not used. You can choose another municipality or disable weather on your device.',
     'Prévisions fournies par': 'Forecasts provided by',
+    'Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.':
+      'Forecasts may be inaccurate or unavailable. Check official alerts for your safety.',
     'Impossible de lire la commune enregistrée. Choisissez-la à nouveau.': 'Unable to read the saved municipality. Please choose it again.',
     'La météo est momentanément indisponible. Réessayez plus tard.': 'Weather is temporarily unavailable. Please try again later.',
     'La météo n’est pas encore configurée.': 'Weather is not configured yet.',
