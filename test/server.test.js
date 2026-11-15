@@ -716,6 +716,11 @@ test('requires authentication for shared planning and live visit updates', async
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ active: false })
     }),
+    fetch(`${baseUrl}/api/admin/accounts/not-a-uuid/premium`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'active' })
+    }),
     fetch(`${baseUrl}/api/admin/care-visits/not-a-uuid`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -1194,4 +1199,13 @@ test('stores passwords as verifiable salted hashes', async () => {
   assert.notEqual(credentials.salt, '');
   assert.equal(await verifyPassword('un-mot-de-passe-solide', credentials.salt, credentials.hash), true);
   assert.equal(await verifyPassword('mauvais-mot-de-passe', credentials.salt, credentials.hash), false);
+});
+
+test('admin can grant, trial or remove premium from the accounts table', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const admin = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  assert.match(server, /app\.patch\('\/api\/admin\/accounts\/:accountId\/premium', requireAuth, requireAdmin/);
+  assert.match(server, /premiumActive: hasActivePremium\(row\)/);
+  assert.match(admin, /\/premium`/);
+  assert.match(admin, /Premium 12 mois/);
 });
