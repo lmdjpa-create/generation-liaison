@@ -141,7 +141,8 @@
           <li>Demandes d’association et de retrait d’accès aux profils seniors, décisions, dates et code de confirmation conservé sous forme hachée jusqu’à son utilisation ;</li>
           <li>Messages adressés à l’assistant IA ou à l’équipe, si vous utilisez ces fonctions ;</li>
           <li>Messages échangés avec les contacts enregistrés mutuellement ou les seniors et aidants associés, avec leurs dates et leur état de lecture ;</li>
-          <li>Intitulés, état et éventuelle échéance des tâches partagées avec les aidants associés au profil senior, ainsi que leur date de création ;</li>
+          <li>Intitulés, état, éventuelle échéance et personne qui s’est proposée pour les tâches partagées avec les aidants associés au profil senior, ainsi que leur date de création ;</li>
+          <li>Professionnels vérifiés enregistrés dans l’annuaire partagé du profil senior et date de leur ajout ;</li>
           <li>Réponse quotidienne de bien-être, réponse de l’assistant IA, résultat indicatif de détection d’un risque, réponse du senior à la vérification et choix des aidants destinataires, si vous utilisez le check-in ;</li>
           <li>Notifications d’urgence adressées aux aidants actifs enregistrés par le senior, si celui-ci confirme une demande d’appel au 15 ou au 112 ;</li>
           <li>Préférences et coordonnées de notification, ainsi que les identifiants techniques nécessaires aux notifications push ;</li>
@@ -157,6 +158,7 @@
           <li>Organiser les services, rendez-vous, interventions et échanges avec l’équipe ;</li>
           <li>Permettre les échanges entre contacts enregistrés mutuellement ou seniors et aidants associés et indiquer à l’expéditeur qu’un message a été ouvert ;</li>
           <li>Organiser les tâches du quotidien entre le senior et ses aidants associés. Tous les aidants actifs associés peuvent les consulter, les modifier et les supprimer ;</li>
+          <li>Retrouver les professionnels vérifiés enregistrés dans l’annuaire partagé, consultable et modifiable par le senior et ses aidants actifs associés ;</li>
           <li>Vérifier les justificatifs des professionnels ;</li>
           <li>Vérifier manuellement les justificatifs d’identité et de tutelle, puis permettre à l’administration d’associer des profils seniors aux aidants autorisés ;</li>
           <li>Envoyer les notifications demandées et, selon les fonctions activées, synchroniser les disponibilités et rendez-vous avec Google Calendar ;</li>
@@ -185,7 +187,8 @@
           <li><strong>Render :</strong> hébergement de l’application et de sa base de données ;</li>
           <li><strong>OpenAI :</strong> prénom et messages transmis à l’assistant IA pour générer une réponse ; texte du check-in transmis pour préparer une réponse de bien-être ; pour le pré-examen des clôtures, rôle, catégorie de formule et décomptes par type de dossier uniquement ;</li>
           <li><strong>Google :</strong> connexion et échanges nécessaires à Google Calendar. Si l’intervenant active la synchronisation du planning, les dates et durées des prochaines visites et prestations confirmées sont copiées dans son agenda avec un titre générique, sans nom ni détail de soin, ainsi qu’un identifiant technique. Les modifications Google de ces événements nécessitent l’accord de l’intervenant et de la personne accompagnée ou de son aidant avant modification du planning partagé. La synchronisation de l’annuaire transmet séparément les données nécessaires aux réservations confirmées ;</li>
-          <li><strong>Service public geo.api.gouv.fr :</strong> ville ou code postal saisi pour trouver le centre d’une commune française lors d’une recherche ou de l’inscription d’un professionnel ;</li>
+          <li><strong>Service public geo.api.gouv.fr :</strong> ville ou code postal saisi pour trouver le centre d’une commune française lors d’une recherche ou de l’inscription d’un professionnel ; position GPS recherchée pour identifier la commune correspondante dans l’annuaire ;</li>
+          <li><strong>Recherche d’entreprises (service public) :</strong> activité ou nom recherché et code de commune ou code postal pour trouver des résultats extérieurs à l’application ;</li>
           <li><strong>Daily.co :</strong> création des salles et jetons nécessaires aux visioconférences ;</li>
           <li><strong>Firebase :</strong> notifications push sur les appareils Android, si cette fonction est activée ;</li>
           <li><strong>Resend et Twilio :</strong> acheminement des e-mails et SMS de notification, selon vos préférences ;</li>
@@ -267,7 +270,7 @@
           de l’application. Les notifications associées sont également supprimées à cette échéance.
         </p>
         <p>
-          Pour les rendez-vous, interventions, notes, tâches partagées, messages entre contacts, justificatifs et notifications, aucun délai automatique
+          Pour les rendez-vous, interventions, notes, tâches et annuaire partagés, messages entre contacts, justificatifs et notifications, aucun délai automatique
           unique n’est défini dans l’application. Ils sont examinés lors d’une demande d’effacement et peuvent être
           conservés uniquement lorsqu’ils restent nécessaires à d’autres personnes, à une obligation légale ou à
           la gestion d’un litige ; les autres données personnelles sont supprimées après examen. Les durées de

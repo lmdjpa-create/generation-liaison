@@ -2124,10 +2124,18 @@ app.post('/api/admin/account-closure-requests/:requestId/ai-review', requireAuth
           WHERE item.senior_id = target.senior_id) AS liaison_logs,
          (SELECT count(*) FROM app_shared_tasks item
           WHERE (target.role = 'senior' AND item.senior_id = target.senior_id)
+             OR item.assignee_user_id = target.user_id
              OR (target.role = 'aidant' AND EXISTS (
                SELECT 1 FROM app_aidant_senior_links link
                WHERE link.aidant_user_id = target.user_id AND link.senior_profile_id = item.senior_id
              ))) AS shared_tasks,
+         (SELECT count(*) FROM app_shared_directory item
+          WHERE (target.role = 'senior' AND item.senior_id = target.senior_id)
+             OR item.professional_user_id = target.user_id
+             OR (target.role = 'aidant' AND EXISTS (
+               SELECT 1 FROM app_aidant_senior_links link
+               WHERE link.aidant_user_id = target.user_id AND link.senior_profile_id = item.senior_id
+             ))) AS shared_directory,
          (SELECT count(*) FROM related_recipient_scope) AS planning_recipients,
          (SELECT count(*) FROM planning_recipient_notes item
           WHERE item.recipient_id IN (SELECT id FROM related_recipient_scope)) AS shared_notes,
@@ -2178,6 +2186,7 @@ app.post('/api/admin/account-closure-requests/:requestId/ai-review', requireAuth
       ['servicePartners', account.service_partners],
       ['liaisonLogs', account.liaison_logs],
       ['sharedTasks', account.shared_tasks],
+      ['sharedDirectory', account.shared_directory],
       ['planningRecipients', account.planning_recipients],
       ['sharedNotes', account.shared_notes],
       ['careVisits', account.care_visits],
@@ -3150,20 +3159,25 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
     let searchCity = typeof req.body?.city === 'string' ? req.body.city.trim().slice(0, 80) : '';
     let searchPostalCode = typeof req.body?.postalCode === 'string' ? req.body.postalCode.trim().slice(0, 10) : '';
     let searchCommuneCode = typeof req.body?.communeCode === 'string' ? req.body.communeCode.trim().slice(0, 5) : '';
+    let localityStatus = 'not_requested';
+    let publicDirectoryStatus = 'not_requested';
     if (offset === 0 && latitude !== null && !searchCity && !searchPostalCode) {
       try {
         const geo = await fetch(
           `https://geo.api.gouv.fr/communes?lat=${latitude}&lon=${longitude}&fields=code,nom,codesPostaux`,
           { signal: AbortSignal.timeout(3000) }
         );
-        const commune = geo.ok ? (await geo.json())[0] : null;
-        if (commune) {
-          searchCity = commune.nom;
-          searchCommuneCode = commune.code;
-          searchPostalCode = commune.codesPostaux?.[0] || '';
-        }
-      } catch {
-        // Sans commune, seuls les professionnels inscrits sont proposés.
+        if (!geo.ok) throw new Error('Service de communes indisponible');
+        const communes = await geo.json();
+        if (!Array.isArray(communes)) throw new Error('Réponse de communes invalide');
+        const commune = communes[0];
+        searchCity = typeof commune?.nom === 'string' ? commune.nom : '';
+        searchCommuneCode = typeof commune?.code === 'string' ? commune.code : '';
+        searchPostalCode = typeof commune?.codesPostaux?.[0] === 'string' ? commune.codesPostaux[0] : '';
+        localityStatus = searchCity || searchPostalCode ? 'available' : 'unavailable';
+      } catch (error) {
+        localityStatus = 'unavailable';
+        console.warn('Recherche de commune indisponible.');
       }
     }
     if (offset === 0 && (latitude === null || searchCity || searchPostalCode)) {
@@ -3219,13 +3233,14 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
           `https://recherche-entreprises.api.gouv.fr/search?${criteria}&${place}&etat_administratif=A&per_page=15`,
           { signal: AbortSignal.timeout(4000) }
         );
-        if (response.ok) {
-          const data = await response.json();
-          const found = (data.results || []).map(company => ({
+        if (!response.ok) throw new Error('Annuaire public indisponible');
+        const data = await response.json();
+        if (!Array.isArray(data?.results)) throw new Error('Réponse de l’annuaire public invalide');
+        const found = data.results.map(company => ({
             company,
             place: (company.matching_etablissements || []).find(item => item.etat_administratif === 'A')
           })).filter(item => item.place);
-          externalProfessionals.push(...found.map(({ company, place }) => {
+        externalProfessionals.push(...found.map(({ company, place }) => {
             return {
               id: `sirene-${place.siret || company.siren}`, name: company.nom_complet, activity: query,
               description: null, photoUrl: null, serviceRadiusKm: null, verified: false, external: true,
@@ -3234,9 +3249,10 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
               distanceKm: null
             };
           }));
-        }
-      } catch {
-        // L'annuaire public est facultatif : on ignore son indisponibilité.
+        publicDirectoryStatus = 'available';
+      } catch (error) {
+        publicDirectoryStatus = 'unavailable';
+        console.warn('Recherche dans l’annuaire public indisponible.');
       }
     }
     res.set('Cache-Control', 'private, no-store');
@@ -3251,6 +3267,8 @@ app.post('/api/directory/search', requireAuth, async (req, res) => {
         verified: true,
         distanceKm: row.distance_km
       })), ...externalProfessionals],
+      localityStatus,
+      publicDirectoryStatus,
       hasMore,
       nextOffset: hasMore ? offset + limit : null
     });
@@ -5844,9 +5862,9 @@ app.get('/api/planning/calendar', requireAuth, async (req, res) => {
   }
 });
 
-async function withSharedTasks(req, res, operation) {
+async function withSharedTasks(req, res, operation, resource = 'tâches partagées') {
   if (!['senior', 'aidant'].includes(req.authUser.role)) {
-    return res.status(403).json({ error: 'Accès aux tâches non autorisé.' });
+    return res.status(403).json({ error: 'Accès non autorisé.' });
   }
   if (!req.authUser.seniorId) {
     return res.status(409).json({ error: 'Sélectionnez une personne accompagnée.' });
@@ -5885,17 +5903,73 @@ async function withSharedTasks(req, res, operation) {
     return res.status(result.status).json(result.body);
   } catch (error) {
     if (client) await client.query('ROLLBACK');
-    return sendApiError(res, error, 'Impossible de gérer les tâches partagées.');
+    return sendApiError(res, error, `Impossible de gérer : ${resource}.`);
   } finally {
     if (client) client.release();
   }
 }
 
+app.get('/api/shared-directory', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
+  const { rows } = await client.query(
+    `SELECT entry.professional_user_id AS id, professional.name, professional.directory_activity AS activity,
+            professional.directory_description AS description, professional.profile_photo_url AS "photoUrl",
+            professional.service_radius_km AS "serviceRadiusKm"
+     FROM app_shared_directory entry
+     LEFT JOIN app_users professional ON professional.id = entry.professional_user_id
+       AND professional.role = 'pro' AND professional.is_active = TRUE
+       AND professional.verification_status = 'approved' AND professional.directory_listed = TRUE
+       AND professional.home_latitude IS NOT NULL AND professional.home_longitude IS NOT NULL
+     WHERE entry.senior_id = $1 ORDER BY entry.created_at, entry.professional_user_id`,
+    [seniorId]
+  );
+  return { status: 200, body: { professionals: rows } };
+}, 'annuaire partagé'));
+
+app.post('/api/shared-directory/:id', requireAuth, (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Professionnel invalide.' });
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const professional = await client.query(
+      `SELECT id FROM app_users WHERE id = $1 AND role = 'pro' AND is_active = TRUE
+       AND verification_status = 'approved' AND directory_listed = TRUE
+       AND home_latitude IS NOT NULL AND home_longitude IS NOT NULL FOR SHARE`, [req.params.id]
+    );
+    if (!professional.rows.length) return { status: 404, body: { error: 'Professionnel vérifié indisponible.' } };
+    await client.query(
+      `INSERT INTO app_shared_directory (senior_id, professional_user_id) VALUES ($1, $2)
+       ON CONFLICT (senior_id, professional_user_id) DO NOTHING`, [seniorId, req.params.id]
+    );
+    return { status: 200, body: { saved: true } };
+  }, 'annuaire partagé');
+});
+
+app.delete('/api/shared-directory/:id', requireAuth, (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Professionnel invalide.' });
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const { rows } = await client.query(
+      'DELETE FROM app_shared_directory WHERE senior_id = $1 AND professional_user_id = $2 RETURNING professional_user_id',
+      [seniorId, req.params.id]
+    );
+    return rows.length ? { status: 200, body: { deleted: true } }
+      : { status: 404, body: { error: 'Professionnel introuvable dans cet annuaire.' } };
+  }, 'annuaire partagé');
+});
+
 app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
   const { rows } = await client.query(
-    `SELECT id, title, completed, to_char(due_date, 'YYYY-MM-DD') AS "dueDate"
-     FROM app_shared_tasks WHERE senior_id = $1
-     ORDER BY completed, due_date NULLS LAST, created_at, id`, [seniorId]
+    `SELECT task.id, task.title, task.completed, to_char(task.due_date, 'YYYY-MM-DD') AS "dueDate",
+            (task.assignee_user_id IS NOT NULL) AS assigned,
+            (task.assignee_user_id IS NOT NULL AND task.assignee_user_id = $2) AS "assignedToMe",
+            assignee.name AS "assigneeName"
+     FROM app_shared_tasks task
+     LEFT JOIN app_users assignee ON assignee.id = task.assignee_user_id AND assignee.is_active = TRUE
+       AND ((assignee.role = 'senior' AND assignee.senior_id = task.senior_id)
+         OR (assignee.role = 'aidant'
+           AND (NOT assignee.is_legal_guardian OR assignee.guardian_verification_status = 'approved')
+           AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
+             WHERE link.aidant_user_id = assignee.id AND link.senior_profile_id = task.senior_id
+               AND link.suspended_at IS NULL)))
+     WHERE task.senior_id = $1
+     ORDER BY task.completed, task.due_date NULLS LAST, task.created_at, task.id`, [seniorId, req.authUser.id]
   );
   return { status: 200, body: { tasks: rows } };
 }));
@@ -5947,6 +6021,33 @@ app.delete('/api/shared-tasks/:id', requireAuth, (req, res) => {
       [req.params.id, seniorId]);
     return rows.length ? { status: 200, body: { deleted: true } }
       : { status: 404, body: { error: 'Tâche introuvable.' } };
+  });
+});
+
+app.post('/api/shared-tasks/:id/claim', requireAuth, (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Tâche invalide.' });
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const { rows } = await client.query(
+      `UPDATE app_shared_tasks SET assignee_user_id = $1
+       WHERE id = $2 AND senior_id = $3 AND assignee_user_id IS NULL AND completed = FALSE
+       RETURNING id`, [req.authUser.id, req.params.id, seniorId]
+    );
+    return rows.length ? { status: 200, body: { claimed: true } }
+      : { status: 409, body: { error: 'Cette tâche est introuvable, terminée ou déjà prise en charge. Actualisez la liste.' } };
+  });
+});
+
+app.delete('/api/shared-tasks/:id/claim', requireAuth, (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Tâche invalide.' });
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const { rows } = await client.query(
+      `UPDATE app_shared_tasks SET assignee_user_id = NULL
+       WHERE id = $1 AND senior_id = $2 AND assignee_user_id IS NOT NULL
+         AND (assignee_user_id = $3 OR $4::boolean)
+       RETURNING id`, [req.params.id, seniorId, req.authUser.id, req.authUser.role === 'senior']
+    );
+    return rows.length ? { status: 200, body: { released: true } }
+      : { status: 409, body: { error: 'Impossible de libérer cette tâche. Actualisez la liste.' } };
   });
 });
 

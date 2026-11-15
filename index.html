@@ -708,6 +708,47 @@
       letter-spacing: -0.02em;
     }
 
+    .landing-intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: center;
+      gap: 28px;
+      text-align: left;
+    }
+
+    .landing-intro .landing-brand {
+      margin-bottom: 16px;
+    }
+
+    .landing-intro h1 {
+      margin-left: 0;
+      margin-right: 0;
+    }
+
+    .landing-intro .landing-description {
+      margin: 0 0 24px;
+    }
+
+    .landing-intro .landing-preview {
+      margin: 0;
+      text-align: center;
+    }
+
+    @media (max-width: 700px) {
+      .landing-intro {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        text-align: center;
+      }
+
+      .landing-intro h1,
+      .landing-intro .landing-description,
+      .landing-intro .landing-preview {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+
     .landing-brand .brand-badge {
       width: 46px;
       height: 46px;
@@ -948,25 +989,30 @@
       }
     }
 
-        html { padding-top: 230px; } body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; box-sizing: border-box; height: 230px; padding-top: 44px; background: url(logo-generation-liaison.jpg) center bottom / contain no-repeat; background-origin: content-box; }
+        html { padding-top: 150px; } body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; z-index: -1; pointer-events: none; box-sizing: border-box; height: 150px; padding-top: 28px; background: url(logo-generation-liaison.jpg) center bottom / contain no-repeat; background-origin: content-box; }
   </style>
   <link rel="stylesheet" href="/accessibility.css">
 </head>
 <body>
   <main class="landing" id="accueil">
     <section class="landing-card" aria-labelledby="landing-title">
-      <div class="landing-brand">
-        <span class="brand-badge" aria-hidden="true">🤝</span>
-        <span>Génération Liaison</span>
+      <div class="landing-intro">
+        <div>
+          <div class="landing-brand">
+            <span class="brand-badge" aria-hidden="true">🤝</span>
+            <span>Génération Liaison</span>
+          </div>
+          <p class="landing-kicker">Le lien au quotidien</p>
+          <h1 id="landing-title">Bien entouré, mieux accompagné</h1>
+          <p class="landing-description">Un espace simple pour garder le lien et organiser le quotidien avec vos proches.</p>
+          <a class="landing-login" href="/app-mobile.html">Ouvrir l’application <span aria-hidden="true">→</span></a>
+          <a class="landing-app-link" href="#presentation">Découvrir nos propositions</a>
+        </div>
+        <figure class="landing-preview">
+          <img src="/homepage-images/apercu-carnet.png" width="520" height="360" fetchpriority="high" alt="Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant." />
+          <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
+        </figure>
       </div>
-      <p class="landing-kicker">Le lien au quotidien</p>
-      <h1 id="landing-title">Bien entouré, mieux accompagné</h1>
-      <figure class="landing-preview">
-        <img src="/homepage-images/apercu-carnet.png" width="520" height="360" fetchpriority="high" alt="Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant." />
-        <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
-      </figure>
-      <a class="landing-login" href="/app-mobile.html">Ouvrir l’application <span aria-hidden="true">→</span></a>
-      <a class="landing-app-link" href="#presentation">Découvrir nos propositions</a>
     </section>
 
     <section class="landing-info" id="presentation" aria-labelledby="presentation-title">

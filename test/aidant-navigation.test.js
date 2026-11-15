@@ -78,6 +78,7 @@ function createView(response) {
     connectedUser: null,
     currentUser: null,
     activeSeniorProfileId: '',
+    directoryLoadId: 0,
     wellbeingLoadedDate: null,
     SERVER_URL: '',
     authHeaders: () => ({}),
@@ -92,7 +93,7 @@ function createView(response) {
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
       'chargerAssistantConversation', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
-      'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees'
+      'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
     definirVueCalendrier: view => { context.calendarView = view; calls.push('definirVueCalendrier'); },

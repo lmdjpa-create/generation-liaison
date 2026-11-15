@@ -97,7 +97,8 @@ test('shared tasks are isolated by senior and require an active association', as
   assert.equal(created.status, 201);
   const id = created.data.id;
   assert.deepEqual((await request('/api/shared-tasks', options)).data.tasks,
-    [{ id, title: 'Acheter du pain', completed: false, dueDate: null }]);
+    [{ id, title: 'Acheter du pain', completed: false, dueDate: null,
+      assigned: false, assignedToMe: false, assigneeName: null }]);
   const aidantCreated = await request('/api/shared-tasks', { ...options, body: { title: 'Appeler le voisin' } });
   assert.equal(aidantCreated.status, 201);
   assert.equal((await request('/api/shared-tasks', { user: senior })).data.tasks.length, 2);
@@ -125,6 +126,46 @@ test('shared tasks are isolated by senior and require an active association', as
   assert.equal((await request(`/api/shared-tasks/${id}`, { ...options, method: 'DELETE' })).status, 403);
   assert.equal((await request(`/api/shared-tasks/${id}`, { user: senior, method: 'DELETE' })).status, 200);
   assert.equal((await request('/api/shared-tasks', { user: senior })).data.tasks.length, 0);
+});
+
+test('shared tasks can be claimed voluntarily without overwriting another person', async () => {
+  const senior = await register('task-claim-senior@example.test', 'senior');
+  const other = await register('task-claim-other@example.test', 'senior');
+  const aidant = await register('task-claim-aidant@example.test', 'aidant');
+  const second = await register('task-claim-second@example.test', 'aidant');
+  for (const user of [aidant, second]) {
+    await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+      VALUES ($1, $2, $1), ($1, $3, $1)`, [user.user.id, senior.user.seniorId, other.user.seniorId]);
+  }
+  const firstOpts = { user: aidant, seniorId: senior.user.seniorId };
+  const secondOpts = { user: second, seniorId: senior.user.seniorId };
+  const id = (await request('/api/shared-tasks', { user: senior, body: { title: 'Faire les courses' } })).data.id;
+  const claimPath = `/api/shared-tasks/${id}/claim`;
+  assert.equal((await request(claimPath, { ...firstOpts, method: 'POST' })).status, 200);
+  let task = (await request('/api/shared-tasks', firstOpts)).data.tasks[0];
+  assert.equal(task.assigned, true);
+  assert.equal(task.assignedToMe, true);
+  assert.equal(task.assigneeName, aidant.user.name);
+  task = (await request('/api/shared-tasks', secondOpts)).data.tasks[0];
+  assert.equal(task.assignedToMe, false);
+  assert.equal((await request(claimPath, { ...secondOpts, method: 'POST' })).status, 409);
+  assert.equal((await request(claimPath, { ...secondOpts, method: 'DELETE' })).status, 409);
+  assert.equal((await request(claimPath, { user: second, seniorId: other.user.seniorId, method: 'DELETE' })).status, 409);
+  assert.equal((await request(claimPath, { ...firstOpts, method: 'DELETE' })).status, 200);
+  assert.equal((await request(claimPath, { ...secondOpts, method: 'POST' })).status, 200);
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [second.user.id, senior.user.seniorId]);
+  task = (await request('/api/shared-tasks', { user: senior })).data.tasks[0];
+  assert.equal(task.assigned, true);
+  assert.equal(task.assigneeName, null);
+  assert.equal((await request(claimPath, { ...secondOpts, method: 'DELETE' })).status, 403);
+  assert.equal((await request(claimPath, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request(claimPath, { user: senior, method: 'POST' })).status, 200);
+  assert.equal((await request(`/api/shared-tasks/${id}`, {
+    user: senior, method: 'PATCH', body: { completed: true }
+  })).status, 200);
+  assert.equal((await request(claimPath, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request(claimPath, { ...firstOpts, method: 'POST' })).status, 409);
 });
 
 test('shared task dates are optional, validated, editable and ordered by urgency', async () => {
@@ -764,4 +805,91 @@ test('directory radius filters exact distances before pagination', async () => {
   for (const invalid of [{ radiusKm: 10 }, { ...body, radiusKm: 0 }, { ...body, radiusKm: 501 }]) {
     assert.equal((await request('/api/directory/search', { user: searcher, body: invalid })).status, 400);
   }
+});
+
+test('directory reports public service failures separately from searches not attempted', async () => {
+  const searcher = await register('directory-status@example.test', 'senior');
+  const originalFetch = global.fetch;
+  const id = randomUUID();
+  await db.query(`INSERT INTO app_external_professionals (id, name, activity, city, postal_code)
+    VALUES ($1, 'Extérieur', 'Testrecherche', 'Autre ville du département', '69999')`, [id]);
+  try {
+    let responseKind = 'success';
+    global.fetch = async (url, options) => {
+      if (String(url).startsWith(baseUrl)) return originalFetch(url, options);
+      if (String(url).startsWith('https://geo.api.gouv.fr/')) {
+        if (responseKind === 'geo-error') throw new Error('network');
+        if (responseKind === 'geo-empty') return new Response('[]');
+        if (responseKind === 'geo-http-error') return new Response('', { status: 503 });
+        if (responseKind === 'geo-bad-json') return new Response('{');
+        return new Response(JSON.stringify([{ nom: 'Lyon', code: '69123', codesPostaux: ['69000'] }]));
+      }
+      if (responseKind === 'http-error') return new Response('', { status: 503 });
+      if (responseKind === 'bad-json') return new Response('{');
+      if (responseKind === 'bad-shape') return new Response('{}');
+      if (responseKind === 'network-error') throw new Error('network');
+      return new Response(JSON.stringify({ results: [{ nom_complet: 'Entreprise', siren: '123',
+        matching_etablissements: [{ etat_administratif: 'A', siret: '123456' }] }] }));
+    };
+    const body = { q: 'Testrecherche', latitude: 45.75, longitude: 4.85, radiusKm: 1 };
+    const success = await request('/api/directory/search', { user: searcher, body });
+    assert.equal(success.data.localityStatus, 'available');
+    assert.equal(success.data.publicDirectoryStatus, 'available');
+    assert.ok(success.data.professionals.some(p => p.id === id && p.external && p.distanceKm === null));
+    assert.ok(success.data.professionals.some(p => p.id === 'sirene-123456'));
+    for (responseKind of ['http-error', 'bad-json', 'bad-shape', 'network-error']) {
+      const failed = await request('/api/directory/search', { user: searcher, body });
+      assert.equal(failed.status, 200);
+      assert.equal(failed.data.publicDirectoryStatus, 'unavailable');
+      assert.ok(failed.data.professionals.some(p => p.id === id));
+    }
+    for (responseKind of ['geo-error', 'geo-empty', 'geo-http-error', 'geo-bad-json']) {
+      const failed = await request('/api/directory/search', { user: searcher, body });
+      assert.equal(failed.data.localityStatus, 'unavailable');
+      assert.equal(failed.data.publicDirectoryStatus, 'not_requested');
+      assert.ok(!failed.data.professionals.some(p => p.id === id));
+    }
+    responseKind = 'success';
+    const skipped = await request('/api/directory/search', { user: searcher, body: { q: '' } });
+    assert.equal(skipped.data.publicDirectoryStatus, 'not_requested');
+    const later = await request('/api/directory/search', { user: searcher, body: { ...body, offset: 1 } });
+    assert.equal(later.data.localityStatus, 'not_requested');
+    assert.equal(later.data.publicDirectoryStatus, 'not_requested');
+    assert.ok(!later.data.professionals.some(p => p.external));
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('shared directory is scoped to an active senior association and published verified professionals', async () => {
+  const senior = await register('directory-shared-senior@example.test', 'senior');
+  const other = await register('directory-shared-other@example.test', 'senior');
+  const aidant = await register('directory-shared-aidant@example.test', 'aidant');
+  const stranger = await register('directory-shared-stranger@example.test', 'aidant');
+  const pro = await register('directory-shared-pro@example.test', 'aidant');
+  const options = { user: aidant, seniorId: senior.user.seniorId };
+  await db.query(`UPDATE app_users SET role = 'pro', verification_status = 'approved',
+    directory_listed = TRUE, directory_activity = 'Professionnel test',
+    home_latitude = 0, home_longitude = 0 WHERE id = $1`, [pro.user.id]);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1), ($1, $3, $1)`, [aidant.user.id, senior.user.seniorId, other.user.seniorId]);
+  const path = `/api/shared-directory/${pro.user.id}`;
+  assert.equal((await request('/api/shared-directory')).status, 401);
+  assert.equal((await request('/api/shared-directory', { user: aidant })).status, 409);
+  assert.equal((await request(path, { user: stranger, seniorId: senior.user.seniorId, method: 'POST' })).status, 403);
+  assert.equal((await request(`/api/shared-directory/${stranger.user.id}`, { user: senior, method: 'POST' })).status, 404);
+  assert.equal((await request(path, { user: senior, method: 'POST' })).status, 200);
+  assert.equal((await request(path, { ...options, method: 'POST' })).status, 200);
+  assert.equal((await request('/api/shared-directory', options)).data.professionals.length, 1);
+  assert.deepEqual((await request('/api/shared-directory', { user: aidant, seniorId: other.user.seniorId })).data.professionals, []);
+  assert.equal((await request(path, { user: aidant, seniorId: other.user.seniorId, method: 'DELETE' })).status, 404);
+  await db.query("UPDATE app_users SET directory_listed = FALSE WHERE id = $1", [pro.user.id]);
+  const hidden = (await request('/api/shared-directory', options)).data.professionals[0];
+  assert.equal(hidden.name, null);
+  assert.equal((await request(path, { ...options, method: 'POST' })).status, 404);
+  assert.equal((await request(path, { ...options, method: 'DELETE' })).status, 200);
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request('/api/shared-directory', options)).status, 403);
+  assert.equal((await request(path, { ...options, method: 'POST' })).status, 403);
 });
