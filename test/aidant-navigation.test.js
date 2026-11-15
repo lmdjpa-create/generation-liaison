@@ -167,6 +167,26 @@ test('aidant shortcuts pair notifications and agenda without duplicate controls'
   assert.equal((aidant.match(/onclick="ouvrirAgenda\(\)"/g) || []).length, 1);
 });
 
+test('senior selection is in settings and remains reachable from agenda and directory', () => {
+  const aidant = source.slice(source.indexOf('<div id="screen-aidant"'), source.indexOf('<!-- 🩺 3.'));
+  const settings = source.slice(source.indexOf('<div id="screen-settings"'), source.indexOf('<div id="screen-agenda"'));
+  assert.doesNotMatch(aidant, /id="aidant-senior-select"/);
+  assert.match(settings, /id="aidant-senior-select"/);
+  for (const id of ['agenda-change-senior', 'directory-change-senior']) {
+    assert.match(source, new RegExp(`id="${id}"[^>]*onclick="ouvrirChoixSenior\\(\\)"`));
+  }
+  const start = source.indexOf('    function ouvrirChoixSenior()');
+  const end = source.indexOf('    function ouvrirAgenda()', start);
+  assert.ok(start >= 0 && end > start);
+  const calls = [];
+  const context = {
+    switchScreen: screen => calls.push(screen),
+    document: { getElementById: id => ({ focus: () => calls.push(id) }) }
+  };
+  vm.runInNewContext(`${source.slice(start, end)}\nouvrirChoixSenior();`, context);
+  assert.deepEqual(calls, ['settings', 'aidant-senior-select']);
+});
+
 test('aidant sections expand to full-width tiles and collapse again', () => {
   const classes = new Set();
   const details = {

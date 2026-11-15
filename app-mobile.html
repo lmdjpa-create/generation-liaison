@@ -696,10 +696,6 @@
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
     </div>
-    <section class="form-card" id="aidant-senior-selector" style="display:none;">
-        <label for="aidant-senior-select">Profil senior</label>
-        <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
-    </section>
     <section class="form-card" id="aidant-no-senior-panel" style="display:none;">
         <h3>Aucun profil senior associé</h3>
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.</p>
@@ -1001,6 +997,10 @@
     </section>
 <section class="form-card" style="text-align:left;" id="settings-aidant-links">
         <h3>Mes profils seniors</h3>
+        <div id="aidant-senior-selector" style="display:none;">
+            <label for="aidant-senior-select">Profil senior</label>
+            <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
+        </div>
         <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior pour lui envoyer une invitation à découvrir l’application. S’il ne possède pas encore de compte, faites une nouvelle demande après son inscription. Il devra l’accepter avant que vous puissiez consulter son profil.</p>
         <form id="aidant-link-form" class="form-grid">
             <label for="aidant-link-email">Adresse e-mail du senior</label>
@@ -1159,7 +1159,7 @@
 <div id="screen-agenda" class="screen-container" style="background-color:var(--senior-bg);">
     <div class="header-mobile"><h3 style="margin:0;">Agenda</h3><span>Vos rendez-vous autorisés, heure de Paris</span></div>
     <p id="agenda-senior-context" class="helper-text" hidden></p>
-    <button id="agenda-change-senior" type="button" onclick="switchScreen('aidant')" hidden>Changer de personne accompagnée</button>
+    <button id="agenda-change-senior" type="button" onclick="ouvrirChoixSenior()" hidden>Changer de personne accompagnée</button>
     <div class="calendar-toolbar" aria-label="Vue de l’agenda">
         <button id="calendar-day" type="button" aria-pressed="true">Jour</button>
         <button id="calendar-week" type="button" aria-pressed="false">Semaine</button>
@@ -1233,7 +1233,7 @@
         <span style="font-size:0.85rem;opacity:0.9;">Les professionnels dont le dossier est vérifié apparaissent en priorité.</span>
     </div>
     <p id="directory-senior-context" class="helper-text" hidden></p>
-    <button id="directory-change-senior" type="button" onclick="switchScreen('aidant')" hidden>Changer de personne accompagnée</button>
+    <button id="directory-change-senior" type="button" onclick="ouvrirChoixSenior()" hidden>Changer de personne accompagnée</button>
     <section class="form-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔎</span>Chercher un professionnel</summary>
@@ -1752,7 +1752,7 @@
                 context.textContent = activeSeniorProfileId && selected?.value === activeSeniorProfileId
                     ? `Personne accompagnée : ${selected.text}`
                     : hasSenior
-                        ? 'Sélectionnez une personne accompagnée dans votre espace aidant.'
+                        ? 'Sélectionnez une personne accompagnée dans vos réglages.'
                         : 'Aucune personne accompagnée pour le moment : les rendez-vous apparaîtront ici dès qu’un senior sera associé à votre compte.';
             }
         }
@@ -1807,6 +1807,11 @@
     function ouvrirNotifications() {
         if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
         switchScreen('messages');
+    }
+
+    function ouvrirChoixSenior() {
+        switchScreen('settings');
+        document.getElementById('aidant-senior-select').focus();
     }
 
     function ouvrirAgenda() {
