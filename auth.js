@@ -113,6 +113,7 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS sms_notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE,
           ADD COLUMN IF NOT EXISTS email_notifications_consent_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS sms_notifications_consent_at TIMESTAMPTZ;
+        ALTER TABLE app_users ADD COLUMN IF NOT EXISTS task_reminders_enabled BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS planning_google_sync_enabled BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE app_users
@@ -638,6 +639,12 @@ function createAuthService(pool) {
         ALTER TABLE app_shared_tasks ADD COLUMN IF NOT EXISTS assignee_user_id UUID REFERENCES app_users(id) ON DELETE SET NULL;
         CREATE INDEX IF NOT EXISTS app_shared_tasks_senior_idx
           ON app_shared_tasks (senior_id, created_at);
+        CREATE TABLE IF NOT EXISTS app_task_reminders (
+          task_id UUID NOT NULL REFERENCES app_shared_tasks(id) ON DELETE CASCADE,
+          user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          due_date DATE NOT NULL,
+          PRIMARY KEY (task_id, user_id, due_date)
+        );
         CREATE TABLE IF NOT EXISTS app_shared_directory (
           senior_id UUID NOT NULL REFERENCES senior_profiles(id) ON DELETE CASCADE,
           professional_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,

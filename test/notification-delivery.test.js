@@ -6,7 +6,7 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'notification-delivery.js'), 'utf8');
 
-async function deliverSms(enabled) {
+async function deliverSms(enabled, reminderStillValid = null) {
   const sends = [];
   const updates = [];
   let tick;
@@ -19,6 +19,10 @@ async function deliverSms(enabled) {
     channel: 'sms', attempts: 0, title: 'Nouveau message',
     notification_phone: '+33612345678', sms_notifications_enabled: enabled
   };
+  if (reminderStillValid !== null) {
+    row.notification_type = 'task_reminder';
+    row.entity_id = 'task';
+  }
   let claimed = false;
   const pool = {
     async connect() {
@@ -35,6 +39,9 @@ async function deliverSms(enabled) {
       };
     },
     async query(sql, params) {
+      if (sql.includes('FROM app_shared_tasks task')) {
+        return { rows: reminderStillValid ? [{}] : [] };
+      }
       updates.push(params);
       return { rows: [] };
     }
@@ -70,6 +77,12 @@ test('SMS notification uses an authenticated app link without including the mess
 
 test('SMS is not sent when the recipient has not opted in', async () => {
   const { sends, updates } = await deliverSms(false);
+  assert.equal(sends.length, 0);
+  assert.equal(updates[0][1], 'skipped');
+});
+
+test('queued task reminders are skipped after access or eligibility changes', async () => {
+  const { sends, updates } = await deliverSms(true, false);
   assert.equal(sends.length, 0);
   assert.equal(updates[0][1], 'skipped');
 });

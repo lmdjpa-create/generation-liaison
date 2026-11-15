@@ -6,6 +6,7 @@ const delivery = require('../notification-delivery');
 const { TERMS_VERSION, createAuthService } = require('../auth');
 const { assertScheduleAvailable, lockScheduleParticipants } = require('../schedule-conflicts');
 const { randomUUID } = require('node:crypto');
+const { createDueTaskReminder } = require('../task-reminders');
 
 const adminCode = 'test-administrator-code-at-least-32-characters';
 let db;
@@ -172,6 +173,65 @@ test('a professional photo is required for approval and is visible only to saved
   const photoPath = `${baseUrl}/api/contacts/${professional.user.id}/photo`;
   assert.equal((await fetch(photoPath, { headers: { Authorization: `Bearer ${senior.token}` } })).status, 200);
   assert.equal((await fetch(photoPath, { headers: { Authorization: `Bearer ${stranger.token}` } })).status, 404);
+});
+
+test('task reminders are opt-in, due in Paris, deduplicated and limited to active associations', async () => {
+  const senior = await register('reminder-senior@example.test', 'senior');
+  const aidant = await register('reminder-aidant@example.test', 'aidant');
+  const other = await register('reminder-other@example.test', 'aidant');
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1), ($3, $2, $3)`, [aidant.user.id, senior.user.seniorId, other.user.id]);
+  const path = '/api/account/task-reminders';
+  assert.equal((await request(path, { user: aidant })).data.enabled, false);
+  assert.equal((await request(path, { user: senior })).status, 403);
+  assert.equal((await request(path, { user: aidant, method: 'PUT', body: { enabled: 'yes' } })).status, 400);
+  assert.equal((await request(path, { user: aidant, method: 'PUT', body: { enabled: true } })).status, 200);
+  const task = await request('/api/shared-tasks', {
+    user: senior, body: { title: 'Courses', dueDate: '2028-02-29' }
+  });
+  const pool = new pg.Pool();
+  const sent = [];
+  const notify = async (client, userId, type, title, message, entityType, entityId) =>
+    sent.push({ userId, type, title, message, entityType, entityId });
+  assert.equal(await createDueTaskReminder(pool, notify, new Date('2028-02-29T07:59:00Z')), false);
+  await assert.rejects(createDueTaskReminder(pool, async () => { throw new Error('insertion failed'); },
+    new Date('2028-02-29T08:00:00Z')), /insertion failed/);
+  assert.equal(await createDueTaskReminder(pool, notify, new Date('2028-02-29T08:00:00Z')), true);
+  assert.equal(await createDueTaskReminder(pool, notify, new Date('2028-02-29T08:01:00Z')), false);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].userId, aidant.user.id);
+  assert.equal(sent[0].entityId, task.data.id);
+  assert.doesNotMatch(sent[0].message, /Courses/);
+  await request(path, { user: other, method: 'PUT', body: { enabled: true } });
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [other.user.id, senior.user.seniorId]);
+  assert.equal(await createDueTaskReminder(pool, notify, new Date('2028-02-29T10:00:00Z')), false);
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = NULL
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [other.user.id, senior.user.seniorId]);
+  await request(`/api/shared-tasks/${task.data.id}/claim`, {
+    user: aidant, seniorId: senior.user.seniorId, method: 'POST'
+  });
+  assert.equal(await createDueTaskReminder(pool, notify, new Date('2028-02-29T10:00:00Z')), false);
+  await request(`/api/shared-tasks/${task.data.id}`, { user: senior, method: 'PATCH', body: { completed: true } });
+  assert.equal(await createDueTaskReminder(pool, notify, new Date('2028-02-29T10:00:00Z')), false);
+});
+
+test('unread message counts exclude inaccessible contacts and other accounts', async () => {
+  const senior = await register('summary-senior@example.test', 'senior');
+  const aidant = await register('summary-aidant@example.test', 'aidant');
+  const other = await register('summary-other@example.test', 'aidant');
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  await db.query(`INSERT INTO app_private_messages (id, sender_id, recipient_id, body)
+    VALUES ($1, $2, $3, 'test'), ($4, $5, $3, 'inaccessible')`,
+  [randomUUID(), senior.user.id, aidant.user.id, randomUUID(), other.user.id]);
+  const path = '/api/messages/unread-count';
+  assert.equal((await request(path)).status, 401);
+  assert.equal((await request(path, { user: aidant })).data.count, 1);
+  assert.equal((await request(path, { user: senior })).data.count, 0);
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request(path, { user: aidant })).data.count, 0);
 });
 
 test('shared tasks are isolated by senior and require an active association', async () => {

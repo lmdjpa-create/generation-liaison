@@ -10,6 +10,7 @@ const notificationDelivery = require('./notification-delivery');
 const { isAllowedWebPushSubscription } = require('./push-subscriptions');
 const googleCalendar = require('./google-calendar');
 const { assertLegacyBookingsSafeForLink, assertScheduleAvailable, lockScheduleParticipants } = require('./schedule-conflicts');
+const { startTaskReminderWorker } = require('./task-reminders');
 const { createPlanningGoogleSync } = require('./planning-google-sync');
 const { generateReply, generateWellbeingAssessment } = require('./ai-assistant');
 const {
@@ -4263,6 +4264,39 @@ app.post('/api/senior-links/removals/:id/confirm', requireAuth, async (req, res)
   }
 });
 
+app.get('/api/messages/unread-count', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT count(*)::integer AS count
+       FROM app_private_messages message
+       JOIN app_users sender ON sender.id = message.sender_id AND sender.is_active = TRUE
+       WHERE message.recipient_id = $1 AND message.read_at IS NULL
+         AND (
+           (EXISTS (SELECT 1 FROM app_user_contacts contact
+             WHERE contact.user_id = $1 AND contact.contact_user_id = sender.id)
+            AND EXISTS (SELECT 1 FROM app_user_contacts contact
+             WHERE contact.user_id = sender.id AND contact.contact_user_id = $1))
+           OR EXISTS (
+             SELECT 1 FROM app_aidant_senior_links link
+             JOIN app_users senior ON senior.senior_id = link.senior_profile_id
+               AND senior.role = 'senior' AND senior.is_active = TRUE
+             JOIN app_users aidant ON aidant.id = link.aidant_user_id
+               AND aidant.role = 'aidant' AND aidant.is_active = TRUE
+               AND (NOT aidant.is_legal_guardian OR aidant.guardian_verification_status = 'approved')
+             WHERE link.suspended_at IS NULL AND
+               ((senior.id = $1 AND aidant.id = sender.id) OR
+                (senior.id = sender.id AND aidant.id = $1))
+           )
+         )`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ count: rows[0].count });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de compter les messages non lus.');
+  }
+});
+
 app.get('/api/messages/contacts', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -6084,6 +6118,29 @@ app.delete('/api/shared-directory/:id', requireAuth, (req, res) => {
   }, 'annuaire partagé');
 });
 
+app.get('/api/account/task-reminders', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'aidant') return res.status(403).json({ error: 'Réglage réservé aux aidants.' });
+  try {
+    const { rows } = await pool.query('SELECT task_reminders_enabled FROM app_users WHERE id = $1', [req.authUser.id]);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ enabled: rows[0].task_reminders_enabled });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les rappels de tâches.');
+  }
+});
+
+app.put('/api/account/task-reminders', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'aidant') return res.status(403).json({ error: 'Réglage réservé aux aidants.' });
+  if (typeof req.body?.enabled !== 'boolean') return res.status(400).json({ error: 'Choisissez si les rappels sont activés.' });
+  try {
+    await pool.query('UPDATE app_users SET task_reminders_enabled = $1 WHERE id = $2', [req.body.enabled, req.authUser.id]);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ enabled: req.body.enabled });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier les rappels de tâches.');
+  }
+});
+
 app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
   const { rows } = await client.query(
     `SELECT task.id, task.title, task.completed, to_char(task.due_date, 'YYYY-MM-DD') AS "dueDate",
@@ -7014,6 +7071,7 @@ if (require.main === module) {
   authService.ensureSchema()
     .then(() => {
       notificationDelivery.startDeliveryWorker(pool);
+      startTaskReminderWorker(pool, insertAppNotification);
       startDirectoryBookingCleanup();
       startPlanningGoogleSync();
       startAssistantConversationCleanup();

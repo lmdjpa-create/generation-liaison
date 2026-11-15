@@ -193,6 +193,23 @@ async function sendPush(delivery) {
 }
 
 async function deliver(delivery) {
+  if (delivery.notification_type === 'task_reminder') {
+    const { rows } = await delivery.pool.query(
+      `SELECT 1 FROM app_shared_tasks task
+       JOIN app_aidant_senior_links link ON link.senior_profile_id = task.senior_id
+         AND link.aidant_user_id = $1 AND link.suspended_at IS NULL
+       JOIN app_users aidant ON aidant.id = link.aidant_user_id AND aidant.is_active = TRUE
+         AND aidant.task_reminders_enabled = TRUE
+         AND (NOT aidant.is_legal_guardian OR aidant.guardian_verification_status = 'approved')
+       JOIN app_users senior ON senior.senior_id = task.senior_id
+         AND senior.role = 'senior' AND senior.is_active = TRUE
+       WHERE task.id = $2 AND NOT task.completed
+         AND task.due_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris')::date
+         AND (task.assignee_user_id IS NULL OR task.assignee_user_id = aidant.id)`,
+      [delivery.user_id, delivery.entity_id]
+    );
+    if (!rows.length) return false;
+  }
   if (delivery.channel === 'push') {
     return sendPush(delivery);
   }
@@ -232,6 +249,7 @@ async function claimDelivery(pool) {
     const { rows } = await client.query(
       `SELECT delivery.id, delivery.notification_id, delivery.user_id,
               delivery.channel, delivery.attempts, notification.title,
+              notification.notification_type, notification.entity_id,
               account.email, account.notification_phone, account.email_notifications_enabled,
               account.sms_notifications_enabled
        FROM app_notification_deliveries delivery

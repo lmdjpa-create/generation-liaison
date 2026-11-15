@@ -93,6 +93,8 @@
         .visit-notes-button { width: 100%; margin-top: 10px; padding: 11px 12px; border: 1px solid #2c3e50; border-radius: 8px; color: #2c3e50; background: #fff; font-weight: bold; cursor: pointer; }
         .visit-progress button:disabled, .form-card button:disabled { opacity: 0.55; cursor: not-allowed; }
         .form-card { margin: 14px 0; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.05); text-align: left; }
+        #aidant-daily-summary p, #senior-daily-summary p, #pro-daily-summary p { white-space: pre-line; overflow-wrap: anywhere; }
+        #senior-daily-summary p:not(.helper-text) { font-size: 1.1rem; }
         .senior-disclosure > summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
         #screen-aidant .senior-disclosure > summary { padding: 16px; border-radius: 12px; background: #2c3e50; color: white; }
         .senior-explanation > summary { color: #155e48; }
@@ -543,6 +545,17 @@
             </div>
             <button type="button" onclick="switchScreen('agenda')">Voir l’agenda</button>
         </section>
+        <section class="form-card" id="senior-daily-summary" aria-labelledby="senior-daily-summary-title">
+            <h2 id="senior-daily-summary-title">Aujourd’hui</h2>
+            <p class="helper-text">Voici les nouvelles disponibles dans l’application. Ce tableau ne surveille pas votre sécurité.</p>
+            <p id="senior-summary-visit" role="status">Chargement des rendez-vous…</p>
+            <p id="senior-summary-tasks" role="status">Chargement des tâches…</p>
+            <p id="senior-summary-messages" role="status">Chargement des messages…</p>
+            <p id="senior-summary-notifications" role="status">Chargement des notifications…</p>
+            <p id="senior-summary-following" role="status">Chargement du suivi des interventions…</p>
+            <p id="senior-summary-services" role="status">Chargement des services…</p>
+            <p id="senior-summary-logs" role="status">Chargement du fil d’actualité…</p>
+        </section>
         <div class="action-tiles">
             <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🩺</span>Trouver un professionnel</button>
             <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-senior" hidden></span></button>
@@ -639,7 +652,7 @@
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
                 <p class="helper-text">Chacun peut se proposer pour une tâche. Vous pouvez libérer une tâche si la personne n’est plus disponible ; cela n’envoie pas de notification.</p>
-                <p class="helper-text">Dates selon l’heure de Paris ; aucun rappel n’est envoyé.</p>
+                <p class="helper-text">Dates selon l’heure de Paris. Les aidants peuvent activer leurs propres rappels.</p>
                 </div>
             </details>
             <form id="senior-tasks-form" class="form-grid">
@@ -718,6 +731,18 @@
             <p class="next-visit-text">Espace Proches 👨‍👩‍👧‍👦</p>
         </div>
     </div>
+    <section class="form-card" id="aidant-daily-summary" aria-labelledby="aidant-daily-summary-title" hidden>
+        <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
+        <p class="helper-text">Aperçu des informations accessibles pour ce proche et des rendez-vous visibles dans votre agenda. Les messages et notifications concernent tous vos contacts. Ce tableau ne surveille pas la sécurité de la personne.</p>
+        <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
+        <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
+        <p id="aidant-summary-messages" role="status">Chargement des messages…</p>
+        <p id="aidant-summary-notifications" role="status">Chargement des notifications…</p>
+        <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
+        <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
+        <p id="aidant-summary-services" role="status">Chargement des services…</p>
+        <p id="aidant-summary-logs" role="status">Chargement du fil d’actualité…</p>
+    </section>
     <div id="aidant-shortcuts" class="action-tiles">
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
@@ -736,8 +761,8 @@
         <details class="senior-disclosure senior-explanation" data-help-for="#aidant-tasks-refresh">
           <summary>Explications</summary>
           <div class="gl-help-bubble">
-        <p class="helper-text">Vous pouvez vous proposer pour une tâche et vous retirer ensuite. Le senior peut aussi libérer une tâche. Aucune notification n’est envoyée.</p>
-        <p class="helper-text">Dates selon l’heure de Paris ; aucun rappel n’est envoyé.</p>
+        <p class="helper-text">Vous pouvez vous proposer pour une tâche et vous retirer ensuite. Le senior peut aussi libérer une tâche.</p>
+        <p class="helper-text">Dates selon l’heure de Paris. Les rappels facultatifs se règlent dans Plus.</p>
           </div>
         </details>
         <form id="aidant-tasks-form" class="form-grid">
@@ -827,6 +852,15 @@
         <h3 style="margin:0;">Espace intervenants <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h3>
         <span style="font-size:0.85rem; opacity:0.9;">Espaces séparés : soins et services du quotidien</span>
     </div>
+    <section class="form-card" id="pro-daily-summary" aria-labelledby="pro-daily-summary-title">
+        <h3 id="pro-daily-summary-title">Aujourd’hui</h3>
+        <p class="helper-text">Aperçu des informations accessibles à votre compte.</p>
+        <p id="pro-summary-visit" role="status">Chargement des rendez-vous…</p>
+        <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
+        <p id="pro-summary-services" role="status">Chargement des services…</p>
+        <p id="pro-summary-messages" role="status">Chargement des messages…</p>
+        <p id="pro-summary-notifications" role="status">Chargement des notifications…</p>
+    </section>
     <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
         <section class="form-card">
         <h4>Demandes reçues</h4>
@@ -1075,6 +1109,15 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
+        <details id="aidant-task-reminders">
+            <summary>Rappels des tâches</summary>
+            <p class="helper-text">Si vous les activez, un rappel est créé à partir de 9 h, heure de Paris, pour les tâches du jour non terminées dont vous vous chargez ou sans volontaire. Il concerne tous vos profils associés. La réception hors de l’application dépend des notifications activées sur vos appareils ou de vos choix SMS et e-mail.</p>
+            <form id="aidant-task-reminders-form" class="form-grid">
+                <label class="notification-choice"><input type="checkbox" id="aidant-task-reminders-enabled" disabled> Activer les rappels de tâches</label>
+                <button type="submit" id="aidant-task-reminders-save" disabled>Enregistrer les rappels</button>
+            </form>
+            <p id="aidant-task-reminders-status" class="helper-text" role="status"></p>
+        </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
         <button type="button" class="enable-push-button" data-role="pro" disabled>Activer les notifications sur cet appareil</button>
@@ -1392,6 +1435,8 @@
     let nextVisitEvent = null;
     let nextVisitMessage = 'Chargement du prochain rendez-vous…';
     let sharedTasksLoadId = 0;
+    let aidantSummaryLoadId = 0;
+    let aidantSummaryContext = '';
     let calendarRequestsLoadId = 0;
     let calendarSettingsLoadId = 0;
     let directoryBookingsLoadId = 0;
@@ -1794,6 +1839,7 @@
             chargerCorrespondants(connectedUser.role);
         }
         if (screenName === 'aidant' && activeSeniorProfileId) {
+            chargerSyntheseAidant();
             chargerLogs();
             chargerCheckinsPartages();
             chargerSuiviPartage('aidant');
@@ -1801,12 +1847,14 @@
             chargerServicesFamiliaux('aidant');
         } else if (screenName === 'senior') {
             chargerProchainRendezVous();
+            chargerSyntheseSenior();
             chargerCheckinBienEtre();
             chargerSuiviPartage('senior');
             chargerConsentements('senior');
             chargerServicesFamiliaux('senior');
             chargerAssistantConversation();
         } else if (screenName === 'pro') {
+            chargerSynthesePro();
             chargerPlanningPro();
             chargerPlanningServices();
             chargerDirectoryProfile();
@@ -2004,6 +2052,7 @@
     }
 
     async function setAuthenticatedView(user) {
+        document.getElementById('aidant-daily-summary').hidden = true;
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         nextVisitLoadId++;
@@ -2017,6 +2066,11 @@
         if (connectedUser?.id !== user.id) {
             wellbeingLoadedDate = null;
             openMessageConversations = {};
+            document.getElementById('aidant-task-reminders').open = false;
+            document.getElementById('aidant-task-reminders-enabled').disabled = true;
+            document.getElementById('aidant-task-reminders-enabled').checked = false;
+            document.getElementById('aidant-task-reminders-save').disabled = true;
+            document.getElementById('aidant-task-reminders-status').textContent = '';
         }
         connectedUser = user;
         currentUser = user;
@@ -2101,6 +2155,7 @@
                 console.error('Chargement des profils seniors impossible :', error);
             }
             document.getElementById('aidant-senior-selector').style.display = hasSenior ? 'block' : 'none';
+            document.getElementById('aidant-daily-summary').hidden = !hasSenior;
             document.getElementById('aidant-no-senior-panel').style.display = hasSenior ? 'none' : 'block';
             document.getElementById('aidant-senior-content').style.display = hasSenior ? 'grid' : 'none';
             document.querySelector('#aidant-no-senior-panel h3').textContent = window.generationLiaisonTranslate(
@@ -2138,6 +2193,7 @@
                 chargerPlanningPro();
                 chargerPlanningServices();
                 chargerDirectoryBookings(true);
+                if (document.getElementById('screen-pro').classList.contains('active')) chargerSynthesePro();
             }
             if (connectedUser.role === 'senior' || (connectedUser.role === 'aidant' && activeSeniorProfileId)) {
                 chargerSuiviPartage(connectedUser.role);
@@ -2145,11 +2201,13 @@
             }
             if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
                 chargerCheckinsPartages();
+                if (document.getElementById('screen-aidant').classList.contains('active')) chargerSyntheseAidant();
             }
             if (connectedUser.role === 'senior') {
                 chargerAssistantConversation();
                 if (document.getElementById('screen-senior').classList.contains('active')) {
                     chargerProchainRendezVous();
+                    chargerSyntheseSenior();
                 }
                 if (wellbeingLoadedDate !== dateCheckinBienEtre()) {
                     afficherAccueilSenior(connectedUser);
@@ -4343,6 +4401,118 @@
         return `${time} · ${type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ' (en attente)' : ''}${event.conflict ? ' ⚠ chevauchement' : ''}`;
     }
 
+    function chargerSyntheseAidant() {
+        return chargerSyntheseQuotidienne('aidant');
+    }
+
+    function chargerSyntheseSenior() {
+        return chargerSyntheseQuotidienne('senior');
+    }
+
+    function chargerSynthesePro() {
+        return chargerSyntheseQuotidienne('pro');
+    }
+
+    async function chargerSyntheseQuotidienne(role) {
+        if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId)) return;
+        const loadId = ++aidantSummaryLoadId;
+        const userId = connectedUser.id;
+        const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
+        const fieldKeys = role === 'pro'
+            ? ['visit', 'demands', 'services', 'messages', 'notifications']
+            : ['visit', 'tasks', 'messages', 'notifications', 'following', 'services', 'logs']
+                .concat(role === 'aidant' ? ['checkins'] : []);
+        const fields = Object.fromEntries(fieldKeys.map(key => [key, document.getElementById(`${role}-summary-${key}`)]));
+        const context = `${role}:${userId}:${seniorId}`;
+        const t = value => window.generationLiaisonTranslate(value);
+        if (aidantSummaryContext !== context) {
+            aidantSummaryContext = context;
+            Object.values(fields).forEach(field => { field.textContent = t('Chargement…'); });
+        }
+        const today = dateCheckinBienEtre();
+        const tomorrow = new Date(`${today}T00:00:00Z`);
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        const requests = {
+            visit: `/api/planning/calendar?start=${today}&end=${tomorrow.toISOString().slice(0, 10)}`,
+            messages: '/api/messages/unread-count',
+            notifications: '/api/notifications',
+            services: `/api/planning/services/bookings?date=${today}`
+        };
+        if (role === 'pro') {
+            requests.demands = '/api/directory/bookings';
+        } else {
+            requests.tasks = '/api/shared-tasks';
+            requests.following = '/api/planning/following';
+            requests.logs = '/api/logs/all';
+        }
+        if (role === 'aidant') requests.checkins = '/api/wellbeing/shared-check-ins';
+        const keys = Object.keys(requests);
+        const results = Object.fromEntries((await Promise.allSettled(
+            keys.map(key => planningRequest(requests[key]))
+        )).map((result, index) => [keys[index], result]));
+        if (loadId !== aidantSummaryLoadId || connectedUser?.id !== userId ||
+            connectedUser?.role !== role || (role === 'aidant' && activeSeniorProfileId !== seniorId)) return;
+        const todayDate = value => value && Number.isFinite(new Date(value).getTime()) && calendarEventDate(value) === today;
+        if (results.visit.status === 'fulfilled') {
+            const events = results.visit.value.events;
+            const labels = events.slice(0, 3).map(event => calendarEventLabel(event));
+            const extra = events.length > 3 ? `\n${t('Autres rendez-vous')} : ${events.length - 3}` : '';
+            fields.visit.textContent = `${t('Rendez-vous aujourd’hui')} : ${events.length}${labels.length ? `\n${labels.join('\n')}` : ''}${extra}`;
+        } else {
+            fields.visit.textContent = t('Impossible de charger les rendez-vous.');
+        }
+        if (role !== 'pro' && results.tasks.status === 'fulfilled') {
+            const open = results.tasks.value.tasks.filter(task => !task.completed);
+            const due = open.filter(task => task.dueDate && task.dueDate <= today);
+            fields.tasks.textContent = role === 'senior'
+                ? `${t('Tâches à faire')} : ${open.length} · ${t('Pour aujourd’hui ou en retard')} : ${due.length}`
+                : `${t('Tâches à faire')} : ${open.length} · ${t('Pour aujourd’hui ou en retard')} : ${due.length} · ${t('Sans volontaire')} : ${open.filter(task => !task.assigned).length}`;
+        } else if (role !== 'pro') {
+            fields.tasks.textContent = t('Impossible de charger les tâches.');
+        }
+        fields.messages.textContent = results.messages.status === 'fulfilled'
+            ? `${t('Messages non lus')} : ${results.messages.value.count}`
+            : t('Impossible de charger les messages.');
+        fields.notifications.textContent = results.notifications.status === 'fulfilled'
+            ? `${t('Notifications non lues parmi les 50 dernières')} : ${results.notifications.value.unreadCount}`
+            : t('Impossible de charger les notifications.');
+        if (role !== 'pro' && results.following.status === 'fulfilled') {
+            const visits = results.following.value.visits.filter(item => todayDate(item.scheduledAt) ||
+                progressArray(item.progress).some(event => todayDate(event.createdAt)));
+            const updates = visits.flatMap(item => progressArray(item.progress)
+                .filter(event => todayDate(event.createdAt))
+                .map(event => ({ ...event, visitType: item.visitType })))
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const last = updates[0];
+            fields.following.textContent = `${t('Interventions du jour ou actualisées aujourd’hui')} : ${visits.length}${last ? `\n${t('Dernière étape')} : ${last.visitType} — ${t(stageLabel(last.type))}` : ''}`;
+        } else if (role !== 'pro') {
+            fields.following.textContent = t('Impossible de charger le suivi des interventions.');
+        }
+        if (results.services.status === 'fulfilled') {
+            const bookings = results.services.value.bookings;
+            fields.services.textContent = `${t('Services du jour')} : ${bookings.length} · ${t('En attente de réponse')} : ${bookings.filter(item => item.status === 'requested').length} · ${t('Annulés')} : ${bookings.filter(item => item.status === 'cancelled').length}`;
+        } else {
+            fields.services.textContent = t('Impossible de charger les services.');
+        }
+        if (role !== 'pro' && results.logs.status === 'fulfilled') {
+            const logs = results.logs.value.filter(item => todayDate(item.created_at));
+            const last = logs[0]?.content || '';
+            fields.logs.textContent = `${t('Nouvelles du jour dans les 100 dernières')} : ${logs.length}${last ? `\n${t('Dernière nouvelle')} : ${last.slice(0, 180)}${last.length > 180 ? '…' : ''}` : ''}`;
+        } else if (role !== 'pro') {
+            fields.logs.textContent = t('Impossible de charger le fil d’actualité.');
+        }
+        if (role === 'aidant') {
+            fields.checkins.textContent = results.checkins.status === 'fulfilled'
+                ? `${t('Nouvelles de bien-être partagées aujourd’hui (30 dernières)')} : ${results.checkins.value.checkins.filter(item => todayDate(item.createdAt)).length}`
+                : t('Impossible de charger les nouvelles de bien-être.');
+        }
+        if (role === 'pro') {
+            fields.demands.textContent = results.demands.status === 'fulfilled'
+                ? `${t('Demandes de rendez-vous en attente')} : ${results.demands.value.bookings.filter(item => item.status === 'pending').length}`
+                : t('Impossible de charger les demandes de rendez-vous.');
+        }
+    }
+
     function afficherProchainRendezVous() {
         const text = document.getElementById('senior-next-visit-text');
         if (!nextVisitEvent) {
@@ -6292,6 +6462,53 @@
             })
             .catch(error => showToast(error.message, false));
     }
+
+    document.getElementById('aidant-task-reminders').addEventListener('toggle', async event => {
+        if (!event.currentTarget.open || connectedUser?.role !== 'aidant') return;
+        const userId = connectedUser.id;
+        const checkbox = document.getElementById('aidant-task-reminders-enabled');
+        const save = document.getElementById('aidant-task-reminders-save');
+        const status = document.getElementById('aidant-task-reminders-status');
+        checkbox.disabled = true;
+        save.disabled = true;
+        status.textContent = window.generationLiaisonTranslate('Chargement des rappels…');
+        try {
+            const result = await planningRequest('/api/account/task-reminders');
+            if (connectedUser?.id !== userId) return;
+            checkbox.checked = result.enabled;
+            checkbox.disabled = false;
+            save.disabled = false;
+            status.textContent = '';
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Impossible de charger les rappels de tâches.';
+        }
+    });
+
+    document.getElementById('aidant-task-reminders-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        if (connectedUser?.role !== 'aidant') return;
+        const userId = connectedUser.id;
+        const checkbox = document.getElementById('aidant-task-reminders-enabled');
+        const save = document.getElementById('aidant-task-reminders-save');
+        const status = document.getElementById('aidant-task-reminders-status');
+        checkbox.disabled = true;
+        save.disabled = true;
+        try {
+            const result = await planningRequest('/api/account/task-reminders', {
+                method: 'PUT', body: { enabled: checkbox.checked }
+            });
+            if (connectedUser?.id !== userId) return;
+            checkbox.checked = result.enabled;
+            status.textContent = window.generationLiaisonTranslate('Choix des rappels enregistré.');
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Impossible de modifier les rappels de tâches.';
+        } finally {
+            if (connectedUser?.id === userId) {
+                checkbox.disabled = false;
+                save.disabled = false;
+            }
+        }
+    });
 
     function configurerTuilesAidant() {
         document.querySelectorAll('#aidant-senior-content > .form-card > details:not(.senior-explanation)').forEach(details => {
