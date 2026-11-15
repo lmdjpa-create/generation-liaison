@@ -584,14 +584,12 @@
         </section>
         <section class="form-card" id="senior-daily-summary" aria-labelledby="senior-daily-summary-title">
             <h2 id="senior-daily-summary-title">Aujourd’hui</h2>
-            <p class="helper-text">Voici les nouvelles disponibles dans l’application. Ce tableau ne surveille pas votre sécurité.</p>
             <p id="senior-summary-visit" role="status">Chargement des rendez-vous…</p>
             <p id="senior-summary-tasks" role="status">Chargement des tâches…</p>
             <p id="senior-summary-messages" role="status">Chargement des messages…</p>
             <p id="senior-summary-notifications" role="status">Chargement des notifications…</p>
             <p id="senior-summary-following" role="status">Chargement du suivi des interventions…</p>
             <p id="senior-summary-services" role="status">Chargement des services…</p>
-            <p id="senior-summary-logs" role="status">Chargement du fil d’actualité…</p>
         </section>
         <div class="action-tiles">
             <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🩺</span>Trouver un professionnel</button>
@@ -831,7 +829,6 @@
     </div>
     <section class="form-card" id="aidant-daily-summary" aria-labelledby="aidant-daily-summary-title" hidden>
         <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
-        <p class="helper-text">Aperçu des informations accessibles pour ce proche et des rendez-vous visibles dans votre agenda. Les messages et notifications concernent tous vos contacts. Ce tableau ne surveille pas la sécurité de la personne.</p>
         <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
         <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
         <p id="aidant-summary-messages" role="status">Chargement des messages…</p>
@@ -839,7 +836,6 @@
         <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
         <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
         <p id="aidant-summary-services" role="status">Chargement des services…</p>
-        <p id="aidant-summary-logs" role="status">Chargement du fil d’actualité…</p>
     </section>
     <div id="aidant-shortcuts" class="action-tiles">
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
@@ -5201,7 +5197,7 @@
         const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
         const fieldKeys = role === 'pro'
             ? ['visit', 'demands', 'services', 'messages', 'notifications']
-            : ['visit', 'tasks', 'messages', 'notifications', 'following', 'services', 'logs']
+            : ['visit', 'tasks', 'messages', 'notifications', 'following', 'services']
                 .concat(role === 'aidant' ? ['checkins'] : []);
         const fields = Object.fromEntries(fieldKeys.map(key => [key, document.getElementById(`${role}-summary-${key}`)]));
         const context = `${role}:${userId}:${seniorId}`;
@@ -5224,7 +5220,6 @@
         } else {
             requests.tasks = '/api/shared-tasks';
             requests.following = '/api/planning/following';
-            requests.logs = '/api/logs/all';
         }
         if (role === 'aidant') requests.checkins = '/api/wellbeing/shared-check-ins';
         const keys = Object.keys(requests);
@@ -5277,13 +5272,6 @@
         } else {
             fields.services.textContent = t('Impossible de charger les services.');
         }
-        if (role !== 'pro' && results.logs.status === 'fulfilled') {
-            const logs = results.logs.value.filter(item => todayDate(item.created_at));
-            const last = logs[0]?.content || '';
-            fields.logs.textContent = !logs.length ? '' : `${t('Nouvelles du jour dans les 100 dernières')} : ${logs.length}${last ? `\n${t('Dernière nouvelle')} : ${last.slice(0, 180)}${last.length > 180 ? '…' : ''}` : ''}`;
-        } else if (role !== 'pro') {
-            fields.logs.textContent = t('Impossible de charger le fil d’actualité.');
-        }
         if (role === 'aidant') {
             const shared = results.checkins.status === 'fulfilled'
                 ? results.checkins.value.checkins.filter(item => todayDate(item.createdAt)).length : 0;
@@ -5299,11 +5287,6 @@
                 : t('Impossible de charger les demandes de rendez-vous.');
         }
         Object.values(fields).forEach(field => { field.hidden = !field.textContent; });
-        const summarySection = document.getElementById(`${role}-daily-summary`);
-        if (summarySection) {
-            const hasContent = Object.values(fields).some(field => field.textContent);
-            summarySection.querySelectorAll?.('.helper-text').forEach(note => { note.hidden = !hasContent; });
-        }
     }
 
     function afficherProchainRendezVous() {

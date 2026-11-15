@@ -58,7 +58,7 @@ test('daily caregiver summary shows only current profile data and reports partia
   assert.equal(getElementById('aidant-summary-notifications').textContent, 'Notifications non lues parmi les 50 dernières : 2');
   assert.match(getElementById('aidant-summary-following').textContent, /Dernière étape : Visite — arrived/);
   assert.match(getElementById('aidant-summary-services').textContent, /En attente de réponse : 1 · Annulés : 1/);
-  assert.match(getElementById('aidant-summary-logs').textContent, /Dernière nouvelle : Repas reçu/);
+  assert.ok(!elements.has('aidant-summary-logs'));
   assert.match(getElementById('aidant-summary-checkins').textContent, / : 1$/);
   firstResolvers.forEach(resolve => resolve({}));
   await first;
@@ -101,7 +101,7 @@ test('senior summary uses the calendar and accessible updates without requesting
   assert.equal(elements.get('senior-summary-notifications').textContent, '');
   assert.equal(elements.get('senior-summary-notifications').hidden, true);
   assert.equal(elements.get('senior-summary-following').hidden, true);
-  assert.equal(elements.get('senior-summary-logs').hidden, true);
+  assert.ok(!elements.has('senior-summary-logs'));
   assert.ok(paths.some(path => path === '/api/planning/calendar?start=2028-02-29&end=2028-03-01'));
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
 });
