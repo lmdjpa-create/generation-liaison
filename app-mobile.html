@@ -491,7 +491,7 @@
             </select>
             <section id="reg-account-commune-fields" class="form-card" style="text-align:left;">
                 <h3>Commune du compte (obligatoire)</h3>
-                <p class="helper-text">Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.</p>
+                <p class="helper-text">Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.</p>
                 <p class="helper-text">Saisissez au moins la ville ou le code postal.</p>
                 <label for="reg-account-city">Ville</label>
                 <input id="reg-account-city" type="text" autocomplete="address-level2" oninput="reinitialiserCommuneCompte()">
@@ -561,7 +561,7 @@
                 <summary>Choisir ou changer ma commune</summary>
                 <label for="senior-weather-search">Ville ou code postal français</label>
                 <input id="senior-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('senior')">
-                <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé.</p>
+                <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé.</p>
                 <button type="button" onclick="rechercherMeteo('senior')">Rechercher</button>
                 <label id="senior-weather-choice-label" for="senior-weather-choice" hidden>Choisissez votre commune</label>
                 <select id="senior-weather-choice" hidden></select>
@@ -569,7 +569,7 @@
                 <p id="senior-weather-search-status" role="status" aria-live="polite"></p>
                 <button id="senior-weather-account" type="button" onclick="utiliserCommuneCompteMeteo('senior')" hidden>Utiliser la commune du compte</button>
             </details>
-            <p class="helper-text">Prévisions fournies par <a href="https://open-meteo.com/">Open-Meteo</a>.</p>
+            <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
             <p class="helper-text">Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.</p>
         </section>
         <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
@@ -806,7 +806,7 @@
             <summary>Choisir ou changer ma commune</summary>
             <label for="aidant-weather-search">Ville ou code postal français</label>
             <input id="aidant-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('aidant')">
-            <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé.</p>
+            <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé.</p>
             <button type="button" onclick="rechercherMeteo('aidant')">Rechercher</button>
             <label id="aidant-weather-choice-label" for="aidant-weather-choice" hidden>Choisissez votre commune</label>
             <select id="aidant-weather-choice" hidden></select>
@@ -814,7 +814,7 @@
             <p id="aidant-weather-search-status" role="status" aria-live="polite"></p>
             <button id="aidant-weather-account" type="button" onclick="utiliserCommuneCompteMeteo('aidant')" hidden>Utiliser la commune du compte</button>
         </details>
-        <p class="helper-text">Prévisions fournies par <a href="https://open-meteo.com/">Open-Meteo</a>.</p>
+        <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
         <p class="helper-text">Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.</p>
     </section>
     <div class="header-mobile next-visit-card" style="flex-direction:row;">

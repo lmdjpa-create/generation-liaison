@@ -7,8 +7,8 @@
     'Voir les prévisions de la semaine': 'See the weekly forecast',
     'Choisir ou changer ma commune': 'Choose or change my municipality',
     'Ville ou code postal français': 'French city or postal code',
-    'La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé.':
-      'The search uses the public municipality service. Your choice is saved on this device and its approximate coordinates are sent to Open-Meteo for forecasts. GPS is not used.',
+    'La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé.':
+      'The search uses the public municipality service. Your choice is saved on this device and its approximate coordinates are sent to Visual Crossing for forecasts. GPS is not used.',
     'Rechercher': 'Search',
     'Choisissez votre commune': 'Choose your municipality',
     'Afficher la météo': 'Show weather',
@@ -20,8 +20,8 @@
       'Weather is enabled by default on this device. The account municipality or your chosen municipality is used for forecasts.',
     'Afficher la météo sur l’accueil': 'Show weather on the home screen',
     'Impossible d’enregistrer le réglage météo sur cet appareil.': 'Unable to save the weather setting on this device.',
-    'Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Open-Meteo pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.':
-      'This municipality will be used by default for weather. Its search uses the public municipality service and its approximate center will be sent to Open-Meteo for forecasts. GPS is not used. You can choose another municipality or disable weather on your device.',
+    'Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.':
+      'This municipality will be used by default for weather. Its search uses the public municipality service and its approximate center will be sent to Visual Crossing for forecasts. GPS is not used. You can choose another municipality or disable weather on your device.',
     'Prévisions fournies par': 'Forecasts provided by',
     'Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.':
       'Forecasts may be inaccurate or unavailable. Check official alerts for your safety.',

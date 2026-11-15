@@ -53,13 +53,13 @@ const assistantMessageTimes = new Map();
 const seniorLinkRequestTimes = new Map();
 const seniorInvitationTimes = new Map();
 const siteMonitor = createSiteMonitor();
-const weatherService = createWeatherService({ apiKey: process.env.OPEN_METEO_API_KEY });
+const weatherService = createWeatherService({ apiKey: process.env.VISUAL_CROSSING_API_KEY });
 const weatherRequestTimes = new Map();
 
 app.use(cors());
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') && !req.path.startsWith('/api/admin/site-monitor') &&
-      !(req.path === '/api/weather' && !process.env.OPEN_METEO_API_KEY)) {
+      !(req.path === '/api/weather' && !process.env.VISUAL_CROSSING_API_KEY)) {
     const area = siteArea(req.path);
     res.on('finish', () => siteMonitor.record(res.statusCode, area));
   }
@@ -260,7 +260,7 @@ app.post('/api/weather', requireAuth, async (req, res) => {
   if (!hasValidCoordinates(req.body?.latitude, req.body?.longitude)) {
     return res.status(400).json({ error: 'La commune choisie est invalide.' });
   }
-  if (!process.env.OPEN_METEO_API_KEY) {
+  if (!process.env.VISUAL_CROSSING_API_KEY) {
     return res.status(503).json({ error: 'La météo n’est pas encore configurée.' });
   }
   const now = Date.now();
