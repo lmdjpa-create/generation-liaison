@@ -4,7 +4,8 @@ const {
   generateReply,
   generateWellbeingAssessment,
   generateWellbeingReply,
-  suggestMessageRewrite
+  suggestMessageRewrite,
+  reviewSiteMetrics
 } = require('../ai-assistant');
 
 test('requires an OpenAI API key configured on the server', async () => {
@@ -12,6 +13,26 @@ test('requires an OpenAI API key configured on the server', async () => {
     generateReply({ name: 'Jeanne', messages: [], apiKey: '' }),
     error => error.status === 503
   );
+});
+
+test('site review receives the weather quota instruction without claiming quota monitoring or web access', async () => {
+  const originalFetch = global.fetch;
+  let payload;
+  global.fetch = async (url, options) => {
+    payload = JSON.parse(options.body);
+    return new Response(JSON.stringify({ output_text: 'Vérifiez les compteurs.' }), { status: 200 });
+  };
+  try {
+    const metrics = { requests: 2, serverErrors: 0 };
+    await reviewSiteMetrics({ metrics, apiKey: 'test-key' });
+    assert.match(payload.instructions, /quota journalier du fournisseur météo/);
+    assert.match(payload.instructions, /rechercher un autre fournisseur/);
+    assert.match(payload.instructions, /Ne déduis pas l'utilisation du quota/);
+    assert.match(payload.instructions, /pas accès à Internet ni au quota météo/);
+    assert.deepEqual(payload.input, [{ role: 'user', content: JSON.stringify(metrics) }]);
+  } finally {
+    global.fetch = originalFetch;
+  }
 });
 
 test('message rewrite sends only the draft with storage disabled and rejects oversized output', async () => {
