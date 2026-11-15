@@ -115,6 +115,37 @@
       .assistant-reply { grid-template-columns: 1fr; }
       td, th { padding: 9px; }
     }
+
+    /* Refonte : barre latérale, cartes et tableaux plus lisibles */
+    :root { --green-dark: #0e5c43; --shadow: 0 6px 18px rgba(24, 53, 46, .06); }
+    body { background: linear-gradient(180deg, #eaf4ee 0, #f3f7f4 260px); }
+    .topbar { position: sticky; top: 12px; z-index: 5; background: linear-gradient(135deg, #147d5b, #0e5c43); border: 0; color: #fff; box-shadow: var(--shadow); }
+    .topbar .muted { color: #d6eee3; }
+    .topbar .brand-mark { background: rgba(255, 255, 255, .18); }
+    .topbar .button.secondary { background: rgba(255, 255, 255, .14); border-color: rgba(255, 255, 255, .45); color: #fff; }
+    .topbar .button.secondary:hover { background: rgba(255, 255, 255, .26); }
+    .admin-body { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: start; }
+    .side-nav { position: sticky; top: 92px; display: grid; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+    .nav-item { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 46px; padding: 10px 12px; border: 0; border-radius: 10px; background: transparent; color: var(--ink); font-weight: 700; text-align: left; }
+    .nav-item:hover { background: var(--mint); }
+    .nav-item.active { background: var(--green); color: #fff; }
+    .admin-content { min-width: 0; }
+    .admin-content .stats { margin-top: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .stat-card { border-left: 5px solid var(--green); box-shadow: var(--shadow); }
+    .panel { box-shadow: var(--shadow); }
+    .panel + .panel { margin-top: 16px; }
+    .panel h2 { color: var(--green-dark); }
+    .layout { display: block; }
+    thead th { background: #f6faf7; position: sticky; top: 0; }
+    tbody tr:hover { background: #f8fbf9; }
+    .welcome h1 { color: var(--green-dark); }
+    .button:hover { filter: brightness(1.06); }
+    @media (max-width: 900px) {
+      .admin-body { grid-template-columns: 1fr; }
+      .side-nav { position: static; display: flex; overflow-x: auto; }
+      .nav-item { width: auto; flex: 0 0 auto; white-space: nowrap; }
+      .topbar { position: static; }
+    }
   </style>
   <link rel="stylesheet" href="/accessibility.css">
 </head>
@@ -155,9 +186,18 @@
       </section>
       <div class="notice"><strong>Données protégées :</strong> cet espace ne présente ni notes de soins, ni transmissions médicales, ni contacts d’urgence, ni adresses ou téléphones des clients. Pour les demandes de clôture, l’IA reçoit uniquement le rôle, la catégorie de formule et des décomptes de dossiers ; elle donne un pré-jugement indicatif, jamais une décision. L’administration vérifie les dossiers réels et confirme seule la clôture.</div>
       <div id="page-status" class="status" role="status" aria-live="polite"></div>
+      <div class="admin-body">
+        <nav class="side-nav" id="admin-nav" aria-label="Rubriques de l’administration">
+          <button type="button" class="nav-item active" data-target="overview"><span aria-hidden="true">📊</span> Vue d’ensemble</button>
+          <button type="button" class="nav-item" data-target="accounts"><span aria-hidden="true">👥</span> Comptes et abonnements</button>
+          <button type="button" class="nav-item" data-target="services"><span aria-hidden="true">🧰</span> Services du quotidien</button>
+          <button type="button" class="nav-item" data-target="care"><span aria-hidden="true">📅</span> Accompagnement</button>
+          <button type="button" class="nav-item" data-target="assist"><span aria-hidden="true">💬</span> Assistant et demandes</button>
+        </nav>
+        <div class="admin-content">
       <section id="stats" class="stats" aria-label="Indicateurs"></section>
       <div class="layout">
-        <section class="panel">
+        <section class="panel" data-section="overview">
           <div class="panel-head">
             <div><h2>Surveillance technique et aide IA</h2><p>Compteurs anonymes des requêtes API reçues par ce serveur pendant les 15 dernières minutes. Ils sont remis à zéro au redémarrage et ne détectent pas une panne complète du serveur.</p></div>
           </div>
@@ -170,7 +210,7 @@
           <p class="hint">Si le quota météo journalier approche de sa limite, l’équipe devra rechercher un autre fournisseur. Cette surveillance ne mesure pas encore le quota météo et l’IA ne recherche pas de fournisseur sur Internet.</p>
           <p id="site-monitor-review-status" role="status" aria-live="polite" style="white-space:pre-wrap"></p>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="services">
           <div class="panel-head">
             <div><h2>Partenaires des services du quotidien</h2><p>Activation et formule de rémunération. Les tarifs restent à définir.</p></div>
           </div>
@@ -179,7 +219,7 @@
             <tbody id="partners-body"></tbody>
           </table></div>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="services">
           <div class="panel-head">
             <div><h2>Demandes et rendez-vous de services</h2><p>Les coordonnées du client ne sont pas affichées dans cet espace.</p></div>
           </div>
@@ -188,7 +228,7 @@
             <tbody id="bookings-body"></tbody>
           </table></div>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="care">
           <div class="panel-head">
             <div><h2>Rendez-vous d’accompagnement</h2><p>Chaque création ou modification demande l’accord de l’intervenant avant son ajout aux agendas. Aucun compte-rendu ni note de soins.</p></div>
           </div>
@@ -205,13 +245,13 @@
             <tbody id="visits-body"></tbody>
           </table></div>
         </section>
-        <section class="panel" id="visit-evaluation-alerts">
+        <section class="panel" id="visit-evaluation-alerts" data-section="care">
           <div class="panel-head">
             <div><h2>Signalements rouges après intervention</h2><p>À examiner par l’administration. Les signalements rouges déclenchent également une notification aux comptes administrateurs configurés.</p></div>
           </div>
           <div id="red-visit-evaluations" aria-live="polite">Chargement des signalements…</div>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="assist">
           <div class="panel-head">
             <div><h2>Assistant IA et demandes de contact</h2><p>L’interrupteur désactive ou réactive l’assistant pour tous les seniors. Seuls les administrateurs autorisés voient les demandes de contact humain.</p></div>
             <button id="assistant-toggle-button" class="button secondary" type="button" disabled>Chargement…</button>
@@ -219,13 +259,13 @@
           <p id="assistant-config-status" class="hint" role="status" aria-live="polite"></p>
           <div id="assistant-handoffs" aria-live="polite">Chargement des demandes de contact…</div>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="assist">
           <div class="panel-head">
             <div><h2>Demandes de retrait d’accès</h2><p>Pour une demande du senior, l’accès est suspendu : envoyez-lui le code de confirmation par e-mail. Pour une demande de l’aidant, retirez l’association depuis ce tableau.</p></div>
           </div>
           <div id="senior-link-removals" aria-live="polite">Chargement des demandes…</div>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="accounts">
           <div class="panel-head">
             <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
           </div>
@@ -234,7 +274,7 @@
             <tbody id="accounts-body"></tbody>
           </table></div>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="accounts">
           <div class="panel-head">
             <div><h2>Demandes de clôture et d’effacement</h2><p>Le compte est désactivé dès la demande. Traitez chaque demande dans les 30 jours calendaires suivant sa réception. L’IA prépare un pré-jugement indicatif à partir d’un inventaire minimisé ; elle n’accède ni au contenu des notes et transmissions ni aux justificatifs professionnels. L’administration vérifie les données réelles, décide des suppressions ou conservations, puis confirme le traitement avec une note.</p></div>
           </div>
@@ -243,7 +283,7 @@
             <tbody id="account-closure-requests-body"></tbody>
           </table></div>
         </section>
-        <section class="panel">
+        <section class="panel" data-section="accounts">
           <div class="panel-head">
             <div><h2>Intervenants extérieurs</h2><p>Annuaire de professionnels non inscrits : leurs coordonnées sont visibles, mais ils restent « non vérifiés » et ne peuvent pas être réservés. Ne saisissez que des coordonnées professionnelles que la personne a accepté de rendre publiques.</p></div>
           </div>
@@ -270,7 +310,8 @@
         </section>
       </div>
     </section>
-  </main>
+  </div></div>
+    </main>
   <script>
     const SESSION_KEY = 'generation-liaison-mobile-session';
     const ADMIN_CODE_KEY = 'generation-liaison-admin-code';
@@ -1532,6 +1573,27 @@
     }
 
     initAdmin();
+  
+    (function initAdminNav() {
+      const nav = document.getElementById('admin-nav');
+      const panels = Array.from(document.querySelectorAll('.panel[data-section]'));
+      const stats = document.getElementById('stats');
+      function show(target) {
+        panels.forEach(panel => { panel.hidden = panel.dataset.section !== target; });
+        stats.hidden = target !== 'overview';
+        nav.querySelectorAll('.nav-item').forEach(item => {
+          const active = item.dataset.target === target;
+          item.classList.toggle('active', active);
+          item.setAttribute('aria-current', active ? 'page' : 'false');
+        });
+        window.scrollTo({ top: 0 });
+      }
+      nav.addEventListener('click', event => {
+        const item = event.target.closest('.nav-item');
+        if (item) show(item.dataset.target);
+      });
+      show('overview');
+    })();
   </script>
 </body>
 </html>
