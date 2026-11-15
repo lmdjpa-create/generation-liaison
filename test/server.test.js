@@ -480,7 +480,9 @@ test('senior home greets the signed-in user and refreshes the date when the app 
   assert.match(mobileApp, /Bonjour <span id="welcome-senior-name">Senior<\/span> !/);
   assert.match(mobileApp, /function afficherAccueilSenior\(user\)/);
   assert.match(mobileApp, /const displayName = user\.name \|\| user\.seniorName \|\| 'Senior'/);
-  assert.match(mobileApp, /document\.getElementById\('date-senior'\)\.textContent = new Date\(\)\.toLocaleDateString\(window\.generationLiaisonLocale\(\)/);
+  assert.match(mobileApp, /function mettreAJourDateSenior\(\)/);
+  assert.match(mobileApp, /hourCycle: 'h23'/);
+  assert.match(mobileApp, /majuscule\(parts\.weekday\).*majuscule\(parts\.month\).*parts\.hour\}:\$\{parts\.minute/);
   assert.match(mobileApp, /afficherAccueilSenior\(user\)/);
 });
 

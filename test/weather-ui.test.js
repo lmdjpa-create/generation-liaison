@@ -58,8 +58,10 @@ test('both home pages offer weather before the other dashboard cards', () => {
   assert.ok(aidant > source.indexOf('id="welcome-aidant-name"') && aidant < source.indexOf('id="aidant-daily-summary"'));
   assert.match(source, /id="settings-weather"[\s\S]*id="weather-enabled"[^>]*type="checkbox"[^>]*checked/);
   const warning = 'Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.';
-  assert.ok(source.slice(senior, source.indexOf('id="senior-next-visit"')).includes(warning));
-  assert.ok(source.slice(aidant, source.indexOf('id="aidant-daily-summary"')).includes(warning));
+  const settings = source.slice(source.indexOf('id="settings-weather"'), source.indexOf('id="settings-senior-voice"'));
+  assert.equal(settings.split(warning).length - 1, 2);
+  assert.ok(!source.slice(senior, source.indexOf('id="senior-next-visit"')).includes('Réglages de la météo'));
+  assert.ok(!source.slice(aidant, source.indexOf('id="aidant-daily-summary"')).includes('Réglages de la météo'));
 });
 
 test('multiple communes require a choice and show seven days', async () => {
