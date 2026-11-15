@@ -557,7 +557,8 @@
                 <summary>Voir les prévisions de la semaine</summary>
                 <ul id="senior-weather-days"></ul>
             </details>
-            <details id="senior-weather-location">
+            <details class="senior-tab-disclosure"><summary>Réglages de la météo</summary>
+<details id="senior-weather-location">
                 <summary>Choisir ou changer ma commune</summary>
                 <label for="senior-weather-search">Ville ou code postal français</label>
                 <input id="senior-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('senior')">
@@ -569,8 +570,10 @@
                 <p id="senior-weather-search-status" role="status" aria-live="polite"></p>
                 <button id="senior-weather-account" type="button" onclick="utiliserCommuneCompteMeteo('senior')" hidden>Utiliser la commune du compte</button>
             </details>
+<p class="helper-text">Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.</p>
+</details>
             <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
-            <p class="helper-text">Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.</p>
+            
         </section>
         <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
             <div>
@@ -802,7 +805,8 @@
             <summary>Voir les prévisions de la semaine</summary>
             <ul id="aidant-weather-days"></ul>
         </details>
-        <details id="aidant-weather-location">
+        <details class="senior-tab-disclosure"><summary>Réglages de la météo</summary>
+<details id="aidant-weather-location">
             <summary>Choisir ou changer ma commune</summary>
             <label for="aidant-weather-search">Ville ou code postal français</label>
             <input id="aidant-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('aidant')">
@@ -814,8 +818,10 @@
             <p id="aidant-weather-search-status" role="status" aria-live="polite"></p>
             <button id="aidant-weather-account" type="button" onclick="utiliserCommuneCompteMeteo('aidant')" hidden>Utiliser la commune du compte</button>
         </details>
+<p class="helper-text">Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.</p>
+</details>
         <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
-        <p class="helper-text">Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.</p>
+        
     </section>
     <div class="header-mobile next-visit-card" style="flex-direction:row;">
         <div>
@@ -2229,6 +2235,18 @@
         return 'conditions indisponibles';
     }
 
+    function iconeMeteo(code) {
+        if (code === 0) return '☀️';
+        if ([1, 2].includes(code)) return '⛅';
+        if (code === 3) return '☁️';
+        if ([45, 48].includes(code)) return '🌫️';
+        if ([51, 53, 55, 56, 57].includes(code)) return '🌦️';
+        if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return '🌧️';
+        if ([71, 73, 75, 77, 85, 86].includes(code)) return '❄️';
+        if ([95, 96, 99].includes(code)) return '⛈️';
+        return '❔';
+    }
+
     async function chargerMeteo(role) {
         const userId = connectedUser?.id;
         if (!userId || connectedUser.role !== role) return;
@@ -2269,7 +2287,7 @@
             });
             const result = await readResponse(response);
             if (loadId !== meteoLoadId || connectedUser?.id !== userId || connectedUser.role !== role) return;
-            const condition = texteMeteo(descriptionMeteo(result.code));
+            const condition = `${iconeMeteo(result.code)} ${texteMeteo(descriptionMeteo(result.code))}`;
             status.textContent = english
                 ? `Today in ${commune.name}: ${Math.round(result.temperature)} °C, ${condition}.`
                 : `Aujourd’hui à ${commune.name} : ${Math.round(result.temperature)} °C, ${condition}.`;
@@ -2278,7 +2296,7 @@
                 const date = new Date(`${day.date}T12:00:00`);
                 const label = new Intl.DateTimeFormat(window.generationLiaisonLocale(), { weekday: 'long', day: 'numeric', month: 'long' }).format(date);
                 const item = document.createElement('li');
-                item.textContent = `${label} : ${texteMeteo(descriptionMeteo(day.code))}, ${Math.round(day.min)} ${english ? 'to' : 'à'} ${Math.round(day.max)} °C.`;
+                item.textContent = `${label} : ${iconeMeteo(day.code)} ${texteMeteo(descriptionMeteo(day.code))}, ${Math.round(day.min)} ${english ? 'to' : 'à'} ${Math.round(day.max)} °C.`;
                 list.append(item);
             });
             week.hidden = false;
