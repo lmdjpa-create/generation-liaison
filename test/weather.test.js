@@ -3,19 +3,17 @@ const { test } = require('node:test');
 const { createWeatherService } = require('../weather');
 
 function forecast(day = '2026-03-02') {
+  const icons = ['clear-day', 'partly-cloudy-day', 'cloudy', 'fog', 'rain', 'snow', 'thunder-rain'];
   return {
     timezone: 'Europe/Paris',
-    current: { temperature_2m: 12.5, weather_code: 3 },
-    daily: {
-      time: Array.from({ length: 7 }, (_, index) => `2026-03-${String(Number(day.slice(-2)) + index).padStart(2, '0')}`),
-      temperature_2m_min: [2, 3, 4, 5, 6, 7, 8],
-      temperature_2m_max: [12, 13, 14, 15, 16, 17, 18],
-      weather_code: [0, 1, 2, 3, 45, 61, 95]
-    }
+    currentConditions: { temp: 12.5, icon: 'cloudy' },
+    days: icons.map((icon, index) => ({
+      datetime: `2026-03-${String(Number(day.slice(-2)) + index).padStart(2, '0')}`,
+      tempmin: 2 + index, tempmax: 12 + index, icon
+    }))
   };
 }
-
-test('commercial weather requires a key, rounds coordinates and shares cached requests', async () => {
+test('Visual Crossing weather requires a key, rounds coordinates and shares cached requests', async () => {
   let resolve;
   const urls = [];
   let now = Date.parse('2026-03-02T10:00:00Z');
@@ -28,11 +26,11 @@ test('commercial weather requires a key, rounds coordinates and shares cached re
   });
   const a = service.getWeather(48.8566, 2.3522);
   const b = service.getWeather(48.857, 2.352);
+  await new Promise(done => setImmediate(done));
   assert.equal(urls.length, 1);
-  assert.equal(urls[0].host, 'customer-api.open-meteo.com');
-  assert.equal(urls[0].searchParams.get('latitude'), '48.86');
-  assert.equal(urls[0].searchParams.get('longitude'), '2.35');
-  assert.equal(urls[0].searchParams.get('timezone'), 'auto');
+  assert.equal(urls[0].host, 'weather.visualcrossing.com');
+  assert.match(urls[0].pathname, /\/timeline\/48\.86,2\.35\/today\/next6days$/);
+  assert.equal(urls[0].searchParams.get('key'), 'secret');
   resolve();
   const data = await a;
   assert.deepEqual(await b, data);
@@ -42,6 +40,7 @@ test('commercial weather requires a key, rounds coordinates and shares cached re
   assert.equal(urls.length, 1);
   now += 30 * 60 * 1000;
   const refresh = service.getWeather(48.8566, 2.3522);
+  await new Promise(done => setImmediate(done));
   assert.equal(urls.length, 2);
   resolve();
   await refresh;
@@ -72,7 +71,7 @@ test('provider failures and invalid data are not cached', async () => {
       json: async () => {
         calls++;
         const data = forecast();
-        if (calls === 1) data.daily.temperature_2m_min[2] = null;
+        if (calls === 1) data.days[2].tempmin = null;
         return data;
       }
     })

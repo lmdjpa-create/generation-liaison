@@ -37,7 +37,7 @@ before(async () => {
   process.env.DATABASE_URL = 'postgresql://isolated-test';
   process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
-  process.env.OPEN_METEO_API_KEY = '';
+  process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
   delivery.sendSeniorUnlinkCode = async (email, code) => {
     if (failEmail) throw new Error('test delivery failure');
