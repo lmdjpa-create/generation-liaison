@@ -69,8 +69,19 @@
     .admin-form { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin: 0 0 16px; }
     .admin-form input, .admin-form select { width: 100%; }
     .assistant-handoff { margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
+    .assistant-settings { display: grid; gap: 8px; max-width: 900px; margin: 14px 0 24px; }
+    .assistant-settings label { font-weight: 700; }
+    .assistant-settings p { margin: 0; }
+    .assistant-settings textarea { width: 100%; min-height: 120px; padding: 10px; border: 1px solid #cbd8d0; border-radius: 8px; font: inherit; resize: vertical; }
+    .assistant-settings .button { justify-self: start; }
     .assistant-thread { display: grid; gap: 7px; margin: 10px 0; }
     .assistant-thread-message { padding: 9px 11px; border-radius: 9px; background: #f3f7f4; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .admin-ai-thread { display: grid; gap: 10px; max-width: 900px; max-height: 55vh; overflow-y: auto; margin: 14px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #f7faf8; }
+    .admin-ai-message { max-width: 85%; padding: 10px 13px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .admin-ai-message.user { justify-self: end; background: var(--mint); }
+    .admin-ai-message.assistant { justify-self: start; background: white; border: 1px solid var(--line); }
+    .admin-ai-form { display: grid; grid-template-columns: 1fr auto; gap: 10px; max-width: 900px; }
+    .admin-ai-form textarea { min-height: 68px; padding: 10px; border: 1px solid #cbd8d0; border-radius: 8px; font: inherit; resize: vertical; }
     .assistant-reply { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
     .assistant-reply textarea { min-height: 60px; padding: 8px; border: 1px solid #cbd8d0; border-radius: 8px; font: inherit; }
     select, input {
@@ -115,6 +126,7 @@
       .control-group { align-items: flex-start; flex-direction: column; }
       .admin-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .assistant-reply { grid-template-columns: 1fr; }
+      .admin-ai-form { grid-template-columns: 1fr; }
       td, th { padding: 9px; }
     }
 
@@ -197,6 +209,7 @@
           <button type="button" class="nav-item" data-target="services"><span aria-hidden="true">🧰</span> Services du quotidien</button>
           <button type="button" class="nav-item" data-target="care"><span aria-hidden="true">📅</span> Accompagnement</button>
           <button type="button" class="nav-item" data-target="assist"><span aria-hidden="true">💬</span> Assistant et demandes</button>
+          <button type="button" class="nav-item" data-target="ai-chat"><span aria-hidden="true">🤖</span> Discussion avec l’IA</button>
         </nav>
         <div class="admin-content">
       <section id="stats" class="stats" aria-label="Indicateurs"></section>
@@ -257,10 +270,17 @@
         </section>
         <section class="panel" data-section="assist">
           <div class="panel-head">
-            <div><h2>Assistant IA et demandes de contact</h2><p>L’interrupteur désactive ou réactive l’assistant pour tous les seniors. Seuls les administrateurs autorisés voient les demandes de contact humain.</p></div>
+            <div><h2>Assistant IA et demandes de contact</h2><p>Réglez les consignes de réponse et l’activation de l’assistant. Seuls les administrateurs autorisés voient les demandes de contact humain.</p></div>
             <button id="assistant-toggle-button" class="button secondary" type="button" disabled>Chargement…</button>
           </div>
           <p id="assistant-config-status" class="hint" role="status" aria-live="polite"></p>
+          <form id="assistant-settings-form" class="assistant-settings">
+            <label for="assistant-custom-instructions">Consignes personnalisées pour l’assistant</label>
+            <p class="hint">Décrivez son ton et les sujets à privilégier (2 000 caractères maximum). Les règles de sécurité restent prioritaires. La clé OpenAI reste privée sur le serveur ; l’assistant ne peut pas gérer les comptes ni agir dans l’administration.</p>
+            <textarea id="assistant-custom-instructions" maxlength="2000" rows="5" placeholder="Exemple : réponds avec des phrases courtes et explique simplement les services proposés."></textarea>
+            <button id="assistant-settings-save" class="button" type="submit">Enregistrer les réglages de l’IA</button>
+            <p id="assistant-settings-status" class="status" role="status" aria-live="polite"></p>
+          </form>
           <div id="assistant-handoffs" aria-live="polite">Chargement des demandes de contact…</div>
         </section>
         <section class="panel" data-section="assist">
@@ -268,6 +288,19 @@
             <div><h2>Demandes de retrait d’accès</h2><p>Pour une demande du senior, l’accès est suspendu : envoyez-lui le code de confirmation par e-mail. Pour une demande de l’aidant, retirez l’association depuis ce tableau.</p></div>
           </div>
           <div id="senior-link-removals" aria-live="polite">Chargement des demandes…</div>
+        </section>
+        <section class="panel" data-section="ai-chat">
+          <div class="panel-head">
+            <div><h2>Discussion avec l’IA</h2><p>Posez vos questions sur l’utilisation et le fonctionnement du site. L’IA ne consulte pas les données du site et ne peut pas modifier les comptes ou les réglages à votre place.</p></div>
+          </div>
+          <div id="admin-ai-thread" class="admin-ai-thread" aria-live="polite">
+            <div class="admin-ai-message assistant">Bonjour. Je peux vous aider à comprendre les rubriques et les fonctions de Génération Liaison. Je n’ai pas accès aux données du site et ne peux pas effectuer d’actions à votre place.</div>
+          </div>
+          <form id="admin-ai-chat-form" class="admin-ai-form">
+            <textarea id="admin-ai-message" maxlength="1200" aria-label="Votre message à l’assistant IA" placeholder="Écrivez votre question…" required></textarea>
+            <button id="admin-ai-send" class="button" type="submit">Envoyer</button>
+          </form>
+          <p id="admin-ai-status" class="status" role="status" aria-live="polite"></p>
         </section>
         <section class="panel" data-section="accounts" data-also="overview">
           <div class="panel-head">
@@ -491,6 +524,62 @@
         event.currentTarget.disabled = false;
       }
     });
+    document.getElementById('assistant-settings-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const button = document.getElementById('assistant-settings-save');
+      const status = document.getElementById('assistant-settings-status');
+      button.disabled = true;
+      status.textContent = 'Enregistrement…';
+      try {
+        const result = await adminRequest('/api/admin/assistant/settings', {
+          method: 'PATCH',
+          body: { customInstructions: document.getElementById('assistant-custom-instructions').value }
+        });
+        document.getElementById('assistant-custom-instructions').value = result.customInstructions;
+        status.textContent = 'Réglages de l’IA enregistrés.';
+      } catch (error) {
+        status.textContent = error.message || 'Impossible d’enregistrer les réglages de l’IA.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+    document.getElementById('admin-ai-chat-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const input = document.getElementById('admin-ai-message');
+      const button = document.getElementById('admin-ai-send');
+      const status = document.getElementById('admin-ai-status');
+      const message = input.value.trim();
+      if (!message) return;
+      const thread = document.getElementById('admin-ai-thread');
+      const appendMessage = (role, content) => {
+        const item = document.createElement('div');
+        item.className = `admin-ai-message ${role}`;
+        item.textContent = content;
+        thread.append(item);
+        thread.scrollTop = thread.scrollHeight;
+      };
+      adminAiMessages.push({ role: 'user', content: message });
+      appendMessage('user', message);
+      input.value = '';
+      button.disabled = true;
+      status.textContent = 'L’IA prépare une réponse…';
+      try {
+        const result = await adminRequest('/api/admin/assistant/chat', {
+          method: 'POST',
+          body: { messages: adminAiMessages.slice(-10) }
+        });
+        adminAiMessages.push({ role: 'assistant', content: result.reply });
+        appendMessage('assistant', result.reply);
+        status.textContent = '';
+      } catch (error) {
+        status.textContent = error.message || 'Impossible de joindre l’assistant IA.';
+      } finally {
+        button.disabled = false;
+        input.focus();
+      }
+    });
+
+    const adminAiMessages = [];
 
     async function loadAssistantHandoffs() {
       try {
@@ -502,8 +591,9 @@
         toggle.dataset.enabled = String(settings.enabled);
         toggle.textContent = settings.enabled ? 'Désactiver l’assistant IA' : 'Activer l’assistant IA';
         toggle.disabled = false;
+        document.getElementById('assistant-custom-instructions').value = settings.customInstructions || '';
         document.getElementById('assistant-config-status').textContent = settings.configured
-          ? ''
+          ? 'IA connectée à OpenAI. Les consignes ci-dessous personnalisent ses réponses sans remplacer ses règles de sécurité.'
           : 'Clé OpenAI non configurée : l’assistant ne répondra pas tant que OPENAI_API_KEY n’est pas définie sur le serveur.';
         const container = document.getElementById('assistant-handoffs');
         container.replaceChildren();
