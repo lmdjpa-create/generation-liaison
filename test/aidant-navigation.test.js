@@ -13,11 +13,14 @@ test('senior and caregiver can open the external flea market directory without s
     assert.ok(start >= 0 && end > start);
     const section = source.slice(start, end);
     assert.match(section, /Brocantes et vide-greniers/);
+    assert.match(section, /<details(?:\s[^>]*)?>\s*<summary/);
     assert.match(section, /href="https:\/\/vide-greniers\.org\/" target="_blank" rel="noopener noreferrer"/);
     assert.match(section, /site externe/);
     assert.doesNotMatch(section, /senior-full-only/);
   }
   assert.ok(source.indexOf('id="aidant-local-outings"') < source.indexOf('id="aidant-senior-content"'));
+  assert.ok(source.indexOf('id="senior-local-outings"') > source.indexOf('id="senior-pro-button"'));
+  assert.ok(source.indexOf('id="aidant-local-outings"') > source.indexOf('id="aidant-shortcuts"'));
 });
 
 test('daily caregiver summary shows only current profile data and reports partial failures', async () => {
