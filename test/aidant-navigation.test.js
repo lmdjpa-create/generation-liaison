@@ -344,6 +344,25 @@ test('aidant functions start collapsed without removing their content', () => {
   }
 });
 
+test('daily journal and family album buttons stack their icons above the labels', () => {
+  for (const [id, label, icon] of [
+    ['senior-album-details', 'Album familial', '📷'],
+    ['senior-journal-details', 'Journal du quotidien', '📰'],
+    ['aidant-album-details', 'Album familial', '📷'],
+    ['aidant-journal-details', 'Journal du quotidien', '📰']
+  ]) {
+    const details = source.indexOf(`id="${id}"`);
+    const summaryStart = source.indexOf('<summary>', details);
+    const summaryEnd = source.indexOf('</summary>', summaryStart);
+    assert.ok(details >= 0 && summaryStart > details && summaryEnd > summaryStart);
+    const summary = source.slice(summaryStart, summaryEnd);
+    assert.match(summary, new RegExp(`<span class="tile-icon" aria-hidden="true"[^>]*>${icon}</span><span>${label}</span>`));
+  }
+  assert.match(source, /#aidant-senior-content > \.form-card > \.senior-disclosure:not\(\.senior-explanation\) > summary \{[\s\S]*?flex-direction: column/);
+  assert.match(source, /\.senior-mode \.senior-tab-disclosure > summary \{[\s\S]*?flex-direction: column/);
+  assert.match(source, /\.senior-mode #senior-album-details > summary,[\s\S]*?min-height: 132px;[\s\S]*?justify-content: center/);
+});
+
 test('aidant shortcuts pair notifications and agenda without duplicate controls', () => {
   const aidant = source.slice(source.indexOf('<div id="screen-aidant"'), source.indexOf('<!-- 🩺 3.'));
   const shortcuts = aidant.match(/<div id="aidant-shortcuts"[\s\S]*?<\/div>/);

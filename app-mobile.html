@@ -385,6 +385,11 @@
         }
         #main-app-senior .senior-disclosure[open]:not(.senior-explanation) > summary,
         .senior-mode .senior-tab-disclosure[open] > summary { margin-bottom: 14px; }
+        .senior-mode #senior-album-details > summary,
+        .senior-mode #senior-journal-details > summary {
+            min-height: 132px;
+            justify-content: center;
+        }
         .senior-mode .senior-tab-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #main-app-senior .senior-disclosure + .senior-disclosure { margin-top: 12px; }
         .senior-mode .senior-tab-disclosure + .senior-tab-disclosure { margin-top: 12px; }
@@ -716,7 +721,7 @@
         </section>
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure" id="senior-album-details">
-            <summary>📷 Album familial</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">📷</span><span>Album familial</span></summary>
             <p class="helper-text">Les photos acceptées sont visibles par vos aidants associés. Une photo proposée par un aidant attend votre accord. Les photos peuvent contenir des informations de localisation.</p>
             <form id="senior-album-form" class="form-grid">
               <label for="senior-album-file">Choisir une photo à partager</label>
@@ -729,7 +734,7 @@
         </section>
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure" id="senior-journal-details">
-            <summary>📰 Journal du quotidien</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
             <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Ce journal ne surveille pas votre sécurité.</p>
             <div id="senior-journal-list" aria-live="polite"></div>
           </details>
@@ -899,7 +904,7 @@
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-album-details">
-        <summary>📷 Album familial</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">📷</span><span>Album familial</span></summary>
         <p class="helper-text">Le senior doit accepter chaque photo proposée avant son partage avec les aidants associés. Les photos peuvent contenir des informations de localisation.</p>
         <form id="aidant-album-form" class="form-grid">
           <label for="aidant-album-file">Choisir une photo à proposer</label>
@@ -912,7 +917,7 @@
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-journal-details">
-        <summary>📰 Journal du quotidien</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
         <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Ce journal ne surveille pas la sécurité du senior.</p>
         <div id="aidant-journal-list" aria-live="polite"></div>
       </details>
