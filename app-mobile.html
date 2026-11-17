@@ -1226,7 +1226,7 @@
     <section class="form-card" id="settings-senior-voice" style="display:none;">
       <details class="senior-tab-disclosure">
         <summary>🔊 Lecture à voix haute</summary>
-        <p class="helper-text">La lecture est activée par défaut sur cet appareil lorsque l’application est ouverte. Les personnes autour de vous peuvent l’entendre. Le navigateur peut demander une première action avant de parler.</p>
+        <p class="helper-text">La lecture automatique concerne la date, la météo, les notifications, les messages et les rendez-vous. Elle est activée par défaut sur cet appareil lorsque l’application est ouverte. Les personnes autour de vous peuvent l’entendre. Le navigateur peut demander une première action avant de parler.</p>
         <label class="notification-choice"><input id="senior-voice-enabled" type="checkbox"> Lire les informations à voix haute</label>
         <label for="senior-voice-choice">Choisir une voix</label>
         <select id="senior-voice-choice"><option value="">Voix de l’appareil</option></select>
@@ -4850,9 +4850,9 @@
             if (!text || /^Chargement/.test(text)) continue;
             let element = node.parentElement;
             let visible = true;
-            while (element && element !== root.parentElement) {
+            while (element) {
                 if (element.hidden || element.getAttribute('aria-hidden') === 'true' ||
-                    ['SCRIPT', 'STYLE', 'SELECT', 'TEXTAREA', 'INPUT'].includes(element.tagName)) {
+                    ['SCRIPT', 'STYLE', 'SELECT', 'TEXTAREA', 'INPUT', 'BUTTON'].includes(element.tagName)) {
                     visible = false;
                     break;
                 }
@@ -4882,10 +4882,23 @@
                 !document.getElementById('senior-voice-enabled').checked) return;
             const screen = document.querySelector('.screen-container.active');
             if (!screen) return;
-            const root = screen.id === 'screen-senior' ? document.getElementById('main-app-senior') : screen;
-            const text = texteVisibleLectureSenior(root);
+            const allowed = {
+                'screen-senior': '#date-senior, #senior-weather-temp, #senior-weather-status, #senior-weather-days, #senior-next-visit-text',
+                'screen-senior-pro': '#senior-summary-visit, #senior-summary-messages, #senior-summary-notifications',
+                'screen-messages': '#notification-opened-senior, #notifications-senior, #message-list-senior',
+                'screen-agenda': '#calendar-title, #calendar-week-summary-content, #calendar-grid, #calendar-selected-day'
+            };
+            const selector = allowed[screen.id];
+            const text = selector
+                ? Array.from(screen.querySelectorAll(selector), texteVisibleLectureSenior).filter(Boolean).join('. ')
+                : '';
             const key = `${seniorVoiceUserId}:${screen.id}:${text}`;
-            if (!text || key === seniorVoiceLastText) return;
+            if (!text) {
+                window.speechSynthesis.cancel();
+                seniorVoiceLastText = '';
+                return;
+            }
+            if (key === seniorVoiceLastText) return;
             seniorVoiceLastText = key;
             window.speechSynthesis.cancel();
             const voiceId = localStorage.getItem(cleLectureSenior('voice')) || '';
