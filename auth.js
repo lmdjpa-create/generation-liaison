@@ -568,12 +568,9 @@ function createAuthService(pool) {
           event_type VARCHAR(16) NOT NULL
             CHECK (event_type IN ('arrived', 'started', 'completed')),
           practical_note VARCHAR(500),
-          share_with_team BOOLEAN NOT NULL DEFAULT FALSE,
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           UNIQUE (visit_id, event_type)
         );
-        ALTER TABLE planning_visit_events
-          ADD COLUMN IF NOT EXISTS share_with_team BOOLEAN NOT NULL DEFAULT FALSE;
         CREATE TABLE IF NOT EXISTS planning_visit_evaluations (
           id UUID PRIMARY KEY,
           visit_id UUID NOT NULL REFERENCES planning_visits(id) ON DELETE CASCADE,

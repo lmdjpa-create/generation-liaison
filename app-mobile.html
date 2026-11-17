@@ -928,7 +928,7 @@
         <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
         <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
         <p id="aidant-summary-messages" role="status">Chargement des messages…</p>
-        <p id="aidant-summary-notification-details" aria-live="polite" hidden></p>
+        <p id="aidant-summary-notifications" role="status">Chargement des notifications…</p>
         <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
         <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
         <p id="aidant-summary-services" role="status">Chargement des services…</p>
@@ -1016,7 +1016,7 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-journal-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
-        <p class="helper-text">Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Ce journal ne surveille pas la sécurité du senior.</p>
+        <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Ce journal ne surveille pas la sécurité du senior.</p>
         <button type="button" id="aidant-weekly-prepare">Préparer la gazette de la semaine</button>
         <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
         <p id="aidant-weekly-status" role="status" aria-live="polite"></p>
@@ -1101,9 +1101,7 @@
         <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
         <p id="pro-summary-services" role="status">Chargement des services…</p>
         <p id="pro-summary-messages" role="status">Chargement des messages…</p>
-        <p id="pro-summary-notification-details" aria-live="polite" hidden></p>
-        <p id="pro-summary-following" role="status">Chargement des étapes d’intervention…</p>
-        <p class="helper-text">Suivi de l’équipe limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées.</p>
+        <p id="pro-summary-notifications" role="status">Chargement des notifications…</p>
     </section>
     <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
         <section class="form-card">
@@ -1119,13 +1117,6 @@
     </div>
     <h3 class="schedule-day" id="schedule-day-title">Visites du jour</h3>
     <div id="pro-planning" aria-live="polite">Chargement de votre planning…</div>
-    <section class="form-card">
-        <details class="senior-disclosure" id="pro-journal-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
-            <p class="helper-text">État et étapes de vos visites et de celles de vos collègues auprès des personnes auxquelles vous êtes affecté, à la date sélectionnée dans l’agenda. Le suivi des collègues est limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Seules les notes explicitement partagées sont visibles, sans nom de collègue. Une visite terminée ne précise pas les tâches réalisées. Ce journal ne remplace pas un dossier médical.</p>
-            <div id="pro-journal-list" aria-live="polite">Chargement des étapes…</div>
-        </details>
-    </section>
     <section class="form-card">
         <h3>Agenda des services du quotidien</h3>
         <p class="helper-text">Repas, coiffure et ménage : seuls vos rendez-vous vous sont affichés, avec les coordonnées utiles à leur réalisation. Aucun dossier ni renseignement médical n’est accessible ici.</p>
@@ -2889,10 +2880,7 @@
             }
             if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
                 chargerCheckinsPartages();
-                if (document.getElementById('screen-aidant').classList.contains('active')) {
-                    chargerSyntheseAidant();
-                    if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
-                }
+                if (document.getElementById('screen-aidant').classList.contains('active')) chargerSyntheseAidant();
             }
             if (connectedUser.role === 'senior') {
                 chargerAssistantConversation();
@@ -5621,24 +5609,6 @@
         return `${time} · ${type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ' (en attente)' : ''}${event.conflict ? ' ⚠ chevauchement' : ''}`;
     }
 
-    function etapesIntervenant(visits) {
-        return visits.flatMap((visit, index) => {
-            const progress = progressArray(visit.progress);
-            const ownStatus = visit.status === 'completed' ? 'completed'
-                : visit.status === 'scheduled' ? (progress.some(event => ['arrived', 'started'].includes(event.type)) ? 'in_progress' : 'planned') : '';
-            const statuses = [
-                ...(ownStatus && visit.scheduledAt ? [{ scheduledAt: visit.scheduledAt, status: ownStatus, colleague: false }] : []),
-                ...progressArray(visit.teamVisits).map(item => ({ ...item, colleague: true }))
-            ];
-            return [
-                ...progress.map(event => ({ type: event.type, createdAt: event.createdAt, note: event.note, visitNumber: index + 1, colleague: false })),
-                ...progressArray(visit.teamProgress).map(event => ({ type: event.type, createdAt: event.createdAt, note: event.note, visitNumber: index + 1, colleague: true })),
-                ...statuses.filter(item => item.scheduledAt && ['planned', 'in_progress', 'completed'].includes(item.status))
-                    .map(item => ({ type: `visit_${item.status}`, createdAt: item.scheduledAt, visitNumber: index + 1, colleague: item.colleague, scheduled: true }))
-            ];
-        }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    }
-
     function chargerSyntheseAidant() {
         return chargerSyntheseQuotidienne('aidant');
     }
@@ -5657,20 +5627,15 @@
         const userId = connectedUser.id;
         const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
         const fieldKeys = role === 'pro'
-            ? ['visit', 'demands', 'services', 'messages', 'following']
-            : ['visit', 'tasks', 'messages', 'following', 'services']
-                .concat(role === 'aidant' ? ['checkins'] : ['notifications']);
+            ? ['visit', 'demands', 'services', 'messages', 'notifications']
+            : ['visit', 'tasks', 'messages', 'notifications', 'following', 'services']
+                .concat(role === 'aidant' ? ['checkins'] : []);
         const fields = Object.fromEntries(fieldKeys.map(key => [key, document.getElementById(`${role}-summary-${key}`)]));
-        const notificationDetails = role === 'senior' ? null : document.getElementById(`${role}-summary-notification-details`);
         const context = `${role}:${userId}:${seniorId}`;
         const t = value => window.generationLiaisonTranslate(value);
         if (aidantSummaryContext !== context) {
             aidantSummaryContext = context;
             Object.values(fields).forEach(field => { field.textContent = t('Chargement…'); });
-            if (notificationDetails) {
-                notificationDetails.textContent = '';
-                notificationDetails.hidden = true;
-            }
         }
         const today = dateCheckinBienEtre();
         const tomorrow = new Date(`${today}T00:00:00Z`);
@@ -5683,7 +5648,6 @@
         };
         if (role === 'pro') {
             requests.demands = '/api/directory/bookings';
-            requests.following = `/api/planning/today?date=${today}`;
         } else {
             requests.tasks = '/api/shared-tasks';
             requests.following = '/api/planning/following';
@@ -5718,21 +5682,9 @@
         fields.messages.textContent = results.messages.status === 'fulfilled'
             ? (results.messages.value.count ? `${t('Messages non lus')} : ${results.messages.value.count}` : '')
             : t('Impossible de charger les messages.');
-        if (role === 'senior') {
-            fields.notifications.textContent = results.notifications.status === 'fulfilled'
-                ? (results.notifications.value.unreadCount ? `${t('Notifications non lues parmi les 50 dernières')} : ${results.notifications.value.unreadCount}` : '')
-                : t('Impossible de charger les notifications.');
-        }
-        if (notificationDetails) {
-            const notifications = results.notifications.status === 'fulfilled' ? results.notifications.value.notifications : [];
-            notificationDetails.textContent = results.notifications.status === 'rejected'
-                ? t('Impossible de charger les notifications.')
-                : notifications.length
-                    ? `${t('50 dernières notifications — pour répondre, ouvrez Notifications et messages')} :\n` +
-                        notifications.map(item => `${formatDateTime(item.createdAt)} · ${item.title}\n${item.message}`).join('\n\n')
-                    : '';
-            notificationDetails.hidden = !notificationDetails.textContent;
-        }
+        fields.notifications.textContent = results.notifications.status === 'fulfilled'
+            ? (results.notifications.value.unreadCount ? `${t('Notifications non lues parmi les 50 dernières')} : ${results.notifications.value.unreadCount}` : '')
+            : t('Impossible de charger les notifications.');
         if (role !== 'pro' && results.following.status === 'fulfilled') {
             const visits = results.following.value.visits.filter(item => todayDate(item.scheduledAt) ||
                 progressArray(item.progress).some(event => todayDate(event.createdAt)));
@@ -5741,19 +5693,8 @@
                 .map(event => ({ ...event, visitType: item.visitType })))
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             const last = updates[0];
-            const stages = role === 'aidant' ? updates.map(event =>
-                `${formatDateTime(event.createdAt)} · ${event.visitType} — ${t(stageLabel(event.type))}${event.note ? ` : ${event.note}` : ''}`
-            ) : [];
-            fields.following.textContent = role === 'aidant' ? stages.join('\n')
-                : !visits.length ? '' : `${t('Interventions du jour ou actualisées aujourd’hui')} : ${visits.length}${last ? `\n${t('Dernière étape')} : ${last.visitType} — ${t(stageLabel(last.type))}` : ''}`;
+            fields.following.textContent = !visits.length ? '' : `${t('Interventions du jour ou actualisées aujourd’hui')} : ${visits.length}${last ? `\n${t('Dernière étape')} : ${last.visitType} — ${t(stageLabel(last.type))}` : ''}`;
         } else if (role !== 'pro') {
-            fields.following.textContent = t('Impossible de charger le suivi des interventions.');
-        } else if (results.following.status === 'fulfilled') {
-            const stages = etapesIntervenant(results.following.value.visits).filter(event => todayDate(event.createdAt));
-            fields.following.textContent = stages.map(event =>
-                `${event.scheduled ? `${t('Prévue le')} ` : ''}${formatDateTime(event.createdAt)} · ${t('Visite')} ${event.visitNumber} · ${t(event.colleague ? 'Collègue' : 'Moi')} — ${t(stageLabel(event.type))}${event.note ? ` : ${event.note}` : ''}`
-            ).join('\n');
-        } else {
             fields.following.textContent = t('Impossible de charger le suivi des interventions.');
         }
         if (results.services.status === 'fulfilled') {
@@ -6227,10 +6168,7 @@
         return {
             arrived: 'Arrivée signalée',
             started: 'Intervention démarrée',
-            completed: 'Visite terminée',
-            visit_planned: 'Visite prévue, non confirmée terminée',
-            visit_in_progress: 'Visite signalée en cours',
-            visit_completed: 'Visite signalée terminée'
+            completed: 'Visite terminée'
         }[stage] || 'Étape enregistrée';
     }
 
@@ -6410,43 +6348,27 @@
         return form;
     }
 
-    function afficherJournalIntervenant(visits) {
-        const container = document.getElementById('pro-journal-list');
-        const entries = etapesIntervenant(visits);
-        container.replaceChildren();
-        entries.forEach(event => {
-            const item = document.createElement('div');
-            item.className = 'progress-item';
-            item.append(makeTextElement('strong', `${event.scheduled ? 'Prévue le ' : ''}${formatDateTime(event.createdAt)}`), document.createElement('br'),
-                makeTextElement('span', `Visite ${event.visitNumber} · ${event.colleague ? 'Collègue' : 'Moi'} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`));
-            container.append(item);
-        });
-        if (!entries.length) container.append(makeTextElement('p', 'Aucune étape pour les visites de cette date.', 'helper-text'));
-    }
-
     async function chargerPlanningPro() {
         const container = document.getElementById('pro-planning');
         if (!container || !connectedUser || connectedUser.role !== 'pro') return;
 
         const loadId = ++planningLoadId;
-        const userId = connectedUser.id;
         try {
             const dateInput = document.getElementById('planning-date');
             if (!dateInput.value) dateInput.value = dateInputValue(new Date());
             updatePlanningDateTitle();
             const result = await planningRequest(`/api/planning/today?date=${encodeURIComponent(dateInput.value)}`);
-            if (loadId !== planningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
-            afficherJournalIntervenant(result.visits);
+            if (loadId !== planningLoadId) return;
             container.replaceChildren();
             if (!result.visits.length) {
                 container.append(makeTextElement('p', 'Aucune visite ne vous est affectée à cette date.', 'helper-text'));
             } else {
-                result.visits.forEach((visit, index) => {
+                result.visits.forEach(visit => {
                     const card = document.createElement('article');
                     card.className = 'visit-card';
                     const heading = document.createElement('div');
                     heading.className = 'visit-heading';
-                    heading.append(makeTextElement('strong', `Visite ${index + 1} · ${visit.recipient.name}`));
+                    heading.append(makeTextElement('strong', visit.recipient.name));
                     heading.append(makeTextElement('span', formatDateTime(visit.scheduledAt), 'visit-time'));
                     card.append(heading);
                     card.append(makeTextElement('p', `${visit.visitType} · durée prévue ${visit.durationMinutes} min`, 'visit-kind'));
@@ -6494,18 +6416,12 @@
                         controls.className = 'visit-progress';
                         const note = document.createElement('textarea');
                         note.maxLength = 500;
-                        note.placeholder = 'Note pratique facultative (sans donnée personnelle ou de santé)';
-                        const warning = makeTextElement('p', 'Cette note est visible des aidants autorisés. N’indiquez aucune donnée personnelle ou de santé.');
-                        warning.className = 'helper-text';
-                        const shareLabel = document.createElement('label');
-                        const share = document.createElement('input');
-                        share.type = 'checkbox';
-                        shareLabel.append(share, document.createTextNode(' Partager cette note avec mes collègues autorisés. Je confirme qu’elle ne contient aucune donnée personnelle ou de santé.'));
+                        note.placeholder = 'Note pratique facultative (sans donnée médicale)';
                         const button = document.createElement('button');
                         button.type = 'button';
                         button.textContent = stageLabel(stage);
-                        button.addEventListener('click', () => enregistrerEtapeVisite(visit.id, stage, note, share, button));
-                        controls.append(warning, note, shareLabel, button);
+                        button.addEventListener('click', () => enregistrerEtapeVisite(visit.id, stage, note, button));
+                        controls.append(note, button);
                         card.append(controls);
                     }
                     container.append(card);
@@ -6526,11 +6442,8 @@
                 }
             }
         } catch (error) {
-            if (loadId !== planningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
+            if (loadId !== planningLoadId) return;
             container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger le planning.', 'helper-text'));
-            document.getElementById('pro-journal-list').replaceChildren(
-                makeTextElement('p', 'Impossible de charger les étapes des interventions.', 'helper-text')
-            );
         }
     }
 
@@ -6825,12 +6738,12 @@
         });
     }
 
-    async function enregistrerEtapeVisite(visitId, stage, noteInput, shareInput, button) {
+    async function enregistrerEtapeVisite(visitId, stage, noteInput, button) {
         button.disabled = true;
         try {
             await planningRequest(`/api/planning/visits/${encodeURIComponent(visitId)}/progress`, {
                 method: 'POST',
-                body: { stage, note: noteInput.value.trim(), shareWithTeam: shareInput.checked }
+                body: { stage, note: noteInput.value.trim() }
             });
             showToast(stageLabel(stage));
             await chargerPlanningPro();
@@ -7447,15 +7360,6 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
-        aidantSummaryLoadId++;
-        aidantSummaryContext = '';
-        ['aidant', 'pro'].forEach(role => {
-            const notificationDetails = document.getElementById(`${role}-summary-notification-details`);
-            notificationDetails.textContent = '';
-            notificationDetails.hidden = true;
-        });
-        planningLoadId++;
-        document.getElementById('pro-journal-list').replaceChildren();
         reinitialiserMeteo();
         arreterLectureSenior();
         annulerDicteeMessage();
@@ -7837,7 +7741,6 @@
         container.replaceChildren();
         const today = dateCheckinBienEtre();
         const beforeToday = date => Number.isFinite(new Date(date).getTime()) && calendarEventDate(date) < today;
-        const throughToday = date => Number.isFinite(new Date(date).getTime()) && calendarEventDate(date) <= today;
         const entries = [];
         if (logs.status === 'fulfilled') logs.value.forEach(log => {
             if (beforeToday(log.created_at)) entries.push({
@@ -7846,7 +7749,7 @@
         });
         if (following.status === 'fulfilled') following.value.visits.forEach(visit => {
             progressArray(visit.progress).forEach(event => {
-                if ((role === 'aidant' ? throughToday(event.createdAt) : beforeToday(event.createdAt))) entries.push({
+                if (beforeToday(event.createdAt)) entries.push({
                     date: event.createdAt, author: auteurAvecRole(event.authorRole),
                     text: `${visit.visitType} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`
                 });
