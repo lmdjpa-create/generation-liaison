@@ -18,9 +18,13 @@ test('senior and caregiver can open the external flea market directory without s
     assert.match(section, /site externe/);
     assert.doesNotMatch(section, /senior-full-only/);
   }
-  assert.ok(source.indexOf('id="aidant-local-outings"') < source.indexOf('id="aidant-senior-content"'));
   assert.ok(source.indexOf('id="senior-local-outings"') > source.indexOf('id="senior-pro-button"'));
-  assert.ok(source.indexOf('id="aidant-local-outings"') > source.indexOf('id="aidant-shortcuts"'));
+  assert.ok(source.indexOf('id="aidant-local-outings"') > source.indexOf('id="aidant-services-details"'));
+  assert.match(source, /#aidant-senior-content > #aidant-local-outings \{ grid-column: 2; \}/);
+  assert.match(source, /#senior-local-outings \{[^}]*margin-left: auto;/);
+  const noSenior = source.slice(source.indexOf('id="aidant-no-senior-panel"'), source.indexOf('id="aidant-senior-content"'));
+  assert.match(noSenior, /id="aidant-local-outings-no-senior"/);
+  assert.match(noSenior, /href="https:\/\/vide-greniers\.org\/" target="_blank" rel="noopener noreferrer"/);
 });
 
 test('daily caregiver summary shows only current profile data and reports partial failures', async () => {
