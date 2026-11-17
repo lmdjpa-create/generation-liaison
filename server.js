@@ -1266,7 +1266,7 @@ function hasActivePremium(user) {
 async function createDailyRoom(roomName) {
   const apiKey = process.env.DAILY_API_KEY;
   if (!apiKey) {
-    throw new Error('Configurez DAILY_API_KEY pour activer la visio premium.');
+    throw new Error('Configurez DAILY_API_KEY pour activer la visio.');
   }
 
   const response = await fetch('https://api.daily.co/v1/rooms', {
@@ -1302,7 +1302,7 @@ async function createDailyRoom(roomName) {
 async function createDailyToken(roomName, userName, isOwner = false) {
   const apiKey = process.env.DAILY_API_KEY;
   if (!apiKey) {
-    throw new Error('Configurez DAILY_API_KEY pour activer la visio premium.');
+    throw new Error('Configurez DAILY_API_KEY pour activer la visio.');
   }
 
   const response = await fetch('https://api.daily.co/v1/meeting-tokens', {
@@ -1375,8 +1375,6 @@ async function notifyEmergencyAidants(client, senior, { type, title, message, ch
   return rows.length;
 }
 
-const FREE_CONTACTS_PER_ROLE = 1;
-
 app.get('/api/contacts', requireAuth, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -1422,24 +1420,6 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
     }
     if (!isValidUuid(String(contactUserId))) {
       return res.status(400).json({ error: 'Choisissez un contact valide.' });
-    }
-    if (!hasActivePremium(req.authUser)) {
-      const { rows: [target] } = await pool.query(
-        'SELECT role FROM app_users WHERE id = $1 AND is_active = TRUE', [contactUserId]
-      );
-      if (target) {
-        const { rows: [existing] } = await pool.query(
-          `SELECT count(*)::int AS total FROM app_user_contacts c
-           JOIN app_users u ON u.id = c.contact_user_id
-           WHERE c.user_id = $1 AND u.role = $2 AND c.contact_user_id <> $3`,
-          [req.authUser.id, target.role, contactUserId]
-        );
-        if (existing.total >= FREE_CONTACTS_PER_ROLE) {
-          return res.status(402).json({
-            error: 'La version gratuite permet un aidant et un soignant en contact. Passez à la version payante pour en ajouter davantage.'
-          });
-        }
-      }
     }
     const { rows } = await pool.query(
       `WITH target AS (
@@ -1505,10 +1485,6 @@ app.delete('/api/contacts/:contactId', requireAuth, async (req, res) => {
 
 app.post('/api/video/token', requireAuth, async (req, res) => {
   try {
-    if (!hasActivePremium(req.authUser)) {
-      return res.status(403).json({ error: 'L’accès à la visio est réservé à un abonnement premium actif.' });
-    }
-
     const contactId = req.body?.contactId || req.body?.contactUserId || req.body?.id;
     if (!isValidUuid(String(contactId || ''))) {
       return res.status(400).json({ error: 'Sélectionnez un contact valide pour l’appel.' });
@@ -1527,9 +1503,6 @@ app.post('/api/video/token', requireAuth, async (req, res) => {
     }
 
     const contact = rows[0];
-    if (!hasActivePremium(contact)) {
-      return res.status(403).json({ error: 'Le contact doit aussi disposer d’un abonnement premium actif.' });
-    }
 
     const roomName = `generation-liaison-${randomUUID().replace(/-/g, '')}`;
     const room = await createDailyRoom(roomName);
@@ -1550,7 +1523,7 @@ app.post('/api/video/token', requireAuth, async (req, res) => {
       contactName: contact.name
     });
   } catch (error) {
-    sendApiError(res, error, 'Impossible de lancer l’appel vidéo premium.');
+    sendApiError(res, error, 'Impossible de lancer l’appel vidéo.');
   }
 });
 
@@ -4689,7 +4662,7 @@ app.get('/api/messages/contacts', requireAuth, async (req, res) => {
     res.set('Cache-Control', 'private, no-store');
     res.json({ contacts: rows.map(row => ({
       id: row.id, name: row.name, premium: hasActivePremium(row),
-      canSend: row.linked || (hasActivePremium(req.authUser) && hasActivePremium(row))
+      canSend: true
     })),
       premium: hasActivePremium(req.authUser) });
   } catch (error) {
@@ -4731,13 +4704,6 @@ async function findMessageLink(client, userId, contactId, lock = false) {
   return saved.rows.length === 2 ? { ...rows[0], linked: false } : null;
 }
 
-function maySendPrivateMessage(contact) {
-  return contact.linked || (
-    hasActivePremium({ premium_status: contact.own_premium_status, premium_until: contact.own_premium_until }) &&
-    hasActivePremium(contact)
-  );
-}
-
 app.post('/api/messages/multiple', requireAuth, async (req, res) => {
   if (req.authUser.role !== 'senior') {
     return res.status(403).json({ error: 'Cet envoi est réservé au compte senior.' });
@@ -4759,9 +4725,9 @@ app.post('/api/messages/multiple', requireAuth, async (req, res) => {
     const ids = recipients.map(id => id.toLowerCase()).sort();
     for (const id of ids) {
       const contact = await findMessageLink(client, req.authUser.id, id, true);
-      if (!contact || !maySendPrivateMessage(contact)) {
+      if (!contact) {
         await client.query('ROLLBACK');
-        return res.status(403).json({ error: 'Un correspondant n’est plus autorisé ou nécessite un accès premium. Aucun message n’a été envoyé.' });
+        return res.status(403).json({ error: 'Un correspondant n’est plus autorisé. Aucun message n’a été envoyé.' });
       }
     }
     for (const recipientId of ids) {
@@ -4831,10 +4797,6 @@ app.post('/api/messages/:contactId', requireAuth, async (req, res) => {
     if (!contact) {
       await client.query('ROLLBACK');
       return res.status(403).json({ error: 'Ce correspondant n’est pas associé à votre compte.' });
-    }
-    if (!maySendPrivateMessage(contact)) {
-      await client.query('ROLLBACK');
-      return res.status(403).json({ error: 'Les deux personnes doivent disposer d’un accès premium actif pour envoyer un message.' });
     }
     const id = randomUUID();
     await client.query(
