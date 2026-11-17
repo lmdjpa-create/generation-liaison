@@ -358,9 +358,11 @@ function createView(response) {
   const bodyClasses = new Set();
   const tabDisclosures = [{ open: false }, { open: false }];
   const featureDisclosures = Object.fromEntries(
-    ['senior', 'aidant', 'pro', 'more', 'senior-pro', 'agenda', 'directory', 'contacts', 'messages']
+    ['senior', 'aidant', 'pro', 'more', 'senior-pro', 'settings', 'agenda', 'directory', 'contacts', 'messages']
       .map(screen => [screen, [{ id: `${screen}-feature`, open: false }]])
   );
+  const weatherDisclosures = [element('senior-weather-week'), element('aidant-weather-week')];
+  const explanation = { open: false };
   const respite = [{ id: 'aidant-respite-details', open: false }];
   const context = {
     console: { error() {} },
@@ -372,7 +374,9 @@ function createView(response) {
       getElementById: element,
       querySelector: element,
       querySelectorAll: selector => {
-        if (selector === '.senior-tab-disclosure') return tabDisclosures;
+        if (selector === '.screen-container details') return [
+          ...tabDisclosures, ...Object.values(featureDisclosures).flat(), ...weatherDisclosures, ...respite, explanation
+        ];
         if (selector === '.screen-container') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'messages'].map(name => element(`screen-${name}`));
         if (selector === '.nav-item') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'notifications', 'logout'].map(name => element(`nav-${name}`));
         if (selector === '#aidant-respite > details:not(.senior-explanation)') return respite;
@@ -437,21 +441,30 @@ function createView(response) {
       'globalThis.openView = setAuthenticatedView; globalThis.openScreen = switchScreen; globalThis.openAgenda = ouvrirAgenda;',
     context
   );
-  return { context, element, calls, bodyClasses, tabDisclosures, featureDisclosures, respite };
+  return { context, element, calls, bodyClasses, tabDisclosures, featureDisclosures, weatherDisclosures, respite, explanation };
 }
 
-test('functions open directly while settings remain separate', async () => {
-  const { context, tabDisclosures, calls, featureDisclosures } = createView({ seniors: [] });
+test('sections start closed, preserve user choices while navigating and keep settings separate', async () => {
+  const { context, tabDisclosures, calls, featureDisclosures, weatherDisclosures, explanation } = createView({ seniors: [] });
+  featureDisclosures.senior[0].open = true;
+  weatherDisclosures[0].open = true;
+  explanation.open = true;
   await context.openView({ id: 'senior', role: 'senior' });
-  assert.ok(featureDisclosures.senior.every(details => details.open));
+  assert.ok(featureDisclosures.senior.every(details => !details.open));
+  assert.ok(weatherDisclosures.every(details => !details.open));
+  assert.equal(explanation.open, false);
   assert.ok(tabDisclosures.every(details => !details.open));
+  featureDisclosures.senior[0].open = true;
   context.openScreen('agenda');
-  assert.ok(featureDisclosures.agenda.every(details => details.open));
+  assert.ok(featureDisclosures.agenda.every(details => !details.open));
+  context.openScreen('senior');
+  assert.equal(featureDisclosures.senior[0].open, true);
   calls.length = 0;
   context.openScreen('settings');
   assert.ok(calls.includes('chargerConsentements'));
   await context.openView({ id: 'aidant', role: 'aidant' });
-  assert.ok(tabDisclosures.every(details => details.open));
+  assert.ok(tabDisclosures.every(details => !details.open));
+  assert.equal(featureDisclosures.senior[0].open, false);
 });
 
 test('an aidant without a linked senior can use account navigation without loading senior data', async () => {
@@ -481,17 +494,34 @@ test('aidant functions retain their content', () => {
   }
 });
 
-test('each approved role opens its functions without opening explanatory details', async () => {
+test('each approved role keeps sections and weather closed until selected', async () => {
   for (const role of ['senior', 'aidant', 'pro']) {
-    const { context, featureDisclosures } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
+    const { context, featureDisclosures, weatherDisclosures, respite } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
     await context.openView({ id: role, role, verificationStatus: 'approved' });
-    assert.ok(featureDisclosures[role].every(details => details.open));
-    for (const screen of ['agenda', 'contacts', 'messages']) {
+    assert.ok(featureDisclosures[role].every(details => !details.open));
+    assert.ok(weatherDisclosures.every(details => !details.open));
+    assert.ok(respite.every(details => !details.open));
+    for (const screen of ['agenda', 'contacts', 'messages', 'settings', ...(role === 'senior' ? ['more', 'senior-pro', 'directory'] : role === 'aidant' ? ['directory'] : [])]) {
       context.openScreen(screen);
-      assert.ok(featureDisclosures[screen].every(details => details.open));
+      assert.ok(featureDisclosures[screen].every(details => !details.open));
     }
   }
-  assert.match(source, /details:not\(\.senior-explanation\)/);
+});
+
+test('returning to an open family section refreshes it without loading closed sections', async () => {
+  const { context, element, calls } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
+  await context.openView({ id: 'aidant', role: 'aidant' });
+  assert.equal(calls.includes('chargerTachesPartagees'), false);
+  assert.equal(calls.includes('chargerContactsUtiles'), false);
+  assert.equal(calls.includes('chargerAlbumFamilial'), false);
+  element('aidant-tasks-details').open = true;
+  element('aidant-album-details').open = true;
+  calls.length = 0;
+  context.openScreen('settings');
+  context.openScreen('aidant');
+  assert.ok(calls.includes('chargerTachesPartagees'));
+  assert.ok(calls.includes('chargerAlbumFamilial'));
+  assert.equal(calls.includes('chargerContactsUtiles'), false);
 });
 
 test('sharing, senior display and Google synchronization controls are in settings', async () => {

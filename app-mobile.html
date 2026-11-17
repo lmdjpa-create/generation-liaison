@@ -2174,16 +2174,6 @@
             return;
         }
         if (pendingAccess) return;
-        const openedDetails = new Set();
-        const disclosureSelector = screenName === 'aidant' && !activeSeniorProfileId
-            ? '#aidant-respite > details:not(.senior-explanation)'
-            : `#screen-${screenId} details:not(.senior-explanation)`;
-        document.querySelectorAll(disclosureSelector).forEach(details => {
-            if (!details.open) {
-                details.open = true;
-                openedDetails.add(details.id);
-            }
-        });
         chargerNotifications();
         if (screenName === 'messages') {
             document.getElementById('screen-messages').scrollTop = 0;
@@ -2192,10 +2182,10 @@
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerSyntheseAidant();
             chargerLogs();
-            if (!openedDetails.has('aidant-album-details') && document.getElementById('aidant-album-details').open) chargerAlbumFamilial('aidant');
-            if (!openedDetails.has('aidant-journal-details') && document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
-            if (!openedDetails.has('aidant-key-contacts-details')) chargerContactsUtiles('aidant');
-            if (!openedDetails.has('aidant-tasks-details')) chargerTachesPartagees('aidant');
+            if (document.getElementById('aidant-album-details').open) chargerAlbumFamilial('aidant');
+            if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
+            if (document.getElementById('aidant-key-contacts-details').open) chargerContactsUtiles('aidant');
+            if (document.getElementById('aidant-tasks-details').open) chargerTachesPartagees('aidant');
             chargerCheckinsPartages();
             chargerSuiviPartage('aidant');
             chargerConsentements('aidant');
@@ -2203,15 +2193,15 @@
         } else if (screenName === 'more' || screenName === 'senior-pro') {
             document.getElementById(`screen-${screenName}`).scrollTop = 0;
             chargerSyntheseSenior();
-            if (!openedDetails.has('senior-album-details') && document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
-            if (!openedDetails.has('senior-journal-details') && document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
-            if (screenName === 'senior-pro' && !openedDetails.has('senior-tasks-details')) chargerTachesPartagees('senior');
+            if (document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
+            if (document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
+            if (screenName === 'senior-pro' && document.getElementById('senior-tasks-details').open) chargerTachesPartagees('senior');
             chargerSuiviPartage('senior');
             chargerServicesFamiliaux('senior');
         } else if (screenName === 'senior') {
             chargerProchainRendezVous();
             chargerSyntheseSenior();
-            if (!openedDetails.has('senior-key-contacts-details')) chargerContactsUtiles('senior');
+            if (document.getElementById('senior-key-contacts-details').open) chargerContactsUtiles('senior');
             if (document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
             if (document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
             chargerCheckinBienEtre();
@@ -2753,8 +2743,8 @@
         if (user.hasAccountPhoto) void chargerPhotoProfil();
         document.body.classList.toggle('senior-mode', user.role === 'senior');
         initialiserVueSenior(user);
-        document.querySelectorAll('.senior-tab-disclosure').forEach(details => {
-            details.open = user.role !== 'senior';
+        document.querySelectorAll('.screen-container details').forEach(details => {
+            details.open = false;
         });
         const pendingProfessional = user.role === 'pro' && user.verificationStatus !== 'approved';
         const pendingGuardian = user.role === 'aidant' && user.isLegalGuardian &&
