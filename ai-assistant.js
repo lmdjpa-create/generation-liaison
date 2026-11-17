@@ -41,6 +41,11 @@ async function requestReply({
     error.status = 503;
     throw error;
   }
+  if (typeof apiKey !== 'string' || !/^[A-Za-z0-9._~+/-]+=*$/.test(apiKey)) {
+    const error = new Error('La clé OpenAI configurée sur le serveur est invalide. Vérifiez sa valeur sans la partager.');
+    error.status = 503;
+    throw error;
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
