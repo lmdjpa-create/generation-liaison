@@ -7323,9 +7323,9 @@
             for (const photo of result.photos) {
                 const card = document.createElement('div');
                 card.className = 'progress-item';
-                card.append(makeTextElement('p', `${photo.authorName} · ${formatDateTime(photo.createdAt)}${photo.approved ? '' : ' · En attente de votre accord'}`));
+                card.append(makeTextElement('p', `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)}${photo.approved ? '' : ' · En attente de votre accord'}`));
                 if (!photo.approved && role === 'aidant') card.firstChild.textContent =
-                    `${photo.authorName} · ${formatDateTime(photo.createdAt)} · En attente de l’accord du senior`;
+                    `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)} · En attente de l’accord du senior`;
                 const image = document.createElement('img');
                 image.alt = `Photo partagée par ${photo.authorName}`;
                 image.style.cssText = 'max-width:100%;max-height:300px;object-fit:contain;';
@@ -7375,6 +7375,18 @@
         }
     }
 
+    function auteurAvecRole(role, name = '') {
+        const roleId = role === 3 || role === '3' ? 'pro'
+            : role === 2 || role === '2' ? 'aidant'
+                : role === 1 || role === '1' ? 'senior'
+                    : role;
+        const author = roleId === 'pro' ? '🩺 Soignant'
+            : roleId === 'aidant' ? '👨‍👩‍👧‍👦 Famille'
+                : roleId === 'senior' ? '👴 Senior'
+                    : '👤 Participant';
+        return name ? `${author} · ${name}` : author;
+    }
+
     async function chargerJournalQuotidien(role) {
         if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId)) return;
         const revision = ++familyJournalRevision;
@@ -7392,11 +7404,16 @@
         const beforeToday = date => Number.isFinite(new Date(date).getTime()) && calendarEventDate(date) < today;
         const entries = [];
         if (logs.status === 'fulfilled') logs.value.forEach(log => {
-            if (beforeToday(log.created_at)) entries.push({ date: log.created_at, text: log.content });
+            if (beforeToday(log.created_at)) entries.push({
+                date: log.created_at, author: auteurAvecRole(log.author_id), text: log.content
+            });
         });
         if (following.status === 'fulfilled') following.value.visits.forEach(visit => {
             progressArray(visit.progress).forEach(event => {
-                if (beforeToday(event.createdAt)) entries.push({ date: event.createdAt, text: `${visit.visitType} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}` });
+                if (beforeToday(event.createdAt)) entries.push({
+                    date: event.createdAt, author: auteurAvecRole(event.authorRole),
+                    text: `${visit.visitType} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`
+                });
             });
         });
         entries.sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -7404,7 +7421,7 @@
             const item = document.createElement('div');
             item.className = 'progress-item';
             item.append(makeTextElement('strong', formatDateTime(entry.date)), document.createElement('br'),
-                makeTextElement('span', entry.text));
+                makeTextElement('span', `${entry.author} · ${entry.text}`));
             container.append(item);
         });
         if (logs.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les nouvelles.', 'helper-text'));
