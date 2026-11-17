@@ -16,6 +16,23 @@ test('requires an OpenAI API key configured on the server', async () => {
   );
 });
 
+test('rejects malformed API keys without exposing them or calling OpenAI', async () => {
+  const originalFetch = global.fetch;
+  let fetchCalled = false;
+  global.fetch = async () => { fetchCalled = true; };
+  try {
+    for (const apiKey of ['sk-test’cle', 'sk-test\ncle', ' sk-test', '"sk-test"', 'sk-test secret']) {
+      await assert.rejects(
+        generateAdminReply({ messages: [{ role: 'user', content: 'Bonjour' }], apiKey }),
+        error => error.status === 503 && /clé OpenAI.*invalide/.test(error.message) && !error.message.includes(apiKey)
+      );
+    }
+    assert.equal(fetchCalled, false);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
 test('site review receives the weather quota instruction without claiming quota monitoring or web access', async () => {
   const originalFetch = global.fetch;
   let payload;
