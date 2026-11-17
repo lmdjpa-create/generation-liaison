@@ -41,6 +41,7 @@ test('daily caregiver summary shows only current profile data and reports partia
     dateCheckinBienEtre: () => '2028-02-29',
     calendarEventLabel: event => event.title,
     calendarEventDate: value => value.slice(0, 10),
+    formatDateTime: value => value,
     progressArray: value => value || [],
     stageLabel: value => value,
     Date,
@@ -57,9 +58,16 @@ test('daily caregiver summary shows only current profile data and reports partia
         { dueDate: '2028-03-01', completed: false, assigned: false }
       ] });
       if (url === '/api/messages/unread-count') return Promise.reject(new Error('offline'));
-      if (url === '/api/notifications') return Promise.resolve({ unreadCount: 2 });
+      if (url === '/api/notifications') return Promise.resolve({ unreadCount: 2, notifications: [
+        { createdAt: '2028-02-29T10:00:00Z', title: 'Nouvelle alerte', message: 'Détail de l’alerte' },
+        { createdAt: '2028-02-28T10:00:00Z', title: 'Autre notification', message: 'Détail précédent' }
+      ] });
       if (url === '/api/planning/following') return Promise.resolve({ visits: [
-        { scheduledAt: '2028-02-29T10:00:00Z', visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-02-29T10:01:00Z' }] }
+        { scheduledAt: '2028-02-29T10:00:00Z', visitType: 'Visite', progress: [
+          { type: 'arrived', createdAt: '2028-02-29T10:01:00Z', note: 'Présent' },
+          { type: 'completed', createdAt: '2028-02-29T11:00:00Z' },
+          { type: 'old', createdAt: '2028-02-28T11:00:00Z' }
+        ] }
       ] });
       if (url.startsWith('/api/planning/services/bookings')) return Promise.resolve({ bookings: [{ status: 'requested' }, { status: 'cancelled' }] });
       if (url === '/api/logs/all') return Promise.resolve([{ created_at: '2028-02-29T10:00:00Z', content: 'Repas reçu' }]);
@@ -67,7 +75,7 @@ test('daily caregiver summary shows only current profile data and reports partia
       throw new Error(`Unexpected request: ${url}`);
     }
   };
-  const start = source.indexOf('    function chargerSyntheseAidant()');
+  const start = source.indexOf('    function etapesIntervenant(visits)');
   const end = source.indexOf('    function afficherProchainRendezVous()', start);
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadSummary = chargerSyntheseAidant;`, context);
   const first = context.loadSummary();
@@ -76,14 +84,24 @@ test('daily caregiver summary shows only current profile data and reports partia
   assert.equal(getElementById('aidant-summary-visit').textContent, 'Rendez-vous aujourd’hui : 2\nEn attente\nVisite prévue');
   assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui ou en retard : 2 · Sans volontaire : 2');
   assert.equal(getElementById('aidant-summary-messages').textContent, 'Impossible de charger les messages.');
-  assert.equal(getElementById('aidant-summary-notifications').textContent, 'Notifications non lues parmi les 50 dernières : 2');
-  assert.match(getElementById('aidant-summary-following').textContent, /Dernière étape : Visite — arrived/);
+  assert.equal(elements.has('aidant-summary-notifications'), false);
+  assert.match(getElementById('aidant-summary-notification-details').textContent, /Nouvelle alerte\nDétail de l’alerte/);
+  assert.match(getElementById('aidant-summary-notification-details').textContent, /Autre notification/);
+  assert.equal(getElementById('aidant-summary-notification-details').hidden, false);
+  assert.equal(getElementById('aidant-summary-following').textContent,
+    '2028-02-29T11:00:00Z · Visite — completed\n2028-02-29T10:01:00Z · Visite — arrived : Présent');
   assert.match(getElementById('aidant-summary-services').textContent, /En attente de réponse : 1 · Annulés : 1/);
   assert.ok(!elements.has('aidant-summary-logs'));
   assert.match(getElementById('aidant-summary-checkins').textContent, / : 1$/);
   firstResolvers.forEach(resolve => resolve({}));
   await first;
   assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui ou en retard : 2 · Sans volontaire : 2');
+  assert.match(getElementById('aidant-summary-notification-details').textContent, /Nouvelle alerte/);
+  const normalRequest = context.planningRequest;
+  context.planningRequest = url => url === '/api/notifications' ? Promise.reject(new Error('offline')) : normalRequest(url);
+  await context.loadSummary();
+  assert.equal(getElementById('aidant-summary-notification-details').textContent, 'Impossible de charger les notifications.');
+  assert.equal(getElementById('aidant-summary-notification-details').hidden, false);
 });
 
 test('senior summary uses the calendar and accessible updates without requesting shared check-ins', async () => {
@@ -97,6 +115,7 @@ test('senior summary uses the calendar and accessible updates without requesting
     dateCheckinBienEtre: () => '2028-02-29',
     calendarEventDate: value => value.slice(0, 10),
     calendarEventLabel: event => event.title,
+    formatDateTime: value => value,
     progressArray: value => value || [],
     stageLabel: value => value,
     Date,
@@ -105,14 +124,16 @@ test('senior summary uses the calendar and accessible updates without requesting
       if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Rendez-vous prévu' }] };
       if (url === '/api/shared-tasks') return { tasks: [{ completed: false, dueDate: null }] };
       if (url === '/api/messages/unread-count') return { count: 1 };
-      if (url === '/api/notifications') return { unreadCount: 0 };
+      if (url === '/api/notifications') return { unreadCount: 0, notifications: [
+        { createdAt: '2028-02-29T10:00:00Z', title: 'Alerte senior', message: 'Information reçue' }
+      ] };
       if (url === '/api/planning/following') return { visits: [] };
       if (url.startsWith('/api/planning/services/bookings')) return { bookings: [] };
       if (url === '/api/logs/all') return [];
       throw new Error(`Unexpected request: ${url}`);
     }
   };
-  const start = source.indexOf('    function chargerSyntheseAidant()');
+  const start = source.indexOf('    function etapesIntervenant(visits)');
   const end = source.indexOf('    function afficherProchainRendezVous()', start);
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadSummary = chargerSyntheseSenior;`, context);
   await context.loadSummary();
@@ -121,6 +142,7 @@ test('senior summary uses the calendar and accessible updates without requesting
   assert.equal(elements.get('senior-summary-messages').textContent, 'Messages non lus : 1');
   assert.equal(elements.get('senior-summary-notifications').textContent, '');
   assert.equal(elements.get('senior-summary-notifications').hidden, true);
+  assert.equal(elements.has('senior-summary-notification-details'), false);
   assert.equal(elements.get('senior-summary-following').hidden, true);
   assert.ok(!elements.has('senior-summary-logs'));
   assert.ok(paths.some(path => path === '/api/planning/calendar?start=2028-02-29&end=2028-03-01'));
@@ -137,29 +159,86 @@ test('professional summary uses only professional-accessible data and shows pend
     window: { generationLiaisonTranslate: value => value },
     dateCheckinBienEtre: () => '2028-02-29',
     calendarEventLabel: event => event.title,
+    calendarEventDate: value => value.slice(0, 10),
+    formatDateTime: value => value,
+    progressArray: value => value || [],
+    stageLabel: value => value,
     Date,
     planningRequest: async url => {
       paths.push(url);
       if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Visite prévue' }] };
       if (url === '/api/messages/unread-count') return { count: 1 };
-      if (url === '/api/notifications') return { unreadCount: 2 };
+      if (url === '/api/notifications') return { unreadCount: 1, notifications: [
+        { createdAt: '2028-02-29T10:00:00Z', title: 'Invitation', message: 'Une visite est proposée' }
+      ] };
       if (url.startsWith('/api/planning/services/bookings')) return { bookings: [] };
       if (url === '/api/directory/bookings') return { bookings: [{ status: 'pending' }, { status: 'confirmed' }] };
+      if (url === '/api/planning/today?date=2028-02-29') return { visits: [{
+        recipient: { name: 'Personne suivie' }, visitType: 'Visite',
+        scheduledAt: '2028-02-29T09:00:00Z', status: 'scheduled',
+        progress: [
+          { type: 'arrived', createdAt: '2028-02-29T10:00:00Z', note: 'Ma note' },
+          { type: 'completed', createdAt: '2028-02-29T11:00:00Z' },
+          { type: 'old', createdAt: '2028-02-28T10:00:00Z' }
+        ],
+        teamProgress: [{ type: 'started', createdAt: '2028-02-29T10:30:00Z', note: 'Note partagée' }],
+        teamVisits: [{ scheduledAt: '2028-02-29T12:00:00Z', status: 'planned', note: 'Autre note' }]
+      }] };
       throw new Error(`Unexpected request: ${url}`);
     }
   };
-  const start = source.indexOf('    function chargerSyntheseAidant()');
+  const start = source.indexOf('    function etapesIntervenant(visits)');
   const end = source.indexOf('    function afficherProchainRendezVous()', start);
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadSummary = chargerSynthesePro;`, context);
   await context.loadSummary();
   assert.match(elements.get('pro-summary-visit').textContent, /Visite prévue/);
   assert.equal(elements.get('pro-summary-demands').textContent, 'Demandes de rendez-vous en attente : 1');
+  assert.equal(elements.has('pro-summary-notifications'), false);
+  assert.match(elements.get('pro-summary-notification-details').textContent, /Invitation\nUne visite est proposée/);
+  assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — arrived : Ma note/);
+  assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — completed/);
+  assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Collègue — started : Note partagée/);
+  assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Collègue — visit_planned/);
+  assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — visit_in_progress/);
+  assert.doesNotMatch(elements.get('pro-summary-following').textContent, /old|Personne suivie|Autre note/);
   assert.ok(!paths.includes('/api/shared-tasks'));
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
+  assert.ok(!paths.includes('/api/planning/following'));
+});
+
+test('professional journal shows only the supplied assigned visits and their steps', () => {
+  const children = [];
+  const container = { replaceChildren() { children.length = 0; }, append(item) { children.push(item); } };
+  const context = {
+    document: {
+      getElementById: () => container,
+      createElement: tag => ({ tag, children: [], append(...items) { this.children.push(...items); } })
+    },
+    progressArray: value => value || [],
+    formatDateTime: value => value,
+    stageLabel: value => value,
+    makeTextElement: (tag, text) => ({ tag, text }),
+    Date
+  };
+  const start = source.indexOf('    function afficherJournalIntervenant(visits)');
+  const end = source.indexOf('    async function chargerPlanningPro()', start);
+  const helperStart = source.indexOf('    function etapesIntervenant(visits)');
+  const helperEnd = source.indexOf('    function chargerSyntheseAidant()', helperStart);
+  vm.runInNewContext(`${source.slice(helperStart, helperEnd)}${source.slice(start, end)}\nglobalThis.showJournal = afficherJournalIntervenant;`, context);
+  context.showJournal([{ recipient: { name: 'Personne suivie' }, visitType: 'Visite', progress: [
+    { type: 'arrived', createdAt: '2028-02-29T10:00:00Z', note: 'Présent' },
+    { type: 'completed', createdAt: '2028-02-29T11:00:00Z' }
+  ], teamProgress: [{ type: 'started', createdAt: '2028-02-29T10:30:00Z', note: 'Note privée' }] }]);
+  assert.equal(children[0].children[2].text, 'Visite 1 · Moi — completed');
+  assert.equal(children[1].children[2].text, 'Visite 1 · Collègue — started : Note privée');
+  assert.equal(children[2].children[2].text, 'Visite 1 · Moi — arrived : Présent');
+  context.showJournal([]);
+  assert.equal(children[0].text, 'Aucune étape pour les visites de cette date.');
 });
 
 test('daily journal sorts shared updates and reports unavailable sources', async () => {
   const children = [];
+  const requests = [];
   const container = {
     textContent: '',
     replaceChildren() { children.length = 0; },
@@ -177,21 +256,35 @@ test('daily journal sorts shared updates and reports unavailable sources', async
     calendarEventDate: value => value.slice(0, 10),
     stageLabel: value => value,
     progressArray: value => value,
-    planningRequest: async path => path === '/api/logs/all'
-      ? [
+    planningRequest: async path => {
+      requests.push(path);
+      return path === '/api/logs/all' ? [
         { created_at: '2028-01-01T10:00:00Z', author_id: 2, content: 'Nouvelle familiale' },
         { created_at: '2028-01-02T09:00:00Z', author_id: 3, content: 'Nouvelle professionnelle' }
       ]
-      : { visits: [{ visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent', authorRole: 'pro' }] }] }
+      : { visits: [{ visitType: 'Visite', progress: [
+        { type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent', authorRole: 'pro' },
+        { type: 'completed', createdAt: '2028-01-03T10:00:00Z', authorRole: 'pro' },
+        { type: 'future', createdAt: '2028-01-04T10:00:00Z', authorRole: 'pro' }
+      ] }] };
+    }
   };
   const helperStart = source.indexOf('    function auteurAvecRole(role, name = \'\')');
   const start = source.indexOf('    async function chargerJournalQuotidien(role)');
   const end = source.indexOf('    function configurerAlbumJournal()', start);
   vm.runInNewContext(`${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
   await context.loadJournal('aidant');
+  assert.deepEqual(requests, ['/api/logs/all', '/api/planning/following']);
+  assert.equal(children[0].children[2].text, '🩺 Soignant · Visite — completed');
+  assert.equal(children[1].children[2].text, '🩺 Soignant · Visite — arrived : Présent');
+  assert.equal(children[2].children[2].text, '🩺 Soignant · Nouvelle professionnelle');
+  assert.equal(children[3].children[2].text, '👨‍👩‍👧‍👦 Famille · Nouvelle familiale');
+  assert.equal(children.length, 4);
+  context.connectedUser = { id: 'senior', role: 'senior', seniorId: 'senior-1' };
+  await context.loadJournal('senior');
+  assert.equal(children.length, 3);
   assert.equal(children[0].children[2].text, '🩺 Soignant · Visite — arrived : Présent');
-  assert.equal(children[1].children[2].text, '🩺 Soignant · Nouvelle professionnelle');
-  assert.equal(children[2].children[2].text, '👨‍👩‍👧‍👦 Famille · Nouvelle familiale');
+  context.connectedUser = { id: 'aidant', role: 'aidant' };
   context.planningRequest = async path => {
     if (path === '/api/logs/all') throw new Error('unavailable');
     return { visits: [] };
