@@ -541,8 +541,10 @@ test('sharing, senior display and Google synchronization controls are in setting
   assert.equal(element('settings-aidant-consents').hidden, true);
 });
 
-test('daily journal and family album buttons stack their icons above the labels', () => {
+test('key contacts, daily journal and family album stack their icons above the labels', () => {
   for (const [id, label, icon] of [
+    ['senior-key-contacts-details', 'Contacts utiles', '🧑‍⚕️'],
+    ['aidant-key-contacts-details', 'Contacts utiles', '🧑‍⚕️'],
     ['senior-album-details', 'Album familial', '📷'],
     ['senior-journal-details', 'Journal du quotidien', '📰'],
     ['aidant-album-details', 'Album familial', '📷'],
@@ -556,6 +558,7 @@ test('daily journal and family album buttons stack their icons above the labels'
     assert.match(summary, new RegExp(`<span class="tile-icon" aria-hidden="true"[^>]*>${icon}</span><span>${label}</span>`));
   }
   assert.match(source, /#aidant-senior-content > \.form-card > \.senior-disclosure:not\(\.senior-explanation\) > summary \{[\s\S]*?flex-direction: column/);
+  assert.match(source, /#main-app-senior \.senior-disclosure:not\(\.senior-explanation\) > summary,[\s\S]*?flex-direction: column/);
   assert.match(source, /\.senior-mode \.senior-tab-disclosure > summary \{[\s\S]*?flex-direction: column/);
   assert.match(source, /\.senior-mode #senior-album-details > summary,[\s\S]*?min-height: 132px;[\s\S]*?justify-content: center/);
 });
