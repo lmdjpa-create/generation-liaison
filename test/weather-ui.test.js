@@ -69,6 +69,7 @@ test('multiple communes require a choice and show seven days', async () => {
   context.rechercherCommunes = async () => [commune('1', 'Paris', 48.86), commune('2', 'Parisy', 49)];
   let requests = 0;
   context.fetch = async (url, options) => {
+    if (url === '/api/weather/location') return { ok: true, data: { location: JSON.parse(options.body).location } };
     requests++;
     assert.equal(url, '/api/weather');
     assert.equal(JSON.parse(options.body).latitude, 49);
@@ -79,16 +80,17 @@ test('multiple communes require a choice and show seven days', async () => {
   element('senior-weather-search').value = 'Paris';
   await context.rechercherMeteo('senior');
   assert.equal(element('senior-weather-choice').hidden, false);
-  context.confirmerCommuneMeteo('senior');
+  await context.confirmerCommuneMeteo('senior');
   assert.match(element('senior-weather-search-status').textContent, /Choisissez/);
   assert.equal(requests, 0);
   element('senior-weather-choice').value = '2';
-  context.confirmerCommuneMeteo('senior');
+  await context.confirmerCommuneMeteo('senior');
   await new Promise(resolve => setImmediate(resolve));
   assert.match(element('senior-weather-status').textContent, /Parisy.*16 °C.*dégagé/);
   assert.equal(element('senior-weather-days').children.length, 7);
   assert.equal(element('senior-weather-week').hidden, false);
-  assert.ok(values.has('generation-liaison-weather-one'));
+  assert.equal(context.connectedUser.weatherCommune.name, 'Parisy');
+  assert.equal(values.has('generation-liaison-weather-one'), false);
 });
 
 test('the account municipality is the default until an override or opt-out is chosen', async () => {
@@ -96,6 +98,7 @@ test('the account municipality is the default until an override or opt-out is ch
   context.connectedUser.accountCommune = { name: 'Lyon', code: '69123', latitude: 45.76, longitude: 4.84 };
   const calls = [];
   context.fetch = async (url, options) => {
+    if (url === '/api/weather/location') return { ok: true, data: { location: JSON.parse(options.body).location } };
     calls.push(JSON.parse(options.body));
     return { ok: true, data };
   };
@@ -114,7 +117,7 @@ test('the account municipality is the default until an override or opt-out is ch
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls.length, 3);
   assert.match(element('senior-weather-status').textContent, /Paris/);
-  context.utiliserCommuneCompteMeteo('senior');
+  await context.utiliserCommuneCompteMeteo('senior');
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(calls.length, 4);
   assert.match(element('senior-weather-status').textContent, /Lyon/);
@@ -122,7 +125,8 @@ test('the account municipality is the default until an override or opt-out is ch
 
 test('late weather or commune results never appear after account or input changes', async () => {
   const { context, element, values } = setup();
-  values.set('generation-liaison-weather-one', JSON.stringify({ name: 'Paris', latitude: 48.86, longitude: 2.35 }));
+  context.connectedUser.weatherCommuneConfigured = true;
+  context.connectedUser.weatherCommune = { name: 'Paris', latitude: 48.86, longitude: 2.35 };
   let finishWeather;
   context.fetch = () => new Promise(resolve => { finishWeather = resolve; });
   const pending = context.chargerMeteo('senior');
@@ -149,11 +153,12 @@ test('late weather or commune results never appear after account or input change
 
 test('a late forecast cannot overwrite a newly selected municipality', async () => {
   const { context, element, values } = setup();
-  values.set('generation-liaison-weather-one', JSON.stringify({ name: 'Paris', latitude: 48, longitude: 2 }));
+  context.connectedUser.weatherCommuneConfigured = true;
+  context.connectedUser.weatherCommune = { name: 'Paris', latitude: 48, longitude: 2 };
   const pending = [];
   context.fetch = () => new Promise(resolve => pending.push(resolve));
   const older = context.chargerMeteo('senior');
-  values.set('generation-liaison-weather-one', JSON.stringify({ name: 'Lyon', latitude: 45, longitude: 4 }));
+  context.connectedUser.weatherCommune = { name: 'Lyon', latitude: 45, longitude: 4 };
   const newer = context.chargerMeteo('senior');
   pending[1]({ ok: true, data });
   await newer;
@@ -181,11 +186,114 @@ test('disabling weather ignores an in-flight forecast and persists for that acco
 
 test('configuration and commune-search errors are visible', async () => {
   const { context, element, values } = setup();
-  values.set('generation-liaison-weather-one', JSON.stringify({ name: 'Paris', latitude: 48, longitude: 2 }));
+  context.connectedUser.weatherCommuneConfigured = true;
+  context.connectedUser.weatherCommune = { name: 'Paris', latitude: 48, longitude: 2 };
   context.fetch = async () => ({ ok: false, error: 'La météo n’est pas encore configurée.' });
   await context.chargerMeteo('senior');
   assert.match(element('senior-weather-status').textContent, /pas encore configurée/);
   context.rechercherCommunes = async () => { throw new Error('Aucune commune trouvée.'); };
   await context.rechercherMeteo('senior');
   assert.match(element('senior-weather-search-status').textContent, /Aucune commune/);
+});
+
+test('automatic refresh waits thirty minutes, respects visibility and opt-out, and resumes on return', async () => {
+  const { context, element, values } = setup();
+  let now = 100000000;
+  context.Date = class extends Date { static now() { return now; } };
+  context.connectedUser.accountCommune = { name: 'Lyon', latitude: 45.76, longitude: 4.84 };
+  let calls = 0;
+  context.fetch = async () => { calls++; return { ok: true, data }; };
+  await context.chargerMeteo('senior');
+  now += 29 * 60 * 1000;
+  context.actualiserMeteoSiNecessaire();
+  assert.equal(calls, 1);
+  now += 60 * 1000;
+  context.document.hidden = true;
+  context.actualiserMeteoSiNecessaire();
+  assert.equal(calls, 1);
+  context.document.hidden = false;
+  context.actualiserMeteoSiNecessaire();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls, 2);
+  context.reglerMeteo(false);
+  now += 31 * 60 * 1000;
+  context.actualiserMeteoSiNecessaire();
+  assert.equal(calls, 2);
+  assert.equal(element('senior-weather-card').hidden, true);
+  assert.equal(values.get('generation-liaison-weather-enabled-one'), 'false');
+});
+
+test('a saved account preference overrides and removes an old device choice', async () => {
+  const { context, element, values } = setup();
+  values.set('generation-liaison-weather-one', JSON.stringify({ name: 'Paris', latitude: 48, longitude: 2 }));
+  context.connectedUser.weatherCommuneConfigured = true;
+  context.connectedUser.weatherCommune = { name: 'Lyon', latitude: 45, longitude: 4 };
+  context.fetch = async (url, options) => {
+    assert.equal(url, '/api/weather');
+    assert.equal(JSON.parse(options.body).latitude, 45);
+    return { ok: true, data };
+  };
+  await context.chargerMeteo('senior');
+  assert.match(element('senior-weather-status').textContent, /Lyon/);
+  assert.equal(values.has('generation-liaison-weather-one'), false);
+});
+
+test('failed save keeps the previous location and displays an error', async () => {
+  const { context, element } = setup();
+  context.connectedUser.accountCommune = { name: 'Lyon', latitude: 45, longitude: 4 };
+  context.rechercherCommunes = async () => [commune('1', 'Paris', 48)];
+  context.fetch = async () => ({ ok: false, error: 'Impossible d’enregistrer la commune météo.' });
+  element('senior-weather-search').value = 'Paris';
+  await context.rechercherMeteo('senior');
+  assert.match(element('senior-weather-search-status').textContent, /Impossible d’enregistrer/);
+  assert.equal(context.connectedUser.weatherCommuneConfigured, undefined);
+});
+
+test('migration errors are visible and never discard the old choice', async () => {
+  const { context, element, values } = setup();
+  const key = 'generation-liaison-weather-one';
+  values.set(key, JSON.stringify({ name: 'Paris', latitude: 48, longitude: 2 }));
+  context.fetch = async () => ({ ok: false, error: 'Votre session a expiré. Reconnectez-vous.' });
+  await context.chargerMeteo('senior');
+  assert.match(element('senior-weather-status').textContent, /session a expiré/);
+  assert.ok(values.has(key));
+  assert.equal(context.connectedUser.weatherCommuneConfigured, undefined);
+});
+
+test('a late legacy migration cannot replace a newly saved location', async () => {
+  const { context, element, values } = setup();
+  values.set('generation-liaison-weather-one', JSON.stringify({ name: 'Paris', latitude: 48, longitude: 2 }));
+  context.rechercherCommunes = async () => [commune('1', 'Lyon', 45)];
+  let finishMigration;
+  context.fetch = async (url, options) => {
+    if (url === '/api/weather/location') {
+      const request = JSON.parse(options.body);
+      if (request.migrate) return new Promise(resolve => { finishMigration = resolve; });
+      return { ok: true, data: { location: request.location } };
+    }
+    return { ok: true, data };
+  };
+  const migration = context.chargerMeteo('senior');
+  element('senior-weather-search').value = 'Lyon';
+  await context.rechercherMeteo('senior');
+  finishMigration({ ok: true, data: { location: { name: 'Paris', latitude: 48, longitude: 2 } } });
+  await migration;
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(context.connectedUser.weatherCommune.name, 'Lyon');
+  assert.match(element('senior-weather-status').textContent, /Lyon/);
+});
+
+test('disabling weather while a location is being saved preserves the opt-out', async () => {
+  const { context, element } = setup();
+  context.rechercherCommunes = async () => [commune('1', 'Lyon', 45)];
+  let finishSave;
+  context.fetch = () => new Promise(resolve => { finishSave = resolve; });
+  element('senior-weather-search').value = 'Lyon';
+  const save = context.rechercherMeteo('senior');
+  await new Promise(resolve => setImmediate(resolve));
+  context.reglerMeteo(false);
+  finishSave({ ok: true, data: { location: { name: 'Lyon', latitude: 45, longitude: 2.35 } } });
+  await save;
+  assert.equal(context.connectedUser.weatherCommune.name, 'Lyon');
+  assert.equal(element('senior-weather-card').hidden, true);
 });

@@ -1198,7 +1198,7 @@
                 <summary>Choisir ou changer ma commune</summary>
                 <label for="senior-weather-search">Ville ou code postal français</label>
                 <input id="senior-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('senior')">
-                <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé.</p>
+                <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré dans votre compte et ses coordonnées approximatives sont envoyées à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé.</p>
                 <button type="button" onclick="rechercherMeteo('senior')">Rechercher</button>
                 <label id="senior-weather-choice-label" for="senior-weather-choice" hidden>Choisissez votre commune</label>
                 <select id="senior-weather-choice" hidden></select>
@@ -1213,7 +1213,7 @@
             <summary>Choisir ou changer ma commune</summary>
             <label for="aidant-weather-search">Ville ou code postal français</label>
             <input id="aidant-weather-search" type="text" autocomplete="address-level2" oninput="annulerRechercheMeteo('aidant')">
-            <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré sur cet appareil et ses coordonnées approximatives sont envoyées à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé.</p>
+            <p class="helper-text">La recherche utilise le service public des communes. Votre choix est enregistré dans votre compte et ses coordonnées approximatives sont envoyées à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé.</p>
             <button type="button" onclick="rechercherMeteo('aidant')">Rechercher</button>
             <label id="aidant-weather-choice-label" for="aidant-weather-choice" hidden>Choisissez votre commune</label>
             <select id="aidant-weather-choice" hidden></select>
@@ -2241,6 +2241,8 @@
     let meteoLoadId = 0;
     let meteoSearchId = 0;
     let meteoCommunes = [];
+    let meteoLastLoadAt = 0;
+    let meteoSavePending = null;
 
     function texteMeteo(value) {
         return window.generationLiaisonTranslate(value);
@@ -2250,6 +2252,7 @@
         meteoLoadId++;
         meteoSearchId++;
         meteoCommunes = [];
+        meteoLastLoadAt = 0;
         ['senior', 'aidant'].forEach(role => {
             document.getElementById(`${role}-weather-status`).textContent = texteMeteo('Choisissez votre commune pour voir la météo.');
             document.getElementById(`${role}-weather-card`).hidden = false;
@@ -2305,6 +2308,7 @@
         const userId = connectedUser?.id;
         if (!userId || connectedUser.role !== role) return;
         const loadId = ++meteoLoadId;
+        meteoLastLoadAt = Date.now();
         document.querySelectorAll?.('[data-weather-settings]').forEach(block => { block.hidden = block.dataset.weatherSettings !== role; });
         const status = document.getElementById(`${role}-weather-status`);
         document.getElementById(`${role}-weather-account`).hidden = !connectedUser.accountCommune;
@@ -2318,19 +2322,40 @@
             document.getElementById('weather-enabled').checked = enabled;
             document.getElementById(`${role}-weather-card`).hidden = !enabled;
             if (!enabled) return;
-            const stored = localStorage.getItem(`generation-liaison-weather-${userId}`);
-            commune = stored ? JSON.parse(stored) : connectedUser.accountCommune;
+            const stored = connectedUser.weatherCommuneConfigured ? null : localStorage.getItem(`generation-liaison-weather-${userId}`);
+            commune = connectedUser.weatherCommuneConfigured ? connectedUser.weatherCommune : (stored ? JSON.parse(stored) : null);
             if (!commune) {
-                status.textContent = texteMeteo('Choisissez votre commune pour voir la météo.');
-                return;
+                commune = connectedUser.accountCommune;
             }
-            if (typeof commune.name !== 'string' || !commune.name || commune.name.length > 120 ||
+            if (commune && (typeof commune.name !== 'string' || !commune.name || commune.name.length > 120 ||
                 !Number.isFinite(commune.latitude) || commune.latitude < -90 || commune.latitude > 90 ||
-                !Number.isFinite(commune.longitude) || commune.longitude < -180 || commune.longitude > 180) {
+                !Number.isFinite(commune.longitude) || commune.longitude < -180 || commune.longitude > 180)) {
                 throw new Error('invalid location');
             }
-        } catch {
-            status.textContent = texteMeteo('Impossible de lire la commune enregistrée. Choisissez-la à nouveau.');
+            if (stored) {
+                const response = await fetch(`${SERVER_URL}/api/weather/location`, {
+                    method: 'PUT',
+                    headers: { ...authHeaders(false), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ location: commune, migrate: true })
+                });
+                const result = await readResponse(response);
+                if (loadId !== meteoLoadId || connectedUser?.id !== userId || connectedUser.role !== role) return;
+                connectedUser.weatherCommuneConfigured = true;
+                connectedUser.weatherCommune = result.location;
+                commune = result.location || connectedUser.accountCommune;
+            }
+            if (connectedUser.weatherCommuneConfigured) {
+                localStorage.removeItem(`generation-liaison-weather-${userId}`);
+            }
+        } catch (error) {
+            if (loadId !== meteoLoadId || connectedUser?.id !== userId || connectedUser.role !== role) return;
+            status.textContent = texteMeteo(error instanceof TypeError || error instanceof SyntaxError || error.message === 'invalid location'
+                ? 'Impossible de lire ou enregistrer la commune météo. Réessayez plus tard.'
+                : error.message);
+            return;
+        }
+        if (!commune) {
+            status.textContent = texteMeteo('Choisissez votre commune pour voir la météo.');
             return;
         }
         const english = window.generationLiaisonLocale() === 'en-US';
@@ -2394,7 +2419,7 @@
                 ...communes.map(commune => new Option(`${commune.nom} (${commune.codesPostaux.join(', ')})`, commune.code)));
             if (communes.length === 1) {
                 select.value = communes[0].code;
-                confirmerCommuneMeteo(role);
+                await confirmerCommuneMeteo(role);
                 return;
             }
             select.hidden = false;
@@ -2409,7 +2434,45 @@
         }
     }
 
-    function confirmerCommuneMeteo(role) {
+    async function enregistrerCommuneMeteo(role, location) {
+        const user = connectedUser;
+        if (meteoSavePending?.user === user) {
+            document.getElementById(`${role}-weather-search-status`).textContent =
+                texteMeteo('L’enregistrement de la commune est déjà en cours.');
+            return;
+        }
+        const saveToken = { user };
+        meteoSavePending = saveToken;
+        const searchId = meteoSearchId;
+        meteoLoadId++;
+        const status = document.getElementById(`${role}-weather-search-status`);
+        status.textContent = texteMeteo('Enregistrement de la commune…');
+        try {
+            const response = await fetch(`${SERVER_URL}/api/weather/location`, {
+                method: 'PUT',
+                headers: { ...authHeaders(false), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ location })
+            });
+            const result = await readResponse(response);
+            if (connectedUser !== user || connectedUser.role !== role) return;
+            user.weatherCommuneConfigured = true;
+            user.weatherCommune = result.location;
+            if (searchId === meteoSearchId) {
+                annulerRechercheMeteo(role);
+                document.getElementById(`${role}-weather-location`).open = false;
+            }
+            if (document.getElementById('weather-enabled').checked) void chargerMeteo(role);
+        } catch (error) {
+            if (connectedUser !== user || connectedUser.role !== role) return;
+            status.textContent = texteMeteo(error instanceof TypeError || error instanceof SyntaxError
+                ? 'Impossible d’enregistrer la commune météo. Réessayez plus tard.'
+                : error.message);
+        } finally {
+            if (meteoSavePending === saveToken) meteoSavePending = null;
+        }
+    }
+
+    async function confirmerCommuneMeteo(role) {
         if (!connectedUser || connectedUser.role !== role) return;
         const code = document.getElementById(`${role}-weather-choice`).value;
         const commune = meteoCommunes.find(item => item.code === code);
@@ -2418,17 +2481,9 @@
             status.textContent = texteMeteo('Choisissez une commune dans la liste.');
             return;
         }
-        try {
-            localStorage.setItem(`generation-liaison-weather-${connectedUser.id}`, JSON.stringify({
-                name: commune.nom, latitude: commune.centre.coordinates[1], longitude: commune.centre.coordinates[0]
-            }));
-        } catch {
-            status.textContent = texteMeteo('Impossible d’enregistrer la commune sur cet appareil.');
-            return;
-        }
-        annulerRechercheMeteo(role);
-        document.getElementById(`${role}-weather-location`).open = false;
-        void chargerMeteo(role);
+        await enregistrerCommuneMeteo(role, {
+            name: commune.nom, latitude: commune.centre.coordinates[1], longitude: commune.centre.coordinates[0]
+        });
     }
 
     function reglerMeteo(enabled) {
@@ -2448,19 +2503,21 @@
         else document.getElementById(`${role}-weather-card`).hidden = true;
     }
 
-    function utiliserCommuneCompteMeteo(role) {
+    async function utiliserCommuneCompteMeteo(role) {
         if (!connectedUser || connectedUser.role !== role || !connectedUser.accountCommune) return;
-        try {
-            localStorage.removeItem(`generation-liaison-weather-${connectedUser.id}`);
-        } catch {
-            document.getElementById(`${role}-weather-search-status`).textContent =
-                texteMeteo('Impossible de supprimer la commune enregistrée sur cet appareil.');
-            return;
-        }
-        annulerRechercheMeteo(role);
-        document.getElementById(`${role}-weather-location`).open = false;
-        void chargerMeteo(role);
+        await enregistrerCommuneMeteo(role, null);
     }
+
+    function actualiserMeteoSiNecessaire() {
+        const user = connectedUser;
+        if (document.hidden || !user || !['senior', 'aidant'].includes(user.role) ||
+            meteoSavePending?.user === user ||
+            (user.role === 'aidant' && user.isLegalGuardian && user.guardianVerificationStatus !== 'approved') ||
+            !document.getElementById('weather-enabled').checked ||
+            Date.now() - meteoLastLoadAt < 30 * 60 * 1000) return;
+        void chargerMeteo(user.role);
+    }
+    document.addEventListener?.('visibilitychange', actualiserMeteoSiNecessaire);
 
     async function choisirCommune(kind, cityId, postcodeId, selectId, labelId) {
         const city = document.getElementById(cityId).value.trim();
@@ -2667,6 +2724,7 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = setInterval(() => {
             if (!connectedUser) return;
+            actualiserMeteoSiNecessaire();
             if (connectedUser.role === 'pro') {
                 chargerPlanningPro();
                 chargerPlanningServices();

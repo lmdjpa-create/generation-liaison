@@ -97,6 +97,32 @@ test('weather requires a valid session and valid coordinates and reports missing
   }
 });
 
+test('weather location is private, durable, validated, migrates once and is erased on closure', async () => {
+  const senior = await register('weather-location@example.test', 'senior');
+  const other = await register('weather-location-other@example.test', 'aidant');
+  const professional = await register('weather-location-pro@example.test', 'pro');
+  const location = { name: 'Lyon', latitude: 45.76, longitude: 4.84 };
+  const put = (user, body) => request('/api/weather/location', { user, body, method: 'PUT' });
+  assert.equal((await put(null, { location })).status, 401);
+  assert.equal((await put({ token: 'a'.repeat(64) }, { location })).status, 401);
+  assert.equal((await put(professional, { location })).status, 403);
+  assert.equal((await put(senior, { location: { ...location, latitude: 91 } })).status, 400);
+  assert.equal((await put(senior, {})).status, 400);
+  assert.deepEqual((await put(senior, { location, migrate: true })).data.location, location);
+  assert.deepEqual((await request('/api/auth/me', { user: senior })).data.user.weatherCommune, location);
+  const login = await request('/api/auth/login', { body: { email: 'weather-location@example.test', password: 'a-test-password-123' } });
+  assert.deepEqual(login.data.user.weatherCommune, location);
+  assert.equal((await request('/api/auth/me', { user: other })).data.user.weatherCommune, null);
+  assert.deepEqual((await put(senior, { location: { ...location, name: 'Paris' }, migrate: true })).data.location, location);
+  assert.equal((await put(senior, { location: null })).data.location, null);
+  assert.equal((await put(senior, { location, migrate: true })).data.location, null);
+  assert.equal((await request('/api/auth/me', { user: senior })).data.user.weatherCommuneConfigured, true);
+  await put(senior, { location });
+  assert.equal((await request('/api/account/closure-request', { user: senior, body: { password: 'a-test-password-123' } })).status, 200);
+  const saved = await db.query('SELECT weather_commune_name, weather_commune_latitude, weather_commune_longitude, weather_commune_updated_at FROM app_users WHERE id = $1', [senior.user.id]);
+  assert.ok(Object.values(saved.rows[0]).every(value => value === null));
+});
+
 test('account municipality is required, private, validated and cleared on account closure', async () => {
   const accountCommune = { name: 'Lyon', code: '69123', latitude: 45.76, longitude: 4.84 };
   const base = {
