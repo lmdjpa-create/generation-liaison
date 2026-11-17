@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const {
+  generateAdminReply,
   generateReply,
   generateWellbeingAssessment,
   generateWellbeingReply,
@@ -82,6 +83,48 @@ test('sends only the supplied conversation and disables API response storage', a
     assert.match(body.instructions, /Jeanne/);
     assert.deepEqual(body.input, [{ role: 'user', content: 'Bonjour' }]);
     assert.equal(reply, 'Bonjour Jeanne.');
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('adds administrator instructions without replacing the assistant safety rules', async () => {
+  const originalFetch = global.fetch;
+  let payload;
+  global.fetch = async (url, options) => {
+    payload = JSON.parse(options.body);
+    return new Response(JSON.stringify({ output_text: 'Bonjour.' }), { status: 200 });
+  };
+  try {
+    await generateReply({
+      name: 'Jeanne',
+      messages: [{ role: 'user', content: 'Bonjour' }],
+      apiKey: 'test-key',
+      customInstructions: 'Utilise des phrases très courtes.'
+    });
+    assert.match(payload.instructions, /Utilise des phrases très courtes/);
+    assert.match(payload.instructions, /Tu ne poses pas de diagnostic/);
+    assert.match(payload.instructions, /ne demandes pas d’informations médicales/i);
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('admin chat uses only submitted messages and has no site or action access', async () => {
+  const originalFetch = global.fetch;
+  let payload;
+  global.fetch = async (url, options) => {
+    payload = JSON.parse(options.body);
+    return new Response(JSON.stringify({ output_text: 'Je peux vous expliquer les rubriques.' }), { status: 200 });
+  };
+  try {
+    const messages = [{ role: 'user', content: 'Comment gérer les services ?' }];
+    const reply = await generateAdminReply({ messages, apiKey: 'test-key' });
+    assert.equal(reply, 'Je peux vous expliquer les rubriques.');
+    assert.equal(payload.store, false);
+    assert.deepEqual(payload.input, messages);
+    assert.match(payload.instructions, /Tu n’as accès ni au site/);
+    assert.match(payload.instructions, /Tu ne peux exécuter aucune action administrative/);
   } finally {
     global.fetch = originalFetch;
   }

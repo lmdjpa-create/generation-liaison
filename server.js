@@ -12,7 +12,13 @@ const googleCalendar = require('./google-calendar');
 const { assertLegacyBookingsSafeForLink, assertScheduleAvailable, lockScheduleParticipants } = require('./schedule-conflicts');
 const { startTaskReminderWorker } = require('./task-reminders');
 const { createPlanningGoogleSync } = require('./planning-google-sync');
-const { generateReply, generateWellbeingAssessment, suggestMessageRewrite, reviewSiteMetrics } = require('./ai-assistant');
+const {
+  generateAdminReply,
+  generateReply,
+  generateWellbeingAssessment,
+  suggestMessageRewrite,
+  reviewSiteMetrics
+} = require('./ai-assistant');
 const { createSiteMonitor, siteArea } = require('./site-monitor');
 const { startSiteAlertWorker } = require('./site-monitor-alerts');
 const { createWeatherService } = require('./weather');
@@ -839,7 +845,7 @@ app.post('/api/assistant/message', requireAuth, async (req, res) => {
 
   let client;
   try {
-    const { rows: settings } = await pool.query(`SELECT enabled FROM app_ai_settings WHERE id = 1`);
+    const { rows: settings } = await pool.query(`SELECT enabled, custom_instructions FROM app_ai_settings WHERE id = 1`);
     if (settings[0]?.enabled !== true) {
       return res.status(503).json({ error: 'L’assistant IA est actuellement désactivé par l’équipe.' });
     }
@@ -878,7 +884,8 @@ app.post('/api/assistant/message', requireAuth, async (req, res) => {
       name: (req.authUser.seniorName || req.authUser.name).trim().split(/\s+/)[0],
       messages,
       apiKey: process.env.OPENAI_API_KEY,
-      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
+      customInstructions: settings[0]?.custom_instructions || ''
     });
 
     await client.query(
@@ -972,9 +979,10 @@ app.post('/api/admin/site-monitor/review', requireAuth, requireAdmin, async (req
 
 app.get('/api/admin/assistant/settings', requireAuth, requireAdmin, async (req, res) => {
   try {
-    const { rows } = await pool.query(`SELECT enabled FROM app_ai_settings WHERE id = 1`);
+    const { rows } = await pool.query(`SELECT enabled, custom_instructions FROM app_ai_settings WHERE id = 1`);
     res.json({
       enabled: rows[0]?.enabled === true,
+      customInstructions: rows[0]?.custom_instructions || '',
       configured: Boolean(process.env.OPENAI_API_KEY)
     });
   } catch (error) {
@@ -983,20 +991,56 @@ app.get('/api/admin/assistant/settings', requireAuth, requireAdmin, async (req, 
 });
 
 app.patch('/api/admin/assistant/settings', requireAuth, requireAdmin, async (req, res) => {
-  if (typeof req.body?.enabled !== 'boolean') {
-    return res.status(400).json({ error: 'Indiquez si l’assistant doit être activé ou désactivé.' });
+  const hasEnabled = Object.prototype.hasOwnProperty.call(req.body || {}, 'enabled');
+  const hasInstructions = Object.prototype.hasOwnProperty.call(req.body || {}, 'customInstructions');
+  const customInstructions = req.body?.customInstructions;
+  if ((!hasEnabled && !hasInstructions) ||
+      (hasEnabled && typeof req.body.enabled !== 'boolean') ||
+      (hasInstructions && (typeof customInstructions !== 'string' || customInstructions.length > 2000))) {
+    return res.status(400).json({ error: 'Indiquez un réglage valide pour l’assistant (consignes limitées à 2 000 caractères).' });
   }
   try {
     const { rows } = await pool.query(
       `UPDATE app_ai_settings
-       SET enabled = $1, updated_at = CURRENT_TIMESTAMP
+       SET enabled = COALESCE($1, enabled),
+           custom_instructions = COALESCE($2, custom_instructions),
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = 1
-       RETURNING enabled`,
-      [req.body.enabled]
+       RETURNING enabled, custom_instructions`,
+      [hasEnabled ? req.body.enabled : null, hasInstructions ? customInstructions.trim() : null]
     );
-    res.json({ enabled: rows[0].enabled });
+    res.json({
+      enabled: rows[0].enabled,
+      customInstructions: rows[0].custom_instructions
+    });
   } catch (error) {
     sendApiError(res, error, 'Impossible de modifier le réglage de l’assistant.');
+  }
+});
+
+app.post('/api/admin/assistant/chat', requireAuth, requireAdmin, async (req, res) => {
+  const messages = req.body?.messages;
+  if (!Array.isArray(messages) || messages.length < 1 || messages.length > 10 ||
+      messages.some(message =>
+        !message || !['user', 'assistant'].includes(message.role) ||
+        typeof message.content !== 'string' || !message.content.trim() || message.content.length > 1200
+      ) || messages[messages.length - 1]?.role !== 'user') {
+    return res.status(400).json({ error: 'Envoyez une conversation valide de 1 à 10 messages.' });
+  }
+  if (!limitAssistantMessages(req.authUser.id)) {
+    return res.status(429).json({ error: 'Vous avez fait plusieurs demandes. Réessayez dans une minute.' });
+  }
+  try {
+    const reply = await generateAdminReply({
+      messages,
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini'
+    });
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ reply });
+  } catch (error) {
+    if (error.status) return res.status(error.status).json({ error: error.message });
+    sendApiError(res, error, 'Impossible de répondre à votre question.');
   }
 });
 

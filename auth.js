@@ -420,8 +420,11 @@ function createAuthService(pool) {
         CREATE TABLE IF NOT EXISTS app_ai_settings (
           id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
           enabled BOOLEAN NOT NULL DEFAULT TRUE,
+          custom_instructions VARCHAR(2000) NOT NULL DEFAULT '',
           updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE app_ai_settings
+          ADD COLUMN IF NOT EXISTS custom_instructions VARCHAR(2000) NOT NULL DEFAULT '';
         INSERT INTO app_ai_settings (id, enabled)
         VALUES (1, TRUE)
         ON CONFLICT (id) DO NOTHING;

@@ -593,6 +593,11 @@ test('requires authentication for assistant chat and administrator controls', as
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: false })
     }),
+    fetch(`${baseUrl}/api/admin/assistant/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ role: 'user', content: 'Bonjour' }] })
+    }),
     fetch(`${baseUrl}/api/admin/assistant/handoffs`),
     fetch(`${baseUrl}/api/admin/assistant/handoffs/not-a-uuid/reply`, {
       method: 'POST',
@@ -1208,4 +1213,20 @@ test('admin can grant, trial or remove premium from the accounts table', () => {
   assert.match(server, /premiumActive: hasActivePremium\(row\)/);
   assert.match(admin, /\/premium`/);
   assert.match(admin, /Premium 12 mois/);
+});
+
+test('admin can personalize the site assistant while its safety rules remain fixed', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const auth = fs.readFileSync(path.join(__dirname, '..', 'auth.js'), 'utf8');
+  const assistant = fs.readFileSync(path.join(__dirname, '..', 'ai-assistant.js'), 'utf8');
+  const admin = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  assert.match(server, /app\.patch\('\/api\/admin\/assistant\/settings', requireAuth, requireAdmin/);
+  assert.match(server, /app\.post\('\/api\/admin\/assistant\/chat', requireAuth, requireAdmin/);
+  assert.match(server, /customInstructions\.length > 2000/);
+  assert.match(auth, /custom_instructions VARCHAR\(2000\) NOT NULL DEFAULT ''/);
+  assert.match(assistant, /compatibles avec les règles ci-dessous/);
+  assert.match(admin, /id="assistant-custom-instructions" maxlength="2000"/);
+  assert.match(admin, /la clé OpenAI reste privée sur le serveur/i);
+  assert.match(admin, /data-target="ai-chat"/);
+  assert.match(admin, /\/api\/admin\/assistant\/chat/);
 });
