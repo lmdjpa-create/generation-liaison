@@ -337,6 +337,8 @@
         #aidant-senior-content summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #screen-aidant #aidant-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
         #screen-aidant #aidant-shortcuts .action-tile { min-height: 132px; justify-content: center; flex-direction: column; text-align: center; }
+        #aidant-respite, #aidant-respite > details > summary { text-align: center; }
+        #aidant-respite > details > summary { list-style-position: inside; }
         @media (max-width: 300px) {
             #aidant-senior-content { grid-template-columns: 1fr; }
             #screen-aidant #aidant-shortcuts { grid-template-columns: 1fr; }
@@ -855,7 +857,7 @@
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
     </div>
-    <section class="form-card">
+    <section class="form-card" id="aidant-respite">
       <details class="senior-disclosure">
         <summary>💚 Soutien et répit pour les aidants</summary>
         <p>Vous pouvez demander un relais pour prendre du temps pour vous. Parlez-en à une personne de confiance ou à un professionnel ; les solutions et leurs conditions dépendent de votre situation.</p>
@@ -1262,8 +1264,8 @@
 <section class="form-card" style="text-align:left;" id="settings-aidant-links">
         <h3>Mes profils seniors</h3>
         <div id="aidant-senior-selector" style="display:none;">
-            <label for="aidant-senior-select">Profil senior</label>
-            <select id="aidant-senior-select" aria-label="Profil senior associé"></select>
+            <label for="aidant-senior-select">Changer de personne accompagnée</label>
+            <select id="aidant-senior-select"></select>
         </div>
         <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior pour lui envoyer une invitation à découvrir l’application. S’il ne possède pas encore de compte, faites une nouvelle demande après son inscription. Il devra l’accepter avant que vous puissiez consulter son profil.</p>
         <form id="aidant-link-form" class="form-grid">
@@ -1432,7 +1434,6 @@
 <div id="screen-agenda" class="screen-container" style="background-color:var(--senior-bg);">
     <div class="header-mobile"><h3 style="margin:0;">Agenda</h3><span>Vos rendez-vous autorisés, heure de Paris</span></div>
     <p id="agenda-senior-context" class="helper-text" hidden></p>
-    <button id="agenda-change-senior" type="button" onclick="ouvrirChoixSenior()" hidden>Changer de personne accompagnée</button>
     <div class="calendar-toolbar" aria-label="Vue de l’agenda">
         <button id="calendar-day" type="button" aria-pressed="true">Jour</button>
         <button id="calendar-week" type="button" aria-pressed="false">Semaine</button>
@@ -1514,7 +1515,6 @@
         <span style="font-size:0.85rem;opacity:0.9;">Les professionnels dont le dossier est vérifié apparaissent en priorité.</span>
     </div>
     <p id="directory-senior-context" class="helper-text" hidden></p>
-    <button id="directory-change-senior" type="button" onclick="ouvrirChoixSenior()" hidden>Changer de personne accompagnée</button>
     <section class="form-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔎</span>Chercher un professionnel</summary>
@@ -2039,14 +2039,11 @@
         if (screenName === 'agenda' || screenName === 'directory') {
             const isAidant = connectedUser.role === 'aidant';
             const context = document.getElementById(`${screenName}-senior-context`);
-            const changeButton = document.getElementById(`${screenName}-change-senior`);
             context.hidden = !isAidant;
-            changeButton.hidden = !isAidant;
             if (isAidant) {
                 const select = document.getElementById('aidant-senior-select');
                 const selected = select.selectedOptions[0];
                 const hasSenior = select.options.length > 0;
-                changeButton.hidden = !hasSenior;
                 context.textContent = activeSeniorProfileId && selected?.value === activeSeniorProfileId
                     ? `Personne accompagnée : ${selected.text}`
                     : hasSenior
@@ -2119,11 +2116,6 @@
     function ouvrirNotifications() {
         if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
         switchScreen('messages');
-    }
-
-    function ouvrirChoixSenior() {
-        switchScreen('settings');
-        document.getElementById('aidant-senior-select').focus();
     }
 
     function ouvrirAgenda() {
