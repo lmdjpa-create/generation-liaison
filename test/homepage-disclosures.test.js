@@ -5,6 +5,8 @@ const vm = require('node:vm');
 const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+const mobileSource = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+const privacySource = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
 
 test('homepage proposals are individually collapsed and retain their descriptions', () => {
   for (const title of [
@@ -24,14 +26,25 @@ test('homepage keeps direct application access and the emergency warning visible
   assert.match(source, /<\/div>\s*<p class="info-note">Génération Liaison ne remplace ni un professionnel de santé ni un service d’urgence\.[\s\S]*?15 ou le 112\.<\/p>/);
 });
 
-test('homepage speaks to families and keeps service and assistant caveats in the FAQ', () => {
+test('homepage speaks to families and uses practical family FAQs', () => {
   const intro = source.slice(source.indexOf('<section class="landing-card"'), source.indexOf('id="privacy-title"'));
   assert.match(intro, /Pour les familles et les aidants.*même à distance/);
   const features = source.slice(source.indexOf('aria-labelledby="features-title"'), source.indexOf('aria-labelledby="questions-title"'));
   assert.doesNotMatch(features, /Une demande de service doit être acceptée|Les demandes restent soumises|réponses peuvent être inexactes/);
   const faq = source.slice(source.indexOf('aria-labelledby="questions-title"'), source.indexOf('id="connexion"'));
-  assert.match(faq, /<details class="info-card">[\s\S]*Une demande de service doit être acceptée par le prestataire\./);
-  assert.match(faq, /<details class="info-card">[\s\S]*Les réponses de l’assistant peuvent être inexactes ou incomplètes\./);
+  assert.match(faq, /Mon parent n’est pas à l’aise avec Internet, comment faire/);
+  assert.match(faq, /Un proche peut l’aider à créer son compte/);
+  assert.match(faq, /Combien de proches peut-on associer à un carnet/);
+  assert.match(faq, /le senior doit accepter chaque demande/);
+  assert.match(faq, /20 correspondants au maximum/);
+  assert.doesNotMatch(faq, /réponses de l’assistant|demande de service doit être acceptée/);
+});
+
+test('assistant accuracy warning is shown beside the chat input, not in the homepage FAQ', () => {
+  const form = mobileSource.slice(mobileSource.indexOf('id="assistant-chat-form"'), mobileSource.indexOf('</form>', mobileSource.indexOf('id="assistant-chat-form"')));
+  assert.match(form, /id="assistant-message"[\s\S]*Les réponses de l’assistant peuvent être imprécises ou incomplètes/);
+  const faq = source.slice(source.indexOf('aria-labelledby="questions-title"'), source.indexOf('id="connexion"'));
+  assert.doesNotMatch(faq, /Les réponses de l’assistant/);
 });
 
 test('privacy and health data information is visible near the top without unverified guarantees', () => {
@@ -40,14 +53,17 @@ test('privacy and health data information is visible near the top without unveri
   assert.ok(start > source.indexOf('id="landing-title"') && start < source.indexOf('id="presentation"'));
   const block = source.slice(start, end);
   assert.match(block, /RGPD et données de santé/);
-  assert.match(block, /HTTPS pour chiffrer les échanges avec votre navigateur/);
-  assert.match(block, /Le senior accepte les demandes des aidants qui peuvent alors consulter son carnet et y ajouter des notes ; un tuteur légal vérifié est associé par l’administration\./);
-  assert.match(block, /Render indique chiffrer ses bases PostgreSQL au repos/);
-  assert.match(block, /région effectivement utilisée et une éventuelle certification HDS restent à confirmer/);
+  assert.match(block, /La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées/);
+  assert.match(block, /Le senior accepte les demandes des aidants/);
   assert.match(block, /ne remplace pas un dossier médical/);
-  assert.match(block, /Ne saisissez pas de notes médicales/);
+  assert.match(block, /Certaines transmissions professionnelles sont enregistrées/);
   assert.match(block, /href="\/privacy-policy\.html"/);
+  assert.doesNotMatch(block, /Render|PostgreSQL|HDS|région.*confirmer/);
   assert.doesNotMatch(block, /<details/);
+  assert.match(privacySource, /bases PostgreSQL et leurs sauvegardes sont chiffrées au repos\s+\(AES-256\)/);
+  assert.match(privacySource, /La région utilisée pour cette application n’a pas été vérifiée/);
+  assert.match(privacySource, /Aucune certification HDS n’est revendiquée/);
+  assert.match(privacySource, /documentation de Render sur PostgreSQL/);
 });
 
 test('the access section has one link to the application', () => {
@@ -55,33 +71,39 @@ test('the access section has one link to the application', () => {
   assert.equal((access.match(/href="\/app-mobile\.html"/g) || []).length, 1);
 });
 
-test('homepage shows a clearly labelled example beside direct application access', () => {
-  const image = source.indexOf('src="/homepage-images/apercu-carnet.png"');
+test('homepage shows a responsive, readable fictional journal example beside direct application access', () => {
+  const preview = source.indexOf('<figure class="landing-preview" id="exemple-carnet">');
   const link = source.indexOf('class="landing-login" href="/app-mobile.html#inscription"');
-  assert.ok(link >= 0 && image > link);
-  assert.match(source, /<img[^>]+alt="Aperçu du fil d’actualité[^"]+"/);
+  assert.ok(link >= 0 && preview > link);
+  const example = source.slice(preview, source.indexOf('</figure>', preview));
+  assert.match(example, /role="group" aria-label="Exemple fictif de carnet de liaison"/);
+  assert.match(example, /Un proche · Aujourd’hui à 9 h 30/);
+  assert.match(example, /Un soignant · Aujourd’hui à 8 h 15/);
+  assert.match(source, /\.journal-preview-entry p\s*\{\s*margin: 0;\s*font-size: 1rem;/);
+  assert.doesNotMatch(example, /<img/);
   assert.match(source, /<figcaption>Un aperçu du carnet de liaison avec des données fictives\.<\/figcaption>/);
   assert.match(source, /href="#exemple-carnet">Voir un exemple de carnet<\/a>/);
-  assert.match(source, /<figure class="landing-preview" id="exemple-carnet">/);
 });
 
 test('homepage pricing explains free launch access and external services', () => {
   const start = source.indexOf('<section class="landing-info" aria-labelledby="pricing-title">');
   assert.ok(start > 0);
   const pricing = source.slice(start, source.indexOf('</section>', start));
-  assert.match(pricing, /100 % gratuit pendant notre phase de lancement/);
-  assert.match(pricing, /disponibilité et des autorisations nécessaires/);
+  assert.match(pricing, /toutes les fonctionnalités disponibles dans l’application sont gratuites/);
+  assert.match(pricing, /Aucun abonnement ni paiement n’est proposé/);
+  assert.doesNotMatch(pricing, /disponibilité et des autorisations nécessaires/);
   assert.doesNotMatch(pricing, /nécessitent un accès Premium/);
-  assert.match(pricing, /prestations à domicile.*peuvent être facturées par le prestataire/);
+  assert.match(pricing, /prestations à domicile sont indépendantes.*peuvent être facturées par le prestataire/);
   assert.match(pricing, /tarifs futurs sont à l’étude et ne sont pas appliqués/);
   assert.match(pricing, /href="\/cgv\.html"/);
 });
 
-test('homepage preview is immediately discoverable and prioritized for loading', () => {
-  const image = source.match(/<img\b[^>]*src="\/homepage-images\/apercu-carnet\.png"[^>]*>/);
-  assert.ok(image);
-  assert.match(image[0], /\bfetchpriority="high"/);
-  assert.doesNotMatch(image[0], /\bloading="lazy"/);
+test('homepage preview uses scalable text instead of image-baked captions', () => {
+  const preview = source.slice(source.indexOf('<figure class="landing-preview"'), source.indexOf('</figure>', source.indexOf('<figure class="landing-preview"')));
+  assert.match(preview, /journal-preview-entry/);
+  assert.doesNotMatch(preview, /<img/);
+  assert.match(source, /\.journal-preview\s*\{[\s\S]*?width: 100%/);
+  assert.match(source, /\.landing-preview\s*\{\s*max-width: 520px/);
 });
 
 test('home screen instructions distinguish Android and iPhone and retain the separate Android download', () => {
@@ -99,7 +121,6 @@ test('home screen instructions distinguish Android and iPhone and retain the sep
 
 test('homepage image descriptions are alternative text rather than visible captions', () => {
   for (const [file, description] of [
-    ['apercu-carnet.png', 'Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant.'],
     ['famille.jpg', 'Une femme sourit en tenant les mains d’une personne âgée, près d’un autre proche.'],
     ['coiffure.jpg', 'Une coiffeuse coupe les cheveux d’une personne âgée.']
   ]) {

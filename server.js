@@ -3023,7 +3023,8 @@ app.get('/api/family-album', requireAuth, requireFamilyAlbum, async (req, res) =
   try {
     const { rows } = await pool.query(
       `SELECT photo.id, photo.approved, photo.created_at AS "createdAt",
-              photo.author_user_id AS "authorId", author.name AS "authorName"
+              photo.author_user_id AS "authorId", author.name AS "authorName",
+              author.role AS "authorRole"
        FROM app_family_photos photo JOIN app_users author ON author.id = photo.author_user_id
        WHERE photo.senior_profile_id = $1
          AND (photo.approved OR $2 = 'senior' OR photo.author_user_id = $3)
@@ -6911,9 +6912,11 @@ app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, asyn
                 SELECT json_agg(json_build_object(
                   'type', event.event_type,
                   'note', event.practical_note,
-                  'createdAt', event.created_at
+                  'createdAt', event.created_at,
+                  'authorRole', author.role
                 ) ORDER BY event.created_at)
                 FROM planning_visit_events event
+                JOIN app_users author ON author.id = event.user_id
                 WHERE event.visit_id = visit.id
               ), '[]'::json) AS progress
        FROM planning_recipients recipient

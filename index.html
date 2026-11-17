@@ -815,8 +815,46 @@
       margin: 0 auto 24px;
     }
 
-    .landing-preview img {
+    .journal-preview {
+      display: grid;
+      gap: 12px;
+      width: 100%;
+      padding: clamp(14px, 3vw, 22px);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: #f7faf8;
+      text-align: left;
+    }
+
+    .journal-preview-title {
+      padding: 14px 16px;
+      border-radius: 12px;
+      background: #2c3e50;
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 800;
+    }
+
+    .journal-preview-entry {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: #fff;
+      line-height: 1.55;
+    }
+
+    .journal-preview-entry strong {
       display: block;
+      margin-bottom: 5px;
+      color: var(--primary-dark);
+    }
+
+    .journal-preview-entry p {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .landing-preview img {
       width: 100%;
       height: auto;
       border: 1px solid var(--border);
@@ -1066,7 +1104,17 @@
           <a class="landing-app-link" href="#exemple-carnet">Voir un exemple de carnet</a>
         </div>
         <figure class="landing-preview" id="exemple-carnet">
-          <img src="/homepage-images/apercu-carnet.png" width="520" height="360" fetchpriority="high" alt="Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant." />
+          <div class="journal-preview" role="group" aria-label="Exemple fictif de carnet de liaison">
+            <div class="journal-preview-title">Exemple de carnet de liaison</div>
+            <article class="journal-preview-entry">
+              <strong>Un proche · Aujourd’hui à 9 h 30</strong>
+              <p>La promenade de cet après-midi est prévue avec un proche.</p>
+            </article>
+            <article class="journal-preview-entry">
+              <strong>Un soignant · Aujourd’hui à 8 h 15</strong>
+              <p>Le prochain rendez-vous est confirmé.</p>
+            </article>
+          </div>
           <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
         </figure>
       </div>
@@ -1074,10 +1122,8 @@
 
     <section class="landing-info privacy-highlight" aria-labelledby="privacy-title">
       <h2 id="privacy-title">Confidentialité, RGPD et données de santé</h2>
-      <p>La connexion au site utilise HTTPS pour chiffrer les échanges avec votre navigateur. L’accès aux informations partagées est réservé aux personnes autorisées.</p>
-      <p>Le senior accepte les demandes des aidants qui peuvent alors consulter son carnet et y ajouter des notes ; un tuteur légal vérifié est associé par l’administration.</p>
-      <p>Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Ne saisissez pas de notes médicales ou d’autres données de santé tant que les conditions d’hébergement adaptées ne sont pas vérifiées.</p>
-      <p>Render indique chiffrer ses bases PostgreSQL au repos. La région effectivement utilisée et une éventuelle certification HDS restent à confirmer.</p>
+      <p>La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées.</p>
+      <p>Le senior accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Certaines transmissions professionnelles sont enregistrées dans l’espace prévu à cet effet.</p>
       <p>Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la <a href="/privacy-policy.html">politique de confidentialité</a> pour connaître vos droits et les prestataires concernés.</p>
     </section>
 
@@ -1152,8 +1198,8 @@
 
     <section class="landing-info" aria-labelledby="pricing-title">
       <h2 id="pricing-title">Combien ça coûte ?</h2>
-      <p>100 % gratuit pendant notre phase de lancement : profitez des fonctionnalités de l’application pour organiser le quotidien de vos proches, sous réserve de leur disponibilité et des autorisations nécessaires.</p>
-      <p>Les éventuelles prestations à domicile sont distinctes de l’application et peuvent être facturées par le prestataire.</p>
+      <p>Pendant notre phase de lancement, toutes les fonctionnalités disponibles dans l’application sont gratuites. Aucun abonnement ni paiement n’est proposé.</p>
+      <p>Les prestations à domicile sont indépendantes de l’application et peuvent être facturées par le prestataire.</p>
       <p>Les tarifs futurs sont à l’étude et ne sont pas appliqués. <a href="/cgv.html">Consulter le projet de tarifs et les conditions de vente</a>.</p>
     </section>
 
@@ -1161,15 +1207,15 @@
       <h2 id="questions-title">Questions fréquentes</h2>
       <div class="info-grid">
         <details class="info-card">
-          <summary>Comment une demande de service est-elle confirmée ?</summary>
+          <summary>Mon parent n’est pas à l’aise avec Internet, comment faire ?</summary>
           <div class="gl-help-bubble">
-          <p>Une demande de service doit être acceptée par le prestataire.</p>
+          <p>Un proche peut l’aider à créer son compte et à ajouter le site à l’écran d’accueil de son téléphone. L’application fonctionne dans un navigateur et nécessite une connexion Internet.</p>
           </div>
         </details>
         <details class="info-card">
-          <summary>Que faut-il savoir sur l’assistant ?</summary>
+          <summary>Combien de proches peut-on associer à un carnet ?</summary>
           <div class="gl-help-bubble">
-          <p>Les réponses de l’assistant peuvent être inexactes ou incomplètes.</p>
+          <p>Plusieurs proches peuvent demander l’accès : le senior doit accepter chaque demande. Il n’y a pas de plafond fixe dans l’application ; un message groupé peut être envoyé à 20 correspondants au maximum.</p>
           </div>
         </details>
         <details class="info-card">

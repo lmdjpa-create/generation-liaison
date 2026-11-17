@@ -3,16 +3,13 @@
   const translations = {
     'Génération Liaison': 'Génération Liaison',
     'Confidentialité, RGPD et données de santé': 'Privacy, GDPR and health data',
-    'La connexion au site utilise HTTPS pour chiffrer les échanges avec votre navigateur. L’accès aux informations partagées est réservé aux personnes autorisées.':
-      'The connection to the website uses HTTPS to encrypt traffic with your browser. Access to shared information is restricted to authorized people.',
-    'Le senior accepte les demandes des aidants qui peuvent alors consulter son carnet et y ajouter des notes ; un tuteur légal vérifié est associé par l’administration.':
-      'The senior accepts caregivers’ requests, allowing them to view the senior’s journal and add notes; a verified legal guardian is linked by the administration.',
-    'La localisation des hébergements, le chiffrement des données stockées et une éventuelle certification HDS ne sont pas confirmés. En attendant leur vérification et celle des obligations applicables, ne saisissez pas de notes médicales ou d’autres données de santé dans l’application.':
-      'Hosting locations, encryption of stored data and any HDS certification have not been confirmed. Until these and applicable obligations have been verified, do not enter medical notes or other health data in the application.',
-    'Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Ne saisissez pas de notes médicales ou d’autres données de santé tant que les conditions d’hébergement adaptées ne sont pas vérifiées.':
-      'Génération Liaison helps organize daily life and does not replace a medical record. Do not enter medical notes or other health data until appropriate hosting conditions have been verified.',
-    'Render indique chiffrer ses bases PostgreSQL au repos. La région effectivement utilisée et une éventuelle certification HDS restent à confirmer.':
-      'Render states that its PostgreSQL databases are encrypted at rest. The actual hosting region and any HDS certification remain to be confirmed.',
+    'La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées.':
+      'The connection to the site is encrypted, and access to the journal is limited to authorized people.',
+    'Le senior accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Certaines transmissions professionnelles sont enregistrées dans l’espace prévu à cet effet.':
+      'The senior accepts caregivers’ requests; a verified legal guardian is linked by the administration. Génération Liaison helps organize daily life and does not replace a medical record. Some professional care updates are recorded in the designated space.',
+    'Selon la documentation de Render, les bases PostgreSQL et leurs sauvegardes sont chiffrées au repos (AES-256). La région utilisée pour cette application n’a pas été vérifiée dans le compte d’hébergement. Aucune certification HDS n’est revendiquée. Ces informations ne constituent pas une garantie de conformité HDS ; l’application facilite l’organisation du quotidien et ne remplace pas un dossier médical. Certaines fonctions permettent toutefois des transmissions professionnelles de soin. N’y ajoutez pas d’autres données de santé tant que les conditions d’hébergement et les obligations applicables ne sont pas confirmées. Voir la':
+      'According to Render documentation, PostgreSQL databases and their backups are encrypted at rest (AES-256). The region used for this application has not been verified in the hosting account. No HDS certification is claimed. This information does not guarantee HDS compliance; the app helps organize daily life and does not replace a medical record. Some features nevertheless allow professional care updates. Do not add other health data until hosting conditions and applicable obligations have been confirmed. See the',
+    'documentation de Render sur PostgreSQL': 'Render PostgreSQL documentation',
     'Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la':
       'You can request access to, correction or deletion of your data. Read the',
     'politique de confidentialité': 'privacy policy',
@@ -98,10 +95,10 @@
     'Partagez des nouvelles et organisez les visites avec vos proches et les intervenants concernés.':
       'Share updates and organize visits with your loved ones and the professionals involved.',
     'Questions fréquentes': 'Frequently asked questions',
-    '100 % gratuit pendant notre phase de lancement : profitez des fonctionnalités de l’application pour organiser le quotidien de vos proches, sous réserve de leur disponibilité et des autorisations nécessaires.':
-      '100% free during our launch phase: enjoy the app’s features to organize your loved ones’ daily lives, subject to availability and the necessary permissions.',
-    'Les éventuelles prestations à domicile sont distinctes de l’application et peuvent être facturées par le prestataire.':
-      'Any home services are separate from the app and may be charged by the provider.',
+    'Pendant notre phase de lancement, toutes les fonctionnalités disponibles dans l’application sont gratuites. Aucun abonnement ni paiement n’est proposé.':
+      'During our launch phase, all features available in the app are free. No subscription or payment is offered.',
+    'Les prestations à domicile sont indépendantes de l’application et peuvent être facturées par le prestataire.':
+      'Home services are independent of the app and may be charged by the provider.',
     'La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.':
       'Messaging is free during launch. To exchange messages with a contact, add each other unless you are already linked as senior and caregiver. In an emergency, call the emergency services.',
     'La visio est accessible gratuitement pendant le lancement, sous réserve de disponibilité du service.':
@@ -123,23 +120,28 @@
       'Choose “Add to Home Screen” or “Install app”, then confirm if prompted.',
     'Créer un carnet gratuitement': 'Create a free journal',
     'Combien ça coûte ?': 'How much does it cost?',
-    'L’application est gratuite à ce jour : aucun paiement ni abonnement payant n’y est proposé. Les seniors et leurs aidants associés peuvent échanger gratuitement.':
-      'The app is currently free: no payment or paid subscription is offered. Seniors and their linked caregivers can exchange messages for free.',
-    'Certaines fonctions nécessitent un accès Premium, sans souscription payante actuellement disponible. Les éventuelles prestations à domicile sont distinctes de l’application et peuvent être facturées par le prestataire.':
-      'Some features require Premium access, with no paid subscription currently available. Home services are separate from the app and may be charged by the provider.',
     'Les tarifs futurs sont à l’étude et ne sont pas appliqués.':
       'Future prices are under consideration and are not currently applied.',
     'Consulter le projet de tarifs et les conditions de vente': 'View the draft prices and terms of sale',
-    'Comment une demande de service est-elle confirmée ?': 'How is a service request confirmed?',
-    'Une demande de service doit être acceptée par le prestataire.': 'A service request must be accepted by the provider.',
-    'Que faut-il savoir sur l’assistant ?': 'What should I know about the assistant?',
-    'Les réponses de l’assistant peuvent être inexactes ou incomplètes.': 'The assistant’s answers may be inaccurate or incomplete.',
+    'Mon parent n’est pas à l’aise avec Internet, comment faire ?': 'My parent is not comfortable with the internet. What can we do?',
+    'Un proche peut l’aider à créer son compte et à ajouter le site à l’écran d’accueil de son téléphone. L’application fonctionne dans un navigateur et nécessite une connexion Internet.':
+      'A family member can help them create an account and add the site to their phone’s home screen. The app works in a browser and requires an internet connection.',
+    'Combien de proches peut-on associer à un carnet ?': 'How many family members can be linked to a journal?',
+    'Plusieurs proches peuvent demander l’accès : le senior doit accepter chaque demande. Il n’y a pas de plafond fixe dans l’application ; un message groupé peut être envoyé à 20 correspondants au maximum.':
+      'Several family members can request access: the senior must accept each request. There is no fixed limit in the app; a group message can be sent to up to 20 contacts.',
     'Un espace simple pour faciliter les échanges entre les seniors, leurs proches et les professionnels, avec un accès séparé aux services du quotidien.':
       'A simple space for seniors, their families, and professionals to stay connected, with separate access to everyday services.',
     'Suivi partagé': 'Shared updates',
     'Carnet de liaison': 'Activity log',
-    'Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant.':
-      'Preview of the activity feed: two example messages from a family member and a care professional.',
+    'Exemple fictif de carnet de liaison': 'Fictional example of a shared journal',
+    'Exemple de carnet de liaison': 'Shared journal example',
+    'Votre message': 'Your message',
+    'Les réponses de l’assistant peuvent être imprécises ou incomplètes ; elles ne remplacent pas un avis professionnel.':
+      'The assistant’s answers may be imprecise or incomplete; they do not replace professional advice.',
+    'Un proche · Aujourd’hui à 9 h 30': 'Family member · Today at 9:30 AM',
+    'La promenade de cet après-midi est prévue avec un proche.': 'A walk is planned with a family member this afternoon.',
+    'Un soignant · Aujourd’hui à 8 h 15': 'Care professional · Today at 8:15 AM',
+    'Le prochain rendez-vous est confirmé.': 'The next appointment is confirmed.',
     'Un aperçu du carnet de liaison avec des données fictives.':
       'A preview of the activity log with fictional data.',
     'Alertes et assistance': 'Alerts and support',

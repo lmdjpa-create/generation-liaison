@@ -157,15 +157,20 @@ test('daily journal sorts shared updates and reports unavailable sources', async
     stageLabel: value => value,
     progressArray: value => value,
     planningRequest: async path => path === '/api/logs/all'
-      ? [{ created_at: '2028-01-01T10:00:00Z', content: 'Nouvelle familiale' }, { created_at: '2028-01-03T08:00:00Z', content: 'Nouvelle du jour' }]
-      : { visits: [{ visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent' }] }] }
+      ? [
+        { created_at: '2028-01-01T10:00:00Z', author_id: 2, content: 'Nouvelle familiale' },
+        { created_at: '2028-01-02T09:00:00Z', author_id: 3, content: 'Nouvelle professionnelle' }
+      ]
+      : { visits: [{ visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent', authorRole: 'pro' }] }] }
   };
+  const helperStart = source.indexOf('    function auteurAvecRole(role, name = \'\')');
   const start = source.indexOf('    async function chargerJournalQuotidien(role)');
   const end = source.indexOf('    function configurerAlbumJournal()', start);
-  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
+  vm.runInNewContext(`${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
   await context.loadJournal('aidant');
-  assert.equal(children[0].children[2].text, 'Visite — arrived : Présent');
-  assert.equal(children[1].children[2].text, 'Nouvelle familiale');
+  assert.equal(children[0].children[2].text, '🩺 Soignant · Visite — arrived : Présent');
+  assert.equal(children[1].children[2].text, '🩺 Soignant · Nouvelle professionnelle');
+  assert.equal(children[2].children[2].text, '👨‍👩‍👧‍👦 Famille · Nouvelle familiale');
   context.planningRequest = async path => {
     if (path === '/api/logs/all') throw new Error('unavailable');
     return { visits: [] };

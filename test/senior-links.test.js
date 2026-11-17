@@ -294,6 +294,8 @@ test('family photos require senior approval, active links and remain private bet
   assert.equal(response.status, 201);
   const photo = await response.json();
   assert.equal(photo.approved, false);
+  const pendingAlbum = await request('/api/family-album', { user: aidant, seniorId });
+  assert.equal(pendingAlbum.data.photos[0].authorRole, 'aidant');
   const path = `/api/family-album/${photo.id}/photo`;
   assert.equal((await request('/api/family-album', { user: other, seniorId })).data.photos.length, 0);
   assert.equal((await fetch(`${baseUrl}${path}`, { headers: headers(other) })).status, 404);
