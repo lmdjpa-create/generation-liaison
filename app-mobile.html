@@ -338,6 +338,9 @@
         #aidant-senior-content summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #screen-aidant #aidant-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
         #screen-aidant #aidant-shortcuts .action-tile { min-height: 132px; justify-content: center; flex-direction: column; text-align: center; }
+        #aidant-local-outings { margin: 0; padding: 0; min-width: 0; }
+        #aidant-local-outings:has(details[open]) { grid-column: 1 / -1; padding: 14px; }
+        #aidant-local-outings details[open] > summary { margin-bottom: 14px; }
         #aidant-respite, #aidant-respite > details > summary { text-align: center; }
         #aidant-respite > details > summary { list-style-position: inside; }
         @media (max-width: 300px) {
@@ -622,11 +625,6 @@
             <button type="button" onclick="ouvrirAgenda()">Mes rendez-vous</button>
             <button type="button" onclick="switchScreen('contacts')">Mes contacts</button>
         </div>
-        <section class="form-card" id="senior-local-outings" aria-labelledby="senior-local-outings-title">
-            <h2 id="senior-local-outings-title">Brocantes et vide-greniers</h2>
-            <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
-            <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
-        </section>
         <section class="form-card weather-widget" id="senior-weather-card" aria-labelledby="senior-weather-title">
             <h2 id="senior-weather-title">Météo</h2>
             <div class="weather-hero" id="senior-weather-hero" hidden><span class="weather-icon" id="senior-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="senior-weather-temp"></span></div>
@@ -757,6 +755,13 @@
         </section>
         <button type="button" id="senior-more-button" class="action-tile senior-action-tile" onclick="switchScreen('more')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#10133;</span>Proche : messages, jeu, photos, contacts, journal</button>
         <button type="button" id="senior-pro-button" class="action-tile senior-action-tile" onclick="switchScreen('senior-pro')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">&#129658;</span>Pro : services, intervenants, &eacute;quipe</button>
+        <section class="form-card" id="senior-local-outings">
+          <details class="senior-disclosure">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
+            <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
+            <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+          </details>
+        </section>
     </div>
 </div>
 
@@ -931,12 +936,14 @@
     <div id="aidant-shortcuts" class="action-tiles">
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
+        <section class="form-card" id="aidant-local-outings">
+          <details>
+            <summary class="action-tile"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
+            <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
+            <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+          </details>
+        </section>
     </div>
-    <section class="form-card" id="aidant-local-outings" aria-labelledby="aidant-local-outings-title">
-        <h2 id="aidant-local-outings-title">Brocantes et vide-greniers</h2>
-        <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
-        <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
-    </section>
     <section class="form-card" id="aidant-respite">
       <details class="senior-disclosure">
         <summary>💚 Soutien et répit pour les aidants</summary>
