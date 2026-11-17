@@ -214,7 +214,7 @@ test('automatic narration skips hidden ancestors and button labels', () => {
   assert.equal(context.texteVisibleLectureSenior(innerRoot), '');
 });
 
-test('message contacts show premium requirements per contact instead of per account', async () => {
+test('message contacts show availability per contact rather than a premium requirement', async () => {
   const select = {
     value: '', options: [],
     replaceChildren(option) { this.options = [option]; },
@@ -243,7 +243,7 @@ test('message contacts show premium requirements per contact instead of per acco
   );
   assert.equal(await context.loadContacts('senior'), true);
   assert.equal(select.options[1].text, 'Aidant');
-  assert.match(select.options[2].text, /premium requis/);
+  assert.match(select.options[2].text, /envoi indisponible/);
   assert.equal(list.children[0].children[0].disabled, false);
   assert.equal(list.children[2].children[0].disabled, true);
   assert.equal(status.textContent, '');
@@ -1111,7 +1111,6 @@ test('contact video calls use the selected contact and report failures without a
   const calls = [];
   const context = {
     connectedUser: { id: 'senior' },
-    hasPremiumAccess: () => true,
     videoCallState: { active: false, callFrame: null, localStream: null },
     document: { getElementById: element, querySelectorAll: () => [] },
     window: {},
@@ -1135,14 +1134,6 @@ test('contact video calls use the selected contact and report failures without a
   assert.equal(context.videoCallState.active, false);
 
   calls.length = 0;
-  context.hasPremiumAccess = () => false;
-  await context.callContact({ id: 'contact-1', name: 'Contact' });
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].success, false);
-  assert.match(calls[0].message, /premium/);
-
-  calls.length = 0;
-  context.hasPremiumAccess = () => true;
   context.planningRequest = async () => ({ roomUrl: 'https://example.test/room', token: 'token' });
   context.window.DailyIframe = {
     createFrame: () => ({

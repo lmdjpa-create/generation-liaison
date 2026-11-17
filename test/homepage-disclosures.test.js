@@ -10,7 +10,7 @@ test('homepage proposals are individually collapsed and retain their description
   for (const title of [
     'Pour les seniors', 'Pour les proches et aidants', 'Pour les professionnels',
     'Carnet de liaison', 'Rendez-vous et services', 'Notifications et assistance',
-    'Échanges avec les professionnels', 'Services à domicile', 'Une question ?'
+    'Garder le lien au quotidien', 'Services à domicile', 'Une question ?'
   ]) {
     const section = source.split('<details class="info-card">')
       .find(part => part.trimStart().startsWith(`<summary>${title}</summary>`));
@@ -42,8 +42,10 @@ test('privacy and health data information is visible near the top without unveri
   assert.match(block, /RGPD et données de santé/);
   assert.match(block, /HTTPS pour chiffrer les échanges avec votre navigateur/);
   assert.match(block, /Le senior accepte les demandes des aidants qui peuvent alors consulter son carnet et y ajouter des notes ; un tuteur légal vérifié est associé par l’administration\./);
-  assert.match(block, /certification HDS ne sont pas confirmés/);
-  assert.match(block, /ne saisissez pas de notes médicales/);
+  assert.match(block, /Render indique chiffrer ses bases PostgreSQL au repos/);
+  assert.match(block, /région effectivement utilisée et une éventuelle certification HDS restent à confirmer/);
+  assert.match(block, /ne remplace pas un dossier médical/);
+  assert.match(block, /Ne saisissez pas de notes médicales/);
   assert.match(block, /href="\/privacy-policy\.html"/);
   assert.doesNotMatch(block, /<details/);
 });
@@ -63,12 +65,13 @@ test('homepage shows a clearly labelled example beside direct application access
   assert.match(source, /<figure class="landing-preview" id="exemple-carnet">/);
 });
 
-test('homepage pricing distinguishes free access, premium restrictions and external services', () => {
+test('homepage pricing explains free launch access and external services', () => {
   const start = source.indexOf('<section class="landing-info" aria-labelledby="pricing-title">');
   assert.ok(start > 0);
   const pricing = source.slice(start, source.indexOf('</section>', start));
-  assert.match(pricing, /aucun paiement ni abonnement payant/);
-  assert.match(pricing, /nécessitent un accès Premium/);
+  assert.match(pricing, /100 % gratuit pendant notre phase de lancement/);
+  assert.match(pricing, /disponibilité et des autorisations nécessaires/);
+  assert.doesNotMatch(pricing, /nécessitent un accès Premium/);
   assert.match(pricing, /prestations à domicile.*peuvent être facturées par le prestataire/);
   assert.match(pricing, /tarifs futurs sont à l’étude et ne sont pas appliqués/);
   assert.match(pricing, /href="\/cgv\.html"/);
@@ -97,7 +100,7 @@ test('home screen instructions distinguish Android and iPhone and retain the sep
 test('homepage image descriptions are alternative text rather than visible captions', () => {
   for (const [file, description] of [
     ['apercu-carnet.png', 'Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant.'],
-    ['soins.jpg', 'Une professionnelle prend la tension d’un senior.'],
+    ['famille.jpg', 'Une femme sourit en tenant les mains d’une personne âgée, près d’un autre proche.'],
     ['coiffure.jpg', 'Une coiffeuse coupe les cheveux d’une personne âgée.']
   ]) {
     assert.ok(fs.existsSync(path.join(__dirname, '..', 'homepage-images', file)));

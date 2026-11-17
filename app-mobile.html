@@ -702,7 +702,7 @@
           <details class="senior-disclosure senior-tab-disclosure">
             <summary>🎲 Jeu gratuit : les couleurs</summary>
             <p class="helper-text">Pour le plaisir, seul ou à tour de rôle avec un proche présent. Rien n’est enregistré ni partagé.</p>
-            <p class="helper-text">Les autres jeux seront payants ; ils ne sont pas encore disponibles et aucun paiement n’est proposé.</p>
+            <p class="helper-text">D’autres jeux pourront être ajoutés ultérieurement.</p>
             <p id="color-game-question" aria-live="polite">Choisissez le mot : Rouge</p>
             <div class="action-tiles">
               <button type="button" onclick="repondreJeuCouleur('Rouge')">Rouge</button>
@@ -1103,7 +1103,7 @@
             <details class="senior-disclosure senior-explanation" data-help-for="#message-open-senior">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
-                <p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p>
+                <p class="helper-text">La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.</p>
                 </div>
             </details>
             <p class="helper-text">Pour une urgence, appelez les secours.</p>
@@ -1144,7 +1144,7 @@
             <h3>Messages avec mes contacts</h3>
             <details class="senior-disclosure senior-explanation" data-help-for="#message-open-aidant">
                 <summary>Explications</summary>
-                <div class="gl-help-bubble"><p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p></div>
+                <div class="gl-help-bubble"><p class="helper-text">La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.</p></div>
             </details>
             <p class="helper-text">Pour une urgence, appelez les secours.</p>
             <label for="message-contact-aidant">Correspondant</label>
@@ -1167,7 +1167,7 @@
             <h3>Messages avec mes contacts</h3>
             <details class="senior-disclosure senior-explanation" data-help-for="#message-open-pro">
                 <summary>Explications</summary>
-                <div class="gl-help-bubble"><p class="helper-text">Les seniors et leurs aidants associés échangent gratuitement. Pour les autres contacts, les deux personnes doivent disposer d’un accès premium actif ; aucune souscription payante n’est actuellement proposée. Pour une urgence, appelez les secours.</p></div>
+                <div class="gl-help-bubble"><p class="helper-text">La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.</p></div>
             </details>
             <p class="helper-text">Pour une urgence, appelez les secours.</p>
             <label for="message-contact-pro">Correspondant</label>
@@ -1400,7 +1400,7 @@
     <section class="form-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">ℹ️</span>Options payantes envisagées</summary>
-        <p>Visio : cette fonction nécessite actuellement un accès premium actif.</p>
+        <p>La visio est accessible gratuitement pendant le lancement, sous réserve de disponibilité du service.</p>
         <p>Pour l’agenda, il est envisagé d’inclure gratuitement un intervenant par catégorie de service ; des intervenants supplémentaires pourraient devenir payants.</p>
         <p class="helper-text">Projet uniquement : aucune limite n’est appliquée, les tarifs ne sont pas définis et aucun paiement ni abonnement ne peut être souscrit actuellement.</p>
       </details>
@@ -1551,9 +1551,9 @@
 <div id="screen-contacts" class="screen-container" style="background-color:var(--senior-bg);">
     <div class="header-mobile">
         <h3 style="margin:0;">Mes contacts</h3>
-        <span style="font-size:0.85rem;opacity:0.9;">L’accès à la visio nécessite un abonnement premium actif.</span>
+        <span style="font-size:0.85rem;opacity:0.9;">La visio est gratuite pendant le lancement.</span>
     </div>
-    <p class="helper-text">Version gratuite : un aidant et un soignant en contact. Pour en ajouter davantage, passez à la version payante. Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.</p>
+    <p class="helper-text">Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.</p>
     <section class="form-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👤</span>Ajouter un contact</summary>
@@ -1705,18 +1705,6 @@
         targetName: 'contact'
     };
 
-    function hasPremiumAccess() {
-        if (!connectedUser) return false;
-        if (connectedUser.isPremium === true || connectedUser.premium === true) return true;
-        if (typeof connectedUser.premiumUntil === 'string' && connectedUser.premiumUntil) {
-            return new Date(connectedUser.premiumUntil).getTime() > Date.now();
-        }
-        if (Number.isFinite(Number(connectedUser.premiumUntil))) {
-            return Number(connectedUser.premiumUntil) > Date.now();
-        }
-        return false;
-    }
-
     function setVideoCallPlaceholder(targetName, mode = 'placeholder') {
         const remote = document.getElementById('remote-video');
         const local = document.getElementById('local-video');
@@ -1841,11 +1829,10 @@
 
                 const button = makeTextElement(
                     'button',
-                    hasPremiumAccess() ? '📞 Appeler en visio' : '🔒 Premium requis',
+                    '📞 Appeler en visio',
                     'btn-submit'
                 );
                 button.type = 'button';
-                button.disabled = !hasPremiumAccess();
                 button.addEventListener('click', () => appelerContactEnVisio(contact));
                 card.append(button);
                 const remove = makeTextElement('button', 'Retirer ce contact', 'visit-notes-button');
@@ -1905,11 +1892,6 @@
             showToast('Connectez-vous pour lancer un appel.', false);
             return;
         }
-        if (!hasPremiumAccess()) {
-            showToast('L’accès à la visio est réservé à un abonnement premium actif.', false);
-            return;
-        }
-
         const targetName = contact?.name || 'votre contact';
         videoCallState.active = true;
         videoCallState.targetName = targetName;
@@ -1957,7 +1939,7 @@
 
             throw new Error('Le SDK Daily n’est pas disponible pour cette session.');
         } catch (error) {
-            console.warn('Appel visio premium impossible avec Daily :', error);
+            console.warn('Appel visio impossible avec Daily :', error);
             terminerAppelVideo(false);
             showToast(error.message || 'Impossible de lancer l’appel vidéo.', false);
         }
@@ -4757,7 +4739,7 @@
             const previous = select.value;
             select.replaceChildren(new Option('Choisissez un correspondant', ''));
             result.contacts.forEach(contact => select.add(new Option(
-                `${contact.name}${contact.canSend ? '' : ' · premium requis pour envoyer'}`, contact.id
+                `${contact.name}${contact.canSend ? '' : ' · envoi indisponible'}`, contact.id
             )));
             if (role === 'senior') {
                 const list = document.getElementById('message-multiple-contacts');
@@ -4769,7 +4751,7 @@
                     input.value = contact.id;
                     input.disabled = !contact.canSend;
                     label.append(input, document.createTextNode(
-                        ` ${contact.name}${contact.canSend ? '' : ' · premium requis pour envoyer'}`
+                        ` ${contact.name}${contact.canSend ? '' : ' · envoi indisponible'}`
                     ));
                     list.append(label, document.createElement('br'));
                 });

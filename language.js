@@ -9,6 +9,10 @@
       'The senior accepts caregivers’ requests, allowing them to view the senior’s journal and add notes; a verified legal guardian is linked by the administration.',
     'La localisation des hébergements, le chiffrement des données stockées et une éventuelle certification HDS ne sont pas confirmés. En attendant leur vérification et celle des obligations applicables, ne saisissez pas de notes médicales ou d’autres données de santé dans l’application.':
       'Hosting locations, encryption of stored data and any HDS certification have not been confirmed. Until these and applicable obligations have been verified, do not enter medical notes or other health data in the application.',
+    'Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Ne saisissez pas de notes médicales ou d’autres données de santé tant que les conditions d’hébergement adaptées ne sont pas vérifiées.':
+      'Génération Liaison helps organize daily life and does not replace a medical record. Do not enter medical notes or other health data until appropriate hosting conditions have been verified.',
+    'Render indique chiffrer ses bases PostgreSQL au repos. La région effectivement utilisée et une éventuelle certification HDS restent à confirmer.':
+      'Render states that its PostgreSQL databases are encrypted at rest. The actual hosting region and any HDS certification remain to be confirmed.',
     'Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la':
       'You can request access to, correction or deletion of your data. Read the',
     'politique de confidentialité': 'privacy policy',
@@ -80,11 +84,32 @@
       'For families and caregivers: stay connected with your parent and organize their daily life together, even from a distance.',
     'Retrouvez les rendez-vous et découvrez des services pour faciliter le quotidien, distincts du suivi des soins.':
       'Find appointments and discover everyday services, separate from care coordination.',
+    'Retrouvez les rendez-vous et découvrez des services pour faciliter le quotidien, indépendants du suivi médical.':
+      'Find appointments and discover everyday services, independent of medical care.',
     'Choisissez vos notifications et laissez-vous guider dans l’application par l’assistant.':
       'Choose your notifications and let the assistant guide you through the app.',
     'Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins.':
       'Discover everyday services, such as hairdressing at home, separate from care coordination.',
+    'Découvrez des services du quotidien, comme la coiffure à domicile, indépendants du suivi médical.':
+      'Discover everyday services, such as hairdressing at home, independent of medical care.',
+    'Garder le lien au quotidien': 'Stay connected every day',
+    'Une femme sourit en tenant les mains d’une personne âgée, près d’un autre proche.':
+      'A woman smiles while holding an older person’s hands, with another loved one nearby.',
+    'Partagez des nouvelles et organisez les visites avec vos proches et les intervenants concernés.':
+      'Share updates and organize visits with your loved ones and the professionals involved.',
     'Questions fréquentes': 'Frequently asked questions',
+    '100 % gratuit pendant notre phase de lancement : profitez des fonctionnalités de l’application pour organiser le quotidien de vos proches, sous réserve de leur disponibilité et des autorisations nécessaires.':
+      '100% free during our launch phase: enjoy the app’s features to organize your loved ones’ daily lives, subject to availability and the necessary permissions.',
+    'Les éventuelles prestations à domicile sont distinctes de l’application et peuvent être facturées par le prestataire.':
+      'Any home services are separate from the app and may be charged by the provider.',
+    'La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.':
+      'Messaging is free during launch. To exchange messages with a contact, add each other unless you are already linked as senior and caregiver. In an emergency, call the emergency services.',
+    'La visio est accessible gratuitement pendant le lancement, sous réserve de disponibilité du service.':
+      'Video calls are free during launch, subject to service availability.',
+    'La visio est gratuite pendant le lancement.': 'Video calls are free during launch.',
+    'D’autres jeux pourront être ajoutés ultérieurement.': 'More games may be added later.',
+    'Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.':
+      'To exchange messages, add each other as contacts unless you are already linked as senior and caregiver.',
     'Retrouver le site sur l’écran d’accueil': 'Find the site on your home screen',
     'Sans télécharger de fichier, vous pouvez ajouter un raccourci sur votre téléphone. Les menus et leurs noms peuvent varier selon le navigateur.':
       'You can add a shortcut to your phone without downloading a file. Menus and their names may vary by browser.',

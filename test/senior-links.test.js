@@ -766,9 +766,13 @@ test('all associated aidants exchange freely even as mutual contacts, without by
   })).status, 403);
   await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1', [aidant.user.id]);
   const suspendedContact = (await request('/api/messages/contacts', { user: senior })).data.contacts.find(item => item.id === aidant.user.id);
-  assert.equal(suspendedContact.canSend, false);
+  assert.equal(suspendedContact.canSend, true);
   assert.equal((await request(`/api/messages/${aidant.user.id}`, {
     user: senior, body: { message: 'Lien suspendu' }
+  })).status, 201);
+  assert.equal((await request(`/api/contacts/${aidant.user.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request(`/api/messages/${aidant.user.id}`, {
+    user: senior, body: { message: 'Contact retiré' }
   })).status, 403);
   await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [second.user.id]);
   assert.equal((await request(`/api/messages/${second.user.id}`, { user: senior })).status, 403);
@@ -777,7 +781,7 @@ test('all associated aidants exchange freely even as mutual contacts, without by
   })).status, 401);
 });
 
-test('all contact roles can exchange premium messages only after mutually adding each other', async () => {
+test('contacts can exchange messages for free only after mutually adding each other', async () => {
   const senior = await register('message-contact-senior@example.test', 'senior');
   const professional = await register('message-contact-pro@example.test', 'senior');
   const stranger = await register('message-contact-outsider@example.test', 'senior');
@@ -792,19 +796,13 @@ test('all contact roles can exchange premium messages only after mutually adding
   assert.equal((await request('/api/contacts', {
     user: professional, body: { email: 'message-contact-senior@example.test' }
   })).status, 201);
-  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, false);
-  assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior, body: { message: 'Bonjour' } })).status, 403);
-  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [professional.user.id]);
-  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, false);
-  assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior, body: { message: 'Bonjour' } })).status, 403);
-  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
   assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, true);
   const sent = await request(`/api/messages/${professional.user.id}`, { user: senior, body: { message: 'Bonjour' } });
   assert.equal(sent.status, 201);
   assert.equal((await request(`/api/messages/${senior.user.id}`, { user: professional, body: { message: 'Bonjour également' } })).status, 201);
   await db.query(`UPDATE app_users SET premium_until = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [senior.user.id]);
-  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, false);
-  assert.equal((await request(`/api/messages/${senior.user.id}`, { user: professional, body: { message: 'Premium expiré' } })).status, 403);
+  assert.equal((await request('/api/messages/contacts', { user: professional })).data.contacts[0].canSend, true);
+  assert.equal((await request(`/api/messages/${senior.user.id}`, { user: professional, body: { message: 'Premium expiré' } })).status, 201);
   assert.equal((await request(`/api/messages/${senior.user.id}`, { user: stranger })).status, 403);
   assert.equal((await request(`/api/contacts/${professional.user.id}`, { user: senior, method: 'DELETE' })).status, 200);
   assert.equal((await request(`/api/messages/${professional.user.id}`, { user: senior })).status, 403);
@@ -830,7 +828,7 @@ test('a senior sends private copies only to explicitly authorized recipients', a
   assert.equal((await send(senior, [aidant1.user.id], ' ')).status, 400);
   assert.equal((await send(senior, [aidant1.user.id, aidant1.user.id])).status, 400);
   assert.equal((await send(senior, [aidant1.user.id, stranger.user.id])).status, 403);
-  assert.equal((await send(senior, [aidant1.user.id, contact.user.id])).status, 403);
+  assert.equal((await send(senior, [aidant1.user.id, contact.user.id, stranger.user.id])).status, 403);
   let rows = await db.query('SELECT id FROM app_private_messages WHERE sender_id = $1', [senior.user.id]);
   assert.equal(rows.rows.length, 0);
   const result = await send(senior, [aidant1.user.id, aidant2.user.id]);
@@ -846,8 +844,8 @@ test('a senior sends private copies only to explicitly authorized recipients', a
     [[senior.user.id, contact.user.id]]);
   assert.equal((await send(senior, [aidant1.user.id, contact.user.id], 'Bonjour')).status, 201);
   await db.query(`UPDATE app_users SET premium_until = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE id = $1`, [contact.user.id]);
-  assert.equal((await send(senior, [aidant1.user.id, contact.user.id], 'Accès expiré')).status, 403);
-  assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM app_private_messages WHERE body = 'Accès expiré'")).rows[0].count, 0);
+  assert.equal((await send(senior, [aidant1.user.id, contact.user.id], 'Accès expiré')).status, 201);
+  assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM app_private_messages WHERE body = 'Accès expiré'")).rows[0].count, 2);
   await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1', [aidant2.user.id]);
   assert.equal((await send(senior, [aidant1.user.id, aidant2.user.id], 'Refusé')).status, 403);
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM app_private_messages WHERE body = 'Refusé'")).rows[0].count, 0);
@@ -1004,16 +1002,47 @@ test('personal agenda events can be compared only after the linked owner accepts
   assert.equal((await request(`/api/agenda/events/${mine.id}`, { user: aidant, method: 'DELETE' })).status, 200);
 });
 
-test('free accounts keep one contact per role until premium', async () => {
+test('free accounts can add several contacts of the same role', async () => {
   const senior = await register('contacts-senior@example.test', 'senior');
   const first = await register('contacts-aidant-1@example.test', 'aidant');
   const second = await register('contacts-aidant-2@example.test', 'aidant');
   const add = user => request('/api/contacts', { user: senior, body: { contactUserId: user.user.id } });
   assert.equal((await add(first)).status, 201);
   assert.equal((await add(first)).status, 201);
-  assert.equal((await add(second)).status, 402);
-  await db.query(`UPDATE app_users SET premium_status = 'active' WHERE id = $1`, [senior.user.id]);
   assert.equal((await add(second)).status, 201);
+  assert.equal((await request('/api/contacts', { user: senior })).data.contacts.length, 2);
+});
+
+test('video calls are free for saved contacts but reject unauthorized callers and contacts', async () => {
+  const senior = await register('video-free-senior@example.test', 'senior');
+  const contact = await register('video-free-contact@example.test', 'aidant');
+  const stranger = await register('video-free-stranger@example.test', 'aidant');
+  const call = (user, contactId) => request('/api/video/token', { user, body: { contactId } });
+  assert.equal((await call(null, contact.user.id)).status, 401);
+  assert.equal((await call(senior, stranger.user.id)).status, 403);
+  assert.equal((await request('/api/contacts', { user: senior, body: { contactUserId: contact.user.id } })).status, 201);
+  const originalFetch = global.fetch;
+  const originalKey = process.env.DAILY_API_KEY;
+  process.env.DAILY_API_KEY = 'test-key';
+  global.fetch = async (url, options) => {
+    if (url === 'https://api.daily.co/v1/rooms') {
+      return { ok: true, json: async () => ({ url: 'https://example.test/room' }) };
+    }
+    if (url === 'https://api.daily.co/v1/meeting-tokens') {
+      return { ok: true, json: async () => ({ token: 'test-token' }) };
+    }
+    return originalFetch(url, options);
+  };
+  try {
+    const result = await call(senior, contact.user.id);
+    assert.equal(result.status, 200);
+    assert.equal(result.data.token, 'test-token');
+    assert.equal(result.data.contactName, contact.user.name);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.DAILY_API_KEY;
+    else process.env.DAILY_API_KEY = originalKey;
+  }
 });
 
 test('calendar and conflicts isolate identified bookings and conservatively cover legacy multi-profile bookings', async () => {
