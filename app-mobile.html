@@ -338,14 +338,17 @@
         #aidant-senior-content summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #screen-aidant #aidant-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
         #screen-aidant #aidant-shortcuts .action-tile { min-height: 132px; justify-content: center; flex-direction: column; text-align: center; }
-        #aidant-local-outings { margin: 0; padding: 0; min-width: 0; }
-        #aidant-local-outings:has(details[open]) { grid-column: 1 / -1; padding: 14px; }
-        #aidant-local-outings details[open] > summary { margin-bottom: 14px; }
+        #aidant-senior-content > #aidant-local-outings { grid-column: 2; }
+        #aidant-senior-content > #aidant-local-outings.aidant-tile-open { grid-column: 1 / -1; }
+        #senior-local-outings { box-sizing: border-box; width: calc((100% - 12px) / 2); margin-left: auto; }
+        #senior-local-outings:has(details[open]) { width: 100%; }
         #aidant-respite, #aidant-respite > details > summary { text-align: center; }
         #aidant-respite > details > summary { list-style-position: inside; }
         @media (max-width: 300px) {
             #aidant-senior-content { grid-template-columns: 1fr; }
+            #aidant-senior-content > #aidant-local-outings { grid-column: 1; }
             #screen-aidant #aidant-shortcuts { grid-template-columns: 1fr; }
+            #senior-local-outings { width: 100%; }
         }
         #main-app-senior button, #main-app-senior .senior-disclosure > summary, #screen-aidant .senior-disclosure > summary,
         #main-app-senior .emergency-call-actions a {
@@ -936,13 +939,6 @@
     <div id="aidant-shortcuts" class="action-tiles">
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
-        <section class="form-card" id="aidant-local-outings">
-          <details>
-            <summary class="action-tile"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
-            <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
-            <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
-          </details>
-        </section>
     </div>
     <section class="form-card" id="aidant-respite">
       <details class="senior-disclosure">
@@ -958,6 +954,11 @@
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.</p>
         <button type="button" id="aidant-refresh-seniors">Actualiser les profils seniors</button>
         <button type="button" onclick="switchScreen('settings')">Gérer mes profils seniors</button>
+        <details class="senior-disclosure" id="aidant-local-outings-no-senior">
+          <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
+          <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
+          <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+        </details>
     </section>
     <div id="aidant-senior-content" style="display:none;">
     <section class="form-card">
@@ -1070,6 +1071,13 @@
         <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🏠</span>Services du quotidien</summary>
         <p class="helper-text">Repas, coiffure et ménage à domicile. Cet espace est distinct du suivi des soins et ne transmet aucune donnée médicale aux prestataires. Les demandes doivent être confirmées par le partenaire ; les tarifs et paiements restent à définir.</p>
         <div id="aidant-service-area" aria-live="polite">Chargement des services…</div>
+      </details>
+    </section>
+    <section class="form-card" id="aidant-local-outings">
+      <details class="senior-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
+        <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
+        <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
       </details>
     </section>
     </div>
