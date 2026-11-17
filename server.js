@@ -6911,66 +6911,7 @@ app.get('/api/planning/today', requireAuth, requireAidantSeniorContext, async (r
                 ) ORDER BY event.created_at)
                 FROM planning_visit_events event
                 WHERE event.visit_id = visit.id
-              ), '[]'::json) AS progress,
-              COALESCE((
-                SELECT json_agg(json_build_object('type', recent.event_type, 'createdAt', recent.created_at, 'note', recent.practical_note)
-                                ORDER BY recent.created_at DESC)
-                FROM (
-                  SELECT event.event_type, event.created_at,
-                         CASE WHEN event.share_with_team THEN event.practical_note ELSE NULL END AS practical_note
-                  FROM planning_visits colleague_visit
-                  JOIN planning_org_members colleague_member
-                    ON colleague_member.organization_id = colleague_visit.organization_id
-                   AND colleague_member.user_id = colleague_visit.assigned_user_id
-                   AND colleague_member.role = 'professional'
-                  JOIN app_users colleague
-                    ON colleague.id = colleague_visit.assigned_user_id AND colleague.is_active = TRUE
-                   AND colleague.verification_status = 'approved'
-                  JOIN planning_visit_events event
-                    ON event.visit_id = colleague_visit.id
-                   AND event.organization_id = colleague_visit.organization_id
-                   AND event.recipient_id = colleague_visit.recipient_id
-                   AND event.user_id = colleague_visit.assigned_user_id
-                  WHERE colleague_visit.organization_id = visit.organization_id
-                    AND colleague_visit.recipient_id = visit.recipient_id
-                    AND colleague_visit.assigned_user_id <> $1
-                    AND colleague_visit.acceptance_status = 'accepted'
-                    AND event.event_type IN ('arrived', 'started', 'completed')
-                    AND event.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-                  ORDER BY event.created_at DESC
-                  LIMIT 100
-                ) recent
-              ), '[]'::json) AS team_progress,
-              COALESCE((
-                SELECT json_agg(json_build_object('scheduledAt', recent.scheduled_at, 'status', recent.shared_status)
-                                ORDER BY recent.scheduled_at)
-                FROM (
-                  SELECT colleague_visit.scheduled_at,
-                    CASE WHEN colleague_visit.status = 'completed' THEN 'completed'
-                         WHEN EXISTS (
-                           SELECT 1 FROM planning_visit_events event
-                           WHERE event.visit_id = colleague_visit.id
-                             AND event.event_type IN ('arrived', 'started')
-                         ) THEN 'in_progress'
-                         ELSE 'planned' END AS shared_status
-                  FROM planning_visits colleague_visit
-                  JOIN planning_org_members colleague_member
-                    ON colleague_member.organization_id = colleague_visit.organization_id
-                   AND colleague_member.user_id = colleague_visit.assigned_user_id
-                   AND colleague_member.role = 'professional'
-                  JOIN app_users colleague
-                    ON colleague.id = colleague_visit.assigned_user_id AND colleague.is_active = TRUE
-                   AND colleague.verification_status = 'approved'
-                  WHERE colleague_visit.organization_id = visit.organization_id
-                    AND colleague_visit.recipient_id = visit.recipient_id
-                    AND colleague_visit.assigned_user_id <> $1
-                    AND colleague_visit.acceptance_status = 'accepted'
-                    AND colleague_visit.scheduled_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
-                    AND colleague_visit.scheduled_at < CURRENT_TIMESTAMP + INTERVAL '30 days'
-                  ORDER BY colleague_visit.scheduled_at
-                  LIMIT 100
-                ) recent
-              ), '[]'::json) AS team_visits
+              ), '[]'::json) AS progress
        FROM planning_visits visit
        JOIN planning_recipients recipient
          ON recipient.id = visit.recipient_id
@@ -7013,7 +6954,6 @@ app.get('/api/planning/today', requireAuth, requireAidantSeniorContext, async (r
       );
     }
     await client.query('COMMIT');
-    res.set('Cache-Control', 'private, no-store');
     res.json({
       visits: rows.map(row => ({
         id: row.id,
@@ -7022,8 +6962,6 @@ app.get('/api/planning/today', requireAuth, requireAidantSeniorContext, async (r
         visitType: row.visit_type,
         status: row.status,
         progress: row.progress,
-        teamProgress: row.team_progress,
-        teamVisits: row.team_visits,
         ...getServiceDistance(
           row.home_latitude,
           row.home_longitude,
@@ -7066,7 +7004,7 @@ app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, asyn
               COALESCE((
                 SELECT json_agg(json_build_object(
                   'type', event.event_type,
-                  'note', CASE WHEN $3 = 'aidant' THEN event.practical_note ELSE NULL END,
+                  'note', event.practical_note,
                   'createdAt', event.created_at,
                   'authorRole', author.role
                 ) ORDER BY event.created_at)
@@ -7087,7 +7025,7 @@ app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, asyn
          AND visit.scheduled_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
          AND visit.scheduled_at < CURRENT_TIMESTAMP + INTERVAL '14 days'
        ORDER BY visit.scheduled_at`,
-      [req.authUser.seniorId, req.authUser.id, req.authUser.role]
+      [req.authUser.seniorId, req.authUser.id]
     );
     const recipientIds = [...new Set(rows.map(row => row.recipient_id))];
     for (const recipientId of recipientIds) {
@@ -7105,7 +7043,6 @@ app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, asyn
       );
     }
     await client.query('COMMIT');
-    res.set('Cache-Control', 'private, no-store');
     res.json({
       visits: rows.map(row => ({
         id: row.id,
@@ -7368,9 +7305,6 @@ app.post('/api/planning/visits/:visitId/progress', requireAuth, async (req, res)
   if (!['arrived', 'started', 'completed'].includes(stage)) {
     return res.status(400).json({ error: 'Étape de visite invalide.' });
   }
-  if (req.body?.shareWithTeam !== undefined && typeof req.body.shareWithTeam !== 'boolean') {
-    return res.status(400).json({ error: 'Choisissez si la note peut être partagée avec l’équipe.' });
-  }
 
   let note;
   try {
@@ -7425,10 +7359,9 @@ app.post('/api/planning/visits/:visitId/progress', requireAuth, async (req, res)
 
     await client.query(
       `INSERT INTO planning_visit_events
-         (id, visit_id, organization_id, recipient_id, user_id, event_type, practical_note, share_with_team)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [randomUUID(), visit.id, visit.organization_id, visit.recipient_id, req.authUser.id, stage, note,
-        Boolean(note && req.body?.shareWithTeam)]
+         (id, visit_id, organization_id, recipient_id, user_id, event_type, practical_note)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [randomUUID(), visit.id, visit.organization_id, visit.recipient_id, req.authUser.id, stage, note]
     );
     if (stage === 'completed') {
       await client.query(
