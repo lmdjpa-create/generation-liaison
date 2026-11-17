@@ -149,6 +149,7 @@ test('automatic senior narration selects only the requested categories on each s
       'assistant-messages': 'Conversation privée',
       'wellbeing-checkin-result': 'Bilan'
     },
+    'screen-more': { 'senior-journal-list': 'Nouvelle du journal' },
     'screen-messages': {
       'notifications-senior': 'Notification',
       'message-list-senior': 'Message',
@@ -185,6 +186,7 @@ test('automatic senior narration selects only the requested categories on each s
   }
   assert.deepEqual(spoken, [
     'Lundi. Soleil. Visite demain',
+    'Nouvelle du journal',
     'Notification. Message',
     'Rendez-vous',
     'Visite'
@@ -257,14 +259,18 @@ test('multiple message delivery confirms selected recipients and keeps the draft
   const nodes = {
     'message-contact-senior': { value: '' },
     'message-text-senior': { value: 'Bonjour' },
-    'message-status-senior': { textContent: '' }
+    'message-status-senior': { textContent: '' },
+    'message-quick-received': { disabled: false },
+    'message-quick-well': { disabled: false }
   };
   let confirmed = false;
   let calls = [];
   let fails = false;
+  let simple = false;
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
     document: {
+      body: { classList: { contains: () => simple } },
       getElementById: id => nodes[id],
       querySelectorAll: () => chosen.filter(item => item.checked),
       querySelector: () => ({ disabled: false })
@@ -291,6 +297,180 @@ test('multiple message delivery confirms selected recipients and keeps the draft
   assert.deepEqual(Array.from(calls[1].options.body.recipients), ['a', 'b']);
   assert.equal(nodes['message-text-senior'].value, '');
   assert.ok(chosen.every(item => !item.checked));
+  chosen.forEach(item => { item.checked = true; });
+  simple = true;
+  nodes['message-text-senior'].value = 'Bonjour';
+  nodes['message-contact-senior'].value = 'alice';
+  await context.envoyerMessage('senior');
+  assert.equal(calls[2].url, '/api/messages/alice');
+});
+
+test('quick replies send only to the selected contact, keep the draft, and report errors', async () => {
+  const nodes = {
+    'message-contact-senior': { value: '' },
+    'message-text-senior': { value: 'Brouillon' },
+    'message-status-senior': { textContent: '' },
+    'message-quick-received': { disabled: false },
+    'message-quick-well': { disabled: false }
+  };
+  const submit = { disabled: false };
+  const calls = [];
+  let resolve;
+  let canRefresh = true;
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    document: { getElementById: id => nodes[id], querySelector: () => submit },
+    seniorLinksRequest: (url, options) => {
+      calls.push({ url, options });
+      return new Promise((done, reject) => { resolve = { done, reject }; });
+    },
+    ouvrirConversation: async () => canRefresh
+  };
+  vm.runInNewContext(extract('    async function envoyerReponseRapide(', '    async function repondreInvitation('), context);
+  await context.envoyerReponseRapide('Bien reçu');
+  assert.match(nodes['message-status-senior'].textContent, /Choisissez/);
+  nodes['message-contact-senior'].value = 'alice';
+  const pending = context.envoyerReponseRapide('Bien reçu');
+  await context.envoyerReponseRapide('Tout va bien');
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, '/api/messages/alice');
+  assert.equal(calls[0].options.body.message, 'Bien reçu');
+  assert.equal(submit.disabled, true);
+  resolve.done();
+  await pending;
+  assert.equal(nodes['message-text-senior'].value, 'Brouillon');
+  assert.equal(nodes['message-status-senior'].textContent, 'Message envoyé.');
+  assert.equal(submit.disabled, false);
+  const failed = context.envoyerReponseRapide('Tout va bien');
+  resolve.reject(new Error('Accès refusé'));
+  await failed;
+  assert.equal(nodes['message-status-senior'].textContent, 'Accès refusé');
+  assert.equal(submit.disabled, false);
+  canRefresh = false;
+  const sentWithoutRefresh = context.envoyerReponseRapide('Tout va bien');
+  resolve.done();
+  await sentWithoutRefresh;
+  assert.match(nodes['message-status-senior'].textContent, /Message envoyé.*Impossible de rafraîchir/);
+  await context.envoyerReponseRapide('Autre texte');
+  assert.equal(calls.length, 3);
+});
+
+test('simplified senior view is optional, scoped to the account and clears hidden recipients', () => {
+  const classes = new Set(), values = new Map(), selected = [{ checked: true }, { checked: true }];
+  const context = {
+    connectedUser: { id: 'alice', role: 'senior' },
+    document: {
+      body: { classList: { toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name) } },
+      querySelectorAll: () => selected
+    },
+    localStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) },
+    planifierLectureSenior() {}
+  };
+  vm.runInNewContext(extract('    function initialiserVueSenior(user)', '    async function setAuthenticatedView(user)'), context);
+  context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('senior-simple'), false);
+  context.changerVueSenior(true);
+  assert.equal(classes.has('senior-simple'), true);
+  assert.ok(selected.every(input => !input.checked));
+  assert.equal(values.get('generation-liaison-senior-simple-alice'), 'true');
+  context.initialiserVueSenior({ id: 'bob', role: 'senior' });
+  assert.equal(classes.has('senior-simple'), false);
+  context.initialiserVueSenior({ id: 'alice', role: 'aidant' });
+  assert.equal(classes.has('senior-simple'), false);
+  context.initialiserVueSenior(context.connectedUser);
+  context.changerVueSenior(false);
+  assert.equal(classes.has('senior-simple'), false);
+  assert.equal(values.get('generation-liaison-senior-simple-alice'), 'false');
+});
+
+test('simplified journal shortcut opens the senior journal without hiding safety follow-up', () => {
+  const calls = [];
+  const context = {
+    connectedUser: { role: 'senior' },
+    switchScreen: screen => calls.push(screen),
+    ouvrirSectionSenior: (details, target) => calls.push([details, target])
+  };
+  vm.runInNewContext(extract('    function ouvrirJournalSenior()', '    function switchScreen(screenName)'), context);
+  context.ouvrirJournalSenior();
+  assert.deepEqual(calls, ['more', ['senior-journal-details', 'senior-journal-details']]);
+  assert.match(source, /body\.senior-simple #wellbeing-checkin-details/);
+  assert.doesNotMatch(source, /body\.senior-simple #wellbeing-safety-result\s*\{/);
+  context.connectedUser.role = 'aidant';
+  context.ouvrirJournalSenior();
+  assert.equal(calls.length, 2);
+});
+
+test('simplified view displays the same unread notification count as other views', () => {
+  const badges = {};
+  const context = {
+    document: { getElementById: id => badges[id] || (badges[id] = {}) }
+  };
+  vm.runInNewContext(extract('    function actualiserCompteurNotifications(count)', '    function notificationVisible(entry)'), context);
+  context.actualiserCompteurNotifications(2);
+  assert.equal(badges['home-notification-count-senior-simple'].textContent, '2 non lues');
+  assert.equal(badges['home-notification-count-senior-simple'].hidden, false);
+  context.actualiserCompteurNotifications(0);
+  assert.equal(badges['home-notification-count-senior-simple'].hidden, true);
+});
+
+test('sharing settings discard responses for a previous accompanied person', async () => {
+  const pending = [];
+  const nodes = {
+    'aidant-sharing-consents': { children: [], replaceChildren(...items) { this.children = items; }, append(item) { this.children.push(item); } },
+    'aidant-note-recipient': { replaceChildren() {}, add() {} }
+  };
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' },
+    activeSeniorProfileId: 'first',
+    consentLoadId: 0,
+    document: { getElementById: id => nodes[id] },
+    makeTextElement: (tag, text) => ({ tag, text }),
+    Option: function Option(text, value) { this.text = text; this.value = value; },
+    planningRequest: () => new Promise(resolve => pending.push(resolve))
+  };
+  vm.runInNewContext(extract('    async function chargerConsentements(role)', '    function configurerFormulairesInformationsPersonne()'), context);
+  const first = context.chargerConsentements('aidant');
+  context.activeSeniorProfileId = 'second';
+  const second = context.chargerConsentements('aidant');
+  pending[1]([]);
+  await second;
+  pending[0]([{ name: 'Ancien profil', consented: true }]);
+  await first;
+  assert.equal(nodes['aidant-sharing-consents'].children[0].text, 'Aucune demande de partage en attente.');
+});
+
+test('key contacts render safe call links and discard responses from a previous profile', async () => {
+  const nodes = {
+    'aidant-key-contacts-status': { textContent: '' },
+    'aidant-key-contacts-list': {
+      children: [], replaceChildren() { this.children = []; },
+      append(item) { this.children.push(item); }
+    }
+  };
+  const requests = [];
+  const makeNode = tag => ({
+    tagName: tag, children: [], textContent: '',
+    append(...items) { this.children.push(...items); },
+    setAttribute() {}, addEventListener(type, handler) { this[type] = handler; }
+  });
+  const context = {
+    keyContactsLoadId: 0,
+    document: { getElementById: id => nodes[id], createElement: makeNode },
+    makeTextElement: (tag, text) => ({ tagName: tag, textContent: text }),
+    planningRequest: () => new Promise(resolve => requests.push(resolve)),
+    window: { confirm: () => true }
+  };
+  vm.runInNewContext(extract('    async function chargerContactsUtiles(', '    async function chargerTachesPartagees('), context);
+  const old = context.chargerContactsUtiles('aidant');
+  const current = context.chargerContactsUtiles('aidant');
+  requests[1]({ contacts: [{ id: 'one', name: '<img>', description: 'Voisin', phone: '+33123456789' }] });
+  await current;
+  const row = nodes['aidant-key-contacts-list'].children[0];
+  assert.equal(row.children[0].textContent, '<img>');
+  assert.equal(row.children[2].href, 'tel:+33123456789');
+  requests[0]({ contacts: [{ id: 'old', name: 'Ancien profil', description: 'Voisin', phone: '123' }] });
+  await old;
+  assert.equal(nodes['aidant-key-contacts-list'].children[0].children[0].textContent, '<img>');
 });
 
 test('the optional color game can be played locally without sending data', () => {
@@ -368,7 +548,7 @@ test('companionship and daily services have one control each on the senior home'
   assert.doesNotMatch(dashboard, /Voir l’agenda/);
 });
 
-test('senior feature sections keep their content collapsed and can open programmatically', () => {
+test('senior feature sections retain their content and can open programmatically', () => {
   for (const [id, content] of [
     ['senior-following-details', 'senior-live-following'],
     ['senior-note-details', 'senior-person-note-form'],
@@ -418,7 +598,7 @@ test('sharing consent management is removed from the senior home but available i
   assert.match(settings, /<details class="senior-tab-disclosure" id="senior-consents-details">[\s\S]*?id="senior-sharing-consents"/);
 });
 
-test('senior tabs offer collapsed controls without hiding results or the calendar', () => {
+test('senior tabs retain controls and results', () => {
   const agenda = extract('<div id="screen-agenda"', '<div id="screen-directory"');
   const directory = extract('<div id="screen-directory"', '<div id="screen-contacts"');
   const contacts = extract('<div id="screen-contacts"', '<div id="screen-video-call"');
@@ -428,14 +608,17 @@ test('senior tabs offer collapsed controls without hiding results or the calenda
   assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?id="contacts-list"/);
 });
 
-test('agenda shows the selected day before collapsed explanations and retains Google controls', () => {
+test('agenda shows the selected day and keeps explanations and Google controls available', () => {
   const agenda = extract('<div id="screen-agenda"', '<div id="screen-directory"');
   assert.match(agenda, /id="calendar-day"[^>]*aria-pressed="true"/);
   assert.ok(agenda.indexOf('id="calendar-selected-day"') < agenda.indexOf('Explications sur l’agenda'));
-  assert.ok(agenda.indexOf('id="calendar-selected-day"') < agenda.indexOf('id="calendar-google-settings"'));
+  assert.ok(agenda.indexOf('id="calendar-selected-day"') >= 0);
+  const settings = extract('<div id="screen-settings"', '<div id="screen-agenda"');
+  assert.match(settings, /id="calendar-google-settings"/);
+  assert.doesNotMatch(agenda, /id="calendar-google-settings"/);
   assert.match(agenda, /<details class="senior-disclosure senior-explanation" data-help-for="#calendar-today">\s*<summary>Explications sur l’agenda<\/summary>[\s\S]*?chevauche/);
-  assert.match(agenda, /<summary>Explications<\/summary>[\s\S]*?la mise en pause ne supprime pas/i);
-  assert.match(agenda, /id="calendar-google-sync-toggle"/);
+  assert.match(settings, /<summary>Explications<\/summary>[\s\S]*?la mise en pause ne supprime pas/i);
+  assert.match(settings, /id="calendar-google-sync-toggle"/);
   assert.match(agenda, /id="calendar-google-requests"/);
 });
 
@@ -684,9 +867,9 @@ test('safety actions remain visible outside the closed check-in and retain the r
   assert.equal(elements['wellbeing-safety-result'].children.length, 0);
 });
 
-test('one senior shortcut alongside the other tiles opens the separate messages and notifications page', () => {
+test('senior shortcuts in both views open the separate messages and notifications page', () => {
   const more = source.indexOf('id="screen-more"');
-  const shortcut = source.indexOf('onclick="ouvrirNotifications()"');
+  const shortcut = source.indexOf('onclick="ouvrirNotifications()"', more);
   const tiles = extract('<div id="screen-more"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   assert.ok(shortcut > more);
   assert.match(tiles, /<button type="button" class="action-tile" onclick="ouvrirNotifications\(\)"/);

@@ -13,14 +13,14 @@ test('shared task loads clear old data and ignore responses from an earlier prof
       textContent: '', value: '', open: false, children: [],
       replaceChildren(...children) { this.children = children; },
       append(...children) { this.children.push(...children); },
-      setAttribute() {}, addEventListener() {}
+      setAttribute() {}, addEventListener() {}, reset() {}
     });
     return elements.get(id);
   }
   let resolveFirst;
   let calls = 0;
   const context = {
-    sharedTasksLoadId: 0,
+    sharedTasksLoadId: 0, keyContactsLoadId: 0,
     window: { generationLiaisonTranslate: value => value },
     document: { getElementById: element, createElement: () => element(Symbol()) },
     dateCheckinBienEtre: () => '2028-02-28',
@@ -166,10 +166,10 @@ test('task assignment shows who volunteered and offers only allowed actions', as
   await context.loadTasks('aidant');
   let rows = getElementById('aidant-tasks-list').children;
   assert.equal(rows[0].children[7].textContent, 'Je m’en charge');
-  assert.equal(rows[1].children[6].textContent, 'Prise en charge par : Camille');
+  assert.equal(rows[1].children[6].textContent, 'Attribuée à : Camille');
   assert.equal(rows[1].children[7].textContent, 'Je me retire');
   assert.equal(rows[2].children[7].hidden, true);
-  assert.equal(rows[3].children[6].textContent, 'Prise en charge par : Personne indisponible');
+  assert.equal(rows[3].children[6].textContent, 'Attribuée à : Personne indisponible');
   await rows[0].children[7].events.click();
   assert.equal(requests[1].url, '/api/shared-tasks/open/claim');
   assert.equal(requests[1].options.method, 'POST');
@@ -179,6 +179,49 @@ test('task assignment shows who volunteered and offers only allowed actions', as
   await rows[3].children[7].events.click();
   assert.equal(requests.at(-2).url, '/api/shared-tasks/inactive/claim');
   assert.equal(requests.at(-2).options.method, 'DELETE');
+});
+
+test('an unassigned task can be attributed only after choosing an associated person', async () => {
+  const elements = new Map(), requests = [];
+  function makeElement() {
+    return {
+      textContent: '', value: '', children: [], events: {}, hidden: false, disabled: false, open: false,
+      replaceChildren(...children) { this.children = children; },
+      append(...children) { this.children.push(...children); },
+      setAttribute() {}, addEventListener(type, handler) { this.events[type] = handler; }, reset() {}
+    };
+  }
+  const getElementById = id => {
+    if (!elements.has(id)) elements.set(id, makeElement());
+    return elements.get(id);
+  };
+  const context = {
+    sharedTasksLoadId: 0,
+    window: { generationLiaisonTranslate: value => value },
+    document: { getElementById, createElement: makeElement },
+    dateCheckinBienEtre: () => '2028-02-29',
+    planningRequest: async (url, options) => {
+      requests.push({ url, options });
+      if (url === '/api/shared-tasks/assignees') return { assignees: [{ id: 'alice', name: 'Alice' }] };
+      return { tasks: [{ id: 'task', title: 'Courses', completed: false, assigned: false }] };
+    }
+  };
+  const start = source.indexOf('    function reinitialiserTachesPartagees()');
+  const end = source.indexOf('    async function seniorLinksRequest', start);
+  vm.runInNewContext(source.slice(start, end), context);
+  await context.chargerTachesPartagees('aidant');
+  const details = getElementById('aidant-tasks-list').children[0].children[8];
+  details.open = true;
+  await details.events.toggle();
+  const select = details.children[1].children[0], assign = details.children[2];
+  assert.equal(select.children[1].textContent, 'Alice');
+  await assign.events.click();
+  assert.match(details.children[3].textContent, /Choisissez/);
+  assert.equal(requests.length, 2);
+  select.value = 'alice';
+  await assign.events.click();
+  assert.equal(requests[2].url, '/api/shared-tasks/task/assign');
+  assert.equal(requests[2].options.body.assigneeId, 'alice');
 });
 
 test('the date used for task status follows Paris across midnight', () => {

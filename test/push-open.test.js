@@ -6,6 +6,32 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'push-service-worker.js'), 'utf8');
 
+test('web push displays only fixed text even when the payload contains personal information', async () => {
+  const listeners = {}, shown = [];
+  const self = {
+    registration: { showNotification: async (title, options) => shown.push({ title, options }) },
+    addEventListener: (type, handler) => { listeners[type] = handler; }
+  };
+  vm.runInNewContext(source, { self, URL });
+  async function push(payload) {
+    let work;
+    listeners.push({
+      data: { json: () => payload },
+      waitUntil: promise => { work = promise; }
+    });
+    await work;
+  }
+  await push({ title: 'Alice : données privées', body: 'Détail confidentiel', data: { notificationId: 'id' } });
+  assert.equal(shown[0].title, 'Génération Liaison');
+  assert.doesNotMatch(shown[0].options.body, /confidentiel/);
+  assert.equal(shown[0].options.data.notificationId, 'id');
+  await push({ title: 'Alerte d’urgence : appel au 112 demandé', body: 'Nom privé' });
+  assert.equal(shown[1].title, 'Alerte d’urgence');
+  assert.doesNotMatch(shown[1].options.body, /Nom privé/);
+  await push({ title: 'Vérification de sécurité sans réponse', body: 'Nom privé' });
+  assert.equal(shown[2].title, 'Vérification de sécurité sans réponse');
+});
+
 async function click(clients) {
   const listeners = {};
   const calls = [];

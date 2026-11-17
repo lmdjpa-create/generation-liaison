@@ -22,6 +22,18 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Votre position est utilisée lorsque vous choisissez le GPS pour rechercher des services ou calculer les distances des interventions.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Votre position est utilisée lorsque vous choisissez le GPS pour rechercher des services ou calculer les distances des interventions.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>La caméra est utilisée pour les appels vidéo et lorsque vous choisissez de prendre une photo à partager.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Le microphone est utilisé pour les appels vidéo et lorsque vous choisissez de dicter une réponse ou un message.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>La reconnaissance vocale est utilisée lorsque vous choisissez de dicter une réponse ou un message.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Vos photos sont accessibles lorsque vous choisissez une image à partager ou une photo de profil.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

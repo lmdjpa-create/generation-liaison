@@ -6,6 +6,20 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 
+test('senior and caregiver can open the external flea market directory without sharing a profile', () => {
+  for (const role of ['senior', 'aidant']) {
+    const start = source.indexOf(`id="${role}-local-outings"`);
+    const end = source.indexOf('</section>', start);
+    assert.ok(start >= 0 && end > start);
+    const section = source.slice(start, end);
+    assert.match(section, /Brocantes et vide-greniers/);
+    assert.match(section, /href="https:\/\/vide-greniers\.org\/" target="_blank" rel="noopener noreferrer"/);
+    assert.match(section, /site externe/);
+    assert.doesNotMatch(section, /senior-full-only/);
+  }
+  assert.ok(source.indexOf('id="aidant-local-outings"') < source.indexOf('id="aidant-senior-content"'));
+});
+
 test('daily caregiver summary shows only current profile data and reports partial failures', async () => {
   const elements = new Map();
   const getElementById = id => {
@@ -189,6 +203,119 @@ test('daily journal sorts shared updates and reports unavailable sources', async
   assert.equal(children.length, 0);
 });
 
+test('weekly gazette includes only family notes and approved photos from the seven Paris days', async () => {
+  const nodes = {};
+  function node(tag = 'div') {
+    const item = {
+      tag, children: [], textContent: '', hidden: false, disabled: false,
+      append(...children) { this.children.push(...children); },
+      replaceChildren(...children) { this.children = children; },
+      cloneNode() { return this; }
+    };
+    Object.defineProperty(item, 'firstElementChild', { get() { return this.children[0]; } });
+    if (tag === 'img') Object.defineProperty(item, 'src', {
+      set(value) { this._src = value; queueMicrotask(() => this.onload()); },
+      get() { return this._src; }
+    });
+    return item;
+  }
+  const get = id => nodes[id] ||= node();
+  const fetched = [], revoked = [];
+  let printCalls = 0;
+  const classes = new Set();
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' }, activeSeniorProfileId: 's1',
+    weeklyGazetteRevision: 0, weeklyGazetteUrls: [], SERVER_URL: '',
+    document: {
+      getElementById: get, createElement: node,
+      body: { classList: { add: value => classes.add(value), remove: value => classes.delete(value) } }
+    },
+    URL: { createObjectURL: () => 'blob:photo', revokeObjectURL: url => revoked.push(url) },
+    window: { print: () => { printCalls++; } },
+    dateCheckinBienEtre: () => '2028-04-03',
+    formatDateTime: value => value,
+    auteurAvecRole: role => String(role),
+    makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    authHeaders: () => ({ Authorization: 'test' }),
+    planningRequest: async path => path === '/api/logs/weekly-family'
+      ? { start: '2028-03-28', end: '2028-04-03', truncated: false, notes: [
+        { created_at: '2028-03-27T22:30:00Z', log_type: 'family_note', content: 'Bonjour', author_id: 2 },
+        { created_at: '2028-03-27T21:59:00Z', log_type: 'family_note', content: 'Ancien', author_id: 2 },
+        { created_at: '2028-04-03T12:00:00Z', log_type: 'medical_report', content: 'Privé', author_id: 3 },
+        { created_at: '2028-04-03T22:01:00Z', log_type: 'family_note', content: 'Futur', author_id: 2 }
+      ] } : { photos: [
+        { id: 'approved', approved: true, createdAt: '2028-04-03T10:00:00Z', authorName: 'Alice', authorRole: 'aidant' },
+        { id: 'pending', approved: false, createdAt: '2028-04-03T10:00:00Z' },
+        { id: 'old', approved: true, createdAt: '2028-03-27T10:00:00Z' }
+      ] },
+    fetch: async (url, options) => {
+      fetched.push({ url, options });
+      return { ok: true, blob: async () => ({}) };
+    },
+    queueMicrotask
+  };
+  const start = source.indexOf('    function reinitialiserGazette()');
+  const end = source.indexOf('    function configurerAlbumJournal()', start);
+  const dateStart = source.indexOf('    function calendarEventDate(value)');
+  const dateEnd = source.indexOf('    function calendarEventLabel(', dateStart);
+  vm.runInNewContext(source.slice(dateStart, dateEnd), context);
+  vm.runInNewContext(source.slice(start, end), context);
+  await context.preparerGazette('aidant');
+  const preview = get('aidant-weekly-preview').children[0];
+  const text = JSON.stringify(preview);
+  assert.match(text, /Bonjour/);
+  assert.doesNotMatch(text, /Ancien|Privé|Futur/);
+  assert.equal(fetched.length, 1);
+  assert.match(fetched[0].url, /approved/);
+  assert.equal(fetched[0].options.cache, 'no-store');
+  assert.equal(get('aidant-weekly-print').hidden, false);
+  context.imprimerGazette('aidant');
+  assert.equal(printCalls, 1);
+  assert.equal(classes.has('gazette-printing'), true);
+  context.reinitialiserGazette();
+  assert.deepEqual(revoked, ['blob:photo']);
+  assert.equal(get('aidant-weekly-preview').children.length, 0);
+  assert.equal(classes.has('gazette-printing'), false);
+  context.planningRequest = async path => path === '/api/logs/weekly-family'
+    ? { start: '2028-03-28', end: '2028-04-03', truncated: true, notes: [] }
+    : { photos: [] };
+  await context.preparerGazette('aidant');
+  assert.match(JSON.stringify(get('aidant-weekly-preview').children), /gazette peut être incomplète/);
+});
+
+test('weekly gazette rejects failed or stale loads without exposing partial data', async () => {
+  const elements = {};
+  const get = id => elements[id] ||= {
+    children: [], textContent: '', hidden: false, disabled: false,
+    replaceChildren(...children) { this.children = children; }
+  };
+  let release;
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' }, activeSeniorProfileId: 's1',
+    weeklyGazetteRevision: 0, weeklyGazetteUrls: [],
+    document: { getElementById: get, body: { classList: { remove() {} } } },
+    URL: { revokeObjectURL() {} },
+    planningRequest: path => path === '/api/logs/weekly-family'
+      ? new Promise(resolve => { release = resolve; })
+      : Promise.resolve({ photos: [] })
+  };
+  const start = source.indexOf('    function reinitialiserGazette()');
+  const end = source.indexOf('    function configurerAlbumJournal()', start);
+  vm.runInNewContext(source.slice(start, end), context);
+  const pending = context.preparerGazette('aidant');
+  context.activeSeniorProfileId = 's2';
+  context.reinitialiserGazette();
+  release([{ content: 'Ancien profil' }]);
+  await pending;
+  assert.equal(get('aidant-weekly-preview').children.length, 0);
+  assert.equal(get('aidant-weekly-print').hidden, true);
+  context.planningRequest = async () => { throw new Error('Données indisponibles'); };
+  await context.preparerGazette('aidant');
+  assert.equal(get('aidant-weekly-status').textContent, 'Données indisponibles');
+  assert.equal(get('aidant-weekly-print').hidden, true);
+  assert.equal(get('aidant-weekly-prepare').disabled, false);
+});
+
 test('the login screen offers a registration button that opens the registration form', () => {
   const login = source.slice(source.indexOf('<form id="login-section"'), source.indexOf('<!-- Bloc Inscription -->'));
   assert.match(login, /<button id="register-open"[^>]*type="button"[^>]*onclick="basculerFormulaire\(true\)"[^>]*>S’inscrire<\/button>/);
@@ -230,6 +357,11 @@ function createView(response) {
   const calls = [];
   const bodyClasses = new Set();
   const tabDisclosures = [{ open: false }, { open: false }];
+  const featureDisclosures = Object.fromEntries(
+    ['senior', 'aidant', 'pro', 'more', 'senior-pro', 'agenda', 'directory', 'contacts', 'messages']
+      .map(screen => [screen, [{ id: `${screen}-feature`, open: false }]])
+  );
+  const respite = [{ id: 'aidant-respite-details', open: false }];
   const context = {
     console: { error() {} },
     document: {
@@ -243,6 +375,9 @@ function createView(response) {
         if (selector === '.senior-tab-disclosure') return tabDisclosures;
         if (selector === '.screen-container') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'messages'].map(name => element(`screen-${name}`));
         if (selector === '.nav-item') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'notifications', 'logout'].map(name => element(`nav-${name}`));
+        if (selector === '#aidant-respite > details:not(.senior-explanation)') return respite;
+        const match = selector.match(/^#screen-(.+) details:not\(\.senior-explanation\)$/);
+        if (match) return featureDisclosures[match[1]] || [];
         return [];
       }
     },
@@ -282,10 +417,10 @@ function createView(response) {
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
       'chargerAssistantConversation', 'chargerProchainRendezVous', 'afficherProchainRendezVous', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
-      'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage',
+      'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage', 'chargerContactsUtiles', 'chargerTachesPartagees',
       'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
       'reinitialiserMeteo', 'chargerMeteo',
-      'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'planifierLectureSenior'
+      'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'initialiserVueSenior', 'planifierLectureSenior'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
     definirVueCalendrier: view => { context.calendarView = view; calls.push('definirVueCalendrier'); },
@@ -302,13 +437,16 @@ function createView(response) {
       'globalThis.openView = setAuthenticatedView; globalThis.openScreen = switchScreen; globalThis.openAgenda = ouvrirAgenda;',
     context
   );
-  return { context, element, calls, bodyClasses, tabDisclosures };
+  return { context, element, calls, bodyClasses, tabDisclosures, featureDisclosures, respite };
 }
 
-test('shared tabs start collapsed for seniors and stay expanded for other roles', async () => {
-  const { context, tabDisclosures, calls } = createView({ seniors: [] });
+test('functions open directly while settings remain separate', async () => {
+  const { context, tabDisclosures, calls, featureDisclosures } = createView({ seniors: [] });
   await context.openView({ id: 'senior', role: 'senior' });
+  assert.ok(featureDisclosures.senior.every(details => details.open));
   assert.ok(tabDisclosures.every(details => !details.open));
+  context.openScreen('agenda');
+  assert.ok(featureDisclosures.agenda.every(details => details.open));
   calls.length = 0;
   context.openScreen('settings');
   assert.ok(calls.includes('chargerConsentements'));
@@ -329,12 +467,11 @@ test('an aidant without a linked senior can use account navigation without loadi
   assert.ok(calls.includes('chargerContacts'));
 });
 
-test('aidant functions start collapsed without removing their content', () => {
+test('aidant functions retain their content', () => {
   for (const [id, content] of [
     ['aidant-checkins-details', 'aidant-wellbeing-shared'],
     ['aidant-feed-details', 'logs-list'],
     ['aidant-following-details', 'aidant-live-following'],
-    ['aidant-consents-details', 'aidant-sharing-consents'],
     ['aidant-team-message-details', 'aidant-person-note-form'],
     ['aidant-services-details', 'aidant-service-area']
   ]) {
@@ -342,6 +479,55 @@ test('aidant functions start collapsed without removing their content', () => {
     assert.ok(section);
     assert.match(section[1], new RegExp(`id="${content}"`));
   }
+});
+
+test('each approved role opens its functions without opening explanatory details', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const { context, featureDisclosures } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
+    await context.openView({ id: role, role, verificationStatus: 'approved' });
+    assert.ok(featureDisclosures[role].every(details => details.open));
+    for (const screen of ['agenda', 'contacts', 'messages']) {
+      context.openScreen(screen);
+      assert.ok(featureDisclosures[screen].every(details => details.open));
+    }
+  }
+  assert.match(source, /details:not\(\.senior-explanation\)/);
+});
+
+test('sharing, senior display and Google synchronization controls are in settings', async () => {
+  const settings = source.slice(source.indexOf('<div id="screen-settings"'), source.indexOf('<div id="screen-agenda"'));
+  for (const id of ['aidant-consents-details', 'senior-simple-enable', 'senior-simple-disable', 'calendar-google-settings']) {
+    assert.match(settings, new RegExp(`id="${id}"`));
+  }
+  const { context, element, calls } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
+  await context.openView({ id: 'aidant', role: 'aidant' });
+  context.openScreen('settings');
+  assert.equal(element('settings-aidant-consents').hidden, false);
+  assert.ok(calls.includes('chargerConsentements'));
+  await context.openView({ id: 'pro', role: 'pro', verificationStatus: 'approved' });
+  calls.length = 0;
+  context.openScreen('settings');
+  assert.ok(calls.includes('chargerParametresGooglePlanning'));
+  assert.equal(element('settings-aidant-consents').hidden, true);
+});
+
+test('daily journal and family album buttons stack their icons above the labels', () => {
+  for (const [id, label, icon] of [
+    ['senior-album-details', 'Album familial', '📷'],
+    ['senior-journal-details', 'Journal du quotidien', '📰'],
+    ['aidant-album-details', 'Album familial', '📷'],
+    ['aidant-journal-details', 'Journal du quotidien', '📰']
+  ]) {
+    const details = source.indexOf(`id="${id}"`);
+    const summaryStart = source.indexOf('<summary>', details);
+    const summaryEnd = source.indexOf('</summary>', summaryStart);
+    assert.ok(details >= 0 && summaryStart > details && summaryEnd > summaryStart);
+    const summary = source.slice(summaryStart, summaryEnd);
+    assert.match(summary, new RegExp(`<span class="tile-icon" aria-hidden="true"[^>]*>${icon}</span><span>${label}</span>`));
+  }
+  assert.match(source, /#aidant-senior-content > \.form-card > \.senior-disclosure:not\(\.senior-explanation\) > summary \{[\s\S]*?flex-direction: column/);
+  assert.match(source, /\.senior-mode \.senior-tab-disclosure > summary \{[\s\S]*?flex-direction: column/);
+  assert.match(source, /\.senior-mode #senior-album-details > summary,[\s\S]*?min-height: 132px;[\s\S]*?justify-content: center/);
 });
 
 test('aidant shortcuts pair notifications and agenda without duplicate controls', () => {
@@ -465,7 +651,7 @@ test('each approved account opens the shared messages page and returns to its ow
     await context.openView({ id: role, role, verificationStatus: 'approved' });
     const home = source.slice(source.indexOf(`<div id="screen-${role}"`),
       source.indexOf(role === 'senior' ? '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->' : role === 'aidant' ? '<!-- 🩺 3. INTERFACE PROFESSIONNEL -->' : '<div id="screen-messages"'));
-    assert.equal((home.match(/onclick="ouvrirNotifications\(\)"/g) || []).length, 1);
+    assert.equal((home.match(/onclick="ouvrirNotifications\(\)"/g) || []).length, role === 'senior' ? 2 : 1);
     calls.length = 0;
     context.openScreen('messages');
     assert.ok(element('screen-messages').classList.contains('active'));

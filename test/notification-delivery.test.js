@@ -86,3 +86,62 @@ test('queued task reminders are skipped after access or eligibility changes', as
   assert.equal(sends.length, 0);
   assert.equal(updates[0][1], 'skipped');
 });
+
+test('external notifications use fixed text across channels while keeping urgent alerts identifiable', async () => {
+  const sent = { native: [], web: [], sms: [], email: [] };
+  const mocks = {
+    'firebase-admin/app': { applicationDefault: () => ({}), getApps: () => [{}] },
+    'firebase-admin/messaging': {
+      getMessaging: () => ({
+        sendEachForMulticast: async payload => {
+          sent.native.push(payload);
+          return { responses: [{ success: true }], failureCount: 0 };
+        }
+      })
+    },
+    'web-push': {
+      setVapidDetails() {},
+      sendNotification: async (_, payload) => sent.web.push(JSON.parse(payload))
+    },
+    twilio: () => ({ messages: { create: async payload => sent.sms.push(payload) } }),
+    resend: { Resend: class { constructor() { this.emails = { send: async payload => { sent.email.push(payload); return {}; } }; } } }
+  };
+  const context = {
+    require: name => mocks[name],
+    process: { env: {
+      TWILIO_ACCOUNT_SID: 'test', TWILIO_AUTH_TOKEN: 'test', TWILIO_FROM_NUMBER: '+33123456789',
+      RESEND_API_KEY: 'test', NOTIFICATIONS_FROM_EMAIL: 'notifications@example.test',
+      WEB_PUSH_PUBLIC_KEY: 'test', WEB_PUSH_PRIVATE_KEY: 'test', WEB_PUSH_SUBJECT: 'mailto:test@example.test',
+      PUBLIC_APP_URL: 'https://example.test'
+    } },
+    module: { exports: {} }, URL, console
+  };
+  vm.runInNewContext(`${source}\nglobalThis.testDeliver = deliver;`, context);
+  const delivery = {
+    title: 'Secret personnel : Alice',
+    notification_id: 'notification-id',
+    notification_type: 'private_message',
+    subscriptions: [
+      { platform: 'android', token: 'native-token' },
+      { id: 'web-id', platform: 'web', token: JSON.stringify({ endpoint: 'https://example.test' }) }
+    ],
+    pool: { query: async () => ({ rows: [] }) },
+    sms_enabled: true, phone: '+33612345678', email_enabled: true, email: 'user@example.test'
+  };
+  for (const channel of ['push', 'sms', 'email']) {
+    assert.equal(await context.testDeliver({ ...delivery, channel }), true);
+  }
+  const output = JSON.stringify(sent);
+  assert.doesNotMatch(output, /Secret personnel|Alice/);
+  assert.match(sent.sms[0].body, /notification=notification-id/);
+  assert.match(sent.email[0].text, /notification=notification-id/);
+  assert.equal(sent.native[0].data.notificationId, 'notification-id');
+  assert.equal(sent.web[0].data.notificationId, 'notification-id');
+  assert.equal(sent.native[0].notification.title, 'Génération Liaison');
+  assert.equal(sent.web[0].title, 'Génération Liaison');
+  await context.testDeliver({ ...delivery, channel: 'push', notification_type: 'emergency_alert' });
+  assert.equal(sent.native[1].notification.title, 'Alerte d’urgence');
+  assert.equal(sent.web[1].title, 'Alerte d’urgence');
+  await context.testDeliver({ ...delivery, channel: 'sms', notification_type: 'wellbeing_safety_check' });
+  assert.match(sent.sms[1].body, /^Vérification de sécurité sans réponse/);
+});

@@ -668,6 +668,16 @@ function createAuthService(pool) {
         ALTER TABLE app_shared_tasks ADD COLUMN IF NOT EXISTS assignee_user_id UUID REFERENCES app_users(id) ON DELETE SET NULL;
         CREATE INDEX IF NOT EXISTS app_shared_tasks_senior_idx
           ON app_shared_tasks (senior_id, created_at);
+        CREATE TABLE IF NOT EXISTS app_key_contacts (
+          id UUID PRIMARY KEY,
+          senior_id UUID NOT NULL REFERENCES senior_profiles(id) ON DELETE CASCADE,
+          name VARCHAR(120) NOT NULL,
+          description VARCHAR(120) NOT NULL,
+          phone VARCHAR(21) NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS app_key_contacts_senior_idx
+          ON app_key_contacts (senior_id, created_at);
         CREATE TABLE IF NOT EXISTS app_task_reminders (
           task_id UUID NOT NULL REFERENCES app_shared_tasks(id) ON DELETE CASCADE,
           user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
@@ -1129,6 +1139,10 @@ function createAuthService(pool) {
         `DELETE FROM app_family_photos
          WHERE author_user_id = $1 OR senior_profile_id = (SELECT senior_id FROM app_users WHERE id = $1)`,
         [userId]
+      );
+      await client.query(
+        'DELETE FROM app_key_contacts WHERE senior_id = (SELECT senior_id FROM app_users WHERE id = $1 AND role = $2)',
+        [userId, 'senior']
       );
       await client.query('DELETE FROM app_push_subscriptions WHERE user_id = $1', [userId]);
       await client.query('DELETE FROM app_google_calendar_oauth_states WHERE user_id = $1', [userId]);
