@@ -3,10 +3,15 @@ self.addEventListener('push', event => {
   try {
     payload = event.data ? event.data.json() : {};
   } catch {
-    payload = { body: event.data?.text() || '' };
+    payload = {};
   }
-  event.waitUntil(self.registration.showNotification(payload.title || 'Génération Liaison', {
-    body: payload.body || 'Vous avez une nouvelle notification.',
+  const title = payload.title === 'Alerte d’urgence' ||
+      /^Alerte d’urgence : appel au (15|18|112) demandé$/.test(payload.title || '')
+    ? 'Alerte d’urgence'
+    : payload.title === 'Vérification de sécurité sans réponse'
+      ? 'Vérification de sécurité sans réponse' : 'Génération Liaison';
+  event.waitUntil(self.registration.showNotification(title, {
+    body: 'Connectez-vous à l’application pour consulter cette notification.',
     data: payload.data || { url: '/app-mobile.html' }
   }));
 });

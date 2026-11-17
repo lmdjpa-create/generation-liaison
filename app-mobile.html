@@ -90,6 +90,7 @@
         .visit-status.done { background: #e8f4ee; color: #147d5b; }
         .visit-progress { display: grid; gap: 8px; margin-top: 12px; }
         .visit-progress button, .form-card button { padding: 10px 12px; border: 0; border-radius: 8px; background: #2c3e50; color: white; font-weight: bold; cursor: pointer; }
+        #messages-senior .quick-reply { display: block; width: 100%; min-height: 56px; margin: 8px 0; background: #17684f; color: white; font-size: 1.125rem; }
         .visit-notes-button { width: 100%; margin-top: 10px; padding: 11px 12px; border: 1px solid #2c3e50; border-radius: 8px; color: #2c3e50; background: #fff; font-weight: bold; cursor: pointer; }
         .visit-progress button:disabled, .form-card button:disabled { opacity: 0.55; cursor: not-allowed; }
         .form-card { margin: 14px 0; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.05); text-align: left; }
@@ -455,10 +456,45 @@
             :is(#main-app-senior, #screen-aidant) .action-tile { flex-direction: row; text-align: left; }
             #main-app-senior .next-visit-card { flex-wrap: wrap; }
         }
+        #weekly-print-root { display: none; }
+        .weekly-preview img { display: block; max-width: 100%; max-height: 260px; object-fit: contain; }
+        .local-outings-link {
+            display: inline-block; padding: 14px 18px; border: 2px solid #123a5a; border-radius: 12px;
+            background: #123a5a; color: #fff; font-size: 1.1rem; font-weight: 700; text-decoration: none;
+        }
+        .local-outings-link:focus-visible { outline: 3px solid #e29b1f; outline-offset: 3px; }
+        .senior-simple-only { display: none; }
+        body.senior-simple .senior-simple-only { display: block; }
+        body.senior-simple .senior-full-only,
+        body.senior-simple #senior-weather-card,
+        body.senior-simple #assistant-chat-panel,
+        body.senior-simple #wellbeing-checkin-details,
+        body.senior-simple .meal-delivery-card,
+        body.senior-simple #senior-more-button,
+        body.senior-simple #senior-pro-button,
+        body.senior-simple #senior-game-section,
+        body.senior-simple #senior-album-section,
+        body.senior-simple #senior-more-actions,
+        body.senior-simple #senior-message-advanced { display: none !important; }
+        body.senior-simple #senior-simple-actions button,
+        body.senior-simple #senior-simple-disable {
+            display: block; width: 100%; min-height: 64px; margin: 12px 0; padding: 14px;
+            border: 2px solid #123a5a; border-radius: 12px; background: #123a5a; color: #fff;
+            font-size: 1.35rem; font-weight: 700;
+        }
+        body.senior-simple #screen-messages, body.senior-simple #screen-more,
+        body.senior-simple #main-app-senior { font-size: 1.15rem; color: #172f42; }
+        @media print {
+            body.gazette-printing > :not(#weekly-print-root) { display: none !important; }
+            body.gazette-printing #weekly-print-root { display: block; color: #000; background: #fff; }
+            #weekly-print-root img { display: block; max-width: 100%; max-height: 240px; object-fit: contain; }
+            #weekly-print-root article { break-inside: avoid; margin: 12px 0; }
+        }
     </style>
     <link rel="stylesheet" href="/accessibility.css">
 </head>
 <body>
+<div id="weekly-print-root"></div>
 
 <div id="toast">✅ Action enregistrée !</div>
 
@@ -505,6 +541,7 @@
                 <input type="text" id="reg-senior-name" placeholder="Nom du senior suivi (facultatif)" aria-label="Nom du senior suivi (facultatif)">
                 <p class="helper-text">Vous pouvez créer votre compte même si aucun senior n’est encore inscrit. Le suivi apparaîtra lorsqu’un senior rejoindra l’application et partagera son profil.</p>
                 <label class="notification-choice"><input id="reg-legal-guardian" type="checkbox"> Je suis tuteur légal et souhaite accéder aux profils seniors qui me seront associés par l’administration.</label>
+                <p class="helper-text">Si vous êtes un proche et le représentant légal d’un senior qui ne peut plus gérer son compte, cochez cette case. Après vérification des justificatifs, l’administration peut associer votre compte au profil concerné. Cet accès ne donne pas automatiquement accès aux autres proches.</p>
                 <section id="legal-guardian-registration-fields" class="form-card" style="display:none; text-align:left;">
                     <h3>Vérification de la tutelle</h3>
                     <p class="helper-text">L’accès aux profils seniors sera activé après vérification manuelle par l’administration. Seuls les administrateurs autorisés peuvent consulter ces justificatifs.</p>
@@ -579,7 +616,17 @@
     <div id="main-app-senior" style="display: none; text-align: center;">
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
-
+        <div class="senior-simple-only" id="senior-simple-actions">
+            <button type="button" onclick="ouvrirNotifications()">Notifications et messages <span id="home-notification-count-senior-simple" hidden></span></button>
+            <button type="button" onclick="ouvrirJournalSenior()">Mon journal</button>
+            <button type="button" onclick="ouvrirAgenda()">Mes rendez-vous</button>
+            <button type="button" onclick="switchScreen('contacts')">Mes contacts</button>
+        </div>
+        <section class="form-card" id="senior-local-outings" aria-labelledby="senior-local-outings-title">
+            <h2 id="senior-local-outings-title">Brocantes et vide-greniers</h2>
+            <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
+            <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+        </section>
         <section class="form-card weather-widget" id="senior-weather-card" aria-labelledby="senior-weather-title">
             <h2 id="senior-weather-title">Météo</h2>
             <div class="weather-hero" id="senior-weather-hero" hidden><span class="weather-icon" id="senior-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="senior-weather-temp"></span></div>
@@ -647,7 +694,7 @@
           </details>
           <div id="wellbeing-safety-result" aria-live="polite"></div>
         </section>
-        <button type="button" class="action-tile senior-action-tile" onclick="declencherVisio()"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">📞</span>Appeler en vidéo</button>
+        <button type="button" class="action-tile senior-action-tile senior-full-only" onclick="declencherVisio()"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">📞</span>Appeler en vidéo</button>
         <section class="form-card meal-delivery-card" aria-labelledby="meal-delivery-heading">
             <h2 id="meal-delivery-heading" style="margin-top:0; text-align:center;">Livraison de repas</h2>
             <p style="font-size: 1.4rem; font-weight: bold; color: #34495e; margin-bottom: 5px; text-align:center;">Avez-vous reçu votre repas ?</p>
@@ -691,6 +738,23 @@
                 </div>
             </div>
         </section>
+        <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure" id="senior-key-contacts-details">
+            <summary>Contacts utiles</summary>
+            <p class="helper-text">Ces contacts sont visibles et modifiables par vous et tous vos aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.</p>
+            <form id="senior-key-contacts-form" class="form-grid">
+              <label for="senior-key-contact-name">Nom</label>
+              <input id="senior-key-contact-name" maxlength="120" required>
+              <label for="senior-key-contact-description">Rôle (médecin, voisin…)</label>
+              <input id="senior-key-contact-description" maxlength="120" required>
+              <label for="senior-key-contact-phone">Téléphone</label>
+              <input id="senior-key-contact-phone" type="tel" maxlength="40" required>
+              <button type="submit">Ajouter le contact</button>
+            </form>
+            <p id="senior-key-contacts-status" role="status" aria-live="polite"></p>
+            <div id="senior-key-contacts-list"></div>
+          </details>
+        </section>
         <button type="button" id="senior-more-button" class="action-tile senior-action-tile" onclick="switchScreen('more')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#10133;</span>Proche : messages, jeu, photos, contacts, journal</button>
         <button type="button" id="senior-pro-button" class="action-tile senior-action-tile" onclick="switchScreen('senior-pro')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">&#129658;</span>Pro : services, intervenants, &eacute;quipe</button>
     </div>
@@ -700,11 +764,11 @@
     <div id="main-app-senior-more" style="text-align: center;">
         <button type="button" id="senior-more-back" onclick="switchScreen('senior')">&larr; Retour &agrave; l&rsquo;accueil</button>
         <h1>Proche</h1>
-        <div class="action-tiles">
+        <div class="action-tiles" id="senior-more-actions">
             <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-senior" hidden></span></button>
             <button type="button" class="action-tile" onclick="switchScreen('contacts')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#128101;</span>Contacts</button>
         </div>
-        <section class="form-card" style="text-align:left;">
+        <section class="form-card" id="senior-game-section" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure">
             <summary>🎲 Jeu gratuit : les couleurs</summary>
             <p class="helper-text">Pour le plaisir, seul ou à tour de rôle avec un proche présent. Rien n’est enregistré ni partagé.</p>
@@ -719,7 +783,7 @@
             <button type="button" onclick="nouvelleCouleur()">Autre couleur</button>
           </details>
         </section>
-        <section class="form-card" style="text-align:left;">
+        <section class="form-card" id="senior-album-section" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure" id="senior-album-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">📷</span><span>Album familial</span></summary>
             <p class="helper-text">Les photos acceptées sont visibles par vos aidants associés. Une photo proposée par un aidant attend votre accord. Les photos peuvent contenir des informations de localisation.</p>
@@ -736,6 +800,11 @@
           <details class="senior-disclosure senior-tab-disclosure" id="senior-journal-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
             <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Ce journal ne surveille pas votre sécurité.</p>
+            <button type="button" id="senior-weekly-prepare">Préparer la gazette de la semaine</button>
+            <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
+            <p id="senior-weekly-status" role="status" aria-live="polite"></p>
+            <div id="senior-weekly-preview" class="weekly-preview"></div>
+            <button type="button" id="senior-weekly-print" hidden>Imprimer la gazette</button>
             <div id="senior-journal-list" aria-live="polite"></div>
           </details>
         </section>
@@ -804,7 +873,7 @@
             <details class="senior-disclosure senior-explanation" data-help-for="#senior-tasks-refresh">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
-                <p class="helper-text">Chacun peut se proposer pour une tâche. Vous pouvez libérer une tâche si la personne n’est plus disponible ; cela n’envoie pas de notification.</p>
+                <p class="helper-text">Chacun peut se proposer ou attribuer une tâche à une personne associée. L’attribution n’envoie pas de notification et ne confirme pas son accord : prévenez-la. Vous pouvez libérer une tâche si nécessaire.</p>
                 <p class="helper-text">Dates selon l’heure de Paris. Les aidants peuvent activer leurs propres rappels.</p>
                 </div>
             </details>
@@ -863,6 +932,11 @@
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
     </div>
+    <section class="form-card" id="aidant-local-outings" aria-labelledby="aidant-local-outings-title">
+        <h2 id="aidant-local-outings-title">Brocantes et vide-greniers</h2>
+        <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
+        <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+    </section>
     <section class="form-card" id="aidant-respite">
       <details class="senior-disclosure">
         <summary>💚 Soutien et répit pour les aidants</summary>
@@ -880,14 +954,31 @@
     </section>
     <div id="aidant-senior-content" style="display:none;">
     <section class="form-card">
+      <details class="senior-disclosure" id="aidant-key-contacts-details">
+        <summary>Contacts utiles</summary>
+        <p class="helper-text">Ces contacts sont visibles et modifiables par le senior et tous ses aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.</p>
+        <form id="aidant-key-contacts-form" class="form-grid">
+          <label for="aidant-key-contact-name">Nom</label>
+          <input id="aidant-key-contact-name" maxlength="120" required>
+          <label for="aidant-key-contact-description">Rôle (médecin, voisin…)</label>
+          <input id="aidant-key-contact-description" maxlength="120" required>
+          <label for="aidant-key-contact-phone">Téléphone</label>
+          <input id="aidant-key-contact-phone" type="tel" maxlength="40" required>
+          <button type="submit">Ajouter le contact</button>
+        </form>
+        <p id="aidant-key-contacts-status" role="status" aria-live="polite"></p>
+        <div id="aidant-key-contacts-list"></div>
+      </details>
+    </section>
+    <section class="form-card">
       <details class="senior-disclosure" id="aidant-tasks-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">✅</span>Tâches du quotidien</summary>
         <p class="helper-text">Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Évitez les informations médicales.</p>
         <details class="senior-disclosure senior-explanation" data-help-for="#aidant-tasks-refresh">
           <summary>Explications</summary>
           <div class="gl-help-bubble">
-        <p class="helper-text">Vous pouvez vous proposer pour une tâche et vous retirer ensuite. Le senior peut aussi libérer une tâche.</p>
-        <p class="helper-text">Dates selon l’heure de Paris. Les rappels facultatifs se règlent dans Plus.</p>
+        <p class="helper-text">Vous pouvez vous proposer ou attribuer une tâche à une personne associée. L’attribution n’envoie pas de notification et ne confirme pas son accord : prévenez-la. Le senior peut libérer une tâche.</p>
+        <p class="helper-text">Dates selon l’heure de Paris. Les rappels facultatifs se règlent dans Réglages.</p>
           </div>
         </details>
         <form id="aidant-tasks-form" class="form-grid">
@@ -919,6 +1010,11 @@
       <details class="senior-disclosure" id="aidant-journal-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
         <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Ce journal ne surveille pas la sécurité du senior.</p>
+        <button type="button" id="aidant-weekly-prepare">Préparer la gazette de la semaine</button>
+        <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
+        <p id="aidant-weekly-status" role="status" aria-live="polite"></p>
+        <div id="aidant-weekly-preview" class="weekly-preview"></div>
+        <button type="button" id="aidant-weekly-print" hidden>Imprimer la gazette</button>
         <div id="aidant-journal-list" aria-live="polite"></div>
       </details>
     </section>
@@ -946,12 +1042,6 @@
         <p class="helper-text">Les étapes des visites sont visibles si ce compte est autorisé pour le profil concerné.</p>
           </div>
         </details>
-    </section>
-    <section class="form-card">
-      <details class="senior-disclosure" id="aidant-consents-details">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔐</span>Autorisation de partage</summary>
-        <div id="aidant-sharing-consents" style="margin-top:12px;"></div>
-      </details>
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-team-message-details">
@@ -1036,7 +1126,8 @@
         </form>
         <form id="service-partner-form" class="form-grid" style="margin-top:20px;">
             <h4>Référencer un partenaire de services</h4>
-            <p class="helper-text">Inscrivez d’abord son compte professionnel dans l’équipe. Les frais (abonnement ou prestation réalisée) seront configurés séparément lorsque les tarifs seront définis.</p>
+            <p class="helper-text">Inscrivez d’abord son compte professionnel dans l’équipe. Tarifs envisagés : 15 € HT par mois ou 1 € HT par prestation réalisée, avec facturation mensuelle des commissions. Aucun paiement n’est activé ; les conditions définitives restent à valider.</p>
+            <p class="helper-text">L’abonnement envisagé couvre tous les services d’un même compte professionnel.</p>
             <select id="service-partner-member" required><option value="">Choisir un intervenant de l’équipe</option></select>
             <select id="service-partner-type" required>
                 <option value="">Choisir un service</option>
@@ -1046,8 +1137,8 @@
             </select>
             <select id="service-partner-billing" required>
                 <option value="">Choisir le modèle de rémunération</option>
-                <option value="subscription">Abonnement (tarif à définir)</option>
-                <option value="per_completed_booking">Participation après prestation réalisée (tarif à définir)</option>
+                <option value="subscription">Abonnement (paiement non activé)</option>
+                <option value="per_completed_booking">Participation après prestation réalisée (paiement non activé)</option>
             </select>
             <input id="service-partner-name" type="text" maxlength="160" placeholder="Nom du partenaire" required>
             <input id="service-partner-area" type="text" maxlength="160" placeholder="Zone d’intervention (facultatif)">
@@ -1117,9 +1208,13 @@
             <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
             <button id="message-open-senior" type="button" onclick="ouvrirConversation('senior')">Ouvrir les messages</button>
             <div id="message-list-senior" aria-live="polite"></div>
+            <p>Répondre rapidement au correspondant choisi :</p>
+            <button type="button" class="quick-reply" id="message-quick-received" onclick="envoyerReponseRapide('Bien reçu')">Bien reçu</button>
+            <button type="button" class="quick-reply" id="message-quick-well" onclick="envoyerReponseRapide('Tout va bien')">Tout va bien</button>
             <form id="message-form-senior">
                 <label for="message-text-senior">Votre message</label>
                 <textarea id="message-text-senior" maxlength="2000" required></textarea>
+                <div id="senior-message-advanced">
                 <button id="message-dictation-senior" type="button">🎙️ Dicter mon message</button>
                 <p class="helper-text">La dictée dépend du navigateur : son fournisseur peut traiter votre voix. Vérifiez le texte avant de l’envoyer.</p>
                 <p id="message-dictation-status" class="helper-text" role="status" aria-live="polite"></p>
@@ -1137,6 +1232,7 @@
                     <p class="helper-text">Cochez chaque destinataire. Chacun reçoit une copie privée et ne voit pas les autres destinataires.</p>
                     <div id="message-multiple-contacts"></div>
                 </details>
+                </div>
                 <button type="submit">Envoyer</button>
             </form>
             <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
@@ -1193,6 +1289,11 @@
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
     <button id="settings-logout" type="button" onclick="deconnecterUtilisateur()">Se déconnecter</button>
+    <section class="form-card" id="settings-senior-display" style="display:none;">
+        <h3>Affichage senior</h3>
+        <button type="button" class="senior-full-only" id="senior-simple-enable" onclick="changerVueSenior(true)">Activer la vue simplifiée</button>
+        <button type="button" class="senior-simple-only" id="senior-simple-disable" onclick="changerVueSenior(false)">Afficher toutes les fonctions</button>
+    </section>
     <section class="form-card" id="settings-weather" style="display:none;">
       <details class="senior-tab-disclosure">
         <summary>Météo</summary>
@@ -1280,9 +1381,15 @@
             <button type="submit">Demander l’accès</button>
         </form>
         <p id="aidant-link-status" class="helper-text" role="status" aria-live="polite"></p>
-        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie et associe les profils seniors.</p>
+        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie les justificatifs et associe le profil senior à son compte. Les autres proches n’obtiennent pas automatiquement l’accès.</p>
         <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
         <button type="button" id="aidant-links-refresh">Actualiser</button>
+    </section>
+    <section class="form-card" id="settings-aidant-consents" hidden>
+      <details class="senior-tab-disclosure" id="aidant-consents-details">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔐</span>Autorisation de partage</summary>
+        <div id="aidant-sharing-consents" style="margin-top:12px;"></div>
+      </details>
     </section>
     <section class="form-card" id="settings-agenda">
       <details class="senior-tab-disclosure">
@@ -1294,6 +1401,7 @@
 <section class="form-card notification-settings" id="notification-settings-senior" style="display:none;">
       <button type="button" class="enable-push-button" data-role="senior" disabled>Activer les notifications sur cet appareil</button>
       <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
+      <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
       <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
       <details class="senior-tab-disclosure" id="senior-notification-preferences">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Mes préférences de notification</summary>
@@ -1310,6 +1418,7 @@
 <section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
         <button type="button" class="enable-push-button" data-role="aidant" disabled>Activer les notifications sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
+        <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
         <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
         <h3>Mes préférences de notification</h3>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
@@ -1322,7 +1431,7 @@
         <p class="helper-text channel-status" aria-live="polite"></p>
         <details id="aidant-task-reminders">
             <summary>Rappels des tâches</summary>
-            <p class="helper-text">Si vous les activez, un rappel est créé à partir de 9 h, heure de Paris, pour les tâches du jour non terminées dont vous vous chargez ou sans volontaire. Il concerne tous vos profils associés. La réception hors de l’application dépend des notifications activées sur vos appareils ou de vos choix SMS et e-mail.</p>
+            <p class="helper-text">Si vous les activez, un rappel est créé à partir de 9 h, heure de Paris, pour les tâches du jour non terminées qui vous sont attribuées ou qui ne sont pas attribuées. Il concerne tous vos profils associés. La réception hors de l’application dépend des notifications activées sur vos appareils ou de vos choix SMS et e-mail.</p>
             <form id="aidant-task-reminders-form" class="form-grid">
                 <label class="notification-choice"><input type="checkbox" id="aidant-task-reminders-enabled" disabled> Activer les rappels de tâches</label>
                 <button type="submit" id="aidant-task-reminders-save" disabled>Enregistrer les rappels</button>
@@ -1333,6 +1442,7 @@
 <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
         <button type="button" class="enable-push-button" data-role="pro" disabled>Activer les notifications sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
+        <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
         <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
         <h3>Mes préférences de notification</h3>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
@@ -1358,6 +1468,19 @@
           </details>
         </section>
 <div id="settings-pro-area">
+    <section id="calendar-google-settings" class="form-card" hidden>
+        <h3>Synchronisation du planning avec Google</h3>
+        <details class="senior-disclosure senior-explanation" data-help-for="#calendar-google-sync-toggle">
+            <summary>Explications</summary>
+            <div class="gl-help-bubble">
+            <p class="helper-text">L’activation copie les dates et durées des prochains rendez-vous confirmés dans votre agenda Google, avec un titre générique et sans nom. La mise en pause ne supprime pas les événements déjà copiés.</p>
+            </div>
+        </details>
+        <p id="calendar-google-sync-status" class="helper-text" aria-live="polite">Vérification de la synchronisation…</p>
+        <button id="calendar-google-sync-toggle" type="button" disabled>Modifier la synchronisation</button>
+        <button id="calendar-google-same" type="button" hidden>J’ai reconnecté le même agenda</button>
+        <button id="calendar-google-new" type="button" hidden>J’ai connecté un autre agenda</button>
+    </section>
 <section class="form-card" id="directory-profile-panel">
         <h3>Annuaire national et rendez-vous</h3>
         <p class="helper-text">Seuls les intervenants dont le dossier est validé peuvent publier un profil. Votre activité est publique ; votre adresse, votre position et vos coordonnées ne le sont pas. Les demandes sont confirmées par vous.</p>
@@ -1496,19 +1619,6 @@
             </div>
         </details>
     </section>
-    <section id="calendar-google-settings" class="form-card" hidden>
-        <h3>Synchronisation du planning avec Google</h3>
-        <details class="senior-disclosure senior-explanation" data-help-for="#calendar-google-sync-toggle">
-            <summary>Explications</summary>
-            <div class="gl-help-bubble">
-            <p class="helper-text">L’activation copie les dates et durées des prochains rendez-vous confirmés dans votre agenda Google, avec un titre générique et sans nom. La mise en pause ne supprime pas les événements déjà copiés.</p>
-            </div>
-        </details>
-        <p id="calendar-google-sync-status" class="helper-text" aria-live="polite">Vérification de la synchronisation…</p>
-        <button id="calendar-google-sync-toggle" type="button" disabled>Modifier la synchronisation</button>
-        <button id="calendar-google-same" type="button" hidden>J’ai reconnecté le même agenda</button>
-        <button id="calendar-google-new" type="button" hidden>J’ai connecté un autre agenda</button>
-    </section>
     <section class="form-card">
         <h3>Modifications depuis Google</h3>
         <div id="calendar-google-requests" aria-live="polite">Chargement des demandes…</div>
@@ -1642,6 +1752,8 @@
     let familyAlbumRevision = 0;
     let familyAlbumUrls = [];
     let familyJournalRevision = 0;
+    let weeklyGazetteRevision = 0;
+    let weeklyGazetteUrls = [];
     let wellbeingLoadedDate = null;
     let currentWellbeingCheckin = null;
     let wellbeingSafetyTimer = null;
@@ -1664,6 +1776,8 @@
     let nextVisitEvent = null;
     let nextVisitMessage = 'Chargement du prochain rendez-vous…';
     let sharedTasksLoadId = 0;
+    let keyContactsLoadId = 0;
+    let consentLoadId = 0;
     let aidantSummaryLoadId = 0;
     let aidantSummaryContext = '';
     let calendarRequestsLoadId = 0;
@@ -1686,8 +1800,8 @@
         housekeeping: window.generationLiaisonTranslate('Ménage à domicile')
     };
     const serviceBillingLabels = {
-        subscription: window.generationLiaisonTranslate('Abonnement · tarif à définir'),
-        per_completed_booking: window.generationLiaisonTranslate('Participation après prestation réalisée · tarif à définir')
+        subscription: window.generationLiaisonTranslate('Abonnement · paiement non activé'),
+        per_completed_booking: window.generationLiaisonTranslate('Participation après prestation réalisée · paiement non activé')
     };
 
     function showToast(message, isSuccess = true) {
@@ -1993,6 +2107,12 @@
         document.getElementById(targetId).scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    function ouvrirJournalSenior() {
+        if (connectedUser?.role !== 'senior') return;
+        switchScreen('more');
+        ouvrirSectionSenior('senior-journal-details', 'senior-journal-details');
+    }
+
     function switchScreen(screenName) {
         const pendingProfessional = connectedUser?.role === 'pro' && connectedUser.verificationStatus !== 'approved';
         const pendingGuardian = connectedUser?.role === 'aidant' && connectedUser.isLegalGuardian &&
@@ -2042,12 +2162,28 @@
 
         if (screenName === 'settings') {
             chargerPreferencesNotification();
+            document.getElementById('settings-aidant-consents').hidden =
+                pendingAccess || connectedUser.role !== 'aidant' || !activeSeniorProfileId;
             if (!pendingAccess && ['senior', 'aidant'].includes(connectedUser.role)) chargerGestionAssociations();
             if (!pendingAccess && connectedUser.role === 'senior') chargerConsentements('senior');
-            if (!pendingAccess && connectedUser.role === 'pro') chargerDirectoryProfile();
+            if (!pendingAccess && connectedUser.role === 'aidant' && activeSeniorProfileId) chargerConsentements('aidant');
+            if (!pendingAccess && connectedUser.role === 'pro') {
+                chargerDirectoryProfile();
+                chargerParametresGooglePlanning();
+            }
             return;
         }
         if (pendingAccess) return;
+        const openedDetails = new Set();
+        const disclosureSelector = screenName === 'aidant' && !activeSeniorProfileId
+            ? '#aidant-respite > details:not(.senior-explanation)'
+            : `#screen-${screenId} details:not(.senior-explanation)`;
+        document.querySelectorAll(disclosureSelector).forEach(details => {
+            if (!details.open) {
+                details.open = true;
+                openedDetails.add(details.id);
+            }
+        });
         chargerNotifications();
         if (screenName === 'messages') {
             document.getElementById('screen-messages').scrollTop = 0;
@@ -2056,8 +2192,10 @@
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerSyntheseAidant();
             chargerLogs();
-            if (document.getElementById('aidant-album-details').open) chargerAlbumFamilial('aidant');
-            if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
+            if (!openedDetails.has('aidant-album-details') && document.getElementById('aidant-album-details').open) chargerAlbumFamilial('aidant');
+            if (!openedDetails.has('aidant-journal-details') && document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
+            if (!openedDetails.has('aidant-key-contacts-details')) chargerContactsUtiles('aidant');
+            if (!openedDetails.has('aidant-tasks-details')) chargerTachesPartagees('aidant');
             chargerCheckinsPartages();
             chargerSuiviPartage('aidant');
             chargerConsentements('aidant');
@@ -2065,13 +2203,15 @@
         } else if (screenName === 'more' || screenName === 'senior-pro') {
             document.getElementById(`screen-${screenName}`).scrollTop = 0;
             chargerSyntheseSenior();
-            if (document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
-            if (document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
+            if (!openedDetails.has('senior-album-details') && document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
+            if (!openedDetails.has('senior-journal-details') && document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
+            if (screenName === 'senior-pro' && !openedDetails.has('senior-tasks-details')) chargerTachesPartagees('senior');
             chargerSuiviPartage('senior');
             chargerServicesFamiliaux('senior');
         } else if (screenName === 'senior') {
             chargerProchainRendezVous();
             chargerSyntheseSenior();
+            if (!openedDetails.has('senior-key-contacts-details')) chargerContactsUtiles('senior');
             if (document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
             if (document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
             chargerCheckinBienEtre();
@@ -2095,7 +2235,6 @@
             chargerCalendrier();
             chargerPartagesAgenda();
             chargerModificationsGoogle();
-            chargerParametresGooglePlanning();
         } else if (screenName === 'contacts') {
             chargerContacts();
         }
@@ -2561,6 +2700,22 @@
         }
     }
 
+    function initialiserVueSenior(user) {
+        const enabled = user.role === 'senior' &&
+            localStorage.getItem(`generation-liaison-senior-simple-${user.id}`) === 'true';
+        document.body.classList.toggle('senior-simple', enabled);
+        if (enabled) {
+            document.querySelectorAll('#message-multiple-contacts input:checked').forEach(input => { input.checked = false; });
+        }
+    }
+
+    function changerVueSenior(enabled) {
+        if (connectedUser?.role !== 'senior') return;
+        localStorage.setItem(`generation-liaison-senior-simple-${connectedUser.id}`, String(enabled));
+        initialiserVueSenior(connectedUser);
+        planifierLectureSenior();
+    }
+
     async function setAuthenticatedView(user) {
         reinitialiserMeteo();
         annulerDicteeMessage();
@@ -2597,6 +2752,7 @@
         reinitialiserProfil();
         if (user.hasAccountPhoto) void chargerPhotoProfil();
         document.body.classList.toggle('senior-mode', user.role === 'senior');
+        initialiserVueSenior(user);
         document.querySelectorAll('.senior-tab-disclosure').forEach(details => {
             details.open = user.role !== 'senior';
         });
@@ -2623,6 +2779,8 @@
         document.getElementById('settings-account-closure').style.display = 'block';
         document.getElementById('settings-weather').style.display =
             ['senior', 'aidant'].includes(user.role) && !pendingAccess ? 'block' : 'none';
+        document.getElementById('settings-senior-display').style.display =
+            user.role === 'senior' && !pendingAccess ? 'block' : 'none';
         document.getElementById('settings-senior-links').style.display = user.role === 'senior' ? 'block' : 'none';
         document.getElementById('settings-aidant-links').style.display =
             user.role === 'aidant' && !pendingAccess ? 'block' : 'none';
@@ -2986,12 +3144,58 @@
 
     function reinitialiserTachesPartagees() {
         sharedTasksLoadId++;
+        keyContactsLoadId++;
         for (const role of ['senior', 'aidant']) {
             document.getElementById(`${role}-tasks-list`).replaceChildren();
             document.getElementById(`${role}-tasks-status`).textContent = '';
             document.getElementById(`${role}-task-title`).value = '';
             document.getElementById(`${role}-task-date`).value = '';
             document.getElementById(`${role}-tasks-details`).open = false;
+            document.getElementById(`${role}-key-contacts-list`).replaceChildren();
+            document.getElementById(`${role}-key-contacts-status`).textContent = '';
+            document.getElementById(`${role}-key-contacts-form`).reset();
+            document.getElementById(`${role}-key-contacts-details`).open = false;
+        }
+    }
+
+    async function chargerContactsUtiles(role) {
+        const loadId = ++keyContactsLoadId;
+        const list = document.getElementById(`${role}-key-contacts-list`);
+        const status = document.getElementById(`${role}-key-contacts-status`);
+        list.replaceChildren();
+        status.textContent = 'Chargement des contacts…';
+        try {
+            const result = await planningRequest('/api/key-contacts');
+            if (loadId !== keyContactsLoadId) return;
+            status.textContent = result.contacts.length ? '' : 'Aucun contact pour le moment.';
+            for (const contact of result.contacts) {
+                const row = document.createElement('div');
+                row.className = 'card';
+                const call = document.createElement('a');
+                call.href = `tel:${contact.phone}`;
+                call.textContent = contact.phone;
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.textContent = 'Supprimer';
+                remove.setAttribute('aria-label', `Supprimer ${contact.name}`);
+                remove.addEventListener('click', async () => {
+                    if (!window.confirm('Supprimer ce contact pour tous ?')) return;
+                    const revision = ++keyContactsLoadId;
+                    remove.disabled = true;
+                    try {
+                        await planningRequest(`/api/key-contacts/${encodeURIComponent(contact.id)}`, { method: 'DELETE' });
+                        if (revision === keyContactsLoadId) await chargerContactsUtiles(role);
+                    } catch (error) {
+                        if (revision === keyContactsLoadId) status.textContent = error.message || 'Impossible de supprimer ce contact.';
+                    } finally {
+                        remove.disabled = false;
+                    }
+                });
+                row.append(makeTextElement('strong', contact.name), makeTextElement('p', contact.description), call, remove);
+                list.append(row);
+            }
+        } catch (error) {
+            if (loadId === keyContactsLoadId) status.textContent = error.message || 'Impossible de charger les contacts.';
         }
     }
 
@@ -3052,8 +3256,8 @@
                 dateDetails.append(dateSummary, dateLabel, saveDate);
                 const assignment = document.createElement('p');
                 assignment.textContent = task.assigned
-                    ? `${window.generationLiaisonTranslate('Prise en charge par')} : ${task.assigneeName || window.generationLiaisonTranslate('Personne indisponible')}`
-                    : window.generationLiaisonTranslate('Personne ne s’est encore proposé');
+                    ? `${window.generationLiaisonTranslate('Attribuée à')} : ${task.assigneeName || window.generationLiaisonTranslate('Personne indisponible')}`
+                    : window.generationLiaisonTranslate('Tâche non attribuée');
                 const assignmentButton = document.createElement('button');
                 assignmentButton.type = 'button';
                 if (!task.assigned && !task.completed) {
@@ -3079,6 +3283,64 @@
                     }
                 });
                 row.append(title, state, dateText, toggle, remove, dateDetails, assignment, assignmentButton);
+                if (!task.assigned && !task.completed) {
+                    const assignDetails = document.createElement('details');
+                    const assignSummary = document.createElement('summary');
+                    assignSummary.textContent = window.generationLiaisonTranslate('Attribuer à une personne');
+                    const label = document.createElement('label');
+                    label.textContent = window.generationLiaisonTranslate('Personne associée');
+                    const select = document.createElement('select');
+                    select.disabled = true;
+                    label.append(select);
+                    const assign = document.createElement('button');
+                    assign.type = 'button';
+                    assign.textContent = window.generationLiaisonTranslate('Attribuer');
+                    assign.disabled = true;
+                    const assignStatus = document.createElement('p');
+                    assignStatus.setAttribute('role', 'status');
+                    assignStatus.setAttribute('aria-live', 'polite');
+                    assignDetails.addEventListener('toggle', async () => {
+                        if (!assignDetails.open || select.children.length) return;
+                        assignStatus.textContent = window.generationLiaisonTranslate('Chargement des personnes…');
+                        try {
+                            const result = await planningRequest('/api/shared-tasks/assignees');
+                            if (loadId !== sharedTasksLoadId) return;
+                            const placeholder = document.createElement('option');
+                            placeholder.value = '';
+                            placeholder.textContent = window.generationLiaisonTranslate('Choisissez une personne');
+                            select.append(placeholder);
+                            for (const person of result.assignees) {
+                                const option = document.createElement('option');
+                                option.value = person.id;
+                                option.textContent = person.name;
+                                select.append(option);
+                            }
+                            select.disabled = false;
+                            assign.disabled = false;
+                            assignStatus.textContent = window.generationLiaisonTranslate('Prévenez la personne : aucune notification n’est envoyée.');
+                        } catch (error) {
+                            if (loadId === sharedTasksLoadId) {
+                                assignStatus.textContent = error.message || 'Impossible de charger les personnes.';
+                            }
+                        }
+                    });
+                    assign.addEventListener('click', async () => {
+                        if (!select.value) {
+                            assignStatus.textContent = window.generationLiaisonTranslate('Choisissez une personne.');
+                            return;
+                        }
+                        assign.disabled = true;
+                        try {
+                            await modifierTachePartagee(role, `${task.id}/assign`, {
+                                method: 'POST', body: { assigneeId: select.value }
+                            });
+                        } finally {
+                            assign.disabled = false;
+                        }
+                    });
+                    assignDetails.append(assignSummary, label, assign, assignStatus);
+                    row.append(assignDetails);
+                }
                 list.append(row);
             }
         } catch (error) {
@@ -4606,7 +4868,7 @@
     }
 
     function actualiserCompteurNotifications(count) {
-        ['notification-unread-count', ...['senior', 'aidant', 'pro'].map(role => `home-notification-count-${role}`)]
+        ['notification-unread-count', 'home-notification-count-senior-simple', ...['senior', 'aidant', 'pro'].map(role => `home-notification-count-${role}`)]
             .forEach(id => {
                 const badge = document.getElementById(id);
                 badge.hidden = count === 0;
@@ -4922,6 +5184,7 @@
             if (!screen) return;
             const allowed = {
                 'screen-senior': '#date-senior, #senior-weather-temp, #senior-weather-status, #senior-weather-days, #senior-next-visit-text',
+                'screen-more': '#senior-journal-list',
                 'screen-senior-pro': '#senior-summary-visit, #senior-summary-messages, #senior-summary-notifications',
                 'screen-messages': '#notification-opened-senior, #notifications-senior, #message-list-senior',
                 'screen-agenda': '#calendar-title, #calendar-week-summary-content, #calendar-grid, #calendar-selected-day'
@@ -5147,7 +5410,9 @@
         const select = document.getElementById(`message-contact-${role}`);
         const text = document.getElementById(`message-text-${role}`);
         const status = document.getElementById(`message-status-${role}`);
-        const selected = role === 'senior'
+        const button = document.querySelector(`#message-form-${role} button[type="submit"]`);
+        if (button.disabled) return;
+        const selected = role === 'senior' && !document.body.classList.contains('senior-simple')
             ? Array.from(document.querySelectorAll('#message-multiple-contacts input:checked:not(:disabled)')) : [];
         if (!selected.length && !select.value) {
             status.textContent = 'Choisissez un correspondant.';
@@ -5171,9 +5436,11 @@
             annulerDicteeMessage();
             annulerPropositionMessage();
         }
-        const button = document.querySelector(`#message-form-${role} button[type="submit"]`);
         const userId = connectedUser.id;
         button.disabled = true;
+        const quickButtons = role === 'senior'
+            ? [document.getElementById('message-quick-received'), document.getElementById('message-quick-well')] : [];
+        quickButtons.forEach(item => { item.disabled = true; });
         try {
             if (selected.length) {
                 await seniorLinksRequest('/api/messages/multiple', {
@@ -5199,6 +5466,39 @@
             }
         } finally {
             button.disabled = false;
+            quickButtons.forEach(item => { item.disabled = false; });
+        }
+    }
+
+    async function envoyerReponseRapide(message) {
+        if (connectedUser?.role !== 'senior' || !['Bien reçu', 'Tout va bien'].includes(message)) return;
+        const select = document.getElementById('message-contact-senior');
+        const status = document.getElementById('message-status-senior');
+        const submit = document.querySelector('#message-form-senior button[type="submit"]');
+        if (submit.disabled) return;
+        if (!select.value) {
+            status.textContent = 'Choisissez un correspondant.';
+            return;
+        }
+        const contactId = select.value;
+        const userId = connectedUser.id;
+        const buttons = [submit, document.getElementById('message-quick-received'), document.getElementById('message-quick-well')];
+        buttons.forEach(button => { button.disabled = true; });
+        try {
+            await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
+                method: 'POST', body: { message }
+            });
+            if (connectedUser?.id !== userId || connectedUser?.role !== 'senior') return;
+            const refreshed = select.value !== contactId || await ouvrirConversation('senior');
+            if (connectedUser?.id === userId && connectedUser?.role === 'senior') {
+                status.textContent = refreshed ? 'Message envoyé.' : 'Message envoyé. Impossible de rafraîchir la conversation.';
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId && connectedUser?.role === 'senior') {
+                status.textContent = error.message || 'Impossible d’envoyer le message.';
+            }
+        } finally {
+            buttons.forEach(button => { button.disabled = false; });
         }
     }
 
@@ -6564,12 +6864,18 @@
     async function chargerConsentements(role) {
         const container = document.getElementById(`${role}-sharing-consents`);
         if (!container || !connectedUser || connectedUser.role !== role) return;
-
+        const loadId = ++consentLoadId;
+        const userId = connectedUser.id;
+        const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
+        const current = () => loadId === consentLoadId && connectedUser?.id === userId &&
+            connectedUser?.role === role && (role !== 'aidant' || activeSeniorProfileId === seniorId);
+        const recipientSelect = document.getElementById(`${role}-note-recipient`);
+        container.replaceChildren(makeTextElement('p', 'Chargement des autorisations…', 'helper-text'));
+        recipientSelect.replaceChildren(new Option('Choisir une équipe autorisée', ''));
         try {
             const consents = await planningRequest('/api/planning/consents');
+            if (!current()) return;
             container.replaceChildren();
-            const recipientSelect = document.getElementById(`${role}-note-recipient`);
-            recipientSelect.replaceChildren(new Option('Choisir une équipe autorisée', ''));
             consents.filter(consent => consent.consented).forEach(consent => {
                 recipientSelect.add(new Option(consent.organizationName, consent.id));
             });
@@ -6591,6 +6897,7 @@
                 container.append(item);
             });
         } catch (error) {
+            if (!current()) return;
             container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les autorisations.', 'helper-text'));
         }
     }
@@ -6640,6 +6947,35 @@
 
     function configurerFormulairesCoordination() {
         for (const role of ['senior', 'aidant']) {
+            const contactsDetails = document.getElementById(`${role}-key-contacts-details`);
+            contactsDetails.addEventListener('toggle', () => {
+                if (contactsDetails.open && connectedUser?.role === role) chargerContactsUtiles(role);
+            });
+            document.getElementById(`${role}-key-contacts-form`).addEventListener('submit', async event => {
+                event.preventDefault();
+                if (connectedUser?.role !== role) return;
+                const form = event.currentTarget;
+                const button = form.querySelector('button[type="submit"]');
+                if (button.disabled) return;
+                const revision = ++keyContactsLoadId;
+                const body = Object.fromEntries(['name', 'description', 'phone'].map(field =>
+                    [field, document.getElementById(`${role}-key-contact-${field}`).value]));
+                button.disabled = true;
+                try {
+                    await planningRequest('/api/key-contacts', { method: 'POST', body });
+                    if (revision === keyContactsLoadId) {
+                        form.reset();
+                        await chargerContactsUtiles(role);
+                    }
+                } catch (error) {
+                    if (revision === keyContactsLoadId) {
+                        document.getElementById(`${role}-key-contacts-status`).textContent =
+                            error.message || 'Impossible d’ajouter ce contact.';
+                    }
+                } finally {
+                    button.disabled = false;
+                }
+            });
             const details = document.getElementById(`${role}-tasks-details`);
             details.addEventListener('toggle', () => {
                 if (details.open && connectedUser?.role === role) chargerTachesPartagees(role);
@@ -7042,7 +7378,7 @@
         reinitialiserAnnuairePartage();
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
-        document.body.classList.remove('senior-mode');
+        document.body.classList.remove('senior-mode', 'senior-simple');
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');
         directoryLocation = null;
@@ -7298,6 +7634,7 @@
     function reinitialiserAlbumJournal() {
         familyAlbumRevision++;
         familyJournalRevision++;
+        reinitialiserGazette();
         familyAlbumUrls.forEach(url => URL.revokeObjectURL(url));
         familyAlbumUrls = [];
         ['senior', 'aidant'].forEach(role => {
@@ -7436,8 +7773,123 @@
         }
     }
 
-    function configurerAlbumJournal() {
+    function reinitialiserGazette() {
+        weeklyGazetteRevision++;
+        weeklyGazetteUrls.forEach(url => URL.revokeObjectURL(url));
+        weeklyGazetteUrls = [];
+        document.body.classList.remove('gazette-printing');
+        document.getElementById('weekly-print-root').replaceChildren();
         ['senior', 'aidant'].forEach(role => {
+            document.getElementById(`${role}-weekly-preview`).replaceChildren();
+            document.getElementById(`${role}-weekly-status`).textContent = '';
+            document.getElementById(`${role}-weekly-print`).hidden = true;
+            document.getElementById(`${role}-weekly-prepare`).disabled = false;
+        });
+    }
+
+    async function preparerGazette(role) {
+        if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId)) return;
+        reinitialiserGazette();
+        const revision = weeklyGazetteRevision;
+        const userId = connectedUser.id;
+        const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
+        const current = () => revision === weeklyGazetteRevision && connectedUser?.id === userId &&
+            connectedUser?.role === role && (role !== 'aidant' || activeSeniorProfileId === seniorId);
+        const button = document.getElementById(`${role}-weekly-prepare`);
+        const status = document.getElementById(`${role}-weekly-status`);
+        const preview = document.getElementById(`${role}-weekly-preview`);
+        button.disabled = true;
+        status.textContent = 'Préparation de la gazette…';
+        try {
+            const [weekly, album] = await Promise.all([
+                planningRequest('/api/logs/weekly-family'), planningRequest('/api/family-album')
+            ]);
+            if (!current()) return;
+            const { start, end } = weekly;
+            const inWeek = date => Number.isFinite(new Date(date).getTime()) &&
+                calendarEventDate(date) >= start && calendarEventDate(date) <= end;
+            const notes = weekly.notes.filter(log => log.log_type === 'family_note' && inWeek(log.created_at));
+            const photos = album.photos.filter(photo => photo.approved && inWeek(photo.createdAt));
+            const content = document.createElement('div');
+            content.append(makeTextElement('h2', 'Gazette de la semaine'),
+                makeTextElement('p', `Du ${start} au ${end} inclus (heure de Paris).`));
+            content.append(makeTextElement('h3', 'Nouvelles familiales'));
+            if (!notes.length) content.append(makeTextElement('p', 'Aucune nouvelle familiale cette semaine.'));
+            for (const note of notes) {
+                const item = document.createElement('article');
+                item.append(makeTextElement('strong', `${formatDateTime(note.created_at)} · ${auteurAvecRole(note.author_id)}`),
+                    makeTextElement('p', note.content));
+                content.append(item);
+            }
+            if (weekly.truncated) content.append(makeTextElement('p',
+                'Seules les 1 000 nouvelles familiales les plus récentes ont été incluses : la gazette peut être incomplète.'));
+            content.append(makeTextElement('h3', 'Photos partagées'));
+            if (!photos.length) content.append(makeTextElement('p', 'Aucune photo acceptée cette semaine.'));
+            for (const photo of photos) {
+                if (!current()) return;
+                const response = await fetch(`${SERVER_URL}/api/family-album/${encodeURIComponent(photo.id)}/photo`, {
+                    headers: authHeaders(), cache: 'no-store'
+                });
+                if (!response.ok) throw new Error('Impossible de charger une photo pour la gazette.');
+                const blob = await response.blob();
+                if (!current()) return;
+                const url = URL.createObjectURL(blob);
+                weeklyGazetteUrls.push(url);
+                const item = document.createElement('article');
+                const image = document.createElement('img');
+                image.alt = `Photo partagée par ${photo.authorName}`;
+                item.append(makeTextElement('p', `${formatDateTime(photo.createdAt)} · ${auteurAvecRole(photo.authorRole, photo.authorName)}`), image);
+                content.append(item);
+                await new Promise((resolve, reject) => {
+                    image.onload = resolve;
+                    image.onerror = () => reject(new Error('Impossible d’afficher une photo pour la gazette.'));
+                    image.src = url;
+                });
+            }
+            if (!current()) return;
+            preview.replaceChildren(content);
+            document.getElementById(`${role}-weekly-print`).hidden = false;
+            status.textContent = 'Gazette prête. Vérifiez son contenu avant impression.';
+        } catch (error) {
+            if (current()) {
+                weeklyGazetteUrls.forEach(url => URL.revokeObjectURL(url));
+                weeklyGazetteUrls = [];
+                preview.replaceChildren();
+                status.textContent = error.message || 'Impossible de préparer la gazette.';
+            }
+        } finally {
+            if (current()) button.disabled = false;
+        }
+    }
+
+    function imprimerGazette(role) {
+        if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId)) return;
+        const preview = document.getElementById(`${role}-weekly-preview`);
+        if (!preview.firstElementChild) return;
+        const status = document.getElementById(`${role}-weekly-status`);
+        if (typeof window.print !== 'function') {
+            status.textContent = 'L’impression n’est pas disponible sur cet appareil.';
+            return;
+        }
+        document.getElementById('weekly-print-root').replaceChildren(preview.firstElementChild.cloneNode(true));
+        document.body.classList.add('gazette-printing');
+        try {
+            window.print();
+        } catch (error) {
+            document.body.classList.remove('gazette-printing');
+            document.getElementById('weekly-print-root').replaceChildren();
+            status.textContent = 'Impossible d’ouvrir l’impression.';
+        }
+    }
+
+    function configurerAlbumJournal() {
+        window.addEventListener('afterprint', () => {
+            document.body.classList.remove('gazette-printing');
+            document.getElementById('weekly-print-root').replaceChildren();
+        });
+        ['senior', 'aidant'].forEach(role => {
+            document.getElementById(`${role}-weekly-prepare`).addEventListener('click', () => preparerGazette(role));
+            document.getElementById(`${role}-weekly-print`).addEventListener('click', () => imprimerGazette(role));
             document.getElementById(`${role}-album-details`).addEventListener('toggle', event => {
                 if (event.currentTarget.open) chargerAlbumFamilial(role);
             });
@@ -7746,7 +8198,7 @@
         const calendarResult = new URLSearchParams(window.location.search).get('calendar');
         if (calendarResult) {
             const calendarMessages = {
-                connected: 'Agenda Google connecté. Réactivez la synchronisation du planning dans l’Agenda si vous le souhaitez.',
+                connected: 'Agenda Google connecté. Réactivez la synchronisation du planning dans les réglages si vous le souhaitez.',
                 denied: 'L’autorisation Google Calendar a été refusée.',
                 error: 'La connexion Google Calendar a échoué.'
             };

@@ -272,6 +272,56 @@ test('message writing assistance requires explicit confirmation and never sends 
   }
 });
 
+test('weekly family notes exclude other records and profiles and report truncation', async () => {
+  const senior = await register('weekly-senior@example.test', 'senior');
+  const aidant = await register('weekly-aidant@example.test', 'aidant');
+  const unlinked = await register('weekly-unlinked@example.test', 'aidant');
+  const stranger = await register('weekly-stranger@example.test', 'senior');
+  const pro = await register('weekly-pro@example.test', 'pro');
+  const seniorId = senior.user.seniorId;
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, seniorId]);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type, created_at)
+    SELECT $1, 2, 'Nouvelle ' || n, 'family_note', CURRENT_TIMESTAMP
+    FROM generate_series(1, 105) n`, [seniorId]);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type, created_at)
+    SELECT $1, 3, 'Transmission', 'medical_report', CURRENT_TIMESTAMP
+    FROM generate_series(1, 101)`, [seniorId]);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type, created_at)
+    VALUES ($1, 2, 'Ancienne', 'family_note', CURRENT_TIMESTAMP - INTERVAL '8 days'),
+           ($1, 2, 'Future', 'family_note', CURRENT_TIMESTAMP + INTERVAL '2 days'),
+           ($2, 1, 'Autre profil', 'family_note', CURRENT_TIMESTAMP)`, [seniorId, stranger.user.seniorId]);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type, created_at)
+    VALUES ($1, 2, 'Début semaine', 'family_note',
+              (((CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris')::date - 6)::timestamp AT TIME ZONE 'Europe/Paris')),
+           ($1, 2, 'Avant semaine', 'family_note',
+              (((CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris')::date - 6)::timestamp AT TIME ZONE 'Europe/Paris') - INTERVAL '1 second')`, [seniorId]);
+
+  assert.equal((await request('/api/logs/weekly-family')).status, 401);
+  assert.equal((await request('/api/logs/weekly-family', { user: pro })).status, 403);
+  assert.equal((await request('/api/logs/weekly-family', { user: unlinked, seniorId })).status, 403);
+  const response = await request('/api/logs/weekly-family', { user: aidant, seniorId });
+  assert.equal(response.status, 200);
+  assert.equal(response.data.notes.length, 106);
+  assert.equal(response.data.truncated, false);
+  assert.ok(response.data.notes.some(note => note.content === 'Début semaine'));
+  assert.ok(response.data.notes.every(note => note.log_type === 'family_note' && (note.content.startsWith('Nouvelle ') || note.content === 'Début semaine')));
+  assert.match(response.data.start, /^\d{4}-\d{2}-\d{2}$/);
+  assert.match(response.data.end, /^\d{4}-\d{2}-\d{2}$/);
+  assert.equal((Date.parse(response.data.end) - Date.parse(response.data.start)) / 86400000, 6);
+  assert.equal((await request('/api/logs/weekly-family', { user: stranger })).data.notes.length, 1);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type)
+    SELECT $1, 2, 'Nouvelle supplémentaire', 'family_note' FROM generate_series(1, 894)`, [seniorId]);
+  assert.equal((await request('/api/logs/weekly-family', { user: senior })).data.truncated, false);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type)
+    VALUES ($1, 2, 'Dernière nouvelle', 'family_note')`, [seniorId]);
+  const truncated = await request('/api/logs/weekly-family', { user: senior });
+  assert.equal(truncated.data.notes.length, 1000);
+  assert.equal(truncated.data.truncated, true);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1 AND senior_profile_id = $2', [aidant.user.id, seniorId]);
+  assert.equal((await request('/api/logs/weekly-family', { user: aidant, seniorId })).status, 403);
+});
+
 test('family photos require senior approval, active links and remain private between profiles', async () => {
   const senior = await register('album-senior@example.test', 'senior');
   const aidant = await register('album-aidant@example.test', 'aidant');
@@ -480,6 +530,47 @@ test('unread message counts exclude inaccessible contacts and other accounts', a
   assert.equal((await request(path, { user: aidant })).data.count, 0);
 });
 
+test('key contacts are private to the senior and active caregivers, validated and removed on senior closure', async () => {
+  const senior = await register('key-senior@example.test', 'senior');
+  const other = await register('key-other@example.test', 'senior');
+  const aidant = await register('key-aidant@example.test', 'aidant');
+  const stranger = await register('key-stranger@example.test', 'aidant');
+  const professional = await register('key-pro@example.test', 'pro');
+  const options = { user: aidant, seniorId: senior.user.seniorId };
+  const body = { name: '  Marie  ', description: '  Voisine ', phone: '+33 1 23-45.67.89' };
+  assert.equal((await request('/api/key-contacts')).status, 401);
+  assert.equal((await request('/api/key-contacts', { user: professional })).status, 403);
+  assert.equal((await request('/api/key-contacts', options)).status, 403);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1), ($1, $3, $1)`, [aidant.user.id, senior.user.seniorId, other.user.seniorId]);
+  for (const phone of ['javascript:123', '12', '123#456', '+123+456', '+33 (0)1 23 45 67 89']) {
+    assert.equal((await request('/api/key-contacts', { user: senior, body: { ...body, phone } })).status, 400);
+  }
+  assert.equal((await request('/api/key-contacts', { user: senior, body: { ...body, name: ' ' } })).status, 400);
+  const created = await request('/api/key-contacts', { user: senior, body });
+  assert.equal(created.status, 201);
+  const id = created.data.id;
+  assert.deepEqual((await request('/api/key-contacts', options)).data.contacts,
+    [{ id, name: 'Marie', description: 'Voisine', phone: '+33123456789' }]);
+  assert.deepEqual((await request('/api/key-contacts', { user: aidant, seniorId: other.user.seniorId })).data.contacts, []);
+  assert.equal((await request(`/api/key-contacts/${id}`, {
+    user: aidant, seniorId: other.user.seniorId, method: 'DELETE'
+  })).status, 404);
+  assert.equal((await request('/api/key-contacts', { user: stranger, seniorId: senior.user.seniorId })).status, 403);
+  const aidantCreated = await request('/api/key-contacts', { ...options, body });
+  assert.equal(aidantCreated.status, 201);
+  assert.equal((await request(`/api/key-contacts/${aidantCreated.data.id}`, { ...options, method: 'DELETE' })).status, 200);
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request('/api/key-contacts', options)).status, 403);
+  assert.equal((await request(`/api/key-contacts/${id}`, { ...options, method: 'DELETE' })).status, 403);
+  assert.equal((await request('/api/account/closure-request', {
+    user: senior, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  const remaining = await db.query('SELECT id FROM app_key_contacts WHERE senior_id = $1', [senior.user.seniorId]);
+  assert.equal(remaining.rows.length, 0);
+});
+
 test('shared tasks are isolated by senior and require an active association', async () => {
   const senior = await register('task-senior@example.test', 'senior');
   const other = await register('task-other@example.test', 'senior');
@@ -569,6 +660,54 @@ test('shared tasks can be claimed voluntarily without overwriting another person
   })).status, 200);
   assert.equal((await request(claimPath, { user: senior, method: 'DELETE' })).status, 200);
   assert.equal((await request(claimPath, { ...firstOpts, method: 'POST' })).status, 409);
+});
+
+test('shared task assignment only targets active associated accounts and does not overwrite assignments', async () => {
+  const senior = await register('assign-senior@example.test', 'senior');
+  const other = await register('assign-other@example.test', 'senior');
+  const aidant = await register('assign-aidant@example.test', 'aidant');
+  const second = await register('assign-second@example.test', 'aidant');
+  const stranger = await register('assign-stranger@example.test', 'aidant');
+  const guardian = await register('assign-guardian@example.test', 'aidant', true);
+  const pro = await register('assign-pro@example.test', 'pro');
+  for (const user of [aidant, second, guardian]) {
+    await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+      VALUES ($1, $2, $1)`, [user.user.id, senior.user.seniorId]);
+  }
+  const opts = { user: aidant, seniorId: senior.user.seniorId };
+  const assignees = await request('/api/shared-tasks/assignees', opts);
+  assert.equal(assignees.status, 200);
+  assert.deepEqual(new Set(assignees.data.assignees.map(person => person.id)),
+    new Set([senior.user.id, aidant.user.id, second.user.id]));
+  assert.equal((await request('/api/shared-tasks/assignees', { user: stranger, seniorId: senior.user.seniorId })).status, 403);
+  const id = (await request('/api/shared-tasks', { user: senior, body: { title: 'Courses' } })).data.id;
+  const path = `/api/shared-tasks/${id}/assign`;
+  const assign = (user, assigneeId, seniorId = senior.user.seniorId) =>
+    request(path, { user, seniorId, body: { assigneeId } });
+  assert.equal((await assign(aidant, 'bad-id')).status, 400);
+  for (const user of [stranger, guardian, pro, other]) {
+    assert.equal((await assign(aidant, user.user.id)).status, 403);
+  }
+  assert.equal((await assign(stranger, second.user.id)).status, 403);
+  assert.equal((await assign(aidant, second.user.id)).status, 200);
+  assert.equal((await assign(aidant, aidant.user.id)).status, 409);
+  let task = (await request('/api/shared-tasks', { user: second, seniorId: senior.user.seniorId })).data.tasks[0];
+  assert.equal(task.assignedToMe, true);
+  assert.equal(task.assigneeName, second.user.name);
+  assert.equal((await request(`/api/shared-tasks/${id}/claim`, {
+    user: second, seniorId: senior.user.seniorId, method: 'DELETE'
+  })).status, 200);
+  await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
+    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [second.user.id, senior.user.seniorId]);
+  assert.equal((await assign(aidant, second.user.id)).status, 403);
+  assert.equal((await assign(aidant, senior.user.id)).status, 200);
+  assert.equal((await request(`/api/shared-tasks/${id}/claim`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request(`/api/shared-tasks/${id}`, {
+    user: senior, method: 'PATCH', body: { completed: true }
+  })).status, 200);
+  assert.equal((await assign(aidant, aidant.user.id)).status, 409);
+  task = (await request('/api/shared-tasks', opts)).data.tasks[0];
+  assert.equal(task.assigned, false);
 });
 
 test('shared task dates are optional, validated, editable and ordered by urgency', async () => {
@@ -1198,7 +1337,25 @@ test('consent, suspension, administrator email and confirmation protect senior d
   assert.equal((await request(`/api/admin/accounts/${aidantUserId}/senior-links`, {
     user: admin, admin: true, body: { seniorUserId }
   })).status, 409);
-  await db.query("UPDATE app_users SET guardian_verification_status = 'approved' WHERE id = $1", [guardian.user.id]);
+  const verification = `/api/admin/accounts/${guardian.user.id}/guardian-verification`;
+  assert.equal((await request(verification, {
+    user: admin, admin: true, method: 'PATCH', body: { verificationStatus: 'approved' }
+  })).status, 409);
+  for (const type of ['identity', 'guardianship']) {
+    const upload = await fetch(`${baseUrl}/api/legal-guardian/documents/${type}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${guardian.token}`, 'Content-Type': 'application/pdf' },
+      body: Buffer.from('%PDF-1.4\n')
+    });
+    assert.equal(upload.status, 200);
+  }
+  assert.equal((await request(verification, {
+    user: aidant, method: 'PATCH', body: { verificationStatus: 'approved' }
+  })).status, 403);
+  assert.equal((await request(verification, {
+    user: admin, admin: true, method: 'PATCH', body: { verificationStatus: 'approved' }
+  })).status, 200);
+  assert.equal((await request('/api/legal-guardian/documents', { user: guardian })).data.documents.length, 0);
   assert.equal((await request('/api/senior-links/requests', {
     user: guardian, body: { email: 'senior@example.test' }
   })).status, 403);

@@ -1191,6 +1191,7 @@ test('closes an account only after confirming its password and records the erasu
   assert.deepEqual(deletedTables.sort(), [
     'app_family_photos',
     'app_google_calendar_oauth_states',
+    'app_key_contacts',
     'app_push_subscriptions',
     'app_sessions',
     'app_user_contacts'

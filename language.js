@@ -15,6 +15,9 @@
     'politique de confidentialité': 'privacy policy',
     'pour connaître vos droits et les prestataires concernés.': 'to learn about your rights and the providers involved.',
     'Météo': 'Weather',
+    'Brocantes et vide-greniers': 'Flea markets and garage sales',
+    'Consultez les événements près de chez vous sur Vide-greniers.org.': 'Find events near you on Vide-greniers.org.',
+    'Ouvrir Vide-greniers.org (site externe)': 'Open Vide-greniers.org (external site)',
     'Choisissez votre commune pour voir la météo.': 'Choose your municipality to see the weather.',
     'Voir les prévisions de la semaine': 'See the weekly forecast',
     'Choisir ou changer ma commune': 'Choose or change my municipality',
@@ -189,8 +192,11 @@
     'Choix des rappels enregistré.': 'Reminder preference saved.',
     'Dates selon l’heure de Paris. Les aidants peuvent activer leurs propres rappels.':
       'Dates follow Paris time. Caregivers can enable their own reminders.',
-    'Dates selon l’heure de Paris. Les rappels facultatifs se règlent dans Plus.':
-      'Dates follow Paris time. Optional reminders are configured in More.',
+    'Dates selon l’heure de Paris. Les rappels facultatifs se règlent dans Réglages.':
+      'Dates follow Paris time. Optional reminders are configured in Settings.',
+    'Affichage senior': 'Senior display',
+    'Activer la vue simplifiée': 'Enable simplified view',
+    'Afficher toutes les fonctions': 'Show all features',
     'Si vous les activez, un rappel est créé à partir de 9 h, heure de Paris, pour les tâches du jour non terminées dont vous vous chargez ou sans volontaire. Il concerne tous vos profils associés. La réception hors de l’application dépend des notifications activées sur vos appareils ou de vos choix SMS et e-mail.':
       'When enabled, a reminder is created from 9 a.m. Paris time for unfinished tasks due today that you claimed or that have no volunteer. This applies to all linked profiles. Receiving reminders outside the app depends on device notifications or your SMS and email preferences.',
     'Chargement du prochain rendez-vous…': 'Loading your next appointment…',
@@ -660,16 +666,18 @@
     'Ajouter un intervenant déjà inscrit': 'Add a registered professional',
     'Ajouter à l’équipe': 'Add to team',
     'Référencer un partenaire de services': 'Add a service partner',
-    'Inscrivez d’abord son compte professionnel dans l’équipe. Les frais (abonnement ou prestation réalisée) seront configurés séparément lorsque les tarifs seront définis.':
-      'First add their professional account to the team. Fees (subscription or completed service) will be configured separately once rates are set.',
+    'Inscrivez d’abord son compte professionnel dans l’équipe. Tarifs envisagés : 15 € HT par mois ou 1 € HT par prestation réalisée, avec facturation mensuelle des commissions. Aucun paiement n’est activé ; les conditions définitives restent à valider.':
+      'First add their professional account to the team. Proposed prices: €15 excluding VAT per month or €1 excluding VAT per completed service, with commissions billed monthly. Payments are not enabled; final terms remain to be approved.',
+    'L’abonnement envisagé couvre tous les services d’un même compte professionnel.':
+      'The proposed subscription covers all services offered by the same professional account.',
     'Choisir un intervenant de l’équipe': 'Choose a team professional',
     'Choisir un service': 'Choose a service',
     'Livraison de repas': 'Meal delivery',
     'Coiffure à domicile': 'Home hairdressing',
     'Ménage à domicile': 'Home cleaning',
     'Choisir le modèle de rémunération': 'Choose a payment model',
-    'Abonnement (tarif à définir)': 'Subscription (rate to be defined)',
-    'Participation après prestation réalisée (tarif à définir)': 'Fee after completed service (rate to be defined)',
+    'Abonnement (paiement non activé)': 'Subscription (payment not enabled)',
+    'Participation après prestation réalisée (paiement non activé)': 'Fee after completed service (payment not enabled)',
     'Ajouter au catalogue': 'Add to directory',
     'Demander le partage à une personne inscrite': 'Request sharing from a registered user',
     'Envoyer la demande de consentement': 'Send consent request',
@@ -716,9 +724,9 @@
     'Confirmé': 'Confirmed',
     'Réalisé': 'Completed',
     'Annulé': 'Cancelled',
-    'Abonnement · tarif à définir': 'Subscription · rate to be defined',
-    'Après prestation · tarif à définir': 'After service · rate to be defined',
-    'Participation après prestation réalisée · tarif à définir': 'Fee after completed service · rate to be defined',
+    'Abonnement · paiement non activé': 'Subscription · payment not enabled',
+    'Après prestation · paiement non activé': 'After service · payment not enabled',
+    'Participation après prestation réalisée · paiement non activé': 'Fee after completed service · payment not enabled',
     'Dossier apparemment simple à examiner': 'Apparently straightforward to review',
     'Données partagées à examiner': 'Shared data to review',
     'Vérifications supplémentaires recommandées': 'Additional checks recommended',
@@ -852,8 +860,8 @@
       'this area does not display care notes, medical updates, emergency contacts, or client addresses or phone numbers. For account-closure requests, AI receives only the role, subscription category, and record counts; it provides an indicative preliminary assessment, never a decision. An administrator reviews the actual records and makes the final decision.',
     'Indicateurs': 'Statistics',
     'Partenaires des services du quotidien': 'Everyday service partners',
-    'Activation et formule de rémunération. Les tarifs restent à définir.':
-      'Activation and payment model. Rates are still to be defined.',
+    'Tarifs envisagés : 15 € HT par mois ou 1 € HT par prestation réalisée, avec facturation mensuelle des commissions. Aucun paiement n’est activé ; les conditions définitives restent à valider.':
+      'Proposed prices: €15 excluding VAT per month or €1 excluding VAT per completed service, with commissions billed monthly. Payments are not enabled; final terms remain to be approved.',
     'Partenaire': 'Partner',
     'Service': 'Service',
     'Équipe': 'Team',

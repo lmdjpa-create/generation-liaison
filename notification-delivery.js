@@ -108,8 +108,14 @@ function publicConfiguration() {
   };
 }
 
-function safeMessage(title) {
-  return `Génération Liaison : ${title}. Connectez-vous à l’application pour consulter les détails.`;
+function externalNotification(notificationType) {
+  const title = notificationType === 'emergency_alert' ? 'Alerte d’urgence'
+    : notificationType === 'wellbeing_safety_check' ? 'Vérification de sécurité sans réponse'
+      : 'Génération Liaison';
+  return {
+    title,
+    body: 'Connectez-vous à l’application pour consulter cette notification.'
+  };
 }
 
 function notificationUrl(notificationId) {
@@ -125,6 +131,7 @@ function notificationUrl(notificationId) {
 async function sendPush(delivery) {
   const subscriptions = delivery.subscriptions || [];
   if (!subscriptions.length) return false;
+  const notification = externalNotification(delivery.notification_type);
 
   const nativeTokens = subscriptions
     .filter(subscription => subscription.platform === 'android' || subscription.platform === 'ios')
@@ -137,7 +144,7 @@ async function sendPush(delivery) {
     const app = getFirebaseApp();
     const result = await getMessaging(app).sendEachForMulticast({
       tokens: nativeTokens,
-      notification: { title: delivery.title, body: safeMessage(delivery.title) },
+      notification,
       data: {
         notificationId: delivery.notification_id,
         url: `/app-mobile.html?notification=${encodeURIComponent(delivery.notification_id)}`
@@ -165,8 +172,8 @@ async function sendPush(delivery) {
     }
     configureWebPush();
     const payload = JSON.stringify({
-      title: delivery.title,
-      body: safeMessage(delivery.title),
+      title: notification.title,
+      body: notification.body,
       data: {
         notificationId: delivery.notification_id,
         url: `/app-mobile.html?notification=${encodeURIComponent(delivery.notification_id)}`
@@ -216,8 +223,9 @@ async function deliver(delivery) {
   if (delivery.channel === 'sms') {
     if (!delivery.sms_enabled || !delivery.phone) return false;
     const client = getTwilioClient();
+    const notification = externalNotification(delivery.notification_type);
     await client.messages.create({
-      body: `${safeMessage(delivery.title)} ${notificationUrl(delivery.notification_id)}`,
+      body: `${notification.title} : ${notification.body} ${notificationUrl(delivery.notification_id)}`,
       from: process.env.TWILIO_FROM_NUMBER,
       to: delivery.phone
     });
@@ -226,11 +234,12 @@ async function deliver(delivery) {
   if (delivery.channel === 'email') {
     if (!delivery.email_enabled || !delivery.email) return false;
     const client = getResendClient();
+    const notification = externalNotification(delivery.notification_type);
     const result = await client.emails.send({
       from: process.env.NOTIFICATIONS_FROM_EMAIL,
       to: delivery.email,
-      subject: delivery.title,
-      text: `${safeMessage(delivery.title)}\n\n${notificationUrl(delivery.notification_id)}`
+      subject: notification.title,
+      text: `${notification.body}\n\n${notificationUrl(delivery.notification_id)}`
     });
     if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
     return true;

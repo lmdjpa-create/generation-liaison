@@ -7,6 +7,7 @@ const { test } = require('node:test');
 const source = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const mobileSource = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 const privacySource = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
+const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8');
 
 test('homepage proposals are individually collapsed and retain their descriptions', () => {
   for (const title of [
@@ -96,6 +97,20 @@ test('homepage pricing explains free launch access and external services', () =>
   assert.match(pricing, /prestations à domicile sont indépendantes.*peuvent être facturées par le prestataire/);
   assert.match(pricing, /tarifs futurs sont à l’étude et ne sont pas appliqués/);
   assert.match(pricing, /href="\/cgv\.html"/);
+});
+
+test('proposed partner pricing is consistent and does not present payments as active', () => {
+  assert.match(salesTerms, /Compte famille\/senior<\/td><td>Gratuit/);
+  assert.match(salesTerms, /1 € HT par prestation réalisée/);
+  assert.match(salesTerms, /15 € HT \/ mois/);
+  assert.match(salesTerms, /Un abonnement par compte professionnel pour tous ses services/);
+  assert.match(salesTerms, /commissions regroupées sur une facture mensuelle/);
+  assert.match(salesTerms, /aucun paiement par carte ou PayPal ne sont actuellement activés/);
+  assert.doesNotMatch(salesTerms, /4,99 €|9,90 €|1,50 €|2,50 €/);
+  for (const html of [mobileSource, fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8')]) {
+    assert.match(html, /15 € HT par mois ou 1 € HT par prestation réalisée/);
+    assert.match(html, /Aucun paiement n’est activé/);
+  }
 });
 
 test('homepage preview uses scalable text instead of image-baked captions', () => {

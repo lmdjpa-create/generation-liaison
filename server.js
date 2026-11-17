@@ -6481,6 +6481,49 @@ async function withSharedTasks(req, res, operation, resource = 'tâches partagé
   }
 }
 
+app.get('/api/key-contacts', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
+  const { rows } = await client.query(
+    `SELECT id, name, description, phone FROM app_key_contacts
+     WHERE senior_id = $1 ORDER BY created_at, id`, [seniorId]
+  );
+  return { status: 200, body: { contacts: rows } };
+}, 'contacts utiles'));
+
+app.post('/api/key-contacts', requireAuth, (req, res) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const description = typeof req.body?.description === 'string' ? req.body.description.trim() : '';
+  const rawPhone = typeof req.body?.phone === 'string' ? req.body.phone.trim() : '';
+  if (!name || name.length > 120 || !description || description.length > 120 ||
+      rawPhone.length > 40 || !/^\+?[0-9 ()\-\.]+$/.test(rawPhone) ||
+      /^\+\d{1,3}\s*\(0\)/.test(rawPhone)) {
+    return res.status(400).json({ error: 'Indiquez un nom, un rôle et un numéro de téléphone valides.' });
+  }
+  const phone = rawPhone.replace(/[ ()\-\.]/g, '');
+  if (!/^\+?[0-9]{3,20}$/.test(phone)) {
+    return res.status(400).json({ error: 'Indiquez un numéro de téléphone valide.' });
+  }
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const id = randomUUID();
+    await client.query(
+      'INSERT INTO app_key_contacts (id, senior_id, name, description, phone) VALUES ($1, $2, $3, $4, $5)',
+      [id, seniorId, name, description, phone]
+    );
+    return { status: 201, body: { id } };
+  }, 'contacts utiles');
+});
+
+app.delete('/api/key-contacts/:id', requireAuth, (req, res) => {
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Contact invalide.' });
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const { rows } = await client.query(
+      'DELETE FROM app_key_contacts WHERE id = $1 AND senior_id = $2 RETURNING id',
+      [req.params.id, seniorId]
+    );
+    return rows.length ? { status: 200, body: { deleted: true } }
+      : { status: 404, body: { error: 'Contact introuvable.' } };
+  }, 'contacts utiles');
+});
+
 app.get('/api/shared-directory', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
   const { rows } = await client.query(
     `SELECT entry.professional_user_id AS id, professional.name, professional.directory_activity AS activity,
@@ -6549,6 +6592,21 @@ app.put('/api/account/task-reminders', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/shared-tasks/assignees', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
+  const { rows } = await client.query(
+    `SELECT account.id, account.name, account.role FROM app_users account
+     WHERE account.is_active = TRUE AND (
+       (account.role = 'senior' AND account.senior_id = $1)
+       OR (account.role = 'aidant'
+         AND (NOT account.is_legal_guardian OR account.guardian_verification_status = 'approved')
+         AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
+           WHERE link.aidant_user_id = account.id AND link.senior_profile_id = $1
+             AND link.suspended_at IS NULL)))
+     ORDER BY account.name, account.id`, [seniorId]
+  );
+  return { status: 200, body: { assignees: rows } };
+}));
+
 app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res, async (client, seniorId) => {
   const { rows } = await client.query(
     `SELECT task.id, task.title, task.completed, to_char(task.due_date, 'YYYY-MM-DD') AS "dueDate",
@@ -6616,6 +6674,41 @@ app.delete('/api/shared-tasks/:id', requireAuth, (req, res) => {
       [req.params.id, seniorId]);
     return rows.length ? { status: 200, body: { deleted: true } }
       : { status: 404, body: { error: 'Tâche introuvable.' } };
+  });
+});
+
+app.post('/api/shared-tasks/:id/assign', requireAuth, (req, res) => {
+  if (!isValidUuid(req.params.id) || !isValidUuid(req.body?.assigneeId)) {
+    return res.status(400).json({ error: 'Tâche ou personne invalide.' });
+  }
+  return withSharedTasks(req, res, async (client, seniorId) => {
+    const account = await client.query(
+      `SELECT role, senior_id FROM app_users WHERE id = $1 AND is_active = TRUE
+       AND (role = 'senior' OR (role = 'aidant'
+         AND (NOT is_legal_guardian OR guardian_verification_status = 'approved')))
+       FOR SHARE`, [req.body.assigneeId]
+    );
+    const target = account.rows[0];
+    if (!target || (target.role === 'senior' && target.senior_id !== seniorId)) {
+      return { status: 403, body: { error: 'Cette personne ne peut pas accéder à ce profil.' } };
+    }
+    if (target.role === 'aidant') {
+      const link = await client.query(
+        `SELECT 1 FROM app_aidant_senior_links
+         WHERE aidant_user_id = $1 AND senior_profile_id = $2 AND suspended_at IS NULL FOR SHARE`,
+        [req.body.assigneeId, seniorId]
+      );
+      if (!link.rows.length) {
+        return { status: 403, body: { error: 'Cette personne ne peut pas accéder à ce profil.' } };
+      }
+    }
+    const { rows } = await client.query(
+      `UPDATE app_shared_tasks SET assignee_user_id = $1
+       WHERE id = $2 AND senior_id = $3 AND assignee_user_id IS NULL AND completed = FALSE
+       RETURNING id`, [req.body.assigneeId, req.params.id, seniorId]
+    );
+    return rows.length ? { status: 200, body: { assigned: true } }
+      : { status: 409, body: { error: 'Cette tâche est introuvable, terminée ou déjà attribuée. Actualisez la liste.' } };
   });
 });
 
@@ -7343,6 +7436,29 @@ app.get('/api/meals/today', (req, res) => {
       price: 7.5
     }
   ]);
+});
+
+app.get('/api/logs/weekly-family', requireAuth, requireFamilyAlbum, async (req, res) => {
+  try {
+    const end = dateInTimeZone(new Date(), 'Europe/Paris');
+    const startDate = new Date(`${end}T00:00:00Z`);
+    startDate.setUTCDate(startDate.getUTCDate() - 6);
+    const start = startDate.toISOString().slice(0, 10);
+    const { rows } = await pool.query(
+      `SELECT author_id, content, log_type, created_at
+       FROM app_logs
+       WHERE senior_id = $1 AND log_type = 'family_note'
+         AND created_at >= ($2::date::timestamp AT TIME ZONE 'Europe/Paris')
+         AND created_at < (($3::date + 1)::timestamp AT TIME ZONE 'Europe/Paris')
+       ORDER BY created_at DESC, id DESC
+       LIMIT 1001`,
+      [req.authUser.seniorId, start, end]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ start, end, notes: rows.slice(0, 1000), truncated: rows.length > 1000 });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les nouvelles familiales.');
+  }
 });
 
 app.get('/api/logs/all', requireAuth, requireAidantSeniorContext, async (req, res) => {
