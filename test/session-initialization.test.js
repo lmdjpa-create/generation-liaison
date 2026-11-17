@@ -64,6 +64,7 @@ function createApp(response) {
     modifierSynchronisationGoogle() {}
   };
   vm.runInNewContext([
+    extract('    function basculerFormulaire(estInscription)', '    function afficherChampsInscriptionProfessionnel()'),
     extract('    async function readResponse(response)', '    async function planningRequest'),
     extract('    function configurerFormulairesInformationsPersonne()', '    async function modifierConsentement'),
     extract('    async function initApp()', "    window.addEventListener('DOMContentLoaded', initApp);"),
@@ -83,6 +84,35 @@ test('startup registers existing note forms and restores the authenticated sessi
   assert.equal(app.calls[0].options.headers.Authorization, 'Bearer valid-token');
   assert.deepEqual(app.calls[1].user, user);
   assert.equal(app.storage.get('generation-liaison-mobile-session'), 'valid-token');
+});
+
+test('registration link opens the form only for visitors without a session', async () => {
+  const visitor = createApp();
+  visitor.storage.delete('generation-liaison-mobile-session');
+  visitor.context.window.location.hash = '#inscription';
+  await visitor.context.start();
+  assert.equal(visitor.element('register-section').style.display, 'block');
+  assert.equal(visitor.element('login-section').style.display, 'none');
+  assert.equal(visitor.calls.length, 0);
+
+  const expired = createApp({ ok: false, json: async () => ({ error: 'Votre session a expiré. Reconnectez-vous.' }) });
+  expired.context.window.location.hash = '#inscription';
+  await expired.context.start();
+  assert.equal(expired.storage.has('generation-liaison-mobile-session'), false);
+  assert.equal(expired.element('register-section').style.display, 'block');
+
+  const user = { id: 'senior', role: 'senior' };
+  const connected = createApp({ ok: true, json: async () => ({ user }) });
+  connected.context.window.location.hash = '#inscription';
+  await connected.context.start();
+  assert.deepEqual(connected.calls[1].user, user);
+  assert.notEqual(connected.element('register-section').style.display, 'block');
+
+  const unavailable = createApp(new Error('Serveur inaccessible'));
+  unavailable.context.window.location.hash = '#inscription';
+  await unavailable.context.start();
+  assert.equal(unavailable.storage.has('generation-liaison-mobile-session'), true);
+  assert.notEqual(unavailable.element('register-section').style.display, 'block');
 });
 
 test('startup removes an expired session but retains it on a temporary failure', async () => {
