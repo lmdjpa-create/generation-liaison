@@ -258,6 +258,50 @@ function requireAidantSeniorContext(req, res, next) {
   return next();
 }
 
+app.put('/api/weather/location', requireAuth, async (req, res) => {
+  res.set('Cache-Control', 'private, no-store');
+  if (!['senior', 'aidant'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'La météo est réservée aux espaces senior et aidant.' });
+  }
+  const { location, migrate } = req.body || {};
+  if ((migrate !== undefined && typeof migrate !== 'boolean') ||
+      (location !== null && (!location || typeof location !== 'object' ||
+        typeof location.name !== 'string' || !location.name.trim() || location.name.trim().length > 120 ||
+        !hasValidCoordinates(location.latitude, location.longitude)))) {
+    return res.status(400).json({ error: 'La commune choisie est invalide.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_users
+       SET weather_commune_name = $2, weather_commune_latitude = $3,
+           weather_commune_longitude = $4, weather_commune_updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND is_active = TRUE AND ($5::boolean = FALSE OR weather_commune_updated_at IS NULL)
+       RETURNING weather_commune_name, weather_commune_latitude, weather_commune_longitude`,
+      [req.authUser.id, location?.name.trim() || null, location?.latitude ?? null, location?.longitude ?? null, migrate === true]
+    );
+    if (rows[0]) {
+      return res.json({
+        location: rows[0].weather_commune_name
+          ? { name: rows[0].weather_commune_name, latitude: rows[0].weather_commune_latitude, longitude: rows[0].weather_commune_longitude }
+          : null
+      });
+    }
+    const current = await pool.query(
+      `SELECT weather_commune_name, weather_commune_latitude, weather_commune_longitude
+       FROM app_users WHERE id = $1 AND is_active = TRUE`, [req.authUser.id]
+    );
+    if (!current.rows[0]) return res.status(401).json({ error: 'Votre session a expiré. Reconnectez-vous.' });
+    const row = current.rows[0];
+    return res.json({
+      location: row.weather_commune_name
+        ? { name: row.weather_commune_name, latitude: row.weather_commune_latitude, longitude: row.weather_commune_longitude }
+        : null
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer la commune météo.');
+  }
+});
+
 app.post('/api/weather', requireAuth, async (req, res) => {
   res.set('Cache-Control', 'no-store');
   if (!['senior', 'aidant'].includes(req.authUser.role)) {

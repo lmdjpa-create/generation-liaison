@@ -113,6 +113,11 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS account_commune_latitude DOUBLE PRECISION,
           ADD COLUMN IF NOT EXISTS account_commune_longitude DOUBLE PRECISION;
         ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS weather_commune_name VARCHAR(120),
+          ADD COLUMN IF NOT EXISTS weather_commune_latitude DOUBLE PRECISION,
+          ADD COLUMN IF NOT EXISTS weather_commune_longitude DOUBLE PRECISION,
+          ADD COLUMN IF NOT EXISTS weather_commune_updated_at TIMESTAMPTZ;
+        ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS notification_phone VARCHAR(16),
           ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE,
           ADD COLUMN IF NOT EXISTS sms_notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -743,6 +748,11 @@ function createAuthService(pool) {
         ? { name: row.account_commune_name, code: row.account_commune_code,
             latitude: row.account_commune_latitude, longitude: row.account_commune_longitude }
         : null,
+      weatherCommuneConfigured: Boolean(row.weather_commune_updated_at),
+      weatherCommune: row.weather_commune_name &&
+        Number.isFinite(row.weather_commune_latitude) && Number.isFinite(row.weather_commune_longitude)
+        ? { name: row.weather_commune_name, latitude: row.weather_commune_latitude, longitude: row.weather_commune_longitude }
+        : null,
       hasHomeLocation: row.home_latitude !== null && row.home_latitude !== undefined &&
         row.home_longitude !== null && row.home_longitude !== undefined
     };
@@ -994,6 +1004,7 @@ function createAuthService(pool) {
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
               u.account_commune_name, u.account_commune_code, u.account_commune_latitude, u.account_commune_longitude,
+              u.weather_commune_name, u.weather_commune_latitude, u.weather_commune_longitude, u.weather_commune_updated_at,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
               u.password_salt, u.password_hash,
@@ -1030,6 +1041,7 @@ function createAuthService(pool) {
               u.is_legal_guardian, u.guardian_verification_status,
               u.home_latitude, u.home_longitude, u.service_radius_km,
               u.account_commune_name, u.account_commune_code, u.account_commune_latitude, u.account_commune_longitude,
+              u.weather_commune_name, u.weather_commune_latitude, u.weather_commune_longitude, u.weather_commune_updated_at,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
               s.name AS senior_name
@@ -1098,6 +1110,10 @@ function createAuthService(pool) {
              account_commune_code = NULL,
              account_commune_latitude = NULL,
              account_commune_longitude = NULL,
+             weather_commune_name = NULL,
+             weather_commune_latitude = NULL,
+             weather_commune_longitude = NULL,
+             weather_commune_updated_at = NULL,
              google_calendar_refresh_token = NULL,
              google_calendar_connected_at = NULL,
              notification_phone = NULL,
