@@ -2,6 +2,17 @@
   const storageKey = 'generation-liaison-language';
   const translations = {
     'Génération Liaison': 'Génération Liaison',
+    'Confidentialité, RGPD et données de santé': 'Privacy, GDPR and health data',
+    'La connexion au site utilise HTTPS pour chiffrer les échanges avec votre navigateur. L’accès aux informations partagées est réservé aux personnes autorisées.':
+      'The connection to the website uses HTTPS to encrypt traffic with your browser. Access to shared information is restricted to authorized people.',
+    'Le senior accepte les demandes des aidants qui peuvent alors consulter son carnet et y ajouter des notes ; un tuteur légal vérifié est associé par l’administration.':
+      'The senior accepts caregivers’ requests, allowing them to view the senior’s journal and add notes; a verified legal guardian is linked by the administration.',
+    'La localisation des hébergements, le chiffrement des données stockées et une éventuelle certification HDS ne sont pas confirmés. En attendant leur vérification et celle des obligations applicables, ne saisissez pas de notes médicales ou d’autres données de santé dans l’application.':
+      'Hosting locations, encryption of stored data and any HDS certification have not been confirmed. Until these and applicable obligations have been verified, do not enter medical notes or other health data in the application.',
+    'Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la':
+      'You can request access to, correction or deletion of your data. Read the',
+    'politique de confidentialité': 'privacy policy',
+    'pour connaître vos droits et les prestataires concernés.': 'to learn about your rights and the providers involved.',
     'Météo': 'Weather',
     'Choisissez votre commune pour voir la météo.': 'Choose your municipality to see the weather.',
     'Voir les prévisions de la semaine': 'See the weekly forecast',
@@ -57,8 +68,47 @@
     'Administration Génération Liaison': 'Administration — Génération Liaison',
     'Le lien au quotidien': 'Connected every day',
     'Bien entouré, mieux accompagné': 'Better supported, together',
+    'Coordination et sérénité entre seniors, proches et professionnels.':
+      'Coordination and peace of mind for seniors, families and professionals.',
+    'Pour les familles et les aidants : gardez le lien avec votre parent, retrouvez les nouvelles et les rendez-vous, et découvrez les services à domicile, même à distance.':
+      'For families and caregivers: stay connected with your parent, find updates and appointments, and discover home services, even from a distance.',
+    'Créer un espace gratuitement': 'Create a free space',
+    'Voir un exemple de carnet': 'See an example journal',
     'Un espace simple pour garder le lien et organiser le quotidien avec vos proches.':
       'A simple space to stay connected and organize everyday life with your loved ones.',
+    'Pour les familles et les aidants : gardez le lien avec votre parent et organisez ensemble son quotidien, même à distance.':
+      'For families and caregivers: stay connected with your parent and organize their daily life together, even from a distance.',
+    'Retrouvez les rendez-vous et découvrez des services pour faciliter le quotidien, distincts du suivi des soins.':
+      'Find appointments and discover everyday services, separate from care coordination.',
+    'Choisissez vos notifications et laissez-vous guider dans l’application par l’assistant.':
+      'Choose your notifications and let the assistant guide you through the app.',
+    'Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins.':
+      'Discover everyday services, such as hairdressing at home, separate from care coordination.',
+    'Questions fréquentes': 'Frequently asked questions',
+    'Retrouver le site sur l’écran d’accueil': 'Find the site on your home screen',
+    'Sans télécharger de fichier, vous pouvez ajouter un raccourci sur votre téléphone. Les menus et leurs noms peuvent varier selon le navigateur.':
+      'You can add a shortcut to your phone without downloading a file. Menus and their names may vary by browser.',
+    '1. Ouvrez le site': '1. Open the site',
+    'Sur votre téléphone, ouvrez Génération Liaison dans votre navigateur.': 'On your phone, open Génération Liaison in your browser.',
+    '2. Ouvrez le menu': '2. Open the menu',
+    'Sur Android, touchez les trois points du navigateur. Sur iPhone, dans Safari, touchez le bouton Partager (carré avec une flèche).':
+      'On Android, tap the three dots in the browser. On iPhone, in Safari, tap the Share button (a square with an arrow).',
+    '3. Ajoutez le raccourci': '3. Add the shortcut',
+    'Choisissez « Ajouter à l’écran d’accueil » ou « Installer l’application », puis confirmez si demandé.':
+      'Choose “Add to Home Screen” or “Install app”, then confirm if prompted.',
+    'Créer un carnet gratuitement': 'Create a free journal',
+    'Combien ça coûte ?': 'How much does it cost?',
+    'L’application est gratuite à ce jour : aucun paiement ni abonnement payant n’y est proposé. Les seniors et leurs aidants associés peuvent échanger gratuitement.':
+      'The app is currently free: no payment or paid subscription is offered. Seniors and their linked caregivers can exchange messages for free.',
+    'Certaines fonctions nécessitent un accès Premium, sans souscription payante actuellement disponible. Les éventuelles prestations à domicile sont distinctes de l’application et peuvent être facturées par le prestataire.':
+      'Some features require Premium access, with no paid subscription currently available. Home services are separate from the app and may be charged by the provider.',
+    'Les tarifs futurs sont à l’étude et ne sont pas appliqués.':
+      'Future prices are under consideration and are not currently applied.',
+    'Consulter le projet de tarifs et les conditions de vente': 'View the draft prices and terms of sale',
+    'Comment une demande de service est-elle confirmée ?': 'How is a service request confirmed?',
+    'Une demande de service doit être acceptée par le prestataire.': 'A service request must be accepted by the provider.',
+    'Que faut-il savoir sur l’assistant ?': 'What should I know about the assistant?',
+    'Les réponses de l’assistant peuvent être inexactes ou incomplètes.': 'The assistant’s answers may be inaccurate or incomplete.',
     'Un espace simple pour faciliter les échanges entre les seniors, leurs proches et les professionnels, avec un accès séparé aux services du quotidien.':
       'A simple space for seniors, their families, and professionals to stay connected, with separate access to everyday services.',
     'Suivi partagé': 'Shared updates',

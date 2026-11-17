@@ -958,6 +958,63 @@
       font-size: 0.9rem;
     }
 
+    .install-guide {
+      margin: 26px auto 0;
+      text-align: left;
+    }
+
+    .install-guide h3 {
+      margin: 0 0 10px;
+      font-size: 1.15rem;
+    }
+
+    .install-guide > p {
+      margin: 0 0 14px;
+      color: #53665c;
+      line-height: 1.6;
+    }
+
+    .install-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .install-steps li {
+      padding: 16px;
+      border: 1px solid #d5e7db;
+      border-radius: 14px;
+      background: #f7faf8;
+      line-height: 1.55;
+    }
+
+    .install-steps svg {
+      display: block;
+      width: 48px;
+      height: 48px;
+      margin-bottom: 10px;
+    }
+
+    .install-steps strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--primary-dark);
+    }
+
+    .install-steps p { margin: 0; }
+
+    .landing-info.privacy-highlight {
+      border-color: #b7d9c7;
+      background: #f4faf6;
+    }
+
+    .privacy-highlight p:last-child {
+      margin-bottom: 0;
+    }
+
     .return-home {
       display: inline-flex;
       align-items: center;
@@ -1003,16 +1060,24 @@
             <span>Génération Liaison</span>
           </div>
           <p class="landing-kicker">Le lien au quotidien</p>
-          <h1 id="landing-title">Bien entouré, mieux accompagné</h1>
-          <p class="landing-description">Un espace simple pour garder le lien et organiser le quotidien avec vos proches.</p>
-          <a class="landing-login" href="/app-mobile.html">Ouvrir l’application <span aria-hidden="true">→</span></a>
-          <a class="landing-app-link" href="#presentation">Découvrir nos propositions</a>
+          <h1 id="landing-title">Coordination et sérénité entre seniors, proches et professionnels.</h1>
+          <p class="landing-description">Pour les familles et les aidants : gardez le lien avec votre parent, retrouvez les nouvelles et les rendez-vous, et découvrez les services à domicile, même à distance.</p>
+          <a class="landing-login" href="/app-mobile.html#inscription">Créer un espace gratuitement <span aria-hidden="true">→</span></a>
+          <a class="landing-app-link" href="#exemple-carnet">Voir un exemple de carnet</a>
         </div>
-        <figure class="landing-preview">
+        <figure class="landing-preview" id="exemple-carnet">
           <img src="/homepage-images/apercu-carnet.png" width="520" height="360" fetchpriority="high" alt="Aperçu du fil d’actualité : deux exemples de messages d’un proche et d’un soignant." />
           <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
         </figure>
       </div>
+    </section>
+
+    <section class="landing-info privacy-highlight" aria-labelledby="privacy-title">
+      <h2 id="privacy-title">Confidentialité, RGPD et données de santé</h2>
+      <p>La connexion au site utilise HTTPS pour chiffrer les échanges avec votre navigateur. L’accès aux informations partagées est réservé aux personnes autorisées.</p>
+      <p>Le senior accepte les demandes des aidants qui peuvent alors consulter son carnet et y ajouter des notes ; un tuteur légal vérifié est associé par l’administration.</p>
+      <p>La localisation des hébergements, le chiffrement des données stockées et une éventuelle certification HDS ne sont pas confirmés. En attendant leur vérification et celle des obligations applicables, ne saisissez pas de notes médicales ou d’autres données de santé dans l’application.</p>
+      <p>Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la <a href="/privacy-policy.html">politique de confidentialité</a> pour connaître vos droits et les prestataires concernés.</p>
     </section>
 
     <section class="landing-info" id="presentation" aria-labelledby="presentation-title">
@@ -1051,13 +1116,13 @@
         <details class="info-card">
           <summary>Rendez-vous et services</summary>
           <div class="gl-help-bubble">
-          <p>Consultez les rendez-vous et découvrez les services du quotidien, séparés du suivi des soins. Une demande de service doit être acceptée par le prestataire.</p>
+          <p>Retrouvez les rendez-vous et découvrez des services pour faciliter le quotidien, distincts du suivi des soins.</p>
           </div>
         </details>
         <details class="info-card">
           <summary>Notifications et assistance</summary>
           <div class="gl-help-bubble">
-          <p>Choisissez vos notifications et utilisez l’assistant pour vous orienter dans l’application. Ses réponses peuvent être inexactes ou incomplètes.</p>
+          <p>Choisissez vos notifications et laissez-vous guider dans l’application par l’assistant.</p>
           </div>
         </details>
       </div>
@@ -1078,26 +1143,68 @@
           <summary>Services à domicile</summary>
           <div class="gl-help-bubble">
           <img src="/homepage-images/coiffure.jpg" width="900" height="700" loading="lazy" alt="Une coiffeuse coupe les cheveux d’une personne âgée." />
-          <p>Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins. Les demandes restent soumises à l’acceptation du prestataire.</p>
+          <p>Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins.</p>
           </div>
         </details>
       </div>
     </section>
 
-    <section class="landing-info">
-      <details class="info-card">
-        <summary>Une question ?</summary>
-        <div class="gl-help-bubble">
-        <p>Contactez l’équipe à <a href="mailto:mail@generation-liaison.fr">mail@generation-liaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
-        </div>
-      </details>
+    <section class="landing-info" aria-labelledby="pricing-title">
+      <h2 id="pricing-title">Combien ça coûte ?</h2>
+      <p>L’application est gratuite à ce jour : aucun paiement ni abonnement payant n’y est proposé. Les seniors et leurs aidants associés peuvent échanger gratuitement.</p>
+      <p>Certaines fonctions nécessitent un accès Premium, sans souscription payante actuellement disponible. Les éventuelles prestations à domicile sont distinctes de l’application et peuvent être facturées par le prestataire.</p>
+      <p>Les tarifs futurs sont à l’étude et ne sont pas appliqués. <a href="/cgv.html">Consulter le projet de tarifs et les conditions de vente</a>.</p>
+    </section>
+
+    <section class="landing-info" aria-labelledby="questions-title">
+      <h2 id="questions-title">Questions fréquentes</h2>
+      <div class="info-grid">
+        <details class="info-card">
+          <summary>Comment une demande de service est-elle confirmée ?</summary>
+          <div class="gl-help-bubble">
+          <p>Une demande de service doit être acceptée par le prestataire.</p>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Que faut-il savoir sur l’assistant ?</summary>
+          <div class="gl-help-bubble">
+          <p>Les réponses de l’assistant peuvent être inexactes ou incomplètes.</p>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Une question ?</summary>
+          <div class="gl-help-bubble">
+          <p>Contactez l’équipe à <a href="mailto:mail@generation-liaison.fr">mail@generation-liaison.fr</a>. Pour en savoir plus sur vos données, consultez la <a href="/privacy-policy.html">politique de confidentialité</a>.</p>
+          </div>
+        </details>
+      </div>
     </section>
 
     <section class="landing-card" id="connexion" aria-labelledby="connexion-title">
       <h2 id="connexion-title">Accéder à Génération Liaison</h2>
       <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
-      <p class="landing-note">Sur votre téléphone, le menu de votre navigateur peut proposer « Ajouter à l’écran d’accueil » pour retrouver facilement le site.</p>
+      <div class="install-guide" aria-labelledby="install-guide-title">
+        <h3 id="install-guide-title">Retrouver le site sur l’écran d’accueil</h3>
+        <p>Sans télécharger de fichier, vous pouvez ajouter un raccourci sur votre téléphone. Les menus et leurs noms peuvent varier selon le navigateur.</p>
+        <ol class="install-steps">
+          <li>
+            <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="11" y="3" width="26" height="42" rx="5" fill="#e2f1e7" stroke="#156c4f" stroke-width="2"/><path d="M17 16h14M17 22h14M17 28h9" fill="none" stroke="#156c4f" stroke-width="2" stroke-linecap="round"/></svg>
+            <strong>1. Ouvrez le site</strong>
+            <p>Sur votre téléphone, ouvrez Génération Liaison dans votre navigateur.</p>
+          </li>
+          <li>
+            <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="3" y="5" width="19" height="38" rx="4" fill="#e2f1e7"/><circle cx="13" cy="14" r="2" fill="#156c4f"/><circle cx="13" cy="22" r="2" fill="#156c4f"/><circle cx="13" cy="30" r="2" fill="#156c4f"/><rect x="26" y="5" width="19" height="38" rx="4" fill="#e2f1e7"/><path d="M35.5 28V13m-4 4 4-4 4 4M30 23v9h11v-9" fill="none" stroke="#156c4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <strong>2. Ouvrez le menu</strong>
+            <p>Sur Android, touchez les trois points du navigateur. Sur iPhone, dans Safari, touchez le bouton Partager (carré avec une flèche).</p>
+          </li>
+          <li>
+            <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="8" y="8" width="32" height="32" rx="7" fill="#e2f1e7" stroke="#156c4f" stroke-width="2"/><path d="M24 16v16M16 24h16" fill="none" stroke="#156c4f" stroke-width="3" stroke-linecap="round"/></svg>
+            <strong>3. Ajoutez le raccourci</strong>
+            <p>Choisissez « Ajouter à l’écran d’accueil » ou « Installer l’application », puis confirmez si demandé.</p>
+          </li>
+        </ol>
+      </div>
       <a class="landing-download-link" href="/app-generation-liaison.apk" download>
         Télécharger l’application Android
       </a>

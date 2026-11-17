@@ -7804,6 +7804,7 @@
             localStorage.removeItem(USER_KEY);
             if (!token) {
                 document.getElementById('auth-box').style.display = 'block';
+                if (window.location.hash === '#inscription') basculerFormulaire(true);
                 return;
             }
 
@@ -7818,6 +7819,7 @@
             document.getElementById('auth-box').style.display = 'block';
             if (error.message.includes('session a expiré')) {
                 localStorage.removeItem(SESSION_KEY);
+                if (window.location.hash === '#inscription') basculerFormulaire(true);
             }
             showToast(error.message || 'Serveur inaccessible. Réessayez.', false);
         }
