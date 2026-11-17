@@ -91,7 +91,7 @@ test('screen reader defaults on, persists settings and reads only visible text',
   const values = new Map();
   const voice = { name: 'Claire', lang: 'fr-FR', voiceURI: 'claire' };
   const spoken = [];
-  const screen = { id: 'screen-messages' };
+  const screen = { id: 'screen-messages', querySelectorAll: () => [root] };
   const root = { tagName: 'DIV', parentElement: null, hidden: false, getAttribute: () => null };
   const visible = { tagName: 'P', parentElement: root, hidden: false, getAttribute: () => null };
   const hidden = { tagName: 'P', parentElement: root, hidden: true, getAttribute: () => null };
@@ -135,6 +135,83 @@ test('screen reader defaults on, persists settings and reads only visible text',
   values.set('generation-liaison-voice-senior-enabled', 'false');
   context.initialiserLectureSenior();
   assert.equal(element('senior-voice-enabled').checked, false);
+});
+
+test('automatic senior narration selects only the requested categories on each screen', () => {
+  const { context, element } = voiceTestContext();
+  const spoken = [];
+  const timers = [];
+  const screens = {
+    'screen-senior': {
+      'date-senior': 'Lundi',
+      'senior-weather-status': 'Soleil',
+      'senior-next-visit-text': 'Visite demain',
+      'assistant-messages': 'Conversation privée',
+      'wellbeing-checkin-result': 'Bilan'
+    },
+    'screen-messages': {
+      'notifications-senior': 'Notification',
+      'message-list-senior': 'Message',
+      'message-rewrite-text': 'Brouillon'
+    },
+    'screen-agenda': { 'calendar-selected-day': 'Rendez-vous', 'personal-event-card': 'Formulaire' },
+    'screen-senior-pro': { 'senior-summary-visit': 'Visite', 'senior-summary-tasks': 'Tâches' },
+    'screen-contacts': { contacts: 'Contact' }
+  };
+  let active = 'screen-senior';
+  Object.assign(context, {
+    seniorVoiceUserId: 'senior', seniorVoiceTimer: null, seniorVoiceLastText: '',
+    localStorage: { getItem: () => null },
+    SpeechSynthesisUtterance: function(text) { this.text = text; },
+    setTimeout: fn => { timers.push(fn); return timers.length; },
+    clearTimeout: () => {}
+  });
+  context.window.SpeechSynthesisUtterance = context.SpeechSynthesisUtterance;
+  context.window.speechSynthesis = {
+    getVoices: () => [], cancel() {}, speak: utterance => spoken.push(utterance.text)
+  };
+  context.document.hidden = false;
+  context.document.querySelector = () => ({
+    id: active,
+    querySelectorAll: selector => selector.split(', ').map(id => screens[active][id.slice(1)])
+      .filter(Boolean).map(text => ({ text }))
+  });
+  context.texteVisibleLectureSenior = root => root.text;
+  element('senior-voice-enabled').checked = true;
+  for (const id of Object.keys(screens)) {
+    active = id;
+    context.planifierLectureSenior();
+    timers.pop()();
+  }
+  assert.deepEqual(spoken, [
+    'Lundi. Soleil. Visite demain',
+    'Notification. Message',
+    'Rendez-vous',
+    'Visite'
+  ]);
+});
+
+test('automatic narration skips hidden ancestors and button labels', () => {
+  const { context } = voiceTestContext();
+  const root = { tagName: 'DIV', hidden: false, parentElement: null, getAttribute: () => null };
+  const hiddenParent = { tagName: 'SECTION', hidden: true, parentElement: root, getAttribute: () => null };
+  const innerRoot = { tagName: 'DIV', hidden: false, parentElement: hiddenParent, getAttribute: () => null };
+  const button = { tagName: 'BUTTON', hidden: false, parentElement: root, getAttribute: () => null };
+  const visible = { tagName: 'P', hidden: false, parentElement: root, getAttribute: () => null };
+  const nodes = [
+    { nodeValue: 'Information', parentElement: visible },
+    { nodeValue: 'Bouton', parentElement: button },
+    { nodeValue: 'Contenu caché', parentElement: innerRoot }
+  ];
+  context.NodeFilter = { SHOW_TEXT: 4 };
+  context.window.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
+  context.document.createTreeWalker = selectedRoot => {
+    let index = 0;
+    const selectedNodes = selectedRoot === innerRoot ? [nodes[2]] : nodes;
+    return { nextNode: () => selectedNodes[index++] || null };
+  };
+  assert.equal(context.texteVisibleLectureSenior(root), 'Information');
+  assert.equal(context.texteVisibleLectureSenior(innerRoot), '');
 });
 
 test('message contacts show premium requirements per contact instead of per account', async () => {
