@@ -488,6 +488,11 @@ test('the optional color game can be played locally without sending data', () =>
   assert.match(elements['color-game-status'].textContent, /Bravo/);
   context.nouvelleCouleur();
   assert.match(elements['color-game-question'].textContent, /Bleu/);
+  context.Math.random = () => 0.99;
+  context.nouvelleCouleur();
+  assert.match(elements['color-game-question'].textContent, /Jaune/);
+  context.repondreJeuCouleur('Jaune');
+  assert.match(elements['color-game-status'].textContent, /Bravo/);
 });
 
 test('arithmetic and riddles allow retries and start a different round', () => {
@@ -516,10 +521,25 @@ test('arithmetic and riddles allow retries and start a different round', () => {
   assert.match(element('riddle-game-status').textContent, /Bravo/);
   context.nouvelleDevinette();
   assert.match(element('riddle-game-question').textContent, /fruit/);
-  assert.equal(element('riddle-game-choice-1').textContent, 'La banane');
+  assert.equal(element('riddle-game-label-1').textContent, 'La banane');
+  assert.equal(element('riddle-game-image-1').src, 'riddle-images/banane.jpg');
+  assert.equal(element('riddle-game-label-3').textContent, 'La fraise');
+  assert.equal(element('riddle-game-image-3').src, 'riddle-images/fraise.jpg');
   assert.equal(element('riddle-game-status').textContent, '');
   context.repondreDevinette(1);
   assert.match(element('riddle-game-status').textContent, /Bravo/);
+  for (let round = 0; round < 5; round++) {
+    context.nouvelleDevinette();
+    const riddle = vm.runInNewContext('devinettesJeu[devinetteCourante]', context);
+    assert.equal(riddle.choix.length, 4);
+    riddle.choix.forEach((choice, index) => {
+      assert.equal(element(`riddle-game-label-${index}`).textContent, choice.texte);
+      assert.equal(element(`riddle-game-image-${index}`).src, `riddle-images/${choice.image}.jpg`);
+      assert.ok(fs.existsSync(path.join(__dirname, '..', 'riddle-images', `${choice.image}.jpg`)));
+    });
+    context.repondreDevinette(riddle.reponse);
+    assert.match(element('riddle-game-status').textContent, /Bravo/);
+  }
 });
 
 test('games have named controls and are available in the senior full view', () => {
@@ -528,7 +548,126 @@ test('games have named controls and are available in the senior full view', () =
   assert.match(games, /Petits calculs/);
   assert.match(games, /Devinettes/);
   assert.match(games, /Rien n’est enregistré ni partagé/);
-  assert.equal((games.match(/class="game-choice"/g) || []).length, 12);
+  assert.equal((games.match(/class="game-choice(?: riddle-choice)?"/g) || []).length, 17);
+  assert.equal((games.match(/class="game-choice riddle-choice"/g) || []).length, 4);
+});
+
+test('tic-tac-toe handles moves, wins, a draw and restarting without losing accessible labels', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; }
+  };
+  const context = {
+    document: { getElementById: element },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+
+  context.nouveauMorpion();
+  context.jouerMorpion(4);
+  assert.equal(element('morpion-4').textContent, 'X');
+  assert.equal(element('morpion-0').textContent, 'O');
+  assert.equal(element('morpion-4').attributes['data-symbol'], 'X');
+  assert.equal(element('morpion-0').attributes['data-symbol'], 'O');
+  assert.match(element('morpion-4').attributes['aria-label'], /Ligne 2, colonne 2 : croix/);
+  assert.equal(element('morpion-4').attributes['aria-disabled'], 'true');
+  assert.match(element('morpion-status').textContent, /ligne 1, colonne 1/);
+  context.jouerMorpion(4);
+  assert.equal(element('morpion-1').textContent, '');
+
+  vm.runInNewContext("grilleMorpion = ['X','X','','O','O','','','','']; morpionTermine = false;", context);
+  context.jouerMorpion(2);
+  assert.match(element('morpion-status').textContent, /vous avez gagné/);
+  assert.equal(element('morpion-5').textContent, '');
+  context.jouerMorpion(5);
+  assert.equal(element('morpion-5').textContent, '');
+
+  vm.runInNewContext("grilleMorpion = ['O','O','','X','','','X','','']; morpionTermine = false;", context);
+  context.jouerMorpion(8);
+  assert.match(element('morpion-status').textContent, /ordinateur a gagné/);
+  assert.equal(element('morpion-2').textContent, 'O');
+
+  vm.runInNewContext("grilleMorpion = ['X','O','X','X','O','O','O','X','']; morpionTermine = false;", context);
+  context.jouerMorpion(8);
+  assert.match(element('morpion-status').textContent, /Match nul/);
+  context.nouveauMorpion();
+  assert.equal(element('morpion-8').textContent, '');
+  assert.equal(element('morpion-8').attributes['data-symbol'], '');
+  assert.equal(element('morpion-8').attributes['aria-disabled'], 'false');
+  assert.match(element('morpion-8').attributes['aria-label'], /vide/);
+  assert.match(element('morpion-status').textContent, /vous de jouer/);
+});
+
+test('matching pairs stay visible until the next choice and restart with four pairs', () => {
+  const node = () => ({
+    _textContent: '', children: [], attributes: {},
+    get textContent() { return this._textContent; },
+    set textContent(value) { this._textContent = value; this.children = []; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    appendChild(child) { this.children.push(child); }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node();
+  const context = {
+    document: { getElementById: element, createElementNS: () => node() },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.retournerCarte(0);
+  context.retournerCarte(1);
+  assert.equal(element('memory-0').children[0].children[0].attributes.href, '#memory-image-pomme');
+  assert.equal(element('memory-1').children[0].children[0].attributes.href, '#memory-image-chat');
+  assert.match(element('memory-0').attributes['aria-label'], /Pomme/);
+  assert.match(element('memory-status').textContent, /différentes/);
+  context.retournerCarte(2);
+  assert.equal(element('memory-0').textContent, '?');
+  assert.equal(element('memory-1').textContent, '?');
+  assert.equal(element('memory-2').children[0].children[0].attributes.href, '#memory-image-fleur');
+  context.retournerCarte(7);
+  assert.match(element('memory-status').textContent, /Paire trouvée/);
+  assert.match(element('memory-2').attributes['aria-label'], /Fleur, paire trouvée/);
+  context.retournerCarte(2);
+  context.retournerCarte(0);
+  context.retournerCarte(6);
+  context.retournerCarte(1);
+  context.retournerCarte(4);
+  context.retournerCarte(3);
+  context.retournerCarte(5);
+  assert.match(element('memory-status').textContent, /toutes les paires/);
+  context.nouveauJeuPaires();
+  assert.equal(element('memory-0').textContent, '?');
+  assert.equal(element('memory-0').children.length, 0);
+  assert.equal(element('memory-0').attributes['aria-disabled'], 'false');
+  const values = Array.from(vm.runInNewContext('cartesPaires', context));
+  assert.deepEqual(values.slice().sort(), ['Chat', 'Chat', 'Fleur', 'Fleur', 'Pomme', 'Pomme', 'Soleil', 'Soleil']);
+});
+
+test('number guessing gives higher and lower hints, stops after success and restarts', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', attributes: {},
+    setAttribute(name, value) { this.attributes[name] = value; }
+  };
+  const context = {
+    document: { getElementById: element },
+    Math: { random: () => 0.4, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.devinerNombre(2);
+  assert.match(element('number-game-status').textContent, /plus grand que 2/);
+  context.devinerNombre(8);
+  assert.match(element('number-game-status').textContent, /plus petit que 8/);
+  context.devinerNombre(5);
+  assert.match(element('number-game-status').textContent, /Bravo.*5/);
+  assert.equal(element('number-1').attributes['aria-disabled'], 'true');
+  context.devinerNombre(1);
+  assert.match(element('number-game-status').textContent, /Bravo.*5/);
+  context.nouveauNombreSecret();
+  assert.equal(element('number-1').attributes['aria-disabled'], 'false');
+  assert.match(element('number-game-status').textContent, /Choisissez/);
+  context.devinerNombre(5);
+  assert.match(element('number-game-status').textContent, /Bravo/);
 });
 
 test('senior settings remain accessible from navigation without a dashboard shortcut', () => {

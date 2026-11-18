@@ -473,9 +473,33 @@
         #senior-game-section .game-choice {
             min-height: 56px; padding: 14px 18px; font-size: 1.125rem;
         }
+        #senior-game-section #color-game-red { background: #ad2020; color: #fff; }
+        #senior-game-section #color-game-blue { background: #1756a0; color: #fff; }
+        #senior-game-section #color-game-green { background: #17684f; color: #fff; }
+        #senior-game-section #color-game-yellow { background: #f7d64a; color: #242000; }
         #senior-game-section .game-choice:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
-        #senior-game-section details details { margin: 12px 0; }
+        #senior-game-section details details {
+            margin: 12px 0; padding: 0 14px; border: 2px solid #4d7b68; border-radius: 12px; background: #fff;
+        }
+        #senior-game-section details details[open] { padding-bottom: 14px; }
         #senior-game-section details details > summary { cursor: pointer; font-size: 1.125rem; font-weight: 700; padding: 12px 0; }
+        .morpion-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: min(100%, 330px); margin: 12px 0; }
+        #senior-game-section .morpion-case {
+            min-width: 0; min-height: 64px; aspect-ratio: 1; padding: 4px; border: 2px solid #17684f;
+            background: #fff; color: #18352e; font-size: 4.5rem; line-height: 1;
+        }
+        #senior-game-section .morpion-case[data-symbol="X"] { color: #ad2020; }
+        #senior-game-section .morpion-case[data-symbol="O"] { color: #1756a0; }
+        #senior-game-section .morpion-case:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+        .memory-grid, .number-game-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; width: min(100%, 400px); margin: 12px 0; }
+        #senior-game-section .memory-card, #senior-game-section .number-choice { min-width: 0; min-height: 64px; padding: 8px; background: #17684f; color: white; font-size: 1.125rem; }
+        #senior-game-section .memory-card { min-height: 80px; font-size: 3rem; line-height: 1; }
+        #senior-game-section .memory-card[data-visible="true"] { background: #fff; box-shadow: inset 0 0 0 2px #17684f; }
+        #senior-game-section .memory-card svg { display: block; width: 64px; height: 64px; max-width: 100%; margin: auto; }
+        #senior-game-section .riddle-choice { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        #senior-game-section .riddle-choice img { width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 6px; }
+        #senior-game-section #riddle-game-next { display: block; margin: 0 auto; }
+        #senior-game-section .memory-card:focus-visible, #senior-game-section .number-choice:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         .senior-simple-only { display: none; }
         body.senior-simple .senior-simple-only { display: block; }
         body.senior-simple .senior-full-only,
@@ -791,9 +815,10 @@
             <summary>Les couleurs</summary>
             <p id="color-game-question" aria-live="polite">Choisissez le mot : Rouge</p>
             <div class="action-tiles">
-              <button class="game-choice" type="button" onclick="repondreJeuCouleur('Rouge')">Rouge</button>
-              <button class="game-choice" type="button" onclick="repondreJeuCouleur('Bleu')">Bleu</button>
-              <button class="game-choice" type="button" onclick="repondreJeuCouleur('Vert')">Vert</button>
+              <button class="game-choice" id="color-game-red" type="button" onclick="repondreJeuCouleur('Rouge')">Rouge</button>
+              <button class="game-choice" id="color-game-blue" type="button" onclick="repondreJeuCouleur('Bleu')">Bleu</button>
+              <button class="game-choice" id="color-game-green" type="button" onclick="repondreJeuCouleur('Vert')">Vert</button>
+              <button class="game-choice" id="color-game-yellow" type="button" onclick="repondreJeuCouleur('Jaune')">Jaune</button>
             </div>
             <p id="color-game-status" role="status" aria-live="polite"></p>
             <button class="game-choice" type="button" onclick="nouvelleCouleur()">Autre couleur</button>
@@ -812,15 +837,95 @@
             </details>
             <details>
               <summary>Devinettes</summary>
-              <p>Choisissez une réponse. Vous pouvez essayer plusieurs fois.</p>
+              <p>Choisissez une photo. Vous pouvez essayer plusieurs fois.</p>
               <p id="riddle-game-question" aria-live="polite">Quel animal dit « miaou » ?</p>
               <div class="action-tiles" aria-label="Réponses à la devinette">
-                <button class="game-choice" id="riddle-game-choice-0" type="button" onclick="repondreDevinette(0)">Le chat</button>
-                <button class="game-choice" id="riddle-game-choice-1" type="button" onclick="repondreDevinette(1)">Le chien</button>
-                <button class="game-choice" id="riddle-game-choice-2" type="button" onclick="repondreDevinette(2)">Le cheval</button>
+                <button class="game-choice riddle-choice" id="riddle-game-choice-0" type="button" onclick="repondreDevinette(0)"><img id="riddle-game-image-0" src="riddle-images/chat.jpg" alt=""><span id="riddle-game-label-0">Le chat</span></button>
+                <button class="game-choice riddle-choice" id="riddle-game-choice-1" type="button" onclick="repondreDevinette(1)"><img id="riddle-game-image-1" src="riddle-images/chien.jpg" alt=""><span id="riddle-game-label-1">Le chien</span></button>
+                <button class="game-choice riddle-choice" id="riddle-game-choice-2" type="button" onclick="repondreDevinette(2)"><img id="riddle-game-image-2" src="riddle-images/cheval.jpg" alt=""><span id="riddle-game-label-2">Le cheval</span></button>
+                <button class="game-choice riddle-choice" id="riddle-game-choice-3" type="button" onclick="repondreDevinette(3)"><img id="riddle-game-image-3" src="riddle-images/mouton.jpg" alt=""><span id="riddle-game-label-3">Le mouton</span></button>
               </div>
               <p id="riddle-game-status" role="status" aria-live="polite"></p>
-              <button class="game-choice" type="button" onclick="nouvelleDevinette()">Autre devinette</button>
+              <button class="game-choice" id="riddle-game-next" type="button" onclick="nouvelleDevinette()">Autre devinette</button>
+              <p class="helper-text"><a href="riddle-images/credits.html" target="_blank" rel="noopener noreferrer">Crédits des photos</a></p>
+            </details>
+            <details>
+              <summary>Morpion</summary>
+              <p>Vous jouez les croix (X), l’ordinateur joue les ronds (O). Alignez trois symboles pour gagner.</p>
+              <div class="morpion-grid" role="group" aria-label="Grille de morpion">
+                <button class="morpion-case" id="morpion-0" type="button" aria-label="Ligne 1, colonne 1 : vide" onclick="jouerMorpion(0)"></button>
+                <button class="morpion-case" id="morpion-1" type="button" aria-label="Ligne 1, colonne 2 : vide" onclick="jouerMorpion(1)"></button>
+                <button class="morpion-case" id="morpion-2" type="button" aria-label="Ligne 1, colonne 3 : vide" onclick="jouerMorpion(2)"></button>
+                <button class="morpion-case" id="morpion-3" type="button" aria-label="Ligne 2, colonne 1 : vide" onclick="jouerMorpion(3)"></button>
+                <button class="morpion-case" id="morpion-4" type="button" aria-label="Ligne 2, colonne 2 : vide" onclick="jouerMorpion(4)"></button>
+                <button class="morpion-case" id="morpion-5" type="button" aria-label="Ligne 2, colonne 3 : vide" onclick="jouerMorpion(5)"></button>
+                <button class="morpion-case" id="morpion-6" type="button" aria-label="Ligne 3, colonne 1 : vide" onclick="jouerMorpion(6)"></button>
+                <button class="morpion-case" id="morpion-7" type="button" aria-label="Ligne 3, colonne 2 : vide" onclick="jouerMorpion(7)"></button>
+                <button class="morpion-case" id="morpion-8" type="button" aria-label="Ligne 3, colonne 3 : vide" onclick="jouerMorpion(8)"></button>
+              </div>
+              <p id="morpion-status" role="status" aria-live="polite">À vous de jouer.</p>
+              <button class="game-choice" type="button" onclick="nouveauMorpion()">Nouvelle partie</button>
+            </details>
+            <details>
+              <summary>Jeu des paires</summary>
+              <p>Retournez deux cartes pour retrouver les images identiques. Prenez votre temps.</p>
+              <svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+                <symbol id="memory-image-pomme" viewBox="0 0 64 64">
+                  <path d="M32 20C22 10 10 19 11 31c1 12 9 23 16 22l5-2 5 2c7 1 15-10 16-22 1-12-11-21-21-11Z" fill="#d63b35" stroke="#81221d" stroke-width="2"/>
+                  <path d="M32 20c0-6 2-10 5-13" fill="none" stroke="#684329" stroke-width="3" stroke-linecap="round"/>
+                  <path d="M34 14c2-7 9-8 13-6-2 6-7 9-13 6Z" fill="#35834a"/>
+                </symbol>
+                <symbol id="memory-image-chat" viewBox="0 0 64 64">
+                  <path d="M12 25 14 9l13 8a27 27 0 0 1 10 0l13-8 2 16c5 17-4 28-20 28S7 42 12 25Z" fill="#e8a65e" stroke="#674222" stroke-width="2"/>
+                  <circle cx="23" cy="31" r="3" fill="#29211b"/><circle cx="41" cy="31" r="3" fill="#29211b"/>
+                  <path d="m29 38 3 3 3-3M32 41v3m-7 0c2 2 5 2 7 0 2 2 5 2 7 0M18 38l-9-2m9 6-9 2m37-6 9-2m-9 6 9 2" fill="none" stroke="#674222" stroke-width="2" stroke-linecap="round"/>
+                </symbol>
+                <symbol id="memory-image-fleur" viewBox="0 0 64 64">
+                  <path d="M32 35v23m0-7c-5-7-10-6-13-6 2 6 6 9 13 9m0-8c5-7 10-6 13-6-2 6-6 9-13 9" fill="#4a974b" stroke="#35713b" stroke-width="2"/>
+                  <g fill="#e874a2" stroke="#a63362" stroke-width="1.5">
+                    <circle cx="32" cy="13" r="8"/><circle cx="20" cy="21" r="8"/><circle cx="23" cy="34" r="8"/><circle cx="41" cy="34" r="8"/><circle cx="44" cy="21" r="8"/>
+                  </g>
+                  <circle cx="32" cy="25" r="8" fill="#f3c53d" stroke="#956c12" stroke-width="2"/>
+                </symbol>
+                <symbol id="memory-image-soleil" viewBox="0 0 64 64">
+                  <g stroke="#c27813" stroke-width="3" stroke-linecap="round">
+                    <path d="M32 3v7M32 54v7M3 32h7M54 32h7M11 11l5 5m32 32 5 5M53 11l-5 5M16 48l-5 5"/>
+                  </g>
+                  <circle cx="32" cy="32" r="18" fill="#f7cf35" stroke="#c27813" stroke-width="2"/>
+                  <circle cx="26" cy="29" r="2" fill="#674215"/><circle cx="38" cy="29" r="2" fill="#674215"/>
+                  <path d="M25 37c4 5 10 5 14 0" fill="none" stroke="#674215" stroke-width="2" stroke-linecap="round"/>
+                </symbol>
+              </svg>
+              <div class="memory-grid" role="group" aria-label="Cartes du jeu des paires">
+                <button class="memory-card" id="memory-0" type="button" aria-label="Carte 1 : cachée" onclick="retournerCarte(0)">?</button>
+                <button class="memory-card" id="memory-1" type="button" aria-label="Carte 2 : cachée" onclick="retournerCarte(1)">?</button>
+                <button class="memory-card" id="memory-2" type="button" aria-label="Carte 3 : cachée" onclick="retournerCarte(2)">?</button>
+                <button class="memory-card" id="memory-3" type="button" aria-label="Carte 4 : cachée" onclick="retournerCarte(3)">?</button>
+                <button class="memory-card" id="memory-4" type="button" aria-label="Carte 5 : cachée" onclick="retournerCarte(4)">?</button>
+                <button class="memory-card" id="memory-5" type="button" aria-label="Carte 6 : cachée" onclick="retournerCarte(5)">?</button>
+                <button class="memory-card" id="memory-6" type="button" aria-label="Carte 7 : cachée" onclick="retournerCarte(6)">?</button>
+                <button class="memory-card" id="memory-7" type="button" aria-label="Carte 8 : cachée" onclick="retournerCarte(7)">?</button>
+              </div>
+              <p id="memory-status" role="status" aria-live="polite">Choisissez une première carte.</p>
+              <button class="game-choice" type="button" onclick="nouveauJeuPaires()">Nouvelle partie</button>
+            </details>
+            <details>
+              <summary>Deviner le nombre</summary>
+              <p>Un nombre entre 1 et 10 est caché. Choisissez un nombre : les indices vous guideront.</p>
+              <div class="number-game-grid" role="group" aria-label="Choisir un nombre">
+                <button class="number-choice" id="number-1" type="button" onclick="devinerNombre(1)">1</button>
+                <button class="number-choice" id="number-2" type="button" onclick="devinerNombre(2)">2</button>
+                <button class="number-choice" id="number-3" type="button" onclick="devinerNombre(3)">3</button>
+                <button class="number-choice" id="number-4" type="button" onclick="devinerNombre(4)">4</button>
+                <button class="number-choice" id="number-5" type="button" onclick="devinerNombre(5)">5</button>
+                <button class="number-choice" id="number-6" type="button" onclick="devinerNombre(6)">6</button>
+                <button class="number-choice" id="number-7" type="button" onclick="devinerNombre(7)">7</button>
+                <button class="number-choice" id="number-8" type="button" onclick="devinerNombre(8)">8</button>
+                <button class="number-choice" id="number-9" type="button" onclick="devinerNombre(9)">9</button>
+                <button class="number-choice" id="number-10" type="button" onclick="devinerNombre(10)">10</button>
+              </div>
+              <p id="number-game-status" role="status" aria-live="polite">Choisissez un nombre.</p>
+              <button class="game-choice" type="button" onclick="nouveauNombreSecret()">Nouvelle partie</button>
             </details>
           </details>
         </section>
@@ -5119,7 +5224,7 @@
     let couleurJeu = 'Rouge';
 
     function nouvelleCouleur() {
-        const couleurs = ['Rouge', 'Bleu', 'Vert'];
+        const couleurs = ['Rouge', 'Bleu', 'Vert', 'Jaune'];
         const autres = couleurs.filter(couleur => couleur !== couleurJeu);
         couleurJeu = autres[Math.floor(Math.random() * autres.length)];
         document.getElementById('color-game-question').textContent = `Choisissez le mot : ${couleurJeu}`;
@@ -5134,12 +5239,25 @@
     let resultatCalcul = 5;
     let choixCalcul = [4, 5, 6];
     let dernierCalcul = '2+3';
+    const animauxDevinette = [
+        { texte: 'Le chat', image: 'chat' }, { texte: 'Le chien', image: 'chien' },
+        { texte: 'Le cheval', image: 'cheval' }, { texte: 'Le mouton', image: 'mouton' }
+    ];
     const devinettesJeu = [
-        { question: 'Quel animal dit « miaou » ?', choix: ['Le chat', 'Le chien', 'Le cheval'], reponse: 0 },
-        { question: 'Quel fruit est jaune et courbé ?', choix: ['La pomme', 'La banane', 'La cerise'], reponse: 1 },
-        { question: 'Que met-on sur la tête pour se protéger du soleil ?', choix: ['Des chaussures', 'Des gants', 'Un chapeau'], reponse: 2 },
-        { question: 'Quel animal donne de la laine ?', choix: ['Le mouton', 'Le poisson', 'La poule'], reponse: 0 },
-        { question: 'Quelle saison vient après le printemps ?', choix: ['L’hiver', 'L’été', 'L’automne'], reponse: 1 }
+        { question: 'Quel animal dit « miaou » ?', choix: animauxDevinette, reponse: 0 },
+        { question: 'Quel fruit est jaune et courbé ?', choix: [
+            { texte: 'La pomme', image: 'pomme' }, { texte: 'La banane', image: 'banane' },
+            { texte: 'L’orange', image: 'orange' }, { texte: 'La fraise', image: 'fraise' }
+        ], reponse: 1 },
+        { question: 'Que met-on sur la tête pour se protéger du soleil ?', choix: [
+            { texte: 'Des chaussures', image: 'chaussures' }, { texte: 'Des gants', image: 'gants' },
+            { texte: 'Un chapeau', image: 'chapeau' }, { texte: 'Une écharpe', image: 'echarpe' }
+        ], reponse: 2 },
+        { question: 'Quel animal donne de la laine ?', choix: animauxDevinette, reponse: 3 },
+        { question: 'Quelle saison vient après le printemps ?', choix: [
+            { texte: 'L’hiver', image: 'hiver' }, { texte: 'L’été', image: 'ete' },
+            { texte: 'L’automne', image: 'automne' }, { texte: 'Le printemps', image: 'printemps' }
+        ], reponse: 1 }
     ];
     let devinetteCourante = 0;
 
@@ -5170,7 +5288,8 @@
         const devinette = devinettesJeu[devinetteCourante];
         document.getElementById('riddle-game-question').textContent = devinette.question;
         devinette.choix.forEach((choix, index) => {
-            document.getElementById(`riddle-game-choice-${index}`).textContent = choix;
+            document.getElementById(`riddle-game-label-${index}`).textContent = choix.texte;
+            document.getElementById(`riddle-game-image-${index}`).src = `riddle-images/${choix.image}.jpg`;
         });
         document.getElementById('riddle-game-status').textContent = '';
     }
@@ -5178,6 +5297,143 @@
     function repondreDevinette(index) {
         document.getElementById('riddle-game-status').textContent = index === devinettesJeu[devinetteCourante].reponse
             ? 'Bravo ! Vous pouvez choisir une autre devinette.' : 'Ce n’est pas la bonne réponse. Vous pouvez réessayer.';
+    }
+
+    let grilleMorpion = Array(9).fill('');
+    let morpionTermine = false;
+    const lignesMorpion = [
+        [0, 1, 2], [3, 4, 5], [6, 7, 8],
+        [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]
+    ];
+
+    function afficherMorpion(message) {
+        grilleMorpion.forEach((valeur, index) => {
+            const bouton = document.getElementById(`morpion-${index}`);
+            bouton.textContent = valeur;
+            bouton.setAttribute('data-symbol', valeur);
+            const contenu = valeur === 'X' ? 'croix' : valeur === 'O' ? 'rond' : 'vide';
+            bouton.setAttribute('aria-label', `Ligne ${Math.floor(index / 3) + 1}, colonne ${index % 3 + 1} : ${contenu}`);
+            bouton.setAttribute('aria-disabled', String(morpionTermine || Boolean(valeur)));
+        });
+        document.getElementById('morpion-status').textContent = message;
+    }
+
+    function nouveauMorpion() {
+        grilleMorpion = Array(9).fill('');
+        morpionTermine = false;
+        afficherMorpion('À vous de jouer.');
+    }
+
+    function finMorpion(symbole) {
+        if (lignesMorpion.some(ligne => ligne.every(index => grilleMorpion[index] === symbole))) {
+            morpionTermine = true;
+            return symbole === 'X' ? 'Bravo, vous avez gagné !' : 'L’ordinateur a gagné. Vous pouvez recommencer.';
+        }
+        if (grilleMorpion.every(Boolean)) {
+            morpionTermine = true;
+            return 'Match nul ! Vous pouvez recommencer.';
+        }
+        return '';
+    }
+
+    function jouerMorpion(index) {
+        if (morpionTermine || !Number.isInteger(index) || index < 0 || index >= 9 || grilleMorpion[index]) return;
+        grilleMorpion[index] = 'X';
+        let message = finMorpion('X');
+        if (!message) {
+            const libres = grilleMorpion.map((valeur, position) => valeur ? -1 : position).filter(position => position >= 0);
+            const choix = libres[Math.floor(Math.random() * libres.length)];
+            grilleMorpion[choix] = 'O';
+            const resultat = finMorpion('O');
+            const position = `ligne ${Math.floor(choix / 3) + 1}, colonne ${choix % 3 + 1}`;
+            message = `L’ordinateur a joué ${position}. ${resultat || 'À vous de jouer.'}`;
+        }
+        afficherMorpion(message);
+    }
+
+    let cartesPaires = ['Pomme', 'Chat', 'Fleur', 'Soleil', 'Chat', 'Soleil', 'Pomme', 'Fleur'];
+    let cartesRetournees = [];
+    let cartesTrouvees = [];
+    const imagesPaires = { Pomme: 'pomme', Chat: 'chat', Fleur: 'fleur', Soleil: 'soleil' };
+
+    function afficherJeuPaires(message) {
+        cartesPaires.forEach((mot, index) => {
+            const bouton = document.getElementById(`memory-${index}`);
+            const trouvee = cartesTrouvees.includes(index);
+            const visible = trouvee || cartesRetournees.includes(index);
+            bouton.textContent = visible ? '' : '?';
+            bouton.setAttribute('data-visible', String(visible));
+            if (visible) {
+                const image = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                const dessin = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+                image.setAttribute('viewBox', '0 0 64 64');
+                image.setAttribute('aria-hidden', 'true');
+                dessin.setAttribute('href', `#memory-image-${imagesPaires[mot]}`);
+                image.appendChild(dessin);
+                bouton.appendChild(image);
+            }
+            bouton.setAttribute('aria-label', `Carte ${index + 1} : ${visible ? mot : 'cachée'}${trouvee ? ', paire trouvée' : ''}`);
+            bouton.setAttribute('aria-disabled', String(visible));
+        });
+        document.getElementById('memory-status').textContent = message;
+    }
+
+    function nouveauJeuPaires() {
+        cartesPaires = ['Pomme', 'Pomme', 'Chat', 'Chat', 'Fleur', 'Fleur', 'Soleil', 'Soleil'];
+        for (let index = cartesPaires.length - 1; index > 0; index--) {
+            const autre = Math.floor(Math.random() * (index + 1));
+            [cartesPaires[index], cartesPaires[autre]] = [cartesPaires[autre], cartesPaires[index]];
+        }
+        cartesRetournees = [];
+        cartesTrouvees = [];
+        afficherJeuPaires('Choisissez une première carte.');
+    }
+
+    function retournerCarte(index) {
+        if (!Number.isInteger(index) || index < 0 || index >= cartesPaires.length ||
+            cartesTrouvees.includes(index) || cartesRetournees.includes(index)) return;
+        if (cartesRetournees.length === 2) cartesRetournees = [];
+        cartesRetournees.push(index);
+        const mot = cartesPaires[index];
+        let message = `Carte ${index + 1} : ${mot}. Choisissez une deuxième carte.`;
+        if (cartesRetournees.length === 2) {
+            if (cartesPaires[cartesRetournees[0]] === mot) {
+                cartesTrouvees.push(...cartesRetournees);
+                cartesRetournees = [];
+                message = cartesTrouvees.length === cartesPaires.length
+                    ? 'Bravo, vous avez retrouvé toutes les paires !'
+                    : `Paire trouvée : ${mot}. Choisissez une autre carte.`;
+            } else {
+                message = `Carte ${index + 1} : ${mot}. Les images sont différentes. Choisissez une autre carte pour continuer.`;
+            }
+        }
+        afficherJeuPaires(message);
+    }
+
+    let nombreSecret = 1 + Math.floor(Math.random() * 10);
+    let nombreTrouve = false;
+
+    function nouveauNombreSecret() {
+        nombreSecret = 1 + Math.floor(Math.random() * 10);
+        nombreTrouve = false;
+        for (let nombre = 1; nombre <= 10; nombre++) {
+            document.getElementById(`number-${nombre}`).setAttribute('aria-disabled', 'false');
+        }
+        document.getElementById('number-game-status').textContent = 'Choisissez un nombre.';
+    }
+
+    function devinerNombre(nombre) {
+        if (nombreTrouve || !Number.isInteger(nombre) || nombre < 1 || nombre > 10) return;
+        if (nombre === nombreSecret) {
+            nombreTrouve = true;
+            for (let choix = 1; choix <= 10; choix++) {
+                document.getElementById(`number-${choix}`).setAttribute('aria-disabled', 'true');
+            }
+            document.getElementById('number-game-status').textContent = `Bravo, le nombre était ${nombre} !`;
+        } else {
+            document.getElementById('number-game-status').textContent = nombre < nombreSecret
+                ? `Le nombre est plus grand que ${nombre}.` : `Le nombre est plus petit que ${nombre}.`;
+        }
     }
 
     function annulerDicteeMessage() {

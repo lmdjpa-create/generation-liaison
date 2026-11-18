@@ -52,6 +52,8 @@ for (const image of homepageImages) {
   fs.copyFileSync(path.join(root, 'homepage-images', image), path.join(output, 'homepage-images', image));
 }
 
+fs.cpSync(path.join(root, 'riddle-images'), path.join(output, 'riddle-images'), { recursive: true });
+
 for (const page of pages) {
   const sourcePath = path.join(root, page);
   let content = fs.readFileSync(sourcePath, 'utf8');
