@@ -490,6 +490,47 @@ test('the optional color game can be played locally without sending data', () =>
   assert.match(elements['color-game-question'].textContent, /Bleu/);
 });
 
+test('arithmetic and riddles allow retries and start a different round', () => {
+  const elements = {};
+  const element = id => elements[id] ||= { textContent: '' };
+  const context = {
+    document: { getElementById: element },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+
+  context.repondreJeuCalcul(0);
+  assert.match(element('math-game-status').textContent, /réessayer/);
+  context.repondreJeuCalcul(1);
+  assert.match(element('math-game-status').textContent, /Bravo/);
+  context.nouveauCalcul();
+  assert.match(element('math-game-question').textContent, /1 \+ 1/);
+  assert.equal(element('math-game-status').textContent, '');
+  assert.deepEqual([0, 1, 2].map(i => element(`math-game-choice-${i}`).textContent), [1, 2, 3]);
+  context.repondreJeuCalcul(1);
+  assert.match(element('math-game-status').textContent, /Bravo/);
+
+  context.repondreDevinette(1);
+  assert.match(element('riddle-game-status').textContent, /réessayer/);
+  context.repondreDevinette(0);
+  assert.match(element('riddle-game-status').textContent, /Bravo/);
+  context.nouvelleDevinette();
+  assert.match(element('riddle-game-question').textContent, /fruit/);
+  assert.equal(element('riddle-game-choice-1').textContent, 'La banane');
+  assert.equal(element('riddle-game-status').textContent, '');
+  context.repondreDevinette(1);
+  assert.match(element('riddle-game-status').textContent, /Bravo/);
+});
+
+test('games have named controls and are available in the senior full view', () => {
+  const games = extract('<section class="form-card" id="senior-game-section"', '<section class="form-card" id="senior-album-section"');
+  assert.match(games, /Jeux gratuits/);
+  assert.match(games, /Petits calculs/);
+  assert.match(games, /Devinettes/);
+  assert.match(games, /Rien n’est enregistré ni partagé/);
+  assert.equal((games.match(/class="game-choice"/g) || []).length, 12);
+});
+
 test('senior settings remain accessible from navigation without a dashboard shortcut', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   assert.doesNotMatch(dashboard, /switchScreen\('settings'\)/);

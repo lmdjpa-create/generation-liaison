@@ -71,6 +71,7 @@
         .calendar-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
         .calendar-toolbar button { padding: 10px 12px; border: 1px solid #2c3e50; border-radius: 8px; background: white; color: #2c3e50; font-weight: 700; cursor: pointer; }
         .calendar-toolbar button[aria-pressed="true"] { background: #2c3e50; color: white; }
+        #calendar-today, #planning-today { text-align: center; }
         .calendar-scroll { overflow-x: auto; }
         .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(100px, 1fr)); gap: 3px; min-width: 700px; }
         .calendar-weekday { padding: 8px; text-align: center; font-weight: 700; }
@@ -469,6 +470,12 @@
             background: #123a5a; color: #fff; font-size: 1.1rem; font-weight: 700; text-decoration: none;
         }
         .local-outings-link:focus-visible { outline: 3px solid #e29b1f; outline-offset: 3px; }
+        #senior-game-section .game-choice {
+            min-height: 56px; padding: 14px 18px; font-size: 1.125rem;
+        }
+        #senior-game-section .game-choice:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+        #senior-game-section details details { margin: 12px 0; }
+        #senior-game-section details details > summary { cursor: pointer; font-size: 1.125rem; font-weight: 700; padding: 12px 0; }
         .senior-simple-only { display: none; }
         body.senior-simple .senior-simple-only { display: block; }
         body.senior-simple .senior-full-only,
@@ -778,17 +785,43 @@
         </div>
         <section class="form-card" id="senior-game-section" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure">
-            <summary>🎲 Jeu gratuit : les couleurs</summary>
+            <summary>🎲 Jeux gratuits</summary>
             <p class="helper-text">Pour le plaisir, seul ou à tour de rôle avec un proche présent. Rien n’est enregistré ni partagé.</p>
-            <p class="helper-text">D’autres jeux pourront être ajoutés ultérieurement.</p>
+            <details>
+            <summary>Les couleurs</summary>
             <p id="color-game-question" aria-live="polite">Choisissez le mot : Rouge</p>
             <div class="action-tiles">
-              <button type="button" onclick="repondreJeuCouleur('Rouge')">Rouge</button>
-              <button type="button" onclick="repondreJeuCouleur('Bleu')">Bleu</button>
-              <button type="button" onclick="repondreJeuCouleur('Vert')">Vert</button>
+              <button class="game-choice" type="button" onclick="repondreJeuCouleur('Rouge')">Rouge</button>
+              <button class="game-choice" type="button" onclick="repondreJeuCouleur('Bleu')">Bleu</button>
+              <button class="game-choice" type="button" onclick="repondreJeuCouleur('Vert')">Vert</button>
             </div>
             <p id="color-game-status" role="status" aria-live="polite"></p>
-            <button type="button" onclick="nouvelleCouleur()">Autre couleur</button>
+            <button class="game-choice" type="button" onclick="nouvelleCouleur()">Autre couleur</button>
+            </details>
+            <details>
+              <summary>Petits calculs</summary>
+              <p>Choisissez le résultat de l’addition. Prenez votre temps.</p>
+              <p id="math-game-question" aria-live="polite">Combien font 2 + 3 ?</p>
+              <div class="action-tiles" aria-label="Réponses au calcul">
+                <button class="game-choice" id="math-game-choice-0" type="button" onclick="repondreJeuCalcul(0)">4</button>
+                <button class="game-choice" id="math-game-choice-1" type="button" onclick="repondreJeuCalcul(1)">5</button>
+                <button class="game-choice" id="math-game-choice-2" type="button" onclick="repondreJeuCalcul(2)">6</button>
+              </div>
+              <p id="math-game-status" role="status" aria-live="polite"></p>
+              <button class="game-choice" type="button" onclick="nouveauCalcul()">Autre calcul</button>
+            </details>
+            <details>
+              <summary>Devinettes</summary>
+              <p>Choisissez une réponse. Vous pouvez essayer plusieurs fois.</p>
+              <p id="riddle-game-question" aria-live="polite">Quel animal dit « miaou » ?</p>
+              <div class="action-tiles" aria-label="Réponses à la devinette">
+                <button class="game-choice" id="riddle-game-choice-0" type="button" onclick="repondreDevinette(0)">Le chat</button>
+                <button class="game-choice" id="riddle-game-choice-1" type="button" onclick="repondreDevinette(1)">Le chien</button>
+                <button class="game-choice" id="riddle-game-choice-2" type="button" onclick="repondreDevinette(2)">Le cheval</button>
+              </div>
+              <p id="riddle-game-status" role="status" aria-live="polite"></p>
+              <button class="game-choice" type="button" onclick="nouvelleDevinette()">Autre devinette</button>
+            </details>
           </details>
         </section>
         <section class="form-card" id="senior-album-section" style="text-align:left;">
@@ -5096,6 +5129,55 @@
     function repondreJeuCouleur(couleur) {
         document.getElementById('color-game-status').textContent = couleur === couleurJeu
             ? 'Bravo ! Vous pouvez choisir une autre couleur.' : 'Ce n’est pas ce mot. Vous pouvez réessayer.';
+    }
+
+    let resultatCalcul = 5;
+    let choixCalcul = [4, 5, 6];
+    let dernierCalcul = '2+3';
+    const devinettesJeu = [
+        { question: 'Quel animal dit « miaou » ?', choix: ['Le chat', 'Le chien', 'Le cheval'], reponse: 0 },
+        { question: 'Quel fruit est jaune et courbé ?', choix: ['La pomme', 'La banane', 'La cerise'], reponse: 1 },
+        { question: 'Que met-on sur la tête pour se protéger du soleil ?', choix: ['Des chaussures', 'Des gants', 'Un chapeau'], reponse: 2 },
+        { question: 'Quel animal donne de la laine ?', choix: ['Le mouton', 'Le poisson', 'La poule'], reponse: 0 },
+        { question: 'Quelle saison vient après le printemps ?', choix: ['L’hiver', 'L’été', 'L’automne'], reponse: 1 }
+    ];
+    let devinetteCourante = 0;
+
+    function nouveauCalcul() {
+        let premier = 1 + Math.floor(Math.random() * 9);
+        const second = 1 + Math.floor(Math.random() * 9);
+        if (`${premier}+${second}` === dernierCalcul) premier = premier % 9 + 1;
+        dernierCalcul = `${premier}+${second}`;
+        resultatCalcul = premier + second;
+        const choix = [resultatCalcul - 1, resultatCalcul, resultatCalcul + 1];
+        const rotation = Math.floor(Math.random() * choix.length);
+        choixCalcul = choix.slice(rotation).concat(choix.slice(0, rotation));
+        document.getElementById('math-game-question').textContent = `Combien font ${premier} + ${second} ?`;
+        choixCalcul.forEach((choix, index) => {
+            document.getElementById(`math-game-choice-${index}`).textContent = choix;
+        });
+        document.getElementById('math-game-status').textContent = '';
+    }
+
+    function repondreJeuCalcul(index) {
+        document.getElementById('math-game-status').textContent = choixCalcul[index] === resultatCalcul
+            ? 'Bravo ! Vous pouvez choisir un autre calcul.' : 'Ce n’est pas le bon résultat. Vous pouvez réessayer.';
+    }
+
+    function nouvelleDevinette() {
+        const saut = 1 + Math.floor(Math.random() * (devinettesJeu.length - 1));
+        devinetteCourante = (devinetteCourante + saut) % devinettesJeu.length;
+        const devinette = devinettesJeu[devinetteCourante];
+        document.getElementById('riddle-game-question').textContent = devinette.question;
+        devinette.choix.forEach((choix, index) => {
+            document.getElementById(`riddle-game-choice-${index}`).textContent = choix;
+        });
+        document.getElementById('riddle-game-status').textContent = '';
+    }
+
+    function repondreDevinette(index) {
+        document.getElementById('riddle-game-status').textContent = index === devinettesJeu[devinetteCourante].reponse
+            ? 'Bravo ! Vous pouvez choisir une autre devinette.' : 'Ce n’est pas la bonne réponse. Vous pouvez réessayer.';
     }
 
     function annulerDicteeMessage() {
