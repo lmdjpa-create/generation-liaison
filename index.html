@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="referrer" content="no-referrer" />
   <meta name="description" content="Génération Liaison accompagne les seniors, leurs aidants et les professionnels : échanges, rendez-vous, suivi du quotidien et services de proximité." />
   <link rel="canonical" href="https://generation-liaison.fr/" />
   <meta property="og:type" content="website" />
@@ -12,6 +13,7 @@
   <title>Génération Liaison — Bien entouré, mieux accompagné</title>
   <script src="/language.js" defer></script>
   <script src="/help-bubbles.js" defer></script>
+  <script src="/homepage-analytics.js" defer></script>
   <style>
     :root {
       --bg: #f4f7f6;
@@ -1093,6 +1095,37 @@
       background: #f5f9f6;
     }
 
+    .analytics-consent {
+      position: fixed;
+      z-index: 100;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 18px;
+      background: #fff;
+      border-top: 2px solid #156c4f;
+      box-shadow: 0 -4px 18px rgba(0, 0, 0, .15);
+      color: #20313c;
+    }
+    .analytics-consent[hidden] { display: none; }
+    .analytics-consent p { margin: 0 0 12px; }
+    .analytics-consent-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .analytics-consent button, .analytics-settings {
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 2px solid #156c4f;
+      border-radius: 8px;
+      background: #fff;
+      color: #156c4f;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .analytics-consent button:focus-visible, .analytics-settings:focus-visible {
+      outline: 3px solid #163b72;
+      outline-offset: 3px;
+    }
+
     @media (max-width: 560px) {
       .landing {
         padding: 18px 14px;
@@ -1301,8 +1334,19 @@
         <a href="/cgv.html">Tarifs et CGV</a> ·
         <a href="/privacy-policy.html">Confidentialité</a>
       </p>
+      <button type="button" class="analytics-settings" id="analytics-settings">Choix des cookies</button>
     </section>
   </main>
+
+  <section class="analytics-consent" id="analytics-consent" aria-labelledby="analytics-consent-title" hidden>
+    <h2 id="analytics-consent-title" tabindex="-1">Mesure de fréquentation</h2>
+    <p>Avec votre accord, Google Analytics mesure les visites de cette page. Des cookies et des données techniques, dont votre adresse IP, sont transmis à Google. Aucun suivi n’est installé dans les espaces connectés. Vous pouvez refuser ou changer votre choix à tout moment. <a href="/privacy-policy.html#cookies">En savoir plus</a>.</p>
+    <div class="analytics-consent-actions">
+      <button type="button" id="analytics-accept">Accepter</button>
+      <button type="button" id="analytics-reject">Refuser</button>
+    </div>
+    <p id="analytics-status" role="status" aria-live="polite"></p>
+  </section>
 
   <script>
     function redirectLegacyDashboard() {

@@ -47,6 +47,7 @@ fs.copyFileSync(path.join(root, 'language.js'), path.join(output, 'language.js')
 for (const file of ['robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js']) {
   fs.copyFileSync(path.join(root, file), path.join(output, file));
 }
+fs.copyFileSync(path.join(root, 'scripts', 'homepage-analytics.js'), path.join(output, 'homepage-analytics.js'));
 
 const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg', 'apercu-carnet.png', 'apercu-accueil-senior.png', 'apercu-espace-proche.png'];
 fs.mkdirSync(path.join(output, 'homepage-images'), { recursive: true });

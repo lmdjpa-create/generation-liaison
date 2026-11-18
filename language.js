@@ -1,6 +1,15 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Choix des cookies': 'Cookie choices',
+    'Mesure de fréquentation': 'Audience measurement',
+    'Avec votre accord, Google Analytics mesure les visites de cette page. Des cookies et des données techniques, dont votre adresse IP, sont transmis à Google. Aucun suivi n’est installé dans les espaces connectés. Vous pouvez refuser ou changer votre choix à tout moment.':
+      'With your consent, Google Analytics measures visits to this page. Cookies and technical data, including your IP address, are sent to Google. No tracking is installed in signed-in areas. You can refuse or change your choice at any time.',
+    'En savoir plus': 'Learn more',
+    'Impossible d’enregistrer votre choix sur cet appareil. La mesure est désactivée.':
+      'Unable to save your choice on this device. Measurement is disabled.',
+    'Effacez les données du site dans votre navigateur pour retirer un accord enregistré précédemment.':
+      'Clear the site data in your browser to withdraw any previously saved consent.',
     'Génération Liaison': 'Génération Liaison',
     'Confidentialité, RGPD et données de santé': 'Privacy, GDPR and health data',
     'La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées.':
