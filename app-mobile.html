@@ -1093,7 +1093,7 @@
         <h3>Aucun profil senior associé</h3>
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.</p>
         <button type="button" id="aidant-refresh-seniors">Actualiser les profils seniors</button>
-        <button type="button" onclick="switchScreen('settings')">Gérer mes profils seniors</button>
+        <button type="button" onclick="switchScreen('settings'); document.getElementById('aidant-links-details').open = true">Gérer mes profils seniors</button>
         <details class="senior-disclosure" id="aidant-local-outings-no-senior">
           <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
           <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
@@ -1524,7 +1524,8 @@
       </details>
     </section>
 <section class="form-card" style="text-align:left;" id="settings-aidant-links">
-        <h3>Mes profils seniors</h3>
+      <details class="senior-tab-disclosure" id="aidant-links-details">
+        <summary>Mes profils seniors</summary>
         <div id="aidant-senior-selector" style="display:none;">
             <label for="aidant-senior-select">Changer de personne accompagnée</label>
             <select id="aidant-senior-select"></select>
@@ -1539,6 +1540,7 @@
         <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie les justificatifs et associe le profil senior à son compte. Les autres proches n’obtiennent pas automatiquement l’accès.</p>
         <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
         <button type="button" id="aidant-links-refresh">Actualiser</button>
+      </details>
     </section>
     <section class="form-card" id="settings-aidant-consents" hidden>
       <details class="senior-tab-disclosure" id="aidant-consents-details">
@@ -1554,12 +1556,12 @@
       </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-senior" style="display:none;">
-      <button type="button" class="enable-push-button" data-role="senior" disabled>Activer les notifications sur cet appareil</button>
-      <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
-      <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
-      <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
       <details class="senior-tab-disclosure" id="senior-notification-preferences">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Mes préférences de notification</summary>
+        <button type="button" class="enable-push-button" data-role="senior" disabled>Activer les notifications sur cet appareil</button>
+        <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
+        <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
+        <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="senior">
             <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
@@ -1571,11 +1573,12 @@
       </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-aidant" style="display:none;">
+      <details class="senior-tab-disclosure" id="aidant-notification-preferences">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Mes préférences de notification</summary>
         <button type="button" class="enable-push-button" data-role="aidant" disabled>Activer les notifications sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
         <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
         <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
-        <h3>Mes préférences de notification</h3>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="aidant">
             <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
@@ -1593,6 +1596,7 @@
             </form>
             <p id="aidant-task-reminders-status" class="helper-text" role="status"></p>
         </details>
+      </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
         <button type="button" class="enable-push-button" data-role="pro" disabled>Activer les notifications sur cet appareil</button>

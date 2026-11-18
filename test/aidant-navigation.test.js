@@ -6,6 +6,31 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 
+test('caregiver profiles and senior and caregiver notification settings start collapsed', () => {
+  for (const [sectionId, detailsId, controls] of [
+    ['settings-aidant-links', 'aidant-links-details', ['aidant-senior-select', 'aidant-link-form', 'aidant-link-management']],
+    ['notification-settings-senior', 'senior-notification-preferences', ['enable-push-button', 'notification-preferences-form']],
+    ['notification-settings-aidant', 'aidant-notification-preferences', ['enable-push-button', 'notification-preferences-form', 'aidant-task-reminders']]
+  ]) {
+    const start = source.indexOf(`id="${sectionId}"`);
+    const section = source.slice(start, source.indexOf('</section>', start));
+    const match = section.match(new RegExp(`<details([^>]*)id="${detailsId}"([^>]*)>`));
+    assert.ok(match, `${detailsId} exists`);
+    assert.doesNotMatch(match[1] + match[2], /\bopen\b/);
+    for (const control of controls) assert.ok(section.indexOf(control) > match.index);
+  }
+  const shortcut = source.match(/onclick="([^"]+)">Gérer mes profils seniors<\/button>/);
+  assert.ok(shortcut);
+  const details = { open: false };
+  let screen;
+  vm.runInNewContext(shortcut[1], {
+    switchScreen: value => { screen = value; },
+    document: { getElementById: id => { assert.equal(id, 'aidant-links-details'); return details; } }
+  });
+  assert.equal(screen, 'settings');
+  assert.equal(details.open, true);
+});
+
 test('senior and caregiver can open the external flea market directory without sharing a profile', () => {
   for (const role of ['senior', 'aidant']) {
     const start = source.indexOf(`id="${role}-local-outings"`);
