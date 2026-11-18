@@ -11,6 +11,8 @@ const downloadSource = path.join(root, 'downloads', download);
 const bundle = 'app-generation-liaison.aab';
 const bundleSource = path.join(root, 'downloads', bundle);
 const buildAndroid = process.argv.includes('--android');
+const buildIos = process.argv.includes('--ios');
+const buildNative = buildAndroid || buildIos;
 const apiUrl = (process.env.CAPACITOR_API_URL || '').replace(/\/+$/, '');
 const pages = [
   'index.html',
@@ -25,16 +27,16 @@ const pages = [
   'cgv.html'
 ];
 
-if (buildAndroid) {
+if (buildNative) {
   let endpoint;
   try {
     endpoint = new URL(apiUrl);
   } catch {
-    console.error('CAPACITOR_API_URL must be a valid HTTPS URL to build the Android app.');
+    console.error('CAPACITOR_API_URL must be a valid HTTPS URL to build a native app.');
     process.exit(1);
   }
   if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password) {
-    console.error('CAPACITOR_API_URL must be a valid HTTPS URL to build the Android app.');
+    console.error('CAPACITOR_API_URL must be a valid HTTPS URL to build a native app.');
     process.exit(1);
   }
 }
@@ -46,7 +48,7 @@ for (const file of ['robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 
   fs.copyFileSync(path.join(root, file), path.join(output, file));
 }
 
-const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg', 'apercu-carnet.png'];
+const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg', 'apercu-carnet.png', 'apercu-accueil-senior.png', 'apercu-espace-proche.png'];
 fs.mkdirSync(path.join(output, 'homepage-images'), { recursive: true });
 for (const image of homepageImages) {
   fs.copyFileSync(path.join(root, 'homepage-images', image), path.join(output, 'homepage-images', image));
@@ -100,7 +102,7 @@ fs.copyFileSync(
 
 const destinationPath = path.join(output, download);
 const bundleDestinationPath = path.join(output, bundle);
-if (buildAndroid) {
+if (buildNative) {
   fs.rmSync(destinationPath, { force: true });
   fs.rmSync(bundleDestinationPath, { force: true });
 } else {

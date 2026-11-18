@@ -84,6 +84,32 @@ async function register(email, role, isLegalGuardian = false) {
   return result.data;
 }
 
+test('iOS native push registration is rejected but existing registrations can be removed', async () => {
+  const user = await register('ios-push-test@example.test', 'senior');
+  const previous = delivery.isConfigured;
+  delivery.isConfigured = () => ({ email: true, nativePush: true, webPush: true });
+  try {
+    const ios = await request('/api/notifications/push-subscriptions', {
+      user, body: { platform: 'ios', token: 'apns-token' }
+    });
+    assert.equal(ios.status, 503);
+    assert.match(ios.data.error, /iPhone.*pas encore disponibles/);
+    const android = await request('/api/notifications/push-subscriptions', {
+      user, body: { platform: 'android', token: 'fcm-token' }
+    });
+    assert.equal(android.status, 201);
+    await db.query('INSERT INTO app_push_subscriptions (id, user_id, platform, token) VALUES ($1, $2, $3, $4)',
+      [randomUUID(), user.user.id, 'ios', 'legacy-apns-token']);
+    const removed = await request('/api/notifications/push-subscriptions', {
+      user, method: 'DELETE', body: { platform: 'ios', token: 'legacy-apns-token' }
+    });
+    assert.equal(removed.status, 200);
+    assert.equal(removed.data.registered, false);
+  } finally {
+    delivery.isConfigured = previous;
+  }
+});
+
 test('weather requires a valid session and valid coordinates and reports missing configuration', async () => {
   const senior = await register('weather-senior@example.test', 'senior');
   const aidant = await register('weather-aidant@example.test', 'aidant');

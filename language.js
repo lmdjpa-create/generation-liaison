@@ -115,6 +115,19 @@
       'You can add a shortcut to your phone without downloading a file. Menus and their names may vary by browser.',
     '1. Ouvrez le site': '1. Open the site',
     'Sur votre téléphone, ouvrez Génération Liaison dans votre navigateur.': 'On your phone, open Génération Liaison in your browser.',
+    'Sur iPhone : ajouter le site à l’écran d’accueil': 'On iPhone: add the website to your home screen',
+    'Ce raccourci ouvre le site : il ne s’agit pas d’une application téléchargée. Les menus peuvent varier selon la version d’iOS.':
+      'This shortcut opens the website; it is not a downloaded app. Menus may vary depending on the iOS version.',
+    '1. Ouvrez Safari': '1. Open Safari',
+    'Sur votre iPhone, ouvrez Génération Liaison dans Safari.': 'On your iPhone, open Génération Liaison in Safari.',
+    '2. Touchez Partager': '2. Tap Share',
+    'Touchez le bouton Partager : le carré avec une flèche vers le haut.': 'Tap the Share button: the square with an upward arrow.',
+    'Choisissez « Ajouter à l’écran d’accueil », puis touchez « Ajouter ». Faites défiler le menu si nécessaire.':
+      'Choose “Add to Home Screen”, then tap “Add”. Scroll through the menu if necessary.',
+    'Sur Android, vous pouvez aussi utiliser le menu à trois points de votre navigateur pour ajouter le site à l’écran d’accueil, ou télécharger l’application ci-dessous.':
+      'On Android, you can also use your browser’s three-dot menu to add the website to your home screen, or download the app below.',
+    'Sur iPhone, utilisez le site dans Safari : aucune application iOS native n’est proposée. Vous pouvez ajouter un raccourci à l’écran d’accueil en suivant les étapes ci-dessous.':
+      'On iPhone, use the website in Safari: no native iOS app is offered. You can add a home screen shortcut by following the steps below.',
     '2. Ouvrez le menu': '2. Open the menu',
     'Sur Android, touchez les trois points du navigateur. Sur iPhone, dans Safari, touchez le bouton Partager (carré avec une flèche).':
       'On Android, tap the three dots in the browser. On iPhone, in Safari, tap the Share button (a square with an arrow).',
@@ -143,7 +156,20 @@
       'The assistant’s answers may be imprecise or incomplete; they do not replace professional advice.',
     'Un proche · Aujourd’hui à 9 h 30': 'Family member · Today at 9:30 AM',
     'La promenade de cet après-midi est prévue avec un proche.': 'A walk is planned with a family member this afternoon.',
-    'Un soignant · Aujourd’hui à 8 h 15': 'Care professional · Today at 8:15 AM',
+    'Un intervenant à domicile · Aujourd’hui à 8 h 15': 'Home support worker · Today at 8:15 AM',
+    'Espace Proche de l’interface senior : boutons Notifications et messages, Contacts et Jeux gratuits.':
+      'Family section of the senior interface: Notifications and messages, Contacts and Free games buttons.',
+    'Capture en français de l’espace Proche de l’interface senior.':
+      'Screenshot in French of the family section of the senior interface.',
+    'Voir aussi la vue simplifiée': 'See the simplified view too',
+    'Capture en français de la vue simplifiée facultative, avec des données fictives.':
+      'Screenshot in French of the optional simplified view, with fictional data.',
+    'Accueil senior en vue simplifiée : notifications et messages, journal, rendez-vous et contacts.':
+      'Senior home screen in simplified view: notifications and messages, journal, appointments and contacts.',
+    'Les services disponibles dépendent des équipes associées et de leur disponibilité. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.':
+      'Available services depend on associated teams and their availability. Before approving a professional account, the administration reviews identification and the Kbis business registration document.',
+    'L’assurance et la qualité des prestations ne sont pas vérifiées par l’application. Demandez les justificatifs et un devis au prestataire avant de vous engager.':
+      'The app does not verify insurance or service quality. Ask the provider for supporting documents and a quote before committing.',
     'Le prochain rendez-vous est confirmé.': 'The next appointment is confirmed.',
     'Un aperçu du carnet de liaison avec des données fictives.':
       'A preview of the activity log with fictional data.',

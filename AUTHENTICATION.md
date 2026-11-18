@@ -145,9 +145,11 @@ npm run android:sync
 
 Then build/install the Android app using the project's normal Gradle workflow. The app must be rebuilt and reinstalled after changing the API URL or mobile login code.
 
-The iOS application declares purpose descriptions for optional location, camera, microphone, speech recognition and photo access. The Capacitor location plugin also requires an always-and-when-in-use description, although the app does not request background location. Build and verify these permission prompts and feature support on an iOS device before release; an Xcode build and Apple signing are required.
+The iOS application declares purpose descriptions for optional location, camera, microphone, speech recognition and photo access. The Capacitor location plugin also requires an always-and-when-in-use description, although the app does not request background location. Set the same `CAPACITOR_API_URL` HTTPS setting and run `npm run ios:sync` to prepare the assets and mobile entry page. Build and verify the app, permission prompts and feature support on an iOS device before release; a Mac, Xcode and Apple signing are required.
 
-After adding `google-services.json`, run `npm run android:sync` and rebuild/reinstall the app. For iOS, synchronize with `npx cap sync ios`, configure the app's Push Notifications capability and APNs credentials in the Apple developer account, then rebuild and sign from Xcode.
+After adding `google-services.json`, run `npm run android:sync` and rebuild/reinstall the app. For iOS, run `npm run ios:sync`, configure the app's Push Notifications capability and APNs credentials in the Apple developer account, then rebuild and sign from Xcode. Native iOS notification delivery must be verified on a device before it is offered.
+
+iOS native push is not ready: the iOS app delegate does not yet forward registration callbacks to Capacitor, and the current server sends native tokens through Firebase while the Capacitor iOS plugin produces an APNs token. The app and server therefore reject new iOS native push registrations, and existing iOS tokens are not sent to Firebase. In-app notifications and supported browser push remain available. Configuration alone does not bridge these differences; an appropriate token integration and end-to-end device verification are still required.
 
 ## Current limitations
 

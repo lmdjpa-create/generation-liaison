@@ -4796,6 +4796,7 @@
         if (localStorage.getItem(requestKey) || localStorage.getItem('pushWasDisabled') ||
             localStorage.getItem(PUSH_TOKEN_KEY)) return;
         const platform = window.Capacitor?.getPlatform?.();
+        if (platform === 'ios') return;
         const native = platform === 'android' || platform === 'ios';
         if (native ? typeof window.requestNativePushPermission !== 'function' :
             !('serviceWorker' in navigator) || !('PushManager' in window) ||
@@ -4845,7 +4846,7 @@
             document.querySelector(`#notification-settings-${role} .channel-status`).textContent =
                 `E-mail : ${configuration.channels.email ? 'prêt' : 'non configuré'} · SMS : ${configuration.channels.sms ? 'prêt' : 'non configuré'}.`;
             const platform = window.Capacitor?.getPlatform?.();
-            const pushConfigured = platform === 'android' || platform === 'ios'
+            const pushConfigured = platform === 'ios' ? false : platform === 'android'
                 ? configuration.channels.nativePush
                 : configuration.channels.webPush;
             const pushRegistered = Boolean(localStorage.getItem(PUSH_TOKEN_KEY));
@@ -4855,7 +4856,9 @@
                 : localStorage.getItem('pushWasDisabled')
                     ? 'Réactiver les notifications sur cet appareil'
                     : 'Activer les notifications sur cet appareil';
-            status.textContent = pushRegistered
+            status.textContent = platform === 'ios'
+                ? 'Les notifications sur l’application iPhone ne sont pas encore disponibles. Les notifications restent visibles dans l’application.'
+                : pushRegistered
                 ? 'Cet appareil est inscrit pour les notifications push.'
                 : pushConfigured
                     ? 'Les notifications push sont prêtes à être activées sur cet appareil.'
@@ -4869,8 +4872,11 @@
         button.disabled = true;
         const role = button.dataset.role;
         const status = document.querySelector(`#notification-settings-${role} .push-status`);
+        const platform = window.Capacitor?.getPlatform?.();
         try {
-            const platform = window.Capacitor?.getPlatform?.();
+            if (platform === 'ios') {
+                throw new Error('Les notifications sur l’application iPhone ne sont pas encore disponibles.');
+            }
             if (platform === 'android' || platform === 'ios') {
                 if (typeof window.registerNativePush !== 'function') {
                     throw new Error('Le module de notifications mobiles n’est pas chargé.');
@@ -4912,7 +4918,7 @@
             status.textContent = error.message || 'Impossible d’activer les notifications push.';
             showToast(status.textContent, false);
         } finally {
-            button.disabled = false;
+            button.disabled = platform === 'ios' && !localStorage.getItem(PUSH_TOKEN_KEY);
         }
     }
 
@@ -5022,7 +5028,7 @@
             status.textContent = error.message || 'Impossible de désactiver les notifications push.';
             showToast(status.textContent, false);
         } finally {
-            button.disabled = false;
+            button.disabled = window.Capacitor?.getPlatform?.() === 'ios' && !localStorage.getItem(PUSH_TOKEN_KEY);
         }
     }
 

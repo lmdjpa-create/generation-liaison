@@ -79,11 +79,38 @@ test('homepage shows a responsive, readable fictional journal example beside dir
   const example = source.slice(preview, source.indexOf('</figure>', preview));
   assert.match(example, /role="group" aria-label="Exemple fictif de carnet de liaison"/);
   assert.match(example, /Un proche · Aujourd’hui à 9 h 30/);
-  assert.match(example, /Un soignant · Aujourd’hui à 8 h 15/);
+  assert.match(example, /Un intervenant à domicile · Aujourd’hui à 8 h 15/);
+  assert.doesNotMatch(example, /Un soignant/);
   assert.match(source, /\.journal-preview-entry p\s*\{\s*margin: 0;\s*font-size: 1rem;/);
   assert.doesNotMatch(example, /<img/);
   assert.match(source, /<figcaption>Un aperçu du carnet de liaison avec des données fictives\.<\/figcaption>/);
   assert.match(source, /href="#exemple-carnet">Voir un exemple de carnet<\/a>/);
+});
+
+test('homepage shows the actual optional senior view and explains its fictional data', () => {
+  const image = source.indexOf('src="/homepage-images/apercu-accueil-senior.png"');
+  const preview = source.slice(source.lastIndexOf('<figure class="landing-interface-preview">', image), source.indexOf('</figure>', image));
+  assert.match(preview, /src="\/homepage-images\/apercu-accueil-senior\.png"/);
+  assert.match(preview, /alt="Accueil senior en vue simplifiée/);
+  assert.match(preview, /vue simplifiée facultative, avec des données fictives/);
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'homepage-images', 'apercu-accueil-senior.png')));
+});
+
+test('homepage immediately shows real senior controls with pictograms', () => {
+  const preview = source.slice(source.indexOf('<figure class="landing-interface-preview">'), source.indexOf('</figure>', source.indexOf('<figure class="landing-interface-preview">')));
+  assert.match(preview, /src="\/homepage-images\/apercu-espace-proche\.png"/);
+  assert.match(preview, /alt="Espace Proche de l’interface senior/);
+  assert.match(preview, /Capture en français/);
+  assert.ok(fs.existsSync(path.join(__dirname, '..', 'homepage-images', 'apercu-espace-proche.png')));
+});
+
+test('homepage visibly explains service verification limits without promising insurance checks', () => {
+  const start = source.indexOf('<section class="landing-info" aria-labelledby="daily-life-title">');
+  const block = source.slice(start, source.indexOf('<div class="info-grid">', start));
+  assert.ok(start >= 0);
+  assert.match(block, /dépendent des équipes associées et de leur disponibilité/);
+  assert.match(block, /l’administration examine la pièce d’identité et le Kbis/);
+  assert.match(block, /L’assurance et la qualité des prestations ne sont pas vérifiées/);
 });
 
 test('homepage pricing explains free launch access and external services', () => {
@@ -126,11 +153,14 @@ test('home screen instructions distinguish Android and iPhone and retain the sep
   const end = source.indexOf('<a class="landing-download-link"', start);
   assert.ok(start > 0 && end > start);
   const guide = source.slice(start, end);
+  assert.match(source.slice(source.indexOf('<section class="landing-card" id="connexion"'), start), /aucune application iOS native n’est proposée/);
   assert.equal((guide.match(/<li>/g) || []).length, 3);
-  assert.match(guide, /Android.*trois points/);
-  assert.match(guide, /iPhone.*Safari.*Partager/);
+  assert.match(guide, /Sur iPhone : ajouter le site à l’écran d’accueil/);
+  assert.match(guide, /iPhone, ouvrez Génération Liaison dans Safari/);
+  assert.match(guide, /Touchez le bouton Partager/);
+  assert.match(guide, /Sur Android.*trois points/);
   assert.match(guide, /Ajouter à l’écran d’accueil/);
-  assert.match(guide, /peuvent varier selon le navigateur/);
+  assert.match(guide, /menus peuvent varier selon la version d’iOS/);
   assert.match(source.slice(end), /href="\/app-generation-liaison\.apk" download/);
 });
 

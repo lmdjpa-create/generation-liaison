@@ -815,6 +815,26 @@
       margin: 0 auto 24px;
     }
 
+    .landing-interface-preview {
+      max-width: 320px;
+      margin: 0 auto 20px;
+    }
+
+    .landing-interface-preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+    }
+
+    .landing-interface-details summary {
+      color: var(--primary-dark);
+      cursor: pointer;
+      font-weight: 700;
+      margin: 0 0 14px;
+    }
+
     .journal-preview {
       display: grid;
       gap: 12px;
@@ -861,7 +881,8 @@
       border-radius: 16px;
     }
 
-    .landing-preview figcaption {
+    .landing-preview figcaption,
+    .landing-interface-preview figcaption {
       margin-top: 10px;
       color: #53665c;
       font-size: 0.9rem;
@@ -1043,6 +1064,7 @@
     }
 
     .install-steps p { margin: 0; }
+    .install-guide .install-android-note { margin: 14px 0 0; }
 
     .landing-info.privacy-highlight {
       border-color: #b7d9c7;
@@ -1103,6 +1125,18 @@
           <a class="landing-login" href="/app-mobile.html#inscription">Créer un espace gratuitement <span aria-hidden="true">→</span></a>
           <a class="landing-app-link" href="#exemple-carnet">Voir un exemple de carnet</a>
         </div>
+        <div>
+        <figure class="landing-interface-preview">
+          <img src="/homepage-images/apercu-espace-proche.png" width="480" height="415" alt="Espace Proche de l’interface senior : boutons Notifications et messages, Contacts et Jeux gratuits." />
+          <figcaption>Capture en français de l’espace Proche de l’interface senior.</figcaption>
+        </figure>
+        <details class="landing-interface-details">
+        <summary>Voir aussi la vue simplifiée</summary>
+        <figure class="landing-interface-preview">
+          <img src="/homepage-images/apercu-accueil-senior.png" width="480" height="575" alt="Accueil senior en vue simplifiée : notifications et messages, journal, rendez-vous et contacts." />
+          <figcaption>Capture en français de la vue simplifiée facultative, avec des données fictives.</figcaption>
+        </figure>
+        </details>
         <figure class="landing-preview" id="exemple-carnet">
           <div class="journal-preview" role="group" aria-label="Exemple fictif de carnet de liaison">
             <div class="journal-preview-title">Exemple de carnet de liaison</div>
@@ -1111,12 +1145,13 @@
               <p>La promenade de cet après-midi est prévue avec un proche.</p>
             </article>
             <article class="journal-preview-entry">
-              <strong>Un soignant · Aujourd’hui à 8 h 15</strong>
+              <strong>Un intervenant à domicile · Aujourd’hui à 8 h 15</strong>
               <p>Le prochain rendez-vous est confirmé.</p>
             </article>
           </div>
           <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
         </figure>
+        </div>
       </div>
     </section>
 
@@ -1178,6 +1213,8 @@
 
     <section class="landing-info" aria-labelledby="daily-life-title">
       <h2 id="daily-life-title">Accompagnement et services du quotidien</h2>
+      <p>Les services disponibles dépendent des équipes associées et de leur disponibilité. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.</p>
+      <p>L’assurance et la qualité des prestations ne sont pas vérifiées par l’application. Demandez les justificatifs et un devis au prestataire avant de vous engager.</p>
       <div class="info-grid">
         <details class="info-card">
           <summary>Garder le lien au quotidien</summary>
@@ -1231,26 +1268,28 @@
       <h2 id="connexion-title">Accéder à Génération Liaison</h2>
       <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
+      <p class="landing-note">Sur iPhone, utilisez le site dans Safari : aucune application iOS native n’est proposée. Vous pouvez ajouter un raccourci à l’écran d’accueil en suivant les étapes ci-dessous.</p>
       <div class="install-guide" aria-labelledby="install-guide-title">
-        <h3 id="install-guide-title">Retrouver le site sur l’écran d’accueil</h3>
-        <p>Sans télécharger de fichier, vous pouvez ajouter un raccourci sur votre téléphone. Les menus et leurs noms peuvent varier selon le navigateur.</p>
+        <h3 id="install-guide-title">Sur iPhone : ajouter le site à l’écran d’accueil</h3>
+        <p>Ce raccourci ouvre le site : il ne s’agit pas d’une application téléchargée. Les menus peuvent varier selon la version d’iOS.</p>
         <ol class="install-steps">
           <li>
             <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="11" y="3" width="26" height="42" rx="5" fill="#e2f1e7" stroke="#156c4f" stroke-width="2"/><path d="M17 16h14M17 22h14M17 28h9" fill="none" stroke="#156c4f" stroke-width="2" stroke-linecap="round"/></svg>
-            <strong>1. Ouvrez le site</strong>
-            <p>Sur votre téléphone, ouvrez Génération Liaison dans votre navigateur.</p>
+            <strong>1. Ouvrez Safari</strong>
+            <p>Sur votre iPhone, ouvrez Génération Liaison dans Safari.</p>
           </li>
           <li>
             <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="3" y="5" width="19" height="38" rx="4" fill="#e2f1e7"/><circle cx="13" cy="14" r="2" fill="#156c4f"/><circle cx="13" cy="22" r="2" fill="#156c4f"/><circle cx="13" cy="30" r="2" fill="#156c4f"/><rect x="26" y="5" width="19" height="38" rx="4" fill="#e2f1e7"/><path d="M35.5 28V13m-4 4 4-4 4 4M30 23v9h11v-9" fill="none" stroke="#156c4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <strong>2. Ouvrez le menu</strong>
-            <p>Sur Android, touchez les trois points du navigateur. Sur iPhone, dans Safari, touchez le bouton Partager (carré avec une flèche).</p>
+            <strong>2. Touchez Partager</strong>
+            <p>Touchez le bouton Partager : le carré avec une flèche vers le haut.</p>
           </li>
           <li>
             <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="8" y="8" width="32" height="32" rx="7" fill="#e2f1e7" stroke="#156c4f" stroke-width="2"/><path d="M24 16v16M16 24h16" fill="none" stroke="#156c4f" stroke-width="3" stroke-linecap="round"/></svg>
             <strong>3. Ajoutez le raccourci</strong>
-            <p>Choisissez « Ajouter à l’écran d’accueil » ou « Installer l’application », puis confirmez si demandé.</p>
+            <p>Choisissez « Ajouter à l’écran d’accueil », puis touchez « Ajouter ». Faites défiler le menu si nécessaire.</p>
           </li>
         </ol>
+        <p class="install-android-note">Sur Android, vous pouvez aussi utiliser le menu à trois points de votre navigateur pour ajouter le site à l’écran d’accueil, ou télécharger l’application ci-dessous.</p>
       </div>
       <a class="landing-download-link" href="/app-generation-liaison.apk" download>
         Télécharger l’application Android

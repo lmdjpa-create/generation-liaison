@@ -132,6 +132,7 @@ test('external notifications use fixed text across channels while keeping urgent
     notification_type: 'private_message',
     subscriptions: [
       { platform: 'android', token: 'native-token' },
+      { platform: 'ios', token: 'legacy-apns-token' },
       { id: 'web-id', platform: 'web', token: JSON.stringify({ endpoint: 'https://example.test' }) }
     ],
     pool: { query: async () => ({ rows: [] }) },
@@ -145,6 +146,7 @@ test('external notifications use fixed text across channels while keeping urgent
   assert.match(sent.sms[0].body, /notification=notification-id/);
   assert.match(sent.email[0].text, /notification=notification-id/);
   assert.equal(sent.native[0].data.notificationId, 'notification-id');
+  assert.deepEqual(Array.from(sent.native[0].tokens), ['native-token']);
   assert.equal(sent.web[0].data.notificationId, 'notification-id');
   assert.equal(sent.native[0].notification.title, 'Génération Liaison');
   assert.equal(sent.web[0].title, 'Génération Liaison');
@@ -153,4 +155,8 @@ test('external notifications use fixed text across channels while keeping urgent
   assert.equal(sent.web[1].title, 'Alerte d’urgence');
   await context.testDeliver({ ...delivery, channel: 'sms', notification_type: 'wellbeing_safety_check' });
   assert.match(sent.sms[1].body, /^Vérification de sécurité sans réponse/);
+  assert.equal(await context.testDeliver({ ...delivery, channel: 'push', subscriptions: [
+    { platform: 'ios', token: 'legacy-apns-token' }
+  ] }), false);
+  assert.equal(sent.native.length, 2);
 });

@@ -5097,6 +5097,9 @@ app.post('/api/notifications/push-subscriptions', requireAuth, async (req, res) 
       typeof token !== 'string' || !token.trim() || token.length > 8192) {
     return res.status(400).json({ error: 'Inscription push invalide.' });
   }
+  if (platform === 'ios') {
+    return res.status(503).json({ error: 'Les notifications push de l’application iPhone ne sont pas encore disponibles.' });
+  }
   const configuredChannels = notificationDelivery.isConfigured();
   if ((platform === 'web' && !configuredChannels.webPush) ||
       (platform !== 'web' && !configuredChannels.nativePush)) {

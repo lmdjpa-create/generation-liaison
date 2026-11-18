@@ -19,6 +19,9 @@ window.requestNativePushPermission = async (automatic = false) => {
 };
 
 window.registerNativePush = async (serverUrl, sessionToken) => {
+  if (window.Capacitor?.getPlatform?.() === 'ios') {
+    throw new Error('Les notifications sur l’application iPhone ne sont pas encore disponibles.');
+  }
   if (await window.requestNativePushPermission() !== 'granted') {
     throw new Error('Autorisez les notifications dans les réglages de votre appareil.');
   }

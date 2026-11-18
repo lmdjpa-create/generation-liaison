@@ -1305,6 +1305,49 @@ test('notification activation is offered only when the server is configured', as
   }
 });
 
+test('iOS native push is unavailable without affecting Android or existing removal', async () => {
+  const form = { querySelector: () => ({}) };
+  const button = {};
+  const status = {};
+  let platform = 'ios';
+  let token = null;
+  let permissionRequests = 0;
+  const context = {
+    connectedUser: { id: 'user-1', role: 'senior' },
+    document: { querySelector: selector => {
+      if (selector.startsWith('.notification-preferences-form')) return form;
+      if (selector.startsWith('.enable-push-button')) return button;
+      return status;
+    } },
+    window: { Capacitor: { getPlatform: () => platform }, requestNativePushPermission: async () => { permissionRequests++; } },
+    localStorage: { getItem: key => key === 'push' ? token : null, setItem() {} },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async url => url.endsWith('/preferences')
+      ? { phone: '', emailEnabled: false, smsEnabled: false }
+      : { channels: { email: false, sms: false, nativePush: true } },
+    console
+  };
+  vm.runInNewContext(
+    `${extract('    async function demanderNotificationsAutomatiquement(user)', '    async function activerNotificationsPush(button)')}\n` +
+    'globalThis.loadPreferences = chargerPreferencesNotification; globalThis.requestAutomatically = demanderNotificationsAutomatiquement;', context
+  );
+  await context.requestAutomatically(context.connectedUser);
+  assert.equal(permissionRequests, 0);
+  await context.loadPreferences();
+  assert.equal(button.disabled, true);
+  assert.match(status.textContent, /iPhone ne sont pas encore disponibles/);
+  token = 'existing';
+  await context.loadPreferences();
+  assert.equal(button.disabled, false);
+  assert.match(button.textContent, /Désactiver/);
+  assert.match(status.textContent, /ne sont pas encore disponibles/);
+  token = null;
+  platform = 'android';
+  await context.loadPreferences();
+  assert.equal(button.disabled, false);
+  assert.match(status.textContent, /prêtes à être activées/);
+});
+
 test('notification permission is requested once only when supported and configured', async () => {
   const stored = new Map();
   const status = {};
@@ -1377,6 +1420,56 @@ test('automatic native permission requests respect previously refused permission
   state = 'prompt';
   assert.equal(await context.window.requestNativePushPermission(true), 'granted');
   assert.equal(requests, 1);
+});
+
+test('iOS native push registration does not request permission or register a token', async () => {
+  const client = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'push-client.js'), 'utf8');
+  const start = client.indexOf('window.registerNativePush = async');
+  const end = client.indexOf('window.unregisterNativePush = async', start);
+  assert.ok(start >= 0 && end > start);
+  let requests = 0;
+  const context = {
+    window: {
+      Capacitor: { getPlatform: () => 'ios' },
+      requestNativePushPermission: async () => { requests++; return 'granted'; }
+    }
+  };
+  vm.runInNewContext(client.slice(start, end), context);
+  await assert.rejects(context.window.registerNativePush('https://example.test', 'session'), /pas encore disponibles/);
+  assert.equal(requests, 0);
+});
+
+test('removing a legacy iOS push registration leaves activation disabled', async () => {
+  const stored = new Map([['push', JSON.stringify({ platform: 'ios', token: 'legacy-token' })]]);
+  const status = {};
+  const button = { dataset: { role: 'senior' } };
+  const calls = [];
+  const context = {
+    window: {
+      Capacitor: { getPlatform: () => 'ios', isNativePlatform: () => true },
+      unregisterNativePush: async () => calls.push('unregister')
+    },
+    document: { querySelector: () => status },
+    localStorage: {
+      getItem: key => stored.get(key) || null,
+      setItem: (key, value) => stored.set(key, value),
+      removeItem: key => stored.delete(key)
+    },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async (path, options) => calls.push({ path, method: options.method, body: options.body }),
+    chargerPreferencesNotification: async () => {},
+    showToast: () => {}
+  };
+  vm.runInNewContext(
+    `${extract('    async function desactiverNotificationsPush(button)', '    function actualiserCompteurNotifications(count)')}\n` +
+    'globalThis.disablePush = desactiverNotificationsPush;', context
+  );
+  await context.disablePush(button);
+  assert.equal(calls[0].method, 'DELETE');
+  assert.equal(calls[0].body.platform, 'ios');
+  assert.equal(calls[1], 'unregister');
+  assert.equal(stored.has('push'), false);
+  assert.equal(button.disabled, true);
 });
 
 test('emergency details are optional while numbers, confirmation and status stay accessible', () => {

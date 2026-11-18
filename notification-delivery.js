@@ -134,7 +134,7 @@ async function sendPush(delivery) {
   const notification = externalNotification(delivery.notification_type);
 
   const nativeTokens = subscriptions
-    .filter(subscription => subscription.platform === 'android' || subscription.platform === 'ios')
+    .filter(subscription => subscription.platform === 'android')
     .map(subscription => subscription.token);
   const webSubscriptions = subscriptions
     .filter(subscription => subscription.platform === 'web')
@@ -157,7 +157,7 @@ async function sendPush(delivery) {
       .map(({ token }) => token);
     if (invalidTokens.length) {
       await delivery.pool.query(
-        'DELETE FROM app_push_subscriptions WHERE platform IN (\'android\', \'ios\') AND token = ANY($1)',
+        'DELETE FROM app_push_subscriptions WHERE platform = \'android\' AND token = ANY($1)',
         [invalidTokens]
       );
     }
@@ -196,7 +196,7 @@ async function sendPush(delivery) {
     }
   }
 
-  return true;
+  return nativeTokens.length > 0 || webSubscriptions.length > 0;
 }
 
 async function deliver(delivery) {
