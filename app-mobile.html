@@ -297,6 +297,8 @@
         .calendar-event { background: var(--brand-soft); border-radius: 8px; }
         .visit-time { color: var(--brand-dark); }
         .next-visit-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; margin: 0 0 16px; padding: 18px; border-radius: 20px; color: white; background: linear-gradient(135deg, #34b087, var(--brand-dark)); box-shadow: 0 8px 20px rgba(31, 127, 97, 0.25); }
+        #aidant-followed-person { justify-content: center; text-align: center; }
+        #aidant-daily-summary-title { text-align: center; }
         #senior-next-visit { flex-direction: column; text-align: center; }
         #senior-next-visit .next-visit-text { margin: 8px 0 0; padding: 10px 14px; border-radius: 12px; background: #fff3cc; color: #19384a; font-weight: 700; overflow-wrap: anywhere; }
         .next-visit-label { margin: 0 0 4px; font-size: 1.1rem; font-weight: 800; }
@@ -1058,7 +1060,7 @@
         <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
         
     </section>
-    <div class="header-mobile next-visit-card" style="flex-direction:row;">
+    <div class="header-mobile next-visit-card" id="aidant-followed-person" style="flex-direction:row;">
         <div>
             <p class="next-visit-label">Suivi de <span id="senior-name-aidant">Senior</span></p>
             <p class="next-visit-text">Espace Proches 👨‍👩‍👧‍👦</p>
