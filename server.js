@@ -11,6 +11,7 @@ const { isAllowedWebPushSubscription } = require('./push-subscriptions');
 const googleCalendar = require('./google-calendar');
 const { assertLegacyBookingsSafeForLink, assertScheduleAvailable, lockScheduleParticipants } = require('./schedule-conflicts');
 const { startTaskReminderWorker } = require('./task-reminders');
+const { startBirthdayReminderWorker } = require('./birthday-reminders');
 const { createPlanningGoogleSync } = require('./planning-google-sync');
 const {
   generateAdminReply,
@@ -6244,7 +6245,7 @@ async function loadPersonalAgenda(user, start, end, otherEvents, next = false) {
   const bounds = `$2::date::timestamp AT TIME ZONE 'Europe/Paris'`;
   const endBounds = `$3::date::timestamp AT TIME ZONE 'Europe/Paris'`;
   const { rows: own } = await pool.query(
-    personalOccurrencesQuery(`SELECT id, title, starts_at, duration_minutes, recurrence FROM app_personal_events
+    personalOccurrencesQuery(`SELECT id, title, starts_at, duration_minutes, recurrence, birth_date FROM app_personal_events
      WHERE owner_user_id = $1 AND starts_at < ${endBounds}
        AND (recurrence <> 'none' OR starts_at >= ${bounds})`),
     [user.id, start, end]
@@ -6252,7 +6253,7 @@ async function loadPersonalAgenda(user, start, end, otherEvents, next = false) {
   const partners = next ? [] : await listAgendaPartners(user);
   const partnerIds = partners.map(partner => partner.id);
   const { rows: shared } = partnerIds.length ? await pool.query(
-    personalOccurrencesQuery(`SELECT event.id, event.title, event.starts_at, event.duration_minutes, event.recurrence, owner.name AS owner_name
+    personalOccurrencesQuery(`SELECT event.id, event.title, event.starts_at, event.duration_minutes, event.recurrence, event.birth_date, owner.name AS owner_name
      FROM app_agenda_share_requests share
      JOIN app_personal_events event ON event.owner_user_id = share.owner_user_id
      JOIN app_users owner ON owner.id = share.owner_user_id
@@ -6269,8 +6270,10 @@ async function loadPersonalAgenda(user, start, end, otherEvents, next = false) {
   };
   const mine = [...otherEvents, ...own];
   const overlaps = (event, list) => {
+    if (event.birth_date) return false;
     const [from, to] = span(event);
     return list.some(item => {
+      if (item.birth_date) return false;
       const [otherFrom, otherTo] = span(item);
       return from < otherTo && otherFrom < to;
     });
@@ -6739,6 +6742,33 @@ app.delete('/api/shared-tasks/:id/claim', requireAuth, (req, res) => {
   });
 });
 
+app.post('/api/agenda/birthdays', requireAuth, async (req, res) => {
+  if (!AGENDA_ROLES.includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
+  }
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const birthDate = req.body?.birthDate;
+  const today = dateInTimeZone(new Date(), 'Europe/Paris');
+  if (!name || name.length > 100) {
+    return res.status(400).json({ error: 'Indiquez un nom de 100 caractères maximum.' });
+  }
+  if (!isValidIsoDate(birthDate) || birthDate.slice(0, 4) === '0000' || birthDate > today) {
+    return res.status(400).json({ error: 'Choisissez une date de naissance valide, pas dans le futur.' });
+  }
+  try {
+    const id = randomUUID();
+    await pool.query(
+      `INSERT INTO app_personal_events
+         (id, owner_user_id, title, starts_at, duration_minutes, recurrence, birth_date)
+       VALUES ($1, $2, $3, ($4::date + TIME '09:00') AT TIME ZONE 'Europe/Paris', 15, 'yearly', $4::date)`,
+      [id, req.authUser.id, `Anniversaire de ${name}`, birthDate]
+    );
+    res.status(201).json({ id });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer l’anniversaire.');
+  }
+});
+
 app.post('/api/agenda/events', requireAuth, async (req, res) => {
   if (!AGENDA_ROLES.includes(req.authUser.role)) {
     return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
@@ -6783,7 +6813,14 @@ app.delete('/api/agenda/events/:id', requireAuth, async (req, res) => {
   }
   try {
     const { rows } = await pool.query(
-      'DELETE FROM app_personal_events WHERE id = $1 AND owner_user_id = $2 RETURNING id',
+      `WITH removed AS (
+         DELETE FROM app_personal_events WHERE id = $1 AND owner_user_id = $2 RETURNING id
+       ), deleted_notifications AS (
+         DELETE FROM app_notifications notification USING removed
+         WHERE notification.user_id = $2 AND notification.entity_type = 'birthday'
+           AND notification.entity_id = removed.id
+       )
+       SELECT id FROM removed`,
       [req.params.id, req.authUser.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
@@ -7607,6 +7644,7 @@ if (require.main === module) {
     .then(() => {
       notificationDelivery.startDeliveryWorker(pool);
       startTaskReminderWorker(pool, insertAppNotification);
+      startBirthdayReminderWorker(pool, insertAppNotification);
       startSiteAlertWorker(pool, siteMonitor, adminEmails, insertAppNotification);
       startDirectoryBookingCleanup();
       startPlanningGoogleSync();

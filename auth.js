@@ -653,6 +653,8 @@ function createAuthService(pool) {
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
         ALTER TABLE app_personal_events ADD COLUMN IF NOT EXISTS recurrence VARCHAR(10) NOT NULL DEFAULT 'none';
+        ALTER TABLE app_personal_events ADD COLUMN IF NOT EXISTS birth_date DATE;
+        ALTER TABLE app_personal_events ADD COLUMN IF NOT EXISTS birthday_last_reminded_year INTEGER;
         CREATE INDEX IF NOT EXISTS app_personal_events_owner_date_idx
           ON app_personal_events (owner_user_id, starts_at);
         CREATE TABLE IF NOT EXISTS app_shared_tasks (

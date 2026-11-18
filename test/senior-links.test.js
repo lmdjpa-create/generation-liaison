@@ -7,6 +7,7 @@ const { TERMS_VERSION, createAuthService } = require('../auth');
 const { assertScheduleAvailable, lockScheduleParticipants } = require('../schedule-conflicts');
 const { randomUUID } = require('node:crypto');
 const { createDueTaskReminder } = require('../task-reminders');
+const { createDueBirthdayReminder } = require('../birthday-reminders');
 const { createSiteMonitor } = require('../site-monitor');
 const { createSiteAlerts } = require('../site-monitor-alerts');
 
@@ -990,6 +991,52 @@ test('a senior sends private copies only to explicitly authorized recipients', a
   await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1', [aidant2.user.id]);
   assert.equal((await send(senior, [aidant1.user.id, aidant2.user.id], 'Refusé')).status, 403);
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM app_private_messages WHERE body = 'Refusé'")).rows[0].count, 0);
+});
+
+test('birthdays validate dates, recur annually and remind only the owner with their age', async () => {
+  const senior = await register('birthday-senior@example.test', 'senior');
+  const other = await register('birthday-other@example.test', 'senior');
+  const create = body => request('/api/agenda/birthdays', { user: senior, body });
+  assert.equal((await create({ name: '', birthDate: '2000-02-29' })).status, 400);
+  assert.equal((await create({ name: 'Alice', birthDate: '2001-02-29' })).status, 400);
+  assert.equal((await create({ name: 'Alice', birthDate: '9999-01-01' })).status, 400);
+  assert.equal((await request('/api/agenda/birthdays', { body: { name: 'Alice', birthDate: '2000-02-29' } })).status, 401);
+  const birthday = await create({ name: 'Alice', birthDate: '2000-02-29' });
+  assert.equal(birthday.status, 201);
+  const calendar = user => request('/api/planning/calendar?start=2025-02-27&end=2025-03-02', { user });
+  const events = (await calendar(senior)).data.events;
+  assert.equal(events.length, 1);
+  assert.equal(events[0].title, 'Anniversaire de Alice');
+  assert.equal(events[0].scheduledAt, '2025-02-28T08:00:00.000Z');
+  assert.equal(events[0].conflict, false);
+  assert.equal('birth_date' in events[0], false);
+  assert.deepEqual((await calendar(other)).data.events, []);
+  const pool = new pg.Pool();
+  const sent = [];
+  const notify = async (client, userId, type, title, message, entityType, entityId) => {
+    await client.query(`INSERT INTO app_notifications
+      (id, user_id, notification_type, title, message, entity_type, entity_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [randomUUID(), userId, type, title, message, entityType, entityId]);
+    sent.push({ userId, type, title, message, entityType, entityId });
+  };
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2025-02-28T07:59:00Z')), false);
+  await assert.rejects(createDueBirthdayReminder(pool, async () => { throw new Error('insertion failed'); },
+    new Date('2025-02-28T08:00:00Z')), /insertion failed/);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2025-02-28T08:00:00Z')), true);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2025-02-28T09:00:00Z')), false);
+  assert.equal(sent[0].userId, senior.user.id);
+  assert.equal(sent[0].entityId, birthday.data.id);
+  assert.match(sent[0].message, /Alice.*25 ans/);
+  assert.match((await request('/api/notifications', { user: senior })).data.notifications[0].message, /Alice.*25 ans/);
+  assert.equal((await request('/api/notifications', { user: other })).data.notifications.length, 0);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2028-02-28T09:00:00Z')), false);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2028-02-29T08:00:00Z')), true);
+  assert.match(sent[1].message, /28 ans/);
+  assert.equal((await request(`/api/agenda/events/${birthday.data.id}`, { user: other, method: 'DELETE' })).status, 404);
+  assert.equal((await request(`/api/agenda/events/${birthday.data.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request('/api/notifications', { user: senior })).data.notifications.length, 0);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2029-02-28T08:00:00Z')), false);
 });
 
 test('recurring personal dates preserve Paris time, privacy and series deletion', async () => {

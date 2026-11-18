@@ -6,7 +6,7 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'notification-delivery.js'), 'utf8');
 
-async function deliverSms(enabled, reminderStillValid = null) {
+async function deliverSms(enabled, reminderStillValid = null, reminderType = 'task_reminder') {
   const sends = [];
   const updates = [];
   let tick;
@@ -20,7 +20,7 @@ async function deliverSms(enabled, reminderStillValid = null) {
     notification_phone: '+33612345678', sms_notifications_enabled: enabled
   };
   if (reminderStillValid !== null) {
-    row.notification_type = 'task_reminder';
+    row.notification_type = reminderType;
     row.entity_id = 'task';
   }
   let claimed = false;
@@ -40,6 +40,9 @@ async function deliverSms(enabled, reminderStillValid = null) {
     },
     async query(sql, params) {
       if (sql.includes('FROM app_shared_tasks task')) {
+        return { rows: reminderStillValid ? [{}] : [] };
+      }
+      if (sql.includes('FROM app_personal_events event')) {
         return { rows: reminderStillValid ? [{}] : [] };
       }
       updates.push(params);
@@ -83,6 +86,12 @@ test('SMS is not sent when the recipient has not opted in', async () => {
 
 test('queued task reminders are skipped after access or eligibility changes', async () => {
   const { sends, updates } = await deliverSms(true, false);
+  assert.equal(sends.length, 0);
+  assert.equal(updates[0][1], 'skipped');
+});
+
+test('queued birthday reminders are skipped after deletion', async () => {
+  const { sends, updates } = await deliverSms(true, false, 'birthday_reminder');
   assert.equal(sends.length, 0);
   assert.equal(updates[0][1], 'skipped');
 });

@@ -670,6 +670,39 @@ test('number guessing gives higher and lower hints, stops after success and rest
   assert.match(element('number-game-status').textContent, /Bravo/);
 });
 
+test('birthday form submits the birth date and keeps it when saving fails', async () => {
+  let handler;
+  let resetCount = 0;
+  let refreshCount = 0;
+  let fail = false;
+  let submitted;
+  const nodes = {
+    'birthday-form': { addEventListener: (_, fn) => { handler = fn; }, reset: () => { resetCount++; } },
+    'birthday-name': { value: 'Alice' },
+    'birthday-date': { value: '1950-02-28' },
+    'birthday-message': { textContent: '' }
+  };
+  const context = {
+    document: { getElementById: id => nodes[id] },
+    planningRequest: async (url, options) => {
+      submitted = { url, options };
+      if (fail) throw new Error('Erreur de sauvegarde');
+    },
+    chargerCalendrier: () => { refreshCount++; }
+  };
+  vm.runInNewContext(extract("        document.getElementById('birthday-form').addEventListener", "        document.getElementById('planning-next-day')"), context);
+  await handler({ preventDefault() {} });
+  assert.equal(submitted.url, '/api/agenda/birthdays');
+  assert.equal(submitted.options.body.name, 'Alice');
+  assert.equal(submitted.options.body.birthDate, '1950-02-28');
+  assert.equal(resetCount, 1);
+  assert.equal(refreshCount, 1);
+  fail = true;
+  await handler({ preventDefault() {} });
+  assert.equal(nodes['birthday-message'].textContent, 'Erreur de sauvegarde');
+  assert.equal(resetCount, 1);
+});
+
 test('senior settings remain accessible from navigation without a dashboard shortcut', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   assert.doesNotMatch(dashboard, /switchScreen\('settings'\)/);

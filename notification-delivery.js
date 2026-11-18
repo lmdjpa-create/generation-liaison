@@ -200,6 +200,15 @@ async function sendPush(delivery) {
 }
 
 async function deliver(delivery) {
+  if (delivery.notification_type === 'birthday_reminder') {
+    const { rows } = await delivery.pool.query(
+      `SELECT 1 FROM app_personal_events event
+       JOIN app_users owner ON owner.id = event.owner_user_id AND owner.is_active = TRUE
+       WHERE event.id = $2 AND event.owner_user_id = $1 AND event.birth_date IS NOT NULL`,
+      [delivery.user_id, delivery.entity_id]
+    );
+    if (!rows.length) return false;
+  }
   if (delivery.notification_type === 'task_reminder') {
     const { rows } = await delivery.pool.query(
       `SELECT 1 FROM app_shared_tasks task

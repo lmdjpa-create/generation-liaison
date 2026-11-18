@@ -1742,7 +1742,7 @@
     </details>
     <section class="form-card" id="personal-event-card">
       <details class="senior-tab-disclosure">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Ajouter un rendez-vous ou un anniversaire</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Ajouter un rendez-vous</summary>
         <form id="personal-event-form">
             <input id="personal-event-title" type="text" maxlength="120" placeholder="Titre du rendez-vous" aria-label="Titre du rendez-vous" required>
             <input id="personal-event-start" type="datetime-local" aria-label="Date et heure de Paris" required>
@@ -1752,12 +1752,26 @@
                 <option value="none">Une seule fois</option>
                 <option value="weekly">Chaque semaine</option>
                 <option value="monthly">Chaque mois</option>
-                <option value="yearly">Chaque année (anniversaire)</option>
+                <option value="yearly">Chaque année</option>
             </select>
             <p class="helper-text">Si le jour n’existe pas dans un mois ou une année, le rendez-vous est placé le dernier jour du mois.</p>
             <button type="submit">Ajouter</button>
         </form>
         <p id="personal-event-message" class="helper-text" aria-live="polite"></p>
+      </details>
+    </section>
+    <section class="form-card" id="birthday-card">
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🎂</span>Ajouter un anniversaire</summary>
+        <form id="birthday-form" class="form-grid">
+          <label for="birthday-name">Nom de la personne</label>
+          <input id="birthday-name" type="text" maxlength="100" required>
+          <label for="birthday-date">Date de naissance</label>
+          <input id="birthday-date" type="date" required>
+          <p class="helper-text">L’anniversaire revient chaque année. Un rappel avec l’âge apparaît dans vos notifications à partir de 9 h, heure de Paris, si le service est disponible. Les personnes avec qui vous partagez votre agenda peuvent voir le titre de l’anniversaire. Le 29 février est rappelé le 28 février les années non bissextiles. Les anciens rendez-vous annuels ne créent pas ce rappel.</p>
+          <button type="submit">Ajouter l’anniversaire</button>
+        </form>
+        <p id="birthday-message" class="helper-text" role="status" aria-live="polite"></p>
       </details>
     </section>
     <section class="form-card" id="agenda-shares-card" hidden>
@@ -8570,6 +8584,21 @@
                 chargerCalendrier();
             } catch (error) {
                 message.textContent = error.message || 'Impossible d’ajouter le rendez-vous.';
+            }
+        });
+        document.getElementById('birthday-form').addEventListener('submit', async event => {
+            event.preventDefault();
+            const message = document.getElementById('birthday-message');
+            try {
+                await planningRequest('/api/agenda/birthdays', { method: 'POST', body: {
+                    name: document.getElementById('birthday-name').value,
+                    birthDate: document.getElementById('birthday-date').value
+                } });
+                message.textContent = 'Anniversaire ajouté. Un rappel sera créé le jour même.';
+                document.getElementById('birthday-form').reset();
+                chargerCalendrier();
+            } catch (error) {
+                message.textContent = error.message || 'Impossible d’ajouter l’anniversaire.';
             }
         });
         document.getElementById('planning-next-day').addEventListener('click', () => decalerJourPlanning(1));
