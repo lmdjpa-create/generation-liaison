@@ -560,6 +560,115 @@
         }
         body.senior-simple #screen-messages, body.senior-simple #screen-more,
         body.senior-simple #main-app-senior { font-size: 1.15rem; color: #172f42; }
+        body.soft-workspace :is(.screen-container, #nav-bar) button {
+            background: linear-gradient(120deg, #f3fbf7, #dcefe7) !important;
+            color: #183c34 !important;
+            border: 1px solid #c8ded4;
+        }
+        body.soft-workspace :is(.screen-container, #nav-bar) button:nth-of-type(4n + 2) {
+            background: linear-gradient(120deg, #f3f9ff, #dcecf9) !important;
+            color: #1b3d58 !important;
+            border-color: #c9dfe9;
+        }
+        body.soft-workspace :is(.screen-container, #nav-bar) button:nth-of-type(4n + 3) {
+            background: linear-gradient(120deg, #fcf8ff, #ece2f7) !important;
+            color: #44305a !important;
+            border-color: #dfd4e9;
+        }
+        body.soft-workspace :is(.screen-container, #nav-bar) button:nth-of-type(4n) {
+            background: linear-gradient(120deg, #fffaf3, #faecd6) !important;
+            color: #60431e !important;
+            border-color: #ebdcc5;
+        }
+        body.soft-workspace .screen-container :is(.senior-disclosure, .senior-tab-disclosure) > summary,
+        body.soft-workspace #aidant-senior-content > .form-card > .senior-disclosure > summary {
+            background: linear-gradient(120deg, #f3fbf7, #dcefe7);
+            color: #183c34;
+            border: 1px solid #c8ded4;
+        }
+        body.soft-workspace #aidant-senior-content > .form-card:nth-child(4n + 2) > .senior-disclosure > summary {
+            background: linear-gradient(120deg, #f3f9ff, #dcecf9);
+            color: #1b3d58;
+            border-color: #c9dfe9;
+        }
+        body.soft-workspace #aidant-senior-content > .form-card:nth-child(4n + 3) > .senior-disclosure > summary {
+            background: linear-gradient(120deg, #fcf8ff, #ece2f7);
+            color: #44305a;
+            border-color: #dfd4e9;
+        }
+        body.soft-workspace #aidant-senior-content > .form-card:nth-child(4n) > .senior-disclosure > summary {
+            background: linear-gradient(120deg, #fffaf3, #faecd6);
+            color: #60431e;
+            border-color: #ebdcc5;
+        }
+        body.soft-workspace :is(.screen-container, #nav-bar) button:is([aria-pressed="true"], .selected, .active) {
+            box-shadow: inset 0 0 0 2px #32765c;
+        }
+        body.soft-workspace :is(.screen-container, #nav-bar) button:is(.decline, .btn-danger, [data-close-account], #settings-logout) {
+            background: linear-gradient(120deg, #fff7f5, #f8dedb) !important;
+            color: #812c27 !important;
+            border: 1px solid #dfa8a2;
+        }
+        body.soft-workspace .screen-container button.rating-pill.selected.rating-orange {
+            box-shadow: inset 0 0 0 2px #a56400;
+        }
+        body.soft-workspace .screen-container button.rating-pill.selected.rating-red {
+            box-shadow: inset 0 0 0 2px #a32222;
+        }
+        body.senior-mode :is(.screen-container, #nav-bar) button:not(#senior-game-section button, .emergency-call-actions button) {
+            background: linear-gradient(120deg, #dff3e8, #bfe3d2) !important;
+            color: #183c34 !important;
+            border: 1px solid #8cbda6;
+        }
+        body.senior-mode :is(.screen-container, #nav-bar) button:not(#senior-game-section button, .emergency-call-actions button):nth-of-type(4n + 2) {
+            background: linear-gradient(120deg, #dfedf9, #bcd8ed) !important;
+            color: #1b3d58 !important;
+            border-color: #93b7d0;
+        }
+        body.senior-mode :is(.screen-container, #nav-bar) button:not(#senior-game-section button, .emergency-call-actions button):nth-of-type(4n + 3) {
+            background: linear-gradient(120deg, #eee5f7, #d8c8ed) !important;
+            color: #44305a !important;
+            border-color: #b6a1cc;
+        }
+        body.senior-mode :is(.screen-container, #nav-bar) button:not(#senior-game-section button, .emergency-call-actions button):nth-of-type(4n) {
+            background: linear-gradient(120deg, #faeedb, #f1d8ae) !important;
+            color: #60431e !important;
+            border-color: #d3b689;
+        }
+        body.senior-mode :is(#main-app-senior, #screen-more, #screen-senior-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-messages) :is(.senior-disclosure, .senior-tab-disclosure) > summary {
+            background: linear-gradient(120deg, #dff3e8, #bfe3d2);
+            color: #183c34;
+            border: 1px solid #8cbda6;
+        }
+        body.senior-mode :is(#main-app-senior, #screen-more, #screen-senior-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-messages) .form-card:nth-of-type(4n + 2) > :is(.senior-disclosure, .senior-tab-disclosure) > summary {
+            background: linear-gradient(120deg, #dfedf9, #bcd8ed);
+            color: #1b3d58;
+            border-color: #93b7d0;
+        }
+        body.senior-mode :is(#main-app-senior, #screen-more, #screen-senior-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-messages) .form-card:nth-of-type(4n + 3) > :is(.senior-disclosure, .senior-tab-disclosure) > summary {
+            background: linear-gradient(120deg, #eee5f7, #d8c8ed);
+            color: #44305a;
+            border-color: #b6a1cc;
+        }
+        body.senior-mode :is(#main-app-senior, #screen-more, #screen-senior-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-messages) .form-card:nth-of-type(4n) > :is(.senior-disclosure, .senior-tab-disclosure) > summary {
+            background: linear-gradient(120deg, #faeedb, #f1d8ae);
+            color: #60431e;
+            border-color: #d3b689;
+        }
+        body.senior-mode :is(.screen-container, #nav-bar) button:not(#senior-game-section button, .emergency-call-actions button):is([aria-pressed="true"], .selected, .active) {
+            box-shadow: inset 0 0 0 2px #22694e;
+        }
+        body.senior-mode :is(.screen-container, #nav-bar) button:not(#senior-game-section button, .emergency-call-actions button):is(.decline, .btn-danger, [data-close-account], #settings-logout) {
+            background: linear-gradient(120deg, #fbe9e5, #efc3bd) !important;
+            color: #812c27 !important;
+            border: 1px solid #c78078;
+        }
+        body.senior-mode .screen-container button.rating-pill.selected.rating-orange {
+            box-shadow: inset 0 0 0 2px #a56400;
+        }
+        body.senior-mode .screen-container button.rating-pill.selected.rating-red {
+            box-shadow: inset 0 0 0 2px #a32222;
+        }
         @media print {
             body.gazette-printing > :not(#weekly-print-root) { display: none !important; }
             body.gazette-printing #weekly-print-root { display: block; color: #000; background: #fff; }
@@ -2955,6 +3064,7 @@
         reinitialiserProfil();
         if (user.hasAccountPhoto) void chargerPhotoProfil();
         document.body.classList.toggle('senior-mode', user.role === 'senior');
+        document.body.classList.toggle('soft-workspace', ['aidant', 'pro'].includes(user.role));
         initialiserVueSenior(user);
         document.querySelectorAll('.screen-container details').forEach(details => {
             details.open = false;
@@ -7840,7 +7950,7 @@
         reinitialiserAnnuairePartage();
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
-        document.body.classList.remove('senior-mode', 'senior-simple');
+        document.body.classList.remove('senior-mode', 'senior-simple', 'soft-workspace');
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');
         directoryLocation = null;

@@ -1261,6 +1261,23 @@ test('opening a conversation marks received messages read and displays the sende
   assert.match(container.children[0].children[2].text, /· Lu/);
 });
 
+test('soft button colours are limited to aidant and pro sessions and cleared on logout', () => {
+  const login = extract('    async function setAuthenticatedView(user)', '        initialiserVueSenior(user);');
+  const logout = extract('    async function deconnecterUtilisateur(', "        activeSeniorProfileId = '';");
+  assert.match(login, /classList\.toggle\('soft-workspace', \['aidant', 'pro'\]\.includes\(user\.role\)\)/);
+  assert.match(logout, /classList\.remove\('senior-mode', 'senior-simple', 'soft-workspace'\)/);
+  assert.match(source, /body\.soft-workspace :is\(\.screen-container, #nav-bar\) button/);
+  assert.match(source, /button:is\(\[aria-pressed="true"\], \.selected, \.active\)/);
+  assert.match(source, /button:is\(\.decline, \.btn-danger, \[data-close-account\], #settings-logout\)/);
+});
+
+test('senior button colours leave emergency and game controls unchanged', () => {
+  const seniorStyles = extract('        body.senior-mode :is(.screen-container, #nav-bar) button:not(', '        @media print {');
+  assert.match(seniorStyles, /:not\(#senior-game-section button, \.emergency-call-actions button\)/);
+  assert.match(seniorStyles, /linear-gradient\(120deg, #dff3e8, #bfe3d2\)/);
+  assert.match(seniorStyles, /button:not\([^)]*\):is\(\[aria-pressed="true"\], \.selected, \.active\)/);
+});
+
 test('message bubbles use the full conversation width and stay left-aligned', () => {
   const listStyle = extract('        [id^="message-list-"]', '        .message-bubble {');
   const bubbleStyle = extract('        .message-bubble {', '        .message-bubble p');
