@@ -935,6 +935,22 @@
             <div id="senior-key-contacts-list"></div>
           </details>
         </section>
+        <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure" id="senior-shopping-details">
+            <summary>Ma liste de courses</summary>
+            <p class="helper-text">Votre liste reste privée jusqu’à ce que vous décidiez de l’envoyer. Enregistrez-la pour la retrouver plus tard.</p>
+            <label for="senior-shopping-content">Articles à acheter (un par ligne)</label>
+            <textarea id="senior-shopping-content" maxlength="1800" rows="6" placeholder="Pain&#10;Lait&#10;Pommes"></textarea>
+            <button type="button" id="senior-shopping-save">Enregistrer ma liste</button>
+            <details id="senior-shopping-share">
+              <summary>Envoyer une copie à des personnes choisies</summary>
+              <p class="helper-text">Choisissez vos correspondants. Une copie de la liste affichée sera envoyée par message ; les modifications suivantes ne changeront pas le message envoyé.</p>
+              <div id="senior-shopping-contacts"></div>
+              <button type="button" id="senior-shopping-send">Envoyer la liste</button>
+            </details>
+            <p id="senior-shopping-status" role="status" aria-live="polite"></p>
+          </details>
+        </section>
         <button type="button" id="senior-more-button" class="action-tile senior-action-tile" onclick="switchScreen('more')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#10133;</span>Proche : messages, jeu, photos, contacts, journal</button>
         <button type="button" id="senior-pro-button" class="action-tile senior-action-tile" onclick="switchScreen('senior-pro')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">&#129658;</span>Pro : services, intervenants, &eacute;quipe</button>
         <section class="form-card" id="senior-local-outings">
@@ -1163,17 +1179,17 @@
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure" id="senior-tasks-details">
             <summary>Tâches du quotidien</summary>
-            <p class="helper-text">Ces tâches sont visibles et modifiables par vous et tous vos aidants associés. Évitez les informations médicales.</p>
+            <p class="helper-text">Ces tâches sont visibles et modifiables par vous et tous vos aidants associés. Un intervenant ne voit que les tâches que vous lui attribuez depuis votre annuaire partagé. Évitez les informations médicales.</p>
             <details class="senior-disclosure senior-explanation" data-help-for="#senior-tasks-refresh">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
-                <p class="helper-text">Chacun peut se proposer ou attribuer une tâche à une personne associée. L’attribution n’envoie pas de notification et ne confirme pas son accord : prévenez-la. Vous pouvez libérer une tâche si nécessaire.</p>
+                <p class="helper-text">Chacun peut se proposer ou attribuer une tâche à une personne associée ou à un intervenant enregistré dans l’annuaire partagé. L’attribution n’envoie pas de notification et ne confirme pas son accord : prévenez-la. Vous pouvez libérer une tâche si nécessaire.</p>
                 <p class="helper-text">Dates selon l’heure de Paris. Les aidants peuvent activer leurs propres rappels.</p>
                 </div>
             </details>
             <form id="senior-tasks-form" class="form-grid">
                 <label for="senior-task-title">Nouvelle tâche</label>
-                <input id="senior-task-title" maxlength="120" required>
+                <input id="senior-task-title" maxlength="120" placeholder="Ex. laver le sol, sortir les poubelles" required>
                 <label for="senior-task-date">Date prévue (facultative)</label>
                 <input id="senior-task-date" type="date" min="0001-01-01" max="9999-12-31">
                 <button type="submit">Ajouter</button>
@@ -1267,17 +1283,17 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-tasks-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">✅</span>Tâches du quotidien</summary>
-        <p class="helper-text">Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Évitez les informations médicales.</p>
+        <p class="helper-text">Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Un intervenant ne voit que les tâches que vous lui attribuez depuis l’annuaire partagé. Évitez les informations médicales.</p>
         <details class="senior-disclosure senior-explanation" data-help-for="#aidant-tasks-refresh">
           <summary>Explications</summary>
           <div class="gl-help-bubble">
-        <p class="helper-text">Vous pouvez vous proposer ou attribuer une tâche à une personne associée. L’attribution n’envoie pas de notification et ne confirme pas son accord : prévenez-la. Le senior peut libérer une tâche.</p>
+        <p class="helper-text">Vous pouvez vous proposer ou attribuer une tâche à une personne associée ou à un intervenant enregistré dans l’annuaire partagé. L’attribution n’envoie pas de notification et ne confirme pas son accord : prévenez-la. Vous pouvez libérer une tâche confiée à un intervenant.</p>
         <p class="helper-text">Dates selon l’heure de Paris. Les rappels facultatifs se règlent dans Réglages.</p>
           </div>
         </details>
         <form id="aidant-tasks-form" class="form-grid">
             <label for="aidant-task-title">Nouvelle tâche</label>
-            <input id="aidant-task-title" maxlength="120" required>
+            <input id="aidant-task-title" maxlength="120" placeholder="Ex. laver le sol, sortir les poubelles" required>
             <label for="aidant-task-date">Date prévue (facultative)</label>
             <input id="aidant-task-date" type="date" min="0001-01-01" max="9999-12-31">
             <button type="submit">Ajouter</button>
@@ -1398,6 +1414,15 @@
         <p id="pro-summary-notifications" role="status">Chargement des notifications…</p>
     </section>
     <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
+    <section class="form-card">
+        <details class="senior-disclosure" id="pro-intervention-tasks-details">
+            <summary>Tâches confiées par les personnes accompagnées</summary>
+            <p class="helper-text">Seules les tâches qui vous ont été attribuées apparaissent ici. Leur attribution ne remplace pas votre accord sur la prestation.</p>
+            <button type="button" id="pro-intervention-tasks-refresh">Actualiser les tâches</button>
+            <p id="pro-intervention-tasks-status" role="status" aria-live="polite"></p>
+            <div id="pro-intervention-tasks-list"></div>
+        </details>
+    </section>
         <section class="form-card">
         <h4>Demandes reçues</h4>
         <div id="directory-professional-bookings" aria-live="polite">Chargement des demandes…</div>
@@ -2097,6 +2122,8 @@
     let nextVisitEvent = null;
     let nextVisitMessage = 'Chargement du prochain rendez-vous…';
     let sharedTasksLoadId = 0;
+    let shoppingListRevision = 0;
+    let shoppingListLoaded = false;
     let keyContactsLoadId = 0;
     let consentLoadId = 0;
     let aidantSummaryLoadId = 0;
@@ -3458,6 +3485,19 @@
     function reinitialiserTachesPartagees() {
         sharedTasksLoadId++;
         keyContactsLoadId++;
+        shoppingListRevision++;
+        shoppingListLoaded = false;
+        document.getElementById('senior-shopping-content').value = '';
+        document.getElementById('senior-shopping-content').disabled = false;
+        document.getElementById('senior-shopping-save').disabled = false;
+        document.getElementById('senior-shopping-send').disabled = false;
+        document.getElementById('senior-shopping-status').textContent = '';
+        document.getElementById('senior-shopping-contacts').replaceChildren();
+        document.getElementById('senior-shopping-share').open = false;
+        document.getElementById('senior-shopping-details').open = false;
+        document.getElementById('pro-intervention-tasks-list').replaceChildren();
+        document.getElementById('pro-intervention-tasks-status').textContent = '';
+        document.getElementById('pro-intervention-tasks-details').open = false;
         for (const role of ['senior', 'aidant']) {
             document.getElementById(`${role}-tasks-list`).replaceChildren();
             document.getElementById(`${role}-tasks-status`).textContent = '';
@@ -3576,7 +3616,7 @@
                 if (!task.assigned && !task.completed) {
                     assignmentButton.textContent = window.generationLiaisonTranslate('Je m’en charge');
                     assignmentButton.addEventListener('click', () => modifierTachePartagee(role, `${task.id}/claim`, { method: 'POST' }));
-                } else if (task.assigned && (task.assignedToMe || role === 'senior')) {
+                } else if (task.assigned && (task.assignedToMe || role === 'senior' || task.assignedToProfessional)) {
                     assignmentButton.textContent = window.generationLiaisonTranslate(task.assignedToMe ? 'Je me retire' : 'Libérer la tâche');
                     assignmentButton.addEventListener('click', () => {
                         if (task.assignedToMe || window.confirm(window.generationLiaisonTranslate('Libérer cette tâche pour que quelqu’un d’autre puisse s’en charger ?'))) {
@@ -3601,7 +3641,7 @@
                     const assignSummary = document.createElement('summary');
                     assignSummary.textContent = window.generationLiaisonTranslate('Attribuer à une personne');
                     const label = document.createElement('label');
-                    label.textContent = window.generationLiaisonTranslate('Personne associée');
+                    label.textContent = window.generationLiaisonTranslate('Personne associée ou intervenant enregistré');
                     const select = document.createElement('select');
                     select.disabled = true;
                     label.append(select);
@@ -3625,12 +3665,12 @@
                             for (const person of result.assignees) {
                                 const option = document.createElement('option');
                                 option.value = person.id;
-                                option.textContent = person.name;
+                                option.textContent = person.role === 'pro' ? `${person.name} (intervenant)` : person.name;
                                 select.append(option);
                             }
                             select.disabled = false;
                             assign.disabled = false;
-                            assignStatus.textContent = window.generationLiaisonTranslate('Prévenez la personne : aucune notification n’est envoyée.');
+                            assignStatus.textContent = window.generationLiaisonTranslate('Ajoutez d’abord l’intervenant à l’annuaire partagé. Prévenez la personne : aucune notification n’est envoyée.');
                         } catch (error) {
                             if (loadId === sharedTasksLoadId) {
                                 assignStatus.textContent = error.message || 'Impossible de charger les personnes.';
@@ -3671,6 +3711,103 @@
                 document.getElementById(`${role}-tasks-list`).replaceChildren();
                 document.getElementById(`${role}-tasks-status`).textContent = error.message || 'Impossible de modifier la tâche.';
             }
+        }
+    }
+
+    async function chargerTachesIntervenant() {
+        const loadId = ++sharedTasksLoadId;
+        const userId = connectedUser?.id;
+        const list = document.getElementById('pro-intervention-tasks-list');
+        const status = document.getElementById('pro-intervention-tasks-status');
+        list.replaceChildren();
+        status.textContent = 'Chargement des tâches…';
+        try {
+            const result = await planningRequest('/api/intervention-tasks');
+            if (loadId !== sharedTasksLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
+            status.textContent = result.tasks.length ? '' : 'Aucune tâche confiée pour le moment.';
+            for (const task of result.tasks) {
+                const row = document.createElement('div');
+                row.className = 'card';
+                row.append(makeTextElement('strong', task.title));
+                row.append(makeTextElement('p', `Pour : ${task.seniorName}`));
+                row.append(makeTextElement('p', task.dueDate ? `Date prévue : ${new Date(`${task.dueDate}T00:00:00Z`).toLocaleDateString(window.generationLiaisonLocale(), { timeZone: 'UTC' })}` : 'Sans date prévue'));
+                row.append(makeTextElement('p', task.completed ? 'Terminée' : 'À faire'));
+                const toggle = document.createElement('button');
+                toggle.type = 'button';
+                toggle.textContent = task.completed ? 'Marquer à faire' : 'Marquer terminée';
+                toggle.setAttribute('aria-label', `${toggle.textContent} : ${task.title}`);
+                toggle.addEventListener('click', async () => {
+                    toggle.disabled = true;
+                    const revision = ++sharedTasksLoadId;
+                    try {
+                        await planningRequest(`/api/intervention-tasks/${encodeURIComponent(task.id)}`, {
+                            method: 'PATCH', body: { completed: !task.completed }
+                        });
+                        if (revision === sharedTasksLoadId && connectedUser?.id === userId) await chargerTachesIntervenant();
+                    } catch (error) {
+                        if (revision === sharedTasksLoadId) {
+                            list.replaceChildren();
+                            status.textContent = error.message || 'Impossible de modifier la tâche.';
+                        }
+                    } finally {
+                        toggle.disabled = false;
+                    }
+                });
+                row.append(toggle);
+                list.append(row);
+            }
+        } catch (error) {
+            if (loadId === sharedTasksLoadId) status.textContent = error.message || 'Impossible de charger les tâches confiées.';
+        }
+    }
+
+    async function chargerListeCourses() {
+        const revision = ++shoppingListRevision;
+        const userId = connectedUser?.id;
+        const content = document.getElementById('senior-shopping-content');
+        const status = document.getElementById('senior-shopping-status');
+        const save = document.getElementById('senior-shopping-save');
+        const send = document.getElementById('senior-shopping-send');
+        content.value = '';
+        content.disabled = true;
+        save.disabled = true;
+        send.disabled = true;
+        status.textContent = 'Chargement de votre liste…';
+        try {
+            const result = await planningRequest('/api/shopping-list');
+            if (revision !== shoppingListRevision || connectedUser?.id !== userId || connectedUser?.role !== 'senior') return;
+            content.value = result.content;
+            shoppingListLoaded = true;
+            content.disabled = false;
+            save.disabled = false;
+            send.disabled = false;
+            status.textContent = '';
+        } catch (error) {
+            if (revision === shoppingListRevision) status.textContent = `${error.message || 'Impossible de charger votre liste.'} Fermez et rouvrez cette rubrique pour réessayer.`;
+        }
+    }
+
+    async function chargerDestinatairesCourses() {
+        const revision = shoppingListRevision;
+        const userId = connectedUser?.id;
+        const list = document.getElementById('senior-shopping-contacts');
+        const status = document.getElementById('senior-shopping-status');
+        list.replaceChildren();
+        status.textContent = 'Chargement des correspondants…';
+        try {
+            const result = await seniorLinksRequest('/api/messages/contacts');
+            if (revision !== shoppingListRevision || connectedUser?.id !== userId || connectedUser?.role !== 'senior') return;
+            for (const contact of result.contacts) {
+                const label = document.createElement('label');
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.value = contact.id;
+                label.append(input, document.createTextNode(` ${contact.name}`));
+                list.append(label);
+            }
+            status.textContent = result.contacts.length ? '' : 'Aucun correspondant disponible dans votre messagerie.';
+        } catch (error) {
+            if (revision === shoppingListRevision) status.textContent = error.message || 'Impossible de charger les correspondants.';
         }
     }
 
@@ -7578,6 +7715,58 @@
                 }
             });
         }
+        document.getElementById('pro-intervention-tasks-details').addEventListener('toggle', event => {
+            if (event.currentTarget.open && connectedUser?.role === 'pro') chargerTachesIntervenant();
+        });
+        document.getElementById('pro-intervention-tasks-refresh').addEventListener('click', chargerTachesIntervenant);
+        document.getElementById('senior-shopping-details').addEventListener('toggle', event => {
+            if (event.currentTarget.open && connectedUser?.role === 'senior' && !shoppingListLoaded) chargerListeCourses();
+        });
+        document.getElementById('senior-shopping-share').addEventListener('toggle', event => {
+            if (event.currentTarget.open && connectedUser?.role === 'senior') chargerDestinatairesCourses();
+        });
+        document.getElementById('senior-shopping-save').addEventListener('click', async event => {
+            const revision = shoppingListRevision;
+            const userId = connectedUser?.id;
+            const status = document.getElementById('senior-shopping-status');
+            const content = document.getElementById('senior-shopping-content').value;
+            event.currentTarget.disabled = true;
+            try {
+                await planningRequest('/api/shopping-list', {
+                    method: 'PUT', body: { content }
+                });
+                if (revision === shoppingListRevision && connectedUser?.id === userId) {
+                    status.textContent = document.getElementById('senior-shopping-content').value === content
+                        ? 'Liste enregistrée.' : 'La version précédente a été enregistrée. Enregistrez vos nouvelles modifications.';
+                }
+            } catch (error) {
+                if (revision === shoppingListRevision) status.textContent = error.message || 'Impossible d’enregistrer votre liste.';
+            } finally {
+                event.currentTarget.disabled = false;
+            }
+        });
+        document.getElementById('senior-shopping-send').addEventListener('click', async event => {
+            const revision = shoppingListRevision;
+            const userId = connectedUser?.id;
+            const status = document.getElementById('senior-shopping-status');
+            const content = document.getElementById('senior-shopping-content').value.trim();
+            const recipients = Array.from(document.querySelectorAll('#senior-shopping-contacts input:checked'), input => input.value);
+            if (!content || !recipients.length) {
+                status.textContent = 'Saisissez une liste et choisissez au moins un correspondant.';
+                return;
+            }
+            event.currentTarget.disabled = true;
+            try {
+                await seniorLinksRequest('/api/messages/multiple', {
+                    method: 'POST', body: { recipients, message: `Liste de courses :\n${content}` }
+                });
+                if (revision === shoppingListRevision && connectedUser?.id === userId) status.textContent = 'Liste envoyée par message.';
+            } catch (error) {
+                if (revision === shoppingListRevision) status.textContent = error.message || 'Impossible d’envoyer votre liste.';
+            } finally {
+                event.currentTarget.disabled = false;
+            }
+        });
         document.getElementById('reg-role').addEventListener('change', afficherChampsInscriptionProfessionnel);
         document.getElementById('reg-legal-guardian').addEventListener('change', afficherChampsTutelle);
         document.getElementById('aidant-link-form').addEventListener('submit', async event => {

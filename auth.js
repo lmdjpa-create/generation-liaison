@@ -244,6 +244,10 @@ function createAuthService(pool) {
         );
         CREATE INDEX IF NOT EXISTS app_private_messages_participants_date_idx
           ON app_private_messages (sender_id, recipient_id, created_at);
+        CREATE TABLE IF NOT EXISTS app_shopping_lists (
+          user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+          content VARCHAR(1800) NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS app_google_calendar_oauth_states (
           state_hash CHAR(64) PRIMARY KEY,
           user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
@@ -1137,6 +1141,7 @@ function createAuthService(pool) {
         [userId]
       );
       await client.query('DELETE FROM app_sessions WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM app_shopping_lists WHERE user_id = $1', [userId]);
       await client.query(
         `DELETE FROM app_family_photos
          WHERE author_user_id = $1 OR senior_profile_id = (SELECT senior_id FROM app_users WHERE id = $1)`,

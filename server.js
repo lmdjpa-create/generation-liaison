@@ -6570,6 +6570,12 @@ app.delete('/api/shared-directory/:id', requireAuth, (req, res) => {
       'DELETE FROM app_shared_directory WHERE senior_id = $1 AND professional_user_id = $2 RETURNING professional_user_id',
       [seniorId, req.params.id]
     );
+    if (rows.length) {
+      await client.query(
+        'UPDATE app_shared_tasks SET assignee_user_id = NULL WHERE senior_id = $1 AND assignee_user_id = $2',
+        [seniorId, req.params.id]
+      );
+    }
     return rows.length ? { status: 200, body: { deleted: true } }
       : { status: 404, body: { error: 'Professionnel introuvable dans cet annuaire.' } };
   }, 'annuaire partagé');
@@ -6607,7 +6613,12 @@ app.get('/api/shared-tasks/assignees', requireAuth, (req, res) => withSharedTask
          AND (NOT account.is_legal_guardian OR account.guardian_verification_status = 'approved')
          AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
            WHERE link.aidant_user_id = account.id AND link.senior_profile_id = $1
-             AND link.suspended_at IS NULL)))
+             AND link.suspended_at IS NULL))
+       OR (account.role = 'pro' AND account.verification_status = 'approved'
+         AND account.directory_listed = TRUE
+         AND account.home_latitude IS NOT NULL AND account.home_longitude IS NOT NULL
+         AND EXISTS (SELECT 1 FROM app_shared_directory entry
+           WHERE entry.professional_user_id = account.id AND entry.senior_id = $1)))
      ORDER BY account.name, account.id`, [seniorId]
   );
   return { status: 200, body: { assignees: rows } };
@@ -6618,6 +6629,7 @@ app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res
     `SELECT task.id, task.title, task.completed, to_char(task.due_date, 'YYYY-MM-DD') AS "dueDate",
             (task.assignee_user_id IS NOT NULL) AS assigned,
             (task.assignee_user_id IS NOT NULL AND task.assignee_user_id = $2) AS "assignedToMe",
+            (SELECT account.role = 'pro' FROM app_users account WHERE account.id = task.assignee_user_id) AS "assignedToProfessional",
             assignee.name AS "assigneeName"
      FROM app_shared_tasks task
      LEFT JOIN app_users assignee ON assignee.id = task.assignee_user_id AND assignee.is_active = TRUE
@@ -6626,7 +6638,12 @@ app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res
            AND (NOT assignee.is_legal_guardian OR assignee.guardian_verification_status = 'approved')
            AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
              WHERE link.aidant_user_id = assignee.id AND link.senior_profile_id = task.senior_id
-               AND link.suspended_at IS NULL)))
+               AND link.suspended_at IS NULL))
+         OR (assignee.role = 'pro' AND assignee.verification_status = 'approved'
+           AND assignee.directory_listed = TRUE
+           AND assignee.home_latitude IS NOT NULL AND assignee.home_longitude IS NOT NULL
+           AND EXISTS (SELECT 1 FROM app_shared_directory entry
+             WHERE entry.professional_user_id = assignee.id AND entry.senior_id = task.senior_id)))
      WHERE task.senior_id = $1
      ORDER BY task.completed, task.due_date NULLS LAST, task.created_at, task.id`, [seniorId, req.authUser.id]
   );
@@ -6691,7 +6708,9 @@ app.post('/api/shared-tasks/:id/assign', requireAuth, (req, res) => {
     const account = await client.query(
       `SELECT role, senior_id FROM app_users WHERE id = $1 AND is_active = TRUE
        AND (role = 'senior' OR (role = 'aidant'
-         AND (NOT is_legal_guardian OR guardian_verification_status = 'approved')))
+         AND (NOT is_legal_guardian OR guardian_verification_status = 'approved'))
+         OR (role = 'pro' AND verification_status = 'approved' AND directory_listed = TRUE
+           AND home_latitude IS NOT NULL AND home_longitude IS NOT NULL))
        FOR SHARE`, [req.body.assigneeId]
     );
     const target = account.rows[0];
@@ -6706,6 +6725,15 @@ app.post('/api/shared-tasks/:id/assign', requireAuth, (req, res) => {
       );
       if (!link.rows.length) {
         return { status: 403, body: { error: 'Cette personne ne peut pas accéder à ce profil.' } };
+      }
+    }
+    if (target.role === 'pro') {
+      const entry = await client.query(
+        `SELECT 1 FROM app_shared_directory WHERE senior_id = $1 AND professional_user_id = $2 FOR SHARE`,
+        [seniorId, req.body.assigneeId]
+      );
+      if (!entry.rows.length) {
+        return { status: 403, body: { error: 'Ajoutez d’abord cet intervenant à l’annuaire partagé.' } };
       }
     }
     const { rows } = await client.query(
@@ -6737,12 +6765,119 @@ app.delete('/api/shared-tasks/:id/claim', requireAuth, (req, res) => {
     const { rows } = await client.query(
       `UPDATE app_shared_tasks SET assignee_user_id = NULL
        WHERE id = $1 AND senior_id = $2 AND assignee_user_id IS NOT NULL
-         AND (assignee_user_id = $3 OR $4::boolean)
+         AND (assignee_user_id = $3 OR $4::boolean OR EXISTS (
+           SELECT 1 FROM app_users assignee WHERE assignee.id = assignee_user_id AND assignee.role = 'pro'
+         ))
        RETURNING id`, [req.params.id, seniorId, req.authUser.id, req.authUser.role === 'senior']
     );
     return rows.length ? { status: 200, body: { released: true } }
       : { status: 409, body: { error: 'Impossible de libérer cette tâche. Actualisez la liste.' } };
   });
+});
+
+app.get('/api/shopping-list', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Cette liste est privée et réservée au senior.' });
+  try {
+    const { rows } = await pool.query('SELECT content FROM app_shopping_lists WHERE user_id = $1', [req.authUser.id]);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ content: rows[0]?.content || '' });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger votre liste de courses.');
+  }
+});
+
+app.put('/api/shopping-list', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Cette liste est privée et réservée au senior.' });
+  if (typeof req.body?.content !== 'string' || req.body.content.length > 1800) {
+    return res.status(400).json({ error: 'La liste ne doit pas dépasser 1 800 caractères.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const active = await client.query("SELECT id FROM app_users WHERE id = $1 AND role = 'senior' AND is_active = TRUE FOR SHARE", [req.authUser.id]);
+    if (!active.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce compte n’est plus disponible.' });
+    }
+    if (req.body.content.trim()) {
+      await client.query(`INSERT INTO app_shopping_lists (user_id, content) VALUES ($1, $2)
+        ON CONFLICT (user_id) DO UPDATE SET content = EXCLUDED.content`, [req.authUser.id, req.body.content]);
+    } else {
+      await client.query('DELETE FROM app_shopping_lists WHERE user_id = $1', [req.authUser.id]);
+    }
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ saved: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’enregistrer votre liste de courses.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/intervention-tasks', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'pro') return res.status(403).json({ error: 'Accès réservé aux intervenants.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT task.id, task.title, task.completed, to_char(task.due_date, 'YYYY-MM-DD') AS "dueDate",
+              senior.name AS "seniorName"
+       FROM app_shared_tasks task
+       JOIN app_shared_directory entry ON entry.senior_id = task.senior_id
+         AND entry.professional_user_id = task.assignee_user_id
+       JOIN app_users senior ON senior.senior_id = task.senior_id AND senior.role = 'senior' AND senior.is_active = TRUE
+       JOIN app_users professional ON professional.id = task.assignee_user_id AND professional.role = 'pro'
+         AND professional.is_active = TRUE AND professional.verification_status = 'approved'
+         AND professional.directory_listed = TRUE
+         AND professional.home_latitude IS NOT NULL AND professional.home_longitude IS NOT NULL
+       WHERE task.assignee_user_id = $1
+       ORDER BY task.completed, task.due_date NULLS LAST, task.created_at, task.id`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ tasks: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les tâches confiées.');
+  }
+});
+
+app.patch('/api/intervention-tasks/:id', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'pro') return res.status(403).json({ error: 'Accès réservé aux intervenants.' });
+  if (!isValidUuid(req.params.id) || typeof req.body?.completed !== 'boolean') {
+    return res.status(400).json({ error: 'Tâche ou état invalide.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const access = await client.query(
+      `SELECT task.id FROM app_shared_tasks task
+       JOIN app_shared_directory entry ON entry.senior_id = task.senior_id
+         AND entry.professional_user_id = task.assignee_user_id
+       JOIN app_users senior ON senior.senior_id = task.senior_id AND senior.role = 'senior' AND senior.is_active = TRUE
+       JOIN app_users professional ON professional.id = task.assignee_user_id AND professional.role = 'pro'
+         AND professional.is_active = TRUE AND professional.verification_status = 'approved'
+         AND professional.directory_listed = TRUE
+         AND professional.home_latitude IS NOT NULL AND professional.home_longitude IS NOT NULL
+       WHERE task.id = $1 AND task.assignee_user_id = $2
+       FOR UPDATE OF task FOR SHARE OF entry, senior, professional`,
+      [req.params.id, req.authUser.id]
+    );
+    if (!access.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Tâche introuvable ou accès retiré.' });
+    }
+    await client.query('UPDATE app_shared_tasks SET completed = $1 WHERE id = $2', [req.body.completed, req.params.id]);
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ updated: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de modifier la tâche confiée.');
+  } finally {
+    if (client) client.release();
+  }
 });
 
 app.post('/api/agenda/birthdays', requireAuth, async (req, res) => {

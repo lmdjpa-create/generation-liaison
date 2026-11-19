@@ -619,7 +619,7 @@ test('shared tasks are isolated by senior and require an active association', as
   const id = created.data.id;
   assert.deepEqual((await request('/api/shared-tasks', options)).data.tasks,
     [{ id, title: 'Acheter du pain', completed: false, dueDate: null,
-      assigned: false, assignedToMe: false, assigneeName: null }]);
+      assigned: false, assignedToMe: false, assignedToProfessional: null, assigneeName: null }]);
   const aidantCreated = await request('/api/shared-tasks', { ...options, body: { title: 'Appeler le voisin' } });
   assert.equal(aidantCreated.status, 201);
   assert.equal((await request('/api/shared-tasks', { user: senior })).data.tasks.length, 2);
@@ -735,6 +735,70 @@ test('shared task assignment only targets active associated accounts and does no
   assert.equal((await assign(aidant, aidant.user.id)).status, 409);
   task = (await request('/api/shared-tasks', opts)).data.tasks[0];
   assert.equal(task.assigned, false);
+});
+
+test('a senior shopping list remains private until a copy is sent', async () => {
+  const senior = await register('shopping-senior@example.test', 'senior');
+  const other = await register('shopping-other@example.test', 'senior');
+  const aidant = await register('shopping-aidant@example.test', 'aidant');
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request('/api/shopping-list')).status, 401);
+  assert.equal((await request('/api/shopping-list', { user: aidant, seniorId: senior.user.seniorId })).status, 403);
+  assert.equal((await request('/api/shopping-list', { user: senior, method: 'PUT', body: { content: 'x'.repeat(1801) } })).status, 400);
+  assert.equal((await request('/api/shopping-list', { user: senior, method: 'PUT', body: { content: 'Pain\nPommes' } })).status, 200);
+  assert.equal((await request('/api/shopping-list', { user: senior })).data.content, 'Pain\nPommes');
+  assert.equal((await request('/api/shopping-list', { user: other })).data.content, '');
+  const sent = await request('/api/messages/multiple', { user: senior, body: {
+    recipients: [aidant.user.id], message: 'Liste de courses :\nPain\nPommes'
+  } });
+  assert.equal(sent.status, 201);
+  assert.equal((await request('/api/shopping-list', { user: senior, method: 'PUT', body: { content: 'Lait' } })).status, 200);
+  const messages = await request(`/api/messages/${senior.user.id}`, { user: aidant });
+  assert.equal(messages.data.messages[0].body, 'Liste de courses :\nPain\nPommes');
+  assert.equal((await request('/api/account/closure-request', {
+    user: senior, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  assert.equal((await db.query('SELECT user_id FROM app_shopping_lists WHERE user_id = $1', [senior.user.id])).rows.length, 0);
+});
+
+test('only tasks explicitly assigned to an available saved professional are shared', async () => {
+  const senior = await register('professional-tasks-senior@example.test', 'senior');
+  const other = await register('professional-tasks-other@example.test', 'senior');
+  const aidant = await register('professional-tasks-aidant@example.test', 'aidant');
+  const pro = await register('professional-tasks-pro@example.test', 'pro');
+  const stranger = await register('professional-tasks-stranger@example.test', 'pro');
+  await db.query("UPDATE app_users SET verification_status = 'approved', directory_listed = TRUE WHERE id = ANY($1::uuid[])",
+    [[pro.user.id, stranger.user.id]]);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  const opts = { user: aidant, seniorId: senior.user.seniorId };
+  const task = await request('/api/shared-tasks', { ...opts, body: { title: 'Laver le sol', dueDate: '2028-03-01' } });
+  const privateTask = await request('/api/shared-tasks', { user: senior, body: { title: 'Tâche familiale privée' } });
+  const otherTask = await request('/api/shared-tasks', { user: other, body: { title: 'Autre personne' } });
+  const assignPath = `/api/shared-tasks/${task.data.id}/assign`;
+  assert.equal((await request(assignPath, { ...opts, body: { assigneeId: pro.user.id } })).status, 403);
+  assert.equal((await request(`/api/shared-directory/${pro.user.id}`, { user: senior, method: 'POST' })).status, 200);
+  assert.ok((await request('/api/shared-tasks/assignees', opts)).data.assignees.some(person => person.id === pro.user.id));
+  assert.equal((await request(assignPath, { ...opts, body: { assigneeId: pro.user.id } })).status, 200);
+  let visible = await request('/api/intervention-tasks', { user: pro });
+  assert.equal(visible.status, 200);
+  assert.deepEqual(visible.data.tasks.map(item => item.id), [task.data.id]);
+  assert.equal(visible.data.tasks[0].seniorName, senior.user.name);
+  assert.deepEqual((await request('/api/intervention-tasks', { user: stranger })).data.tasks, []);
+  assert.equal((await request('/api/shared-tasks', { user: pro })).status, 403);
+  const update = id => request(`/api/intervention-tasks/${id}`, { user: pro, method: 'PATCH', body: { completed: true } });
+  assert.equal((await update(privateTask.data.id)).status, 404);
+  assert.equal((await update(otherTask.data.id)).status, 404);
+  assert.equal((await update(task.data.id)).status, 200);
+  assert.equal((await request('/api/shared-tasks', opts)).data.tasks.find(item => item.id === task.data.id).completed, true);
+  assert.equal((await request(`/api/shared-directory/${pro.user.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.deepEqual((await request('/api/intervention-tasks', { user: pro })).data.tasks, []);
+  assert.equal((await update(task.data.id)).status, 404);
+  assert.equal((await request('/api/shared-tasks', opts)).data.tasks.find(item => item.id === task.data.id).assigned, false);
+  assert.equal((await request(`/api/shared-directory/${pro.user.id}`, { user: senior, method: 'POST' })).status, 200);
+  assert.deepEqual((await request('/api/intervention-tasks', { user: pro })).data.tasks, []);
+  assert.equal((await request('/api/intervention-tasks', { user: senior })).status, 403);
 });
 
 test('shared task dates are optional, validated, editable and ordered by urgency', async () => {
