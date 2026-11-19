@@ -803,13 +803,13 @@
             </label>
             <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
             <div id="reg-senior-fields">
-                <input type="text" id="reg-senior-name" placeholder="Nom du senior suivi (facultatif)" aria-label="Nom du senior suivi (facultatif)">
-                <p class="helper-text">Vous pouvez créer votre compte même si aucun senior n’est encore inscrit. Le suivi apparaîtra lorsqu’un senior rejoindra l’application et partagera son profil.</p>
-                <label class="notification-choice"><input id="reg-legal-guardian" type="checkbox"> Je suis tuteur légal et souhaite accéder aux profils seniors qui me seront associés par l’administration.</label>
-                <p class="helper-text">Si vous êtes un proche et le représentant légal d’un senior qui ne peut plus gérer son compte, cochez cette case. Après vérification des justificatifs, l’administration peut associer votre compte au profil concerné. Cet accès ne donne pas automatiquement accès aux autres proches.</p>
+                <input type="text" id="reg-senior-name" placeholder="Nom de la personne accompagnée (facultatif)" aria-label="Nom de la personne accompagnée (facultatif)">
+                <p class="helper-text">Vous pouvez créer votre compte même si la personne accompagnée n’est pas encore inscrite. Le suivi apparaîtra lorsqu’elle rejoindra l’application et partagera son profil.</p>
+                <label class="notification-choice"><input id="reg-legal-guardian" type="checkbox"> Je suis tuteur légal et souhaite accéder aux profils des personnes accompagnées qui me seront associés par l’administration.</label>
+                <p class="helper-text">Si vous êtes un proche et le représentant légal d’une personne qui ne peut plus gérer son compte, cochez cette case. Après vérification des justificatifs, l’administration peut associer votre compte au profil concerné. Cet accès ne donne pas automatiquement accès aux autres proches.</p>
                 <section id="legal-guardian-registration-fields" class="form-card" style="display:none; text-align:left;">
                     <h3>Vérification de la tutelle</h3>
-                    <p class="helper-text">L’accès aux profils seniors sera activé après vérification manuelle par l’administration. Seuls les administrateurs autorisés peuvent consulter ces justificatifs.</p>
+                    <p class="helper-text">L’accès aux profils des personnes accompagnées sera activé après vérification manuelle par l’administration. Seuls les administrateurs autorisés peuvent consulter ces justificatifs.</p>
                     <label for="reg-guardian-identity">Pièce d’identité (PDF, JPEG ou PNG, 10 Mo max.)</label>
                     <input id="reg-guardian-identity" type="file" accept="application/pdf,image/jpeg,image/png" data-guardian-document-type="identity">
                     <label for="reg-guardian-proof">Jugement ou attestation officielle de tutelle (PDF, JPEG ou PNG, 10 Mo max.)</label>
@@ -820,7 +820,7 @@
             <select id="reg-role">
                 <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
                 <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>
-                <option value="senior">👴 Senior</option>
+                <option value="senior">🧑 Personne accompagnée</option>
             </select>
             <section id="reg-account-commune-fields" class="form-card" style="text-align:left;">
                 <h3>Commune du compte (obligatoire)</h3>
@@ -866,7 +866,7 @@
 
     <section class="form-card" id="legal-guardian-verification-panel" style="display:none;">
         <h3>Vérification de votre tutelle légale</h3>
-        <p id="legal-guardian-verification-message" class="helper-text" aria-live="polite">L’accès aux profils seniors sera activé après validation par l’administration.</p>
+        <p id="legal-guardian-verification-message" class="helper-text" aria-live="polite">L’accès aux profils des personnes accompagnées sera activé après validation par l’administration.</p>
         <p id="legal-guardian-documents-status" class="helper-text" aria-live="polite">Chargement des justificatifs…</p>
         <form id="legal-guardian-documents-form" class="form-grid">
             <label for="pending-guardian-identity">Pièce d’identité (PDF, JPEG ou PNG, 10 Mo max.)</label>
@@ -879,7 +879,7 @@
     </section>
     <!-- TABLEAU DE BORD LAZ -->
     <div id="main-app-senior" style="display: none; text-align: center;">
-        <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Senior</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
+        <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Personne accompagnée</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
         <div class="senior-simple-only" id="senior-simple-actions">
             <button type="button" onclick="ouvrirNotifications()">Notifications et messages <span id="home-notification-count-senior-simple" hidden></span></button>
@@ -1405,10 +1405,10 @@
       </details>
     </section>
     <section class="form-card" id="aidant-no-senior-panel" style="display:none;">
-        <h3>Aucun profil senior associé</h3>
-        <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.</p>
-        <button type="button" id="aidant-refresh-seniors">Actualiser les profils seniors</button>
-        <button type="button" onclick="switchScreen('settings'); document.getElementById('aidant-links-details').open = true">Gérer mes profils seniors</button>
+        <h3>Aucune personne accompagnée associée</h3>
+        <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à une personne accompagnée ou contactez l’administration si vous êtes tuteur légal.</p>
+        <button type="button" id="aidant-refresh-seniors">Actualiser les profils</button>
+        <button type="button" onclick="switchScreen('settings'); document.getElementById('aidant-links-details').open = true">Gérer mes profils accompagnés</button>
         <details class="senior-disclosure" id="aidant-local-outings-no-senior">
           <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
           <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
@@ -1419,7 +1419,7 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-key-contacts-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🧑‍⚕️</span><span>Contacts utiles</span></summary>
-        <p class="helper-text">Ces contacts sont visibles et modifiables par le senior et tous ses aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.</p>
+        <p class="helper-text">Ces contacts sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.</p>
         <form id="aidant-key-contacts-form" class="form-grid">
           <label for="aidant-key-contact-name">Nom</label>
           <input id="aidant-key-contact-name" maxlength="120" required>
@@ -1436,7 +1436,7 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-tasks-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">✅</span>Tâches du quotidien</summary>
-        <p class="helper-text">Ces tâches sont visibles et modifiables par le senior et tous ses aidants associés. Un intervenant ne voit que les tâches que vous lui attribuez depuis l’annuaire partagé. Évitez les informations médicales.</p>
+        <p class="helper-text">Ces tâches sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Un intervenant ne voit que les tâches que vous lui attribuez depuis l’annuaire partagé. Évitez les informations médicales.</p>
         <details class="senior-disclosure senior-explanation" data-help-for="#aidant-tasks-refresh">
           <summary>Explications</summary>
           <div class="gl-help-bubble">
@@ -1459,11 +1459,11 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-album-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">📷</span><span>Album familial</span></summary>
-        <p class="helper-text">Le senior doit accepter chaque photo proposée avant son partage avec les aidants associés. Les photos peuvent contenir des informations de localisation.</p>
+        <p class="helper-text">La personne accompagnée doit accepter chaque photo proposée avant son partage avec les aidants associés. Les photos peuvent contenir des informations de localisation.</p>
         <form id="aidant-album-form" class="form-grid">
           <label for="aidant-album-file">Choisir une photo à proposer</label>
           <input id="aidant-album-file" type="file" accept="image/jpeg,image/png" required>
-          <button type="submit">Proposer la photo au senior</button>
+          <button type="submit">Proposer la photo à la personne accompagnée</button>
         </form>
         <p id="aidant-album-status" role="status" aria-live="polite"></p>
         <div id="aidant-album-list"></div>
@@ -1472,7 +1472,7 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-journal-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
-        <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Ce journal ne surveille pas la sécurité du senior.</p>
+        <p class="helper-text">Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Ce journal ne surveille pas la sécurité de la personne accompagnée.</p>
         <button type="button" id="aidant-weekly-prepare">Préparer la gazette de la semaine</button>
         <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
         <p id="aidant-weekly-status" role="status" aria-live="polite"></p>
@@ -1855,19 +1855,19 @@
     </section>
 <section class="form-card" style="text-align:left;" id="settings-aidant-links">
       <details class="senior-tab-disclosure" id="aidant-links-details">
-        <summary>Mes profils seniors</summary>
+        <summary>Mes profils accompagnés</summary>
         <div id="aidant-senior-selector" style="display:none;">
             <label for="aidant-senior-select">Changer de personne accompagnée</label>
             <select id="aidant-senior-select"></select>
         </div>
-        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail du senior pour lui envoyer une invitation à découvrir l’application. S’il ne possède pas encore de compte, faites une nouvelle demande après son inscription. Il devra l’accepter avant que vous puissiez consulter son profil.</p>
+        <p id="aidant-link-help" class="helper-text">Saisissez l’adresse e-mail de la personne accompagnée pour lui envoyer une invitation à découvrir l’application. Si elle ne possède pas encore de compte, faites une nouvelle demande après son inscription. Elle devra l’accepter avant que vous puissiez consulter son profil.</p>
         <form id="aidant-link-form" class="form-grid">
-            <label for="aidant-link-email">Adresse e-mail du senior</label>
+            <label for="aidant-link-email">Adresse e-mail de la personne accompagnée</label>
             <input id="aidant-link-email" type="email" autocomplete="off" maxlength="254" required>
             <button type="submit">Demander l’accès</button>
         </form>
         <p id="aidant-link-status" class="helper-text" role="status" aria-live="polite"></p>
-        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie les justificatifs et associe le profil senior à son compte. Les autres proches n’obtiennent pas automatiquement l’accès.</p>
+        <p id="aidant-guardian-link-help" class="helper-text" style="display:none;">Pour un tuteur légal, l’administration vérifie les justificatifs et associe le profil de la personne accompagnée à son compte. Les autres proches n’obtiennent pas automatiquement l’accès.</p>
         <div id="aidant-link-management" aria-live="polite">Chargement des profils…</div>
         <button type="button" id="aidant-links-refresh">Actualiser</button>
       </details>
@@ -2665,7 +2665,7 @@
                     ? `Personne accompagnée : ${selected.text}`
                     : hasSenior
                         ? 'Sélectionnez une personne accompagnée dans vos réglages.'
-                        : 'Aucune personne accompagnée pour le moment : les rendez-vous apparaîtront ici dès qu’un senior sera associé à votre compte.';
+                        : 'Aucune personne accompagnée pour le moment : les rendez-vous apparaîtront ici dès qu’une personne sera associée à votre compte.';
             }
         }
 
@@ -3344,12 +3344,12 @@
             document.getElementById('aidant-no-senior-panel').style.display = hasSenior ? 'none' : 'block';
             document.getElementById('aidant-senior-content').style.display = hasSenior ? 'grid' : 'none';
             document.querySelector('#aidant-no-senior-panel h3').textContent = window.generationLiaisonTranslate(
-                loadError ? 'Profils seniors indisponibles' : 'Aucun profil senior associé'
+                loadError ? 'Profils accompagnés indisponibles' : 'Aucune personne accompagnée associée'
             );
             document.getElementById('aidant-senior-status').textContent = window.generationLiaisonTranslate(
                 loadError
-                    ? 'Impossible de charger les profils seniors. Vérifiez votre connexion et réessayez.'
-                    : 'Aucun profil n’est disponible. Demandez l’accès à un senior ou contactez l’administration si vous êtes tuteur légal.'
+                    ? 'Impossible de charger les profils accompagnés. Vérifiez votre connexion et réessayez.'
+                    : 'Aucun profil n’est disponible. Demandez l’accès à une personne accompagnée ou contactez l’administration si vous êtes tuteur légal.'
             );
         } else {
             document.getElementById('aidant-senior-selector').style.display = 'none';
@@ -3357,7 +3357,7 @@
 
         const seniorName = user.role === 'aidant' && activeSeniorProfileId
             ? document.getElementById('aidant-senior-select').selectedOptions[0].text
-            : user.seniorName || window.generationLiaisonTranslate('Aucun senior associé pour le moment');
+            : user.seniorName || window.generationLiaisonTranslate('Aucune personne accompagnée associée pour le moment');
         afficherAccueilSenior(user);
         document.getElementById('senior-name-aidant').textContent = window.generationLiaisonTranslate(seniorName);
         document.getElementById('coordinator-panel').style.display = user.isCoordinator ? 'block' : 'none';
@@ -3454,8 +3454,8 @@
     }
 
     function afficherAccueilSenior(user) {
-        const displayName = user.name || user.seniorName || 'Senior';
-        const firstName = user.firstName || displayName.trim().split(/\s+/)[0] || 'Senior';
+        const displayName = user.name || user.seniorName || window.generationLiaisonTranslate('Personne accompagnée');
+        const firstName = user.firstName || displayName.trim().split(/\s+/)[0] || window.generationLiaisonTranslate('Personne accompagnée');
         document.getElementById('welcome-senior-name').textContent = firstName;
         document.getElementById('welcome-aidant-name').textContent = firstName;
         mettreAJourDateSenior();
@@ -5220,7 +5220,7 @@
                 `${translate('Justificatifs reçus :')} ${translate('Identité')} ${uploaded.has('identity') ? '✓' : translate('à fournir')} · ${translate('Tutelle')} ${uploaded.has('guardianship') ? '✓' : translate('à fournir')}.`;
             message.textContent = result.verificationStatus === 'rejected'
                 ? translate('Les justificatifs doivent être complétés. Contactez l’administration après leur remplacement.')
-                : translate('Votre dossier est en attente de vérification manuelle. L’accès aux profils seniors sera ouvert après validation.');
+                : translate('Votre dossier est en attente de vérification manuelle. L’accès aux profils des personnes accompagnées sera ouvert après validation.');
         } catch (error) {
             status.textContent = error.message || 'Impossible de charger l’état des justificatifs de tutelle.';
         }
@@ -9074,7 +9074,7 @@
                 card.className = 'progress-item';
                 card.append(makeTextElement('p', `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)}${photo.approved ? '' : ' · En attente de votre accord'}`));
                 if (!photo.approved && role === 'aidant') card.firstChild.textContent =
-                    `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)} · En attente de l’accord du senior`;
+                    `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)} · En attente de l’accord de la personne accompagnée`;
                 const image = document.createElement('img');
                 image.alt = `Photo partagée par ${photo.authorName}`;
                 image.style.cssText = 'max-width:100%;max-height:300px;object-fit:contain;';
@@ -9131,7 +9131,7 @@
                     : role;
         const author = roleId === 'pro' ? '🩺 Soignant'
             : roleId === 'aidant' ? '👨‍👩‍👧‍👦 Famille'
-                : roleId === 'senior' ? '👴 Senior'
+                : roleId === 'senior' ? '🧑 Personne accompagnée'
                     : '👤 Participant';
         return name ? `${author} · ${name}` : author;
     }

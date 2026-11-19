@@ -19,7 +19,7 @@ test('caregiver profiles and senior and caregiver notification settings start co
     assert.doesNotMatch(match[1] + match[2], /\bopen\b/);
     for (const control of controls) assert.ok(section.indexOf(control) > match.index);
   }
-  const shortcut = source.match(/onclick="([^"]+)">Gérer mes profils seniors<\/button>/);
+  const shortcut = source.match(/onclick="([^"]+)">Gérer mes profils accompagnés<\/button>/);
   assert.ok(shortcut);
   const details = { open: false };
   let screen;
@@ -29,6 +29,14 @@ test('caregiver profiles and senior and caregiver notification settings start co
   });
   assert.equal(screen, 'settings');
   assert.equal(details.open, true);
+});
+
+test('inclusive account label preserves the existing senior role', () => {
+  const registration = source.slice(source.indexOf('id="register-section"'), source.indexOf('id="legal-guardian-verification-panel"'));
+  assert.match(registration, /<option value="senior">🧑 Personne accompagnée<\/option>/);
+  assert.match(registration, /Nom de la personne accompagnée \(facultatif\)/);
+  assert.match(source, /<summary>Mes profils accompagnés<\/summary>/);
+  assert.match(source, /Aucune personne accompagnée associée/);
 });
 
 test('senior and caregiver can open the external flea market directory without sharing a profile', () => {

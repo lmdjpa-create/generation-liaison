@@ -11,7 +11,7 @@ const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8
 
 test('homepage proposals are individually collapsed and retain their descriptions', () => {
   for (const title of [
-    'Pour les seniors', 'Pour les proches et aidants', 'Pour les professionnels',
+    'Pour les personnes accompagnées', 'Pour les proches et aidants', 'Pour les professionnels',
     'Carnet de liaison', 'Rendez-vous et services', 'Notifications et assistance',
     'Garder le lien au quotidien', 'Services à domicile', 'Une question ?'
   ]) {
@@ -29,15 +29,16 @@ test('homepage keeps direct application access and the emergency warning visible
 
 test('homepage speaks to families and uses practical family FAQs', () => {
   const intro = source.slice(source.indexOf('<section class="landing-card"'), source.indexOf('id="privacy-title"'));
-  assert.match(intro, /Le carnet de liaison numérique simple et rassurant pour les seniors et leurs proches/);
-  assert.match(intro, /sérénité des familles et l’autonomie des aînés, même à distance/);
+  assert.match(intro, /Le carnet de liaison simple pour les personnes accompagnées et leurs proches/);
+  assert.match(intro, /seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap/);
+  assert.match(source, /choisissez le profil « Personne accompagnée » dans l’application/);
   const features = source.slice(source.indexOf('aria-labelledby="features-title"'), source.indexOf('aria-labelledby="questions-title"'));
   assert.doesNotMatch(features, /Une demande de service doit être acceptée|Les demandes restent soumises|réponses peuvent être inexactes/);
   const faq = source.slice(source.indexOf('aria-labelledby="questions-title"'), source.indexOf('id="connexion"'));
-  assert.match(faq, /Mon parent n’est pas à l’aise avec Internet, comment faire/);
+  assert.match(faq, /Mon proche n’est pas à l’aise avec Internet, comment faire/);
   assert.match(faq, /Un proche peut l’aider à créer son compte/);
   assert.match(faq, /Combien de proches peut-on associer à un carnet/);
-  assert.match(faq, /le senior doit accepter chaque demande/);
+  assert.match(faq, /la personne accompagnée doit accepter chaque demande/);
   assert.match(faq, /20 correspondants au maximum/);
   assert.match(faq, /Faut-il télécharger une application sur téléphone/);
   assert.match(faq, /Comment sont sélectionnés les prestataires à domicile/);
@@ -59,7 +60,7 @@ test('privacy and health data information is visible near the top without unveri
   const block = source.slice(start, end);
   assert.match(block, /Vos échanges restent privés et sécurisés/);
   assert.match(block, /La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées/);
-  assert.match(block, /Le senior accepte les demandes des aidants/);
+  assert.match(block, /La personne accompagnée accepte les demandes des aidants/);
   assert.match(block, /ne remplace pas un dossier médical/);
   assert.match(block, /Certaines transmissions professionnelles sont enregistrées/);
   assert.match(block, /href="\/privacy-policy\.html"/);
@@ -72,8 +73,9 @@ test('privacy and health data information is visible near the top without unveri
 });
 
 test('homepage metadata and reassurance match the updated presentation', () => {
-  assert.match(source, /<title>Génération Liaison : Carnet de liaison numérique pour seniors<\/title>/);
-  assert.match(source, /<meta name="description" content="Facilitez le quotidien d'un parent âgé\./);
+  assert.match(source, /<title>Génération Liaison : carnet de liaison pour tous<\/title>/);
+  assert.match(source, /<meta name="description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
+  assert.match(source, /<meta property="og:description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
   assert.match(source, /Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation/);
   assert.match(source, /Bon à savoir :[\s\S]*?15 ou le 112/);
   assert.match(source, /href="mailto:mail@generation-liaison\.fr"/);
@@ -85,7 +87,8 @@ test('updated homepage copy remains available in English', () => {
   const document = { documentElement: {}, addEventListener() {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
   for (const text of [
-    'Le carnet de liaison numérique simple et rassurant pour les seniors et leurs proches',
+    'Le carnet de liaison simple pour les personnes accompagnées et leurs proches',
+    'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.',
     '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation',
     'Faut-il télécharger une application sur téléphone ?',
     'Comment sont sélectionnés les prestataires à domicile ?',

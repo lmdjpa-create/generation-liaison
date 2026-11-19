@@ -1,6 +1,63 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    '🧑 Personne accompagnée': '🧑 Person receiving support',
+    'Personne accompagnée': 'Person receiving support',
+    'Nom de la personne accompagnée (facultatif)': 'Name of the person receiving support (optional)',
+    'Vous pouvez créer votre compte même si la personne accompagnée n’est pas encore inscrite. Le suivi apparaîtra lorsqu’elle rejoindra l’application et partagera son profil.':
+      'You can create your account even if the person receiving support has not registered yet. Updates will appear when they join the app and share their profile.',
+    'Je suis tuteur légal et souhaite accéder aux profils des personnes accompagnées qui me seront associés par l’administration.':
+      'I am a legal guardian and wish to access the profiles of people receiving support that the administration links to me.',
+    'Si vous êtes un proche et le représentant légal d’une personne qui ne peut plus gérer son compte, cochez cette case. Après vérification des justificatifs, l’administration peut associer votre compte au profil concerné. Cet accès ne donne pas automatiquement accès aux autres proches.':
+      'If you are a loved one and the legal representative of a person who can no longer manage their account, check this box. After verifying the documents, the administration can link your account to the relevant profile. This does not automatically grant access to other loved ones.',
+    'L’accès aux profils des personnes accompagnées sera activé après vérification manuelle par l’administration. Seuls les administrateurs autorisés peuvent consulter ces justificatifs.':
+      'Access to the profiles of people receiving support will be enabled after manual verification by the administration. Only authorized administrators can view these documents.',
+    'L’accès aux profils des personnes accompagnées sera activé après validation par l’administration.':
+      'Access to the profiles of people receiving support will be enabled after approval by the administration.',
+    'Aucune personne accompagnée associée': 'No person receiving support is linked',
+    'Aucun profil n’est disponible. Demandez l’accès à une personne accompagnée ou contactez l’administration si vous êtes tuteur légal.':
+      'No profile is available. Request access to a person receiving support or contact the administration if you are a legal guardian.',
+    'Actualiser les profils': 'Refresh profiles',
+    'Gérer mes profils accompagnés': 'Manage my linked profiles',
+    'Mes profils accompagnés': 'My linked profiles',
+    'Saisissez l’adresse e-mail de la personne accompagnée pour lui envoyer une invitation à découvrir l’application. Si elle ne possède pas encore de compte, faites une nouvelle demande après son inscription. Elle devra l’accepter avant que vous puissiez consulter son profil.':
+      'Enter the email address of the person receiving support to invite them to discover the app. If they do not have an account yet, make a new request after they register. They must accept it before you can view their profile.',
+    'Adresse e-mail de la personne accompagnée': 'Email address of the person receiving support',
+    'Pour un tuteur légal, l’administration vérifie les justificatifs et associe le profil de la personne accompagnée à son compte. Les autres proches n’obtiennent pas automatiquement l’accès.':
+      'For a legal guardian, the administration verifies the documents and links the profile of the person receiving support to their account. Other loved ones do not automatically gain access.',
+    'Profils accompagnés indisponibles': 'Linked profiles unavailable',
+    'Impossible de charger les profils accompagnés. Vérifiez votre connexion et réessayez.':
+      'Unable to load linked profiles. Check your connection and try again.',
+    'Aucune personne accompagnée associée pour le moment': 'No person receiving support is linked yet',
+    'Ces contacts sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.':
+      'These contacts can be viewed and edited by the person receiving support and all their linked caregivers. Check the numbers regularly. In an emergency, call 15 or 112.',
+    'Ces tâches sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Un intervenant ne voit que les tâches que vous lui attribuez depuis l’annuaire partagé. Évitez les informations médicales.':
+      'These tasks can be viewed and edited by the person receiving support and all their linked caregivers. A professional sees only tasks assigned to them from the shared directory. Avoid medical information.',
+    'La personne accompagnée doit accepter chaque photo proposée avant son partage avec les aidants associés. Les photos peuvent contenir des informations de localisation.':
+      'The person receiving support must accept each proposed photo before it is shared with linked caregivers. Photos may contain location information.',
+    'Proposer la photo à la personne accompagnée': 'Propose the photo to the person receiving support',
+    'Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Ce journal ne surveille pas la sécurité de la personne accompagnée.':
+      'Visit updates appear here from today and remain in the journal. Updates from previous days are also kept here. This journal does not monitor the safety of the person receiving support.',
+    'Aucune personne accompagnée pour le moment : les rendez-vous apparaîtront ici dès qu’une personne sera associée à votre compte.':
+      'No person receiving support yet: appointments will appear here once a person is linked to your account.',
+    'Votre dossier est en attente de vérification manuelle. L’accès aux profils des personnes accompagnées sera ouvert après validation.':
+      'Your application is awaiting manual verification. Access to the profiles of people receiving support will open after approval.',
+    'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.':
+      'Whether you are an older adult or need support for another reason, choose the “Person receiving support” profile in the app.',
+    'Le carnet de liaison simple pour les personnes accompagnées et leurs proches':
+      'The simple shared journal for people receiving support and their loved ones',
+    'Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : coordonnez les visites, partagez les nouvelles et retrouvez les services à domicile, même à distance.':
+      'For older adults and anyone who needs everyday support, including people with disabilities: coordinate visits, share updates and find home services, even from a distance.',
+    'La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Certaines transmissions professionnelles sont enregistrées dans l’espace prévu à cet effet.':
+      'The person receiving support accepts caregivers’ requests; a verified legal guardian is linked by the administration. Génération Liaison helps organize daily life and does not replace a medical record. Some professional care updates are recorded in the designated space.',
+    'Pour les personnes accompagnées': 'For people receiving support',
+    'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, votre espace est appelé « senior » dans l’application.':
+      'Whether you are an older adult or need support for another reason, your space is called “senior” in the app.',
+    'Consultez le carnet de liaison partagé, recevez des notifications utiles et organisez les visites autour de votre proche, selon vos accès.':
+      'View the shared journal, receive useful notifications and organize visits for your loved one, according to your access.',
+    'Mon proche n’est pas à l’aise avec Internet, comment faire ?': 'My loved one is not comfortable with the internet. What can we do?',
+    'Plusieurs proches peuvent demander l’accès : la personne accompagnée doit accepter chaque demande. Il n’y a pas de plafond fixe dans l’application ; un message groupé peut être envoyé à 20 correspondants au maximum.':
+      'Several loved ones can request access: the person receiving support must accept each request. There is no fixed limit in the app; a group message can be sent to up to 20 contacts.',
     'Gestion des cookies': 'Cookie settings',
     'Le lien au quotidien entre générations': 'Connecting generations every day',
     'Le carnet de liaison numérique simple et rassurant pour les seniors et leurs proches':
