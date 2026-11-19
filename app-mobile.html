@@ -538,7 +538,40 @@
         }
         #senior-game-section details details[open] { padding-bottom: 14px; }
         #senior-game-section details details > summary { cursor: pointer; font-size: 1.125rem; font-weight: 700; padding: 12px 0; }
-        #senior-game-section details details.game-level { background: #edf7f1; border-color: #376d57; }
+        #senior-game-section .game-levels { display: grid; gap: 12px; }
+        #senior-game-section details details.game-level { box-sizing: border-box; margin: 0; padding: 0; background: #f7faf6; }
+        #senior-game-section details details.game-level-easy { border-color: #947735; box-shadow: 0 4px 0 #e7d6a5; }
+        #senior-game-section details details.game-level-medium { border-color: #518261; box-shadow: 0 4px 0 #c4ddc6; }
+        #senior-game-section details details.game-level-hard { border-color: #537b9d; box-shadow: 0 4px 0 #c3d8e9; }
+        #senior-game-section details details.game-level-letters { border-color: #a75454; box-shadow: 0 4px 0 #e7c2bf; }
+        #senior-game-section details details.game-level[open] { padding: 0 14px 14px; }
+        #senior-game-section details details.game-level > summary {
+            display: flex; align-items: center; gap: 12px;
+            box-sizing: border-box; min-height: 100px; padding: 14px; border-radius: 10px; list-style: none; text-align: left;
+        }
+        #senior-game-section .game-level-easy > summary { background: linear-gradient(120deg, #fff3c9, #f8e3a9); color: #3a281b; }
+        #senior-game-section .game-level-medium > summary { background: linear-gradient(120deg, #e5f4db, #c5e5bb); color: #18352e; }
+        #senior-game-section .game-level-hard > summary { background: linear-gradient(120deg, #c8e3f7, #99c4e7); color: #18304a; }
+        #senior-game-section .game-level-letters > summary { background: linear-gradient(120deg, #f8dddd, #eeaeaa); color: #481e1e; }
+        #senior-game-section details details.game-level[open] > summary { min-height: 0; }
+        #senior-game-section .game-level > summary::-webkit-details-marker { display: none; }
+        #senior-game-section .game-level > summary:focus-visible { outline: 3px solid #163b72; outline-offset: -3px; border-radius: 10px; }
+        #senior-game-section .game-level-badge {
+            display: grid; place-items: center; flex: 0 0 48px; height: 48px; border: 2px solid currentColor;
+            border-radius: 14px; background: rgba(255,255,255,.24); font-size: 1.15rem; font-weight: 800;
+        }
+        #senior-game-section .game-level-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+        #senior-game-section .game-level-description { font-size: .9rem; font-weight: 400; }
+        #senior-game-section .game-level-action {
+            padding: 8px 10px; border: 2px solid currentColor; border-radius: 999px;
+            font-size: .85rem; font-weight: 700; white-space: nowrap;
+        }
+        #senior-game-section .game-level-action::after { content: 'Voir les jeux'; }
+        #senior-game-section .game-level[open] .game-level-action::after { content: 'Fermer'; }
+        @media (max-width: 400px) {
+            #senior-game-section details details.game-level > summary { flex-wrap: wrap; }
+            #senior-game-section .game-level-action { margin-left: 60px; }
+        }
         #senior-game-section .game-level > p { margin-top: 0; }
         .morpion-grid {
             display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
@@ -580,6 +613,12 @@
         #senior-game-section .word-cell:focus-visible { outline: 3px solid #163b72; outline-offset: -3px; }
         #senior-game-section #word-list s { text-decoration-thickness: 2px; }
         #senior-game-section .word-found-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+        #senior-game-section .crossword-scroll { overflow-x: auto; }
+        #senior-game-section .crossword-grid { display: grid; grid-template-columns: repeat(13, 48px); width: max-content; border: 3px solid #783e3e; background: #783e3e; }
+        #senior-game-section .crossword-cell { position: relative; width: 48px; height: 48px; }
+        #senior-game-section .crossword-cell input { box-sizing: border-box; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 9px 2px 2px; border: 1px solid #783e3e; border-radius: 0; background: #fff; color: #292020; text-align: center; text-transform: uppercase; font-size: 1.25rem; }
+        #senior-game-section .crossword-cell input:focus-visible { outline: 3px solid #163b72; outline-offset: -3px; }
+        #senior-game-section .crossword-number { position: absolute; top: 2px; left: 3px; z-index: 1; pointer-events: none; font-size: .65rem; line-height: 1; font-weight: 700; color: #481e1e; }
         .senior-simple-only { display: none; }
         body.senior-simple .senior-simple-only { display: block; }
         body.senior-simple .senior-full-only,
@@ -1016,8 +1055,9 @@
           <details class="senior-disclosure senior-tab-disclosure">
             <summary>🎲 Jeux gratuits</summary>
             <p class="helper-text">Pour le plaisir, seul ou à tour de rôle avec un proche présent. Rien n’est enregistré ni partagé.</p>
-            <details class="game-level">
-            <summary>Niveau facile</summary>
+            <div class="game-levels">
+            <details class="game-level game-level-easy">
+            <summary><span class="game-level-badge" aria-hidden="true">1</span><span class="game-level-copy"><span>Niveau facile</span><span class="game-level-description">3 jeux pour commencer</span></span><span class="game-level-action" aria-hidden="true"></span></summary>
             <p>Pour commencer en douceur.</p>
             <details>
             <summary>Les couleurs</summary>
@@ -1058,8 +1098,8 @@
               <p class="helper-text"><a href="riddle-images/credits.html" target="_blank" rel="noopener noreferrer">Crédits des photos</a></p>
             </details>
             </details>
-            <details class="game-level">
-            <summary>Niveau intermédiaire</summary>
+            <details class="game-level game-level-medium">
+            <summary><span class="game-level-badge" aria-hidden="true">2</span><span class="game-level-copy"><span>Niveau intermédiaire</span><span class="game-level-description">4 jeux pour réfléchir</span></span><span class="game-level-action" aria-hidden="true"></span></summary>
             <p>Pour exercer sa mémoire et sa réflexion.</p>
             <details>
               <summary>Morpion</summary>
@@ -1148,8 +1188,8 @@
               <button type="button" onclick="nouveauSudoku()">Nouvelle grille</button>
             </details>
             </details>
-            <details class="game-level">
-            <summary>Niveau avancé</summary>
+            <details class="game-level game-level-hard">
+            <summary><span class="game-level-badge" aria-hidden="true">3</span><span class="game-level-copy"><span>Niveau avancé</span><span class="game-level-description">3 jeux pour relever le défi</span></span><span class="game-level-action" aria-hidden="true"></span></summary>
             <p>Pour relever un défi plus difficile.</p>
             <details ontoggle="if (this.open) initialiserSudoku9()">
               <summary>Sudoku 9 × 9</summary>
@@ -1180,6 +1220,20 @@
               <button type="button" onclick="nouveauxMotsMeles()">Nouvelle grille de mots mêlés</button>
             </details>
             </details>
+            <details class="game-level game-level-letters">
+            <summary><span class="game-level-badge" aria-hidden="true">4</span><span class="game-level-copy"><span>Jeux de lettres</span><span class="game-level-description">Des mots à découvrir</span></span><span class="game-level-action" aria-hidden="true"></span></summary>
+            <details ontoggle="if (this.open) initialiserMotsCroises()">
+              <summary>Mots croisés</summary>
+              <p>Complétez la grille à l’aide des définitions. Écrivez une lettre par case, sans accent. Les numéros indiquent le début de chaque mot. Sur un petit écran, faites défiler la grille de gauche à droite.</p>
+              <p id="crossword-theme"></p>
+              <div id="crossword-clues"></div>
+              <div class="crossword-scroll"><div id="crossword-grid" class="crossword-grid" role="group" aria-label="Grille de mots croisés"></div></div>
+              <p id="crossword-status" role="status" aria-live="polite"></p>
+              <button type="button" onclick="verifierMotsCroises()">Vérifier la grille</button>
+              <button type="button" onclick="nouveauxMotsCroises()">Autre grille</button>
+            </details>
+            </details>
+            </div>
           </details>
         </section>
         <section class="form-card" id="senior-album-section" style="text-align:left;">
@@ -6181,6 +6235,118 @@
             cases.forEach(position => casesMotsTrouves.add(position));
             afficherMotsMeles(motsTrouves.length === themesMotsMeles[themeMotsMeles].mots.length
                 ? 'Bravo, vous avez trouvé tous les mots !' : `Bravo, ${mot} est trouvé. Choisissez un autre mot.`);
+        }
+    }
+
+    const grillesMotsCroises = [
+        { theme: 'Le ciel et ses mystères', mots: [
+            { mot: 'GALAXIE', ligne: 0, colonne: 0, direction: 'vertical', indice: 'Vaste ensemble d’étoiles, de gaz et de poussières lié par la gravitation.' },
+            { mot: 'CONSTELLATION', ligne: 0, colonne: 3, direction: 'vertical', indice: 'Figure imaginaire dessinée par un groupe d’étoiles dans le ciel.' },
+            { mot: 'COMETE', ligne: 0, colonne: 6, direction: 'horizontal', indice: 'Petit corps céleste dont la chevelure apparaît près du Soleil.' },
+            { mot: 'ECLIPSE', ligne: 0, colonne: 9, direction: 'vertical', indice: 'Disparition momentanée d’un astre, caché totalement ou partiellement.' },
+            { mot: 'AURORE', ligne: 1, colonne: 0, direction: 'horizontal', indice: 'Lueur qui précède le lever du Soleil.' },
+            { mot: 'SATELLITE', ligne: 3, colonne: 3, direction: 'horizontal', indice: 'Corps naturel ou artificiel qui gravite autour d’un astre.' },
+            { mot: 'EQUINOXE', ligne: 3, colonne: 6, direction: 'vertical', indice: 'Moment de l’année où jour et nuit ont presque la même durée.' },
+            { mot: 'PLANETE', ligne: 4, colonne: 12, direction: 'vertical', indice: 'Astre sans lumière propre qui tourne autour d’une étoile.' },
+            { mot: 'LUMIERE', ligne: 6, colonne: 3, direction: 'horizontal', indice: 'Rayonnement qui rend les objets visibles.' },
+            { mot: 'ATMOSPHERE', ligne: 8, colonne: 3, direction: 'horizontal', indice: 'Enveloppe gazeuse entourant une planète.' },
+            { mot: 'ZENITH', ligne: 10, colonne: 5, direction: 'horizontal', indice: 'Point du ciel situé exactement au-dessus de l’observateur.' },
+            { mot: 'NEBULEUSE', ligne: 12, colonne: 3, direction: 'horizontal', indice: 'Nuage interstellaire de gaz et de poussières.' }
+        ] },
+        { theme: 'Mémoire et patrimoine', mots: [
+            { mot: 'ARCHIVES', ligne: 0, colonne: 10, direction: 'vertical', indice: 'Documents conservés pour garder la trace du passé.' },
+            { mot: 'DICTIONNAIRE', ligne: 1, colonne: 4, direction: 'vertical', indice: 'Ouvrage où les mots sont répertoriés et expliqués.' },
+            { mot: 'HERITAGE', ligne: 1, colonne: 8, direction: 'vertical', indice: 'Ce qui se transmet d’une génération à l’autre.' },
+            { mot: 'MEMOIRE', ligne: 2, colonne: 0, direction: 'horizontal', indice: 'Faculté de conserver et de retrouver des souvenirs.' },
+            { mot: 'ANTIQUAIRE', ligne: 3, colonne: 12, direction: 'vertical', indice: 'Professionnel qui recherche et vend des objets anciens.' },
+            { mot: 'TRADITION', ligne: 4, colonne: 4, direction: 'horizontal', indice: 'Coutume transmise au fil des générations.' },
+            { mot: 'TEMOIGNAGE', ligne: 6, colonne: 1, direction: 'horizontal', indice: 'Récit de ce qu’une personne a vu ou vécu.' },
+            { mot: 'CHRONIQUE', ligne: 8, colonne: 0, direction: 'horizontal', indice: 'Récit de faits présentés selon leur ordre dans le temps.' },
+            { mot: 'PATRIMOINE', ligne: 10, colonne: 0, direction: 'horizontal', indice: 'Ensemble des biens et des richesses hérités du passé.' },
+            { mot: 'GENEALOGIE', ligne: 12, colonne: 3, direction: 'horizontal', indice: 'Recherche des liens de parenté et des ancêtres d’une famille.' }
+        ] }
+    ];
+    let grilleMotsCroisesCourante = -1;
+    let casesMotsCroises = [];
+
+    function initialiserMotsCroises() {
+        if (grilleMotsCroisesCourante === -1) nouveauxMotsCroises();
+    }
+
+    function nouveauxMotsCroises() {
+        grilleMotsCroisesCourante = (grilleMotsCroisesCourante + 1) % grillesMotsCroises.length;
+        const grille = grillesMotsCroises[grilleMotsCroisesCourante];
+        const debuts = [...new Set(grille.mots.map(mot => mot.ligne * 13 + mot.colonne))].sort((a, b) => a - b);
+        const cases = Array(13 * 13).fill(null);
+        const motsNumerotes = grille.mots.map(mot => ({
+            ...mot, numero: debuts.indexOf(mot.ligne * 13 + mot.colonne) + 1
+        }));
+        motsNumerotes.forEach(mot => {
+            for (let index = 0; index < mot.mot.length; index++) {
+                const ligne = mot.ligne + (mot.direction === 'vertical' ? index : 0);
+                const colonne = mot.colonne + (mot.direction === 'horizontal' ? index : 0);
+                const position = ligne * 13 + colonne;
+                if (!cases[position]) cases[position] = { lettre: mot.mot[index], indications: [] };
+                cases[position].indications.push(`${mot.direction === 'horizontal' ? 'Horizontal' : 'Vertical'} ${mot.numero}`);
+            }
+        });
+        const conteneur = document.getElementById('crossword-grid');
+        conteneur.replaceChildren();
+        casesMotsCroises = [];
+        cases.forEach((caseJeu, index) => {
+            const cellule = document.createElement('div');
+            cellule.className = 'crossword-cell';
+            if (caseJeu) {
+                const numero = debuts.indexOf(index) + 1;
+                if (numero) {
+                    const etiquette = document.createElement('span');
+                    etiquette.className = 'crossword-number';
+                    etiquette.textContent = String(numero);
+                    etiquette.setAttribute('aria-hidden', 'true');
+                    cellule.append(etiquette);
+                }
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.maxLength = 1;
+                input.autocomplete = 'off';
+                input.autocapitalize = 'characters';
+                input.spellcheck = false;
+                input.setAttribute('aria-label', `Ligne ${Math.floor(index / 13) + 1}, colonne ${index % 13 + 1}. ${caseJeu.indications.join(', ')}`);
+                input.addEventListener('input', () => {
+                    input.value = input.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
+                });
+                cellule.append(input);
+                casesMotsCroises.push({ input, lettre: caseJeu.lettre });
+            } else {
+                cellule.setAttribute('aria-hidden', 'true');
+            }
+            conteneur.append(cellule);
+        });
+        const indices = document.getElementById('crossword-clues');
+        indices.replaceChildren();
+        for (const direction of ['horizontal', 'vertical']) {
+            const titre = document.createElement('h4');
+            titre.textContent = direction === 'horizontal' ? 'Horizontal' : 'Vertical';
+            indices.append(titre);
+            motsNumerotes.filter(mot => mot.direction === direction).sort((a, b) => a.numero - b.numero).forEach(mot => {
+                const indice = document.createElement('p');
+                indice.textContent = `${mot.numero}. ${mot.indice}`;
+                indices.append(indice);
+            });
+        }
+        document.getElementById('crossword-theme').textContent = `Thème : ${grille.theme}`;
+        document.getElementById('crossword-status').textContent = 'Complétez la grille, puis vérifiez vos réponses.';
+    }
+
+    function verifierMotsCroises() {
+        if (!casesMotsCroises.length) return;
+        const status = document.getElementById('crossword-status');
+        if (casesMotsCroises.some(caseJeu => !caseJeu.input.value)) {
+            status.textContent = 'Complétez toutes les cases blanches avant de vérifier.';
+        } else if (casesMotsCroises.some(caseJeu => caseJeu.input.value !== caseJeu.lettre)) {
+            status.textContent = 'Certaines lettres ne correspondent pas aux définitions. Vous pouvez réessayer.';
+        } else {
+            status.textContent = 'Bravo, vous avez complété les mots croisés !';
         }
     }
 

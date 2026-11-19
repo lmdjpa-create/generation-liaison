@@ -550,13 +550,19 @@ test('games have named controls and are available in the senior full view', () =
   assert.match(games, /Rien n’est enregistré ni partagé/);
   assert.equal((games.match(/class="game-choice(?: riddle-choice)?"/g) || []).length, 17);
   assert.equal((games.match(/class="game-choice riddle-choice"/g) || []).length, 4);
-  const facile = games.slice(games.indexOf('<summary>Niveau facile</summary>'), games.indexOf('<summary>Niveau intermédiaire</summary>'));
-  const intermediaire = games.slice(games.indexOf('<summary>Niveau intermédiaire</summary>'), games.indexOf('<summary>Niveau avancé</summary>'));
-  const avance = games.slice(games.indexOf('<summary>Niveau avancé</summary>'));
+  const facile = games.slice(games.indexOf('<span>Niveau facile</span>'), games.indexOf('<span>Niveau intermédiaire</span>'));
+  const intermediaire = games.slice(games.indexOf('<span>Niveau intermédiaire</span>'), games.indexOf('<span>Niveau avancé</span>'));
+  const avance = games.slice(games.indexOf('<span>Niveau avancé</span>'));
   for (const nom of ['Les couleurs', 'Petits calculs', 'Devinettes']) assert.ok(facile.includes(`<summary>${nom}</summary>`));
   for (const nom of ['Morpion', 'Jeu des paires', 'Deviner le nombre', 'Sudoku 6 × 6']) assert.ok(intermediaire.includes(`<summary>${nom}</summary>`));
   for (const nom of ['Sudoku 9 × 9', 'Suites logiques', 'Mots mêlés']) assert.ok(avance.includes(`<summary>${nom}</summary>`));
   assert.ok(!avance.includes('<summary>Sudoku 6 × 6</summary>'));
+  for (const classe of ['game-level-easy', 'game-level-medium', 'game-level-hard', 'game-level-letters']) {
+    assert.match(games, new RegExp(`class="game-level ${classe}"`));
+  }
+  assert.match(games, /<span>Jeux de lettres<\/span>/);
+  assert.match(games, /<summary>Mots croisés<\/summary>/);
+  assert.doesNotMatch(games, /class="game-level-icons"/);
 });
 
 test('tic-tac-toe handles moves, wins, a draw and restarting without losing accessible labels', () => {
@@ -910,6 +916,96 @@ test('word search finds words in both directions, reports errors and restarts', 
   assert.equal(element('word-grid').children.length, 64);
   assert.ok(!element('word-list').children.some(child => child.tagName === 's' || child.className === 'word-found-sr'));
   assert.match(element('word-status').textContent, /première lettre/);
+});
+
+test('crosswords render intersecting clues, check answers and restart with a different puzzle', () => {
+  const createNode = tag => ({
+    tagName: tag, value: '', textContent: '', children: [], attributes: {}, handlers: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, handler) { this.handlers[name] = handler; },
+    append(child) { this.children.push(child); },
+    replaceChildren() { this.children = []; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= createNode('div');
+  const context = {
+    document: { getElementById: element, createElement: createNode },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.initialiserMotsCroises();
+  const cells = element('crossword-grid').children;
+  assert.equal(cells.length, 169);
+  assert.match(element('crossword-theme').textContent, /ciel/);
+  assert.ok(element('crossword-clues').children.some(node => node.textContent.startsWith('7. Moment')));
+  const intersection = cells[3 * 13 + 6].children.find(node => node.tagName === 'input');
+  assert.match(intersection.attributes['aria-label'], /Horizontal 6, Vertical 7/);
+  assert.equal(cells[3 * 13 + 6].children[0].textContent, '7');
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /Complétez toutes/);
+  const solution = [
+    'G..C..COMETE.', 'AURORE...C...', 'L..N.....L...', 'A..SATELLITE.',
+    'X..T..Q..P..P', 'I..E..U..S..L', 'E..LUMIERE..A', '...L..N.....N',
+    '...ATMOSPHERE', '...T..X.....T', '...I.ZENITH.E', '...O.........',
+    '...NEBULEUSE.'
+  ].join('');
+  const puzzles = vm.runInNewContext('grillesMotsCroises', context);
+  const checkCrossings = (puzzle, expected) => {
+    const positions = new Map();
+    assert.ok(puzzle.mots.length >= 10);
+    for (const word of puzzle.mots) {
+      for (let i = 0; i < word.mot.length; i++) {
+        const row = word.ligne + (word.direction === 'vertical' ? i : 0);
+        const column = word.colonne + (word.direction === 'horizontal' ? i : 0);
+        assert.ok(row < 13 && column < 13);
+        const index = row * 13 + column;
+        assert.equal(expected[index], word.mot[i], `${word.mot} at ${row},${column}`);
+        positions.set(index, (positions.get(index) || 0) + 1);
+      }
+    }
+    for (const word of puzzle.mots) {
+      assert.ok([...word.mot].some((_, i) => {
+        const row = word.ligne + (word.direction === 'vertical' ? i : 0);
+        const column = word.colonne + (word.direction === 'horizontal' ? i : 0);
+        return positions.get(row * 13 + column) > 1;
+      }), `${word.mot} should cross another word`);
+    }
+  };
+  checkCrossings(puzzles[0], solution);
+  cells.forEach((cell, index) => {
+    const input = cell.children.find(node => node.tagName === 'input');
+    assert.equal(Boolean(input), solution[index] !== '.');
+    if (input) input.value = solution[index];
+  });
+  const first = cells[0].children.find(node => node.tagName === 'input');
+  first.value = 'é';
+  first.handlers.input();
+  assert.equal(first.value, 'E');
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /réessayer/);
+  first.value = 'G';
+  context.initialiserMotsCroises();
+  assert.equal(element('crossword-grid').children, cells);
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /Bravo/);
+  context.nouveauxMotsCroises();
+  const next = element('crossword-grid').children;
+  assert.match(element('crossword-theme').textContent, /patrimoine/);
+  assert.ok(next.every(cell => cell.children.filter(node => node.tagName === 'input').every(input => input.value === '')));
+  const nextSolution = [
+    '..........A..', '....D...H.R..', 'MEMOIRE.E.C..', '....C...R.H.A',
+    '....TRADITION', '....I...T.V.T', '.TEMOIGNAGE.I', '....N...G.S.Q',
+    'CHRONIQUE...U', '....A.......A', 'PATRIMOINE..I', '....R.......R',
+    '...GENEALOGIE'
+  ].join('');
+  checkCrossings(puzzles[1], nextSolution);
+  next.forEach((cell, index) => {
+    const input = cell.children.find(node => node.tagName === 'input');
+    assert.equal(Boolean(input), nextSolution[index] !== '.');
+    if (input) input.value = nextSolution[index];
+  });
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /Bravo/);
 });
 
 test('birthday form submits the birth date and keeps it when saving fails', async () => {
