@@ -96,6 +96,22 @@
         .visit-progress button:disabled, .form-card button:disabled { opacity: 0.55; cursor: not-allowed; }
         .form-card { margin: 14px 0; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.05); text-align: left; }
         #aidant-daily-summary p, #senior-daily-summary p, #pro-daily-summary p { white-space: pre-line; overflow-wrap: anywhere; }
+        :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > p:not(.helper-text) {
+            margin: 10px 0;
+            padding: 12px 15px;
+            border-radius: 18px;
+            background: #e6f4ee;
+            color: #18352e;
+            line-height: 1.5;
+            text-align: left;
+        }
+        :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > p:not(.helper-text):nth-of-type(3n + 2) { background: #e8f1fb; }
+        :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > p:not(.helper-text):nth-of-type(3n) { background: #f8eddb; }
+        :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > :is(#senior-summary-notifications, #aidant-summary-notification-details, #pro-summary-notification-details) {
+            border-left: 5px solid #835b9b;
+            border-radius: 6px 18px 18px 6px;
+            background: #f3e8fa;
+        }
         #senior-daily-summary p:not(.helper-text) { font-size: 1.1rem; }
         .senior-disclosure > summary { cursor: pointer; font-weight: 700; padding: 10px 0; }
         #screen-aidant .senior-disclosure > summary { padding: 16px; border-radius: 12px; background: #2c3e50; color: white; }
