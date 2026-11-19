@@ -447,6 +447,7 @@
         #main-app-senior .senior-disclosure > summary { display: list-item; }
         #main-app-senior .senior-disclosure:not(.senior-explanation) > summary,
         #screen-directory .senior-tab-disclosure > summary,
+        .screen-container .senior-tab-disclosure > summary,
         .senior-mode .senior-tab-disclosure > summary {
             display: flex;
             flex-direction: column;
@@ -467,6 +468,7 @@
         }
         #main-app-senior .senior-disclosure[open]:not(.senior-explanation) > summary,
         #screen-directory .senior-tab-disclosure[open] > summary,
+        .screen-container .senior-tab-disclosure[open] > summary,
         .senior-mode .senior-tab-disclosure[open] > summary { margin-bottom: 14px; }
         .senior-mode #senior-album-details > summary,
         .senior-mode #senior-journal-details > summary {
@@ -474,9 +476,10 @@
             justify-content: center;
         }
         #screen-directory .senior-tab-disclosure > summary:focus-visible,
+        .screen-container .senior-tab-disclosure > summary:focus-visible,
         .senior-mode .senior-tab-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #main-app-senior .senior-disclosure + .senior-disclosure { margin-top: 12px; }
-        .senior-mode .senior-tab-disclosure + .senior-tab-disclosure { margin-top: 12px; }
+        .screen-container .senior-tab-disclosure + .senior-tab-disclosure { margin-top: 12px; }
         #main-app-senior .senior-action-tile { width: 100%; margin: 14px 0; }
         #senior-pro-directory-action > .action-tile {
             box-sizing: border-box;
@@ -1085,7 +1088,7 @@
         </div>
         <section class="form-card" id="senior-game-section" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure">
-            <summary>🎲 Jeux gratuits</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🎲</span>Jeux gratuits</summary>
             <p class="helper-text">Pour le plaisir, seul ou à tour de rôle avec un proche présent. Rien n’est enregistré ni partagé.</p>
             <div class="game-levels">
             <details class="game-level game-level-easy">
@@ -1616,8 +1619,10 @@
         </details>
     </section>
         <section class="form-card">
-        <h4>Demandes reçues</h4>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">📨</span>Demandes reçues</summary>
         <div id="directory-professional-bookings" aria-live="polite">Chargement des demandes…</div>
+      </details>
     </section>
     <div class="schedule-notice"><strong>Suivi de visite uniquement.</strong><br>Les étapes et notes pratiques ne constituent pas un dossier médical. N’y saisissez aucune donnée clinique ni information d’urgence.</div>
     <div class="schedule-controls" aria-label="Navigation dans l’agenda">
@@ -1629,13 +1634,16 @@
     <h3 class="schedule-day" id="schedule-day-title">Visites du jour</h3>
     <div id="pro-planning" aria-live="polite">Chargement de votre planning…</div>
     <section class="form-card">
-        <h3>Agenda des services du quotidien</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda des services du quotidien</summary>
         <p class="helper-text">Repas, coiffure et ménage : seuls vos rendez-vous vous sont affichés, avec les coordonnées utiles à leur réalisation. Aucun dossier ni renseignement médical n’est accessible ici.</p>
         <div id="pro-service-planning" aria-live="polite">Chargement de votre agenda…</div>
+      </details>
     </section>
 
         <section id="coordinator-panel" class="form-card" style="display:none;">
-        <h3 style="margin-top:0;">Coordination de l’équipe</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">👥</span>Coordination de l’équipe</summary>
         <p class="helper-text">Les coordonnées ne sont accessibles qu’après consentement et uniquement aux intervenants affectés.</p>
         <form id="member-form" class="form-grid">
             <h4>Ajouter un intervenant déjà inscrit</h4>
@@ -1697,6 +1705,7 @@
         </form>
         <div id="coordinator-summary" class="helper-text" aria-live="polite"></div>
         <div id="coordinator-visit-history"></div>
+      </details>
     </section>
     <hr style="border:0; border-top:1px solid #dfe4ea; margin:22px 0;">
     <p class="helper-text">Les proches ne voient que les étapes et notes pratiques lorsque leur compte est autorisé pour le profil ; les coordonnées ne leur sont pas transmises dans ce suivi.</p>
@@ -1708,13 +1717,16 @@
     <button type="button" class="register-button" onclick="switchScreen(connectedUser.role)">← Retour à l’accueil</button>
     <h1>Notifications et messages</h1>
     <section class="form-card" id="notifications-panel-senior" style="display:none;">
+      <details class="senior-tab-disclosure" id="notification-details-senior" ontoggle="surveillerNotificationsVisibles()">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications</summary>
         <div id="notifications-list-senior">
-            <h3>Notifications</h3>
             <div id="notification-opened-senior" aria-live="polite"></div>
             <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
         </div>
+      </details>
+      <details class="senior-tab-disclosure" id="message-details-senior">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
         <div id="messages-senior">
-            <h3>Messages avec mes contacts</h3>
             <details class="senior-disclosure senior-explanation" data-help-for="#message-open-senior">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
@@ -1755,13 +1767,17 @@
             </form>
             <p id="message-status-senior" class="helper-text" aria-live="polite"></p>
         </div>
+      </details>
     </section>
     <section class="form-card" id="notifications-panel-aidant" style="display:none;">
-        <h3>Notifications</h3>
+      <details class="senior-tab-disclosure" id="notification-details-aidant" ontoggle="surveillerNotificationsVisibles()">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications</summary>
         <div id="notification-opened-aidant" aria-live="polite"></div>
         <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
+      </details>
+      <details class="senior-tab-disclosure" id="message-details-aidant">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
         <div id="messages-aidant">
-            <h3>Messages avec mes contacts</h3>
             <details class="senior-disclosure senior-explanation" data-help-for="#message-open-aidant">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble"><p class="helper-text">La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.</p></div>
@@ -1778,13 +1794,17 @@
             </form>
             <p id="message-status-aidant" class="helper-text" aria-live="polite"></p>
         </div>
+      </details>
     </section>
     <section class="form-card" id="notifications-panel-pro" style="display:none;">
-        <h3>Notifications et demandes à traiter</h3>
+      <details class="senior-tab-disclosure" id="notification-details-pro" ontoggle="surveillerNotificationsVisibles()">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et demandes à traiter</summary>
         <div id="notification-opened-pro" aria-live="polite"></div>
         <div id="notifications-pro" aria-live="polite">Chargement des notifications…</div>
+      </details>
+      <details class="senior-tab-disclosure" id="message-details-pro">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
         <div id="messages-pro">
-            <h3>Messages avec mes contacts</h3>
             <details class="senior-disclosure senior-explanation" data-help-for="#message-open-pro">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble"><p class="helper-text">La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.</p></div>
@@ -1801,6 +1821,7 @@
             </form>
             <p id="message-status-pro" class="helper-text" aria-live="polite"></p>
         </div>
+      </details>
     </section>
 </div>
 
@@ -1808,9 +1829,11 @@
     <h1>Réglages</h1>
     <button id="settings-logout" type="button" onclick="deconnecterUtilisateur()">Se déconnecter</button>
     <section class="form-card" id="settings-senior-display" style="display:none;">
-        <h3>Affichage senior</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👁️</span>Affichage senior</summary>
         <button type="button" class="senior-full-only" id="senior-simple-enable" onclick="changerVueSenior(true)">Activer la vue simplifiée</button>
         <button type="button" class="senior-simple-only" id="senior-simple-disable" onclick="changerVueSenior(false)">Afficher toutes les fonctions</button>
+      </details>
     </section>
     <section class="form-card" id="settings-weather" style="display:none;">
       <details class="senior-tab-disclosure">
@@ -1962,11 +1985,12 @@
       </details>
     </section>
 <section class="form-card notification-settings" id="notification-settings-pro" style="display:none;">
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Mes préférences de notification</summary>
         <button type="button" class="enable-push-button" data-role="pro" disabled>Activer les notifications sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
         <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
         <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
-        <h3>Mes préférences de notification</h3>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="pro">
             <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
@@ -1975,6 +1999,7 @@
             <button type="submit">Enregistrer mes choix SMS et e-mail</button>
         </form>
         <p class="helper-text channel-status" aria-live="polite"></p>
+      </details>
     </section>
 <section class="form-card" style="text-align:left;" id="settings-senior-links">
           <details class="senior-tab-disclosure">
@@ -1991,7 +2016,8 @@
         </section>
 <div id="settings-pro-area">
     <section id="calendar-google-settings" class="form-card" hidden>
-        <h3>Synchronisation du planning avec Google</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">🔄</span>Synchronisation du planning avec Google</summary>
         <details class="senior-disclosure senior-explanation" data-help-for="#calendar-google-sync-toggle">
             <summary>Explications</summary>
             <div class="gl-help-bubble">
@@ -2002,9 +2028,11 @@
         <button id="calendar-google-sync-toggle" type="button" disabled>Modifier la synchronisation</button>
         <button id="calendar-google-same" type="button" hidden>J’ai reconnecté le même agenda</button>
         <button id="calendar-google-new" type="button" hidden>J’ai connecté un autre agenda</button>
+      </details>
     </section>
 <section class="form-card" id="directory-profile-panel">
-        <h3>Annuaire national et rendez-vous</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🩺</span>Annuaire national et rendez-vous</summary>
         <p class="helper-text">Seuls les intervenants dont le dossier est validé peuvent publier un profil. Votre activité est publique ; votre adresse, votre position et vos coordonnées ne le sont pas. Les demandes sont confirmées par vous.</p>
         <div class="form-grid">
             <p id="directory-calendar-status" class="helper-text" aria-live="polite">Vérification de Google Calendar…</p>
@@ -2035,9 +2063,11 @@
             <p class="helper-text">Les créneaux sont proposés selon ces horaires et les disponibilités réelles de votre agenda Google.</p>
             <button type="submit">Enregistrer mon profil annuaire</button>
         </form>
+      </details>
     </section>
 <section class="form-card" id="professional-location-card">
-            <h3>Mon point de départ et mon rayon d’intervention</h3>
+          <details class="senior-tab-disclosure">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📍</span>Mon point de départ et mon rayon d’intervention</summary>
             <p class="helper-text">La position sert uniquement à calculer la distance approximative jusqu’aux rendez-vous qui vous sont affectés. Elle n’est pas communiquée aux seniors ni envoyée à un service cartographique.</p>
             <form id="professional-location-form" class="form-grid">
                 <label for="pro-service-radius">Rayon d’intervention (1 à 500 km)</label>
@@ -2046,6 +2076,7 @@
                 <p id="pro-home-location-status" class="helper-text" aria-live="polite">Position du domicile non enregistrée.</p>
                 <button type="submit">Enregistrer le rayon et la position</button>
             </form>
+          </details>
         </section>
 </div>
     <section class="form-card">
@@ -2085,6 +2116,9 @@
 <div id="screen-agenda" class="screen-container" style="background-color:var(--senior-bg);">
     <div class="header-mobile"><h3 style="margin:0;">Agenda</h3><span>Vos rendez-vous autorisés, heure de Paris</span></div>
     <p id="agenda-senior-context" class="helper-text" hidden></p>
+    <section class="form-card">
+      <details class="senior-tab-disclosure" id="agenda-calendar-details">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Consulter l’agenda</summary>
     <div class="calendar-toolbar" aria-label="Vue de l’agenda">
         <button id="calendar-day" type="button" aria-pressed="true">Jour</button>
         <button id="calendar-week" type="button" aria-pressed="false">Semaine</button>
@@ -2101,6 +2135,8 @@
     </section>
     <div id="calendar-scroll" class="calendar-scroll" hidden><div id="calendar-grid" class="calendar-grid"></div></div>
     <section class="form-card" id="calendar-selected-day" aria-live="polite"></section>
+      </details>
+    </section>
     <details class="senior-disclosure senior-explanation" data-help-for="#calendar-today">
         <summary>Explications sur l’agenda</summary>
         <div class="gl-help-bubble">
@@ -2156,8 +2192,10 @@
         </details>
     </section>
     <section class="form-card">
-        <h3>Modifications depuis Google</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔄</span>Modifications depuis Google</summary>
         <div id="calendar-google-requests" aria-live="polite">Chargement des demandes…</div>
+      </details>
     </section>
 </div>
 
@@ -2209,10 +2247,10 @@
         <h3 style="margin:0;">Mes contacts</h3>
         <span style="font-size:0.85rem;opacity:0.9;">La visio est gratuite pendant le lancement.</span>
     </div>
-    <p class="helper-text">Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.</p>
     <section class="form-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👤</span>Ajouter un contact</summary>
+    <p class="helper-text">Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.</p>
     <form id="add-app-contact-form" class="form-grid">
         <label for="add-app-contact-email">Adresse e-mail d’un contact inscrit</label>
         <input id="add-app-contact-email" type="email" maxlength="254" required>
@@ -2221,7 +2259,12 @@
     <p id="add-app-contact-status" class="helper-text" aria-live="polite"></p>
       </details>
     </section>
-    <div id="contacts-list" aria-live="polite">Chargement des contacts…</div>
+    <section class="form-card">
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">👥</span>Mes contacts</summary>
+        <div id="contacts-list" aria-live="polite">Chargement des contacts…</div>
+      </details>
+    </section>
 </div>
 
 <div id="screen-video-call" class="screen-container" style="display:none; background-color:#0f172a;">
@@ -5545,6 +5588,7 @@
 
     function notificationVisible(entry) {
         if (document.hidden || connectedUser?.id !== entry.userId || connectedUser?.role !== entry.role || !entry.card.isConnected) return false;
+        if (entry.card.closest?.('details:not([open])')) return false;
         const screen = document.getElementById('screen-messages');
         if (!screen.classList.contains('active')) return false;
         const rect = entry.card.getBoundingClientRect();
@@ -9600,6 +9644,7 @@
                 card.append(makeTextElement('p', notification.message));
                 card.append(makeTextElement('small', formatDateTime(notification.createdAt), 'helper-text'));
                 opened.replaceChildren(card);
+                document.getElementById(`notification-details-${connectedUser.role}`).open = true;
                 panel.scrollIntoView({ behavior: 'smooth' });
                 if (notification.type === 'private_message' && notification.senderUserId &&
                     ['senior', 'aidant', 'pro'].includes(connectedUser.role)) {
@@ -9616,6 +9661,7 @@
                         return;
                     }
                     if (!await ouvrirConversation(role, notification.entityId)) return;
+                    document.getElementById(`message-details-${role}`).open = true;
                     document.getElementById(`messages-${role}`).scrollIntoView({ behavior: 'smooth' });
                 } else {
                     await seniorLinksRequest(`/api/notifications/${encodeURIComponent(id)}`, {

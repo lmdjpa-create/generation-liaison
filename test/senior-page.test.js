@@ -1184,7 +1184,38 @@ test('senior tabs retain controls and results', () => {
   assert.match(directory, /<details class="senior-tab-disclosure">\s*<summary>[\s\S]*?Mes demandes de rendez-vous<\/summary>[\s\S]*?id="directory-requester-bookings"[\s\S]*?<\/details>/);
   assert.equal((directory.match(/<details class="senior-tab-disclosure">/g) || []).length, 3);
   assert.match(source, /#screen-directory \.senior-tab-disclosure > summary,[\s\S]*?display:\s*flex;/);
-  assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?id="contacts-list"/);
+  assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?<details class="senior-tab-disclosure">[\s\S]*?id="contacts-list"[\s\S]*?<\/details>/);
+  assert.match(agenda, /<details class="senior-tab-disclosure" id="agenda-calendar-details">[\s\S]*?id="calendar-selected-day"[\s\S]*?<\/details>/);
+  assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?Modifications depuis Google<\/summary>[\s\S]*?id="calendar-google-requests"[\s\S]*?<\/details>/);
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="notification-details-${role}"[^>]*>[\\s\\S]*?id="notifications-${role}"[\\s\\S]*?<\\/details>`));
+    assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="message-details-${role}">[\\s\\S]*?id="message-form-${role}"[\\s\\S]*?<\\/details>`));
+  }
+});
+
+test('professional sections and settings retain their controls in closed tabs', () => {
+  const professional = extract('<div id="screen-pro"', '<div id="screen-messages"');
+  const settings = extract('<div id="screen-settings"', '<div id="screen-agenda"');
+  for (const [label, control] of [
+    ['Demandes reçues', 'directory-professional-bookings'],
+    ['Agenda des services du quotidien', 'pro-service-planning'],
+    ['Coordination de l’équipe', 'member-form']
+  ]) {
+    assert.match(professional, new RegExp(`<details class="senior-tab-disclosure">\\s*<summary>[^<]*<span[^>]*>[^<]*<\\/span>${label}<\\/summary>[\\s\\S]*?id="${control}"`));
+  }
+  for (const [section, label, control] of [
+    ['settings-senior-display', 'Affichage senior', 'senior-simple-enable'],
+    ['notification-settings-pro', 'Mes préférences de notification', 'notification-preferences-form'],
+    ['calendar-google-settings', 'Synchronisation du planning avec Google', 'calendar-google-sync-toggle'],
+    ['directory-profile-panel', 'Annuaire national et rendez-vous', 'directory-profile-form'],
+    ['professional-location-card', 'Mon point de départ et mon rayon d’intervention', 'professional-location-form']
+  ]) {
+    const start = settings.indexOf(`id="${section}"`);
+    const end = settings.indexOf('</section>', start);
+    const card = settings.slice(start, end);
+    assert.match(card, new RegExp(`<details class="senior-tab-disclosure">\\s*<summary>[\\s\\S]*?${label}<\\/summary>`));
+    assert.ok(card.includes(control));
+  }
 });
 
 test('agenda shows the selected day and keeps explanations and Google controls available', () => {
@@ -2083,8 +2114,55 @@ test('opening a senior message notification opens the separate page and conversa
       "        window.addEventListener('generation-notification-opened'"), context
   );
   await context.window.handlePendingNotification();
+  assert.equal(element('notification-details-senior').open, true);
+  assert.equal(element('message-details-senior').open, true);
   assert.equal(element('messages-senior').scrolled, true);
   assert.deepEqual(calls, [['messages'], ['senior', 'message']]);
+});
+
+test('a notification in a closed tab is not marked visible', () => {
+  const rect = { top: 0, bottom: 100, left: 0, right: 100, height: 100, width: 100 };
+  const card = { isConnected: true, closest: () => ({}), getBoundingClientRect: () => rect };
+  const context = {
+    connectedUser: { id: 'user', role: 'aidant' },
+    document: { hidden: false, getElementById: () => ({ classList: { contains: () => true }, getBoundingClientRect: () => rect }) },
+    window: { innerWidth: 100, innerHeight: 100 }, Math
+  };
+  vm.runInNewContext(`${extract('    function notificationVisible(entry)', '    function surveillerNotificationsVisibles()')}\nglobalThis.visible = notificationVisible;`, context);
+  const entry = { userId: 'user', role: 'aidant', card };
+  assert.equal(context.visible(entry), false);
+  card.closest = () => null;
+  assert.equal(context.visible(entry), true);
+});
+
+test('opening a professional notification expands its tab before marking it read', async () => {
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      open: false, replaceChildren() {}, scrollIntoView() {}
+    });
+    return elements.get(id);
+  };
+  const id = '0b4a1f2c-1234-4567-8123-123456789abc';
+  const requests = [];
+  const context = {
+    pendingNotificationId: id,
+    connectedUser: { role: 'pro', verificationStatus: 'approved' },
+    window: { pendingPushNotificationId: '', location: { href: `https://example.test/?notification=${id}` }, history: { replaceState() {} } },
+    document: { getElementById: element, createElement: () => ({ append() {} }) },
+    URL, switchScreen() {}, makeTextElement: () => ({}), formatDateTime: () => '',
+    seniorLinksRequest: async (path, options) => {
+      requests.push([path, options]);
+      return { type: 'other', title: 'Rappel', message: 'Information', createdAt: '2026-01-01' };
+    },
+    chargerNotifications: async () => {},
+    showToast: message => { throw new Error(message); }
+  };
+  vm.runInNewContext(extract('        window.handlePendingNotification = async () => {',
+    "        window.addEventListener('generation-notification-opened'"), context);
+  await context.window.handlePendingNotification();
+  assert.equal(element('notification-details-pro').open, true);
+  assert.equal(requests[1][1].body.read, true);
 });
 
 test('contact video calls use the selected contact and report failures without a fake call', async () => {
