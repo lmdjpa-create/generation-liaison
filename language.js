@@ -1,6 +1,51 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Gestion des cookies': 'Cookie settings',
+    'Le lien au quotidien entre générations': 'Connecting generations every day',
+    'Le carnet de liaison numérique simple et rassurant pour les seniors et leurs proches':
+      'The simple, reassuring digital journal for older adults and their loved ones',
+    'Coordonnez les visites, partagez les nouvelles du quotidien et retrouvez les services à domicile au même endroit. Une interface pensée pour la sérénité des familles et l’autonomie des aînés, même à distance.':
+      'Coordinate visits, share daily updates and find home services in one place. An interface designed for families’ peace of mind and older adults’ independence, even from a distance.',
+    '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation':
+      '✓ Free during launch · ✓ No analytics tracking in signed-in areas · ✓ Accessible without installation',
+    'Vos échanges restent privés et sécurisés': 'Your conversations remain private and secure',
+    'Aucun outil statistique ou publicitaire n’est installé dans les espaces connectés. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.':
+      'No analytics or advertising tools are installed in signed-in areas. Before approving a professional account, the administration reviews identification and the Kbis business registration document.',
+    'Bon à savoir : Génération Liaison facilite l’organisation de la vie sociale et du quotidien. Il ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.':
+      'Good to know: Génération Liaison helps organize social and everyday life. It does not replace a medical record or an emergency service. In an emergency in France, call 15 or 112.',
+    'Un espace pensé pour toute la famille et les intervenants du quotidien': 'A space designed for the whole family and everyday professionals',
+    'Restez entouré en toute simplicité': 'Stay connected with ease',
+    'Accédez à vos messages, vos prochains rendez-vous et vos jeux gratuits depuis une interface claire. Activez la vue simplifiée en un clic pour profiter de boutons larges et lisibles, sans réglages complexes.':
+      'Access your messages, upcoming appointments and free games in a clear interface. Turn on the simplified view in one click for large, readable buttons without complicated settings.',
+    'Gardez l’esprit léger, même à distance': 'Enjoy peace of mind, even from a distance',
+    'Consultez le carnet de liaison partagé, recevez des notifications utiles et organisez les visites autour de votre parent, selon vos accès.':
+      'View the shared journal, receive useful notifications and organize visits for your parent, according to your access.',
+    'Valorisez vos interventions à domicile': 'Make the most of your home visits',
+    'Coiffeurs, aides ménagères ou prestataires de services : confirmez vos passages, échangez avec les personnes autorisées et simplifiez la gestion de vos rendez-vous auprès des familles.':
+      'Hairdressers, home helpers and other service providers: confirm your visits, communicate with authorized people and simplify appointment management with families.',
+    'Tout le quotidien réuni dans un seul carnet': 'Everything you need for daily life in one journal',
+    'Notez les petits événements de la journée, les promenades prévues ou les passages à domicile. Les personnes autorisées retrouvent les informations partagées dans leur carnet.':
+      'Record the day’s small events, planned walks or home visits. Authorized people can find shared information in their journal.',
+    'Visualisez les rendez-vous à venir et découvrez des services de confort à domicile, comme la coiffure, pour faciliter la vie de tous les jours.':
+      'See upcoming appointments and discover home comfort services, such as hairdressing, to make everyday life easier.',
+    'Choisissez les alertes qui comptent pour vous et laissez-vous guider dans l’application grâce à l’assistant intégré.':
+      'Choose the alerts that matter to you and let the built-in assistant guide you through the app.',
+    'Profitez gratuitement de toutes les fonctionnalités': 'Enjoy all features for free',
+    'Les tarifs futurs sont à l’étude et ne sont pas appliqués. Toute formule payante future fera l’objet d’une information claire et préalable.':
+      'Future prices are under consideration and are not currently applied. Any future paid plan will be clearly communicated in advance.',
+    'Vos questions, nos réponses': 'Your questions, our answers',
+    'Un proche peut l’aider à créer son compte, activer la vue simplifiée et ajouter le site à l’écran d’accueil de son téléphone ou de sa tablette. L’application fonctionne dans un navigateur et nécessite une connexion Internet.':
+      'A family member can help them create an account, enable the simplified view and add the site to their phone or tablet home screen. The app works in a browser and requires an internet connection.',
+    'Faut-il télécharger une application sur téléphone ?': 'Do I need to download an app on my phone?',
+    'Non, Génération Liaison fonctionne directement dans un navigateur Internet. Sur Android, une application est aussi disponible au téléchargement. Sur iPhone, utilisez « Partager » dans Safari puis « Ajouter à l’écran d’accueil ».':
+      'No, Génération Liaison works directly in a web browser. An Android app is also available to download. On iPhone, use “Share” in Safari, then “Add to Home Screen”.',
+    'Comment sont sélectionnés les prestataires à domicile ?': 'How are home service providers selected?',
+    'Avant d’activer un compte professionnel, l’administration examine la pièce d’identité et le Kbis de l’intervenant. Demandez un devis et une attestation d’assurance au professionnel avant votre premier rendez-vous.':
+      'Before activating a professional account, the administration reviews the provider’s identification and Kbis business registration document. Ask the professional for a quote and proof of insurance before your first appointment.',
+    'Une question ou besoin d’aide pour démarrer ? Écrivez-nous à': 'A question or need help getting started? Write to us at',
+    'Projet de tarifs et CGV': 'Draft prices and terms of sale',
+    'Politique de confidentialité': 'Privacy policy',
     'Choix des cookies': 'Cookie choices',
     'Mesure de fréquentation': 'Audience measurement',
     'Avec votre accord, Google Analytics mesure les visites de cette page. Des cookies et des données techniques, dont votre adresse IP, sont transmis à Google. Aucun suivi n’est installé dans les espaces connectés. Vous pouvez refuser ou changer votre choix à tout moment.':
