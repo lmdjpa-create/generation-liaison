@@ -196,6 +196,7 @@
     'Rendez-vous aujourd’hui': 'Appointments today',
     'Autres rendez-vous': 'Other appointments',
     'Tâches à faire': 'Tasks to do',
+    'Pour aujourd’hui': 'Due today',
     'Pour aujourd’hui ou en retard': 'Due today or overdue',
     'Messages non lus': 'Unread messages',
     'Notifications non lues parmi les 50 dernières': 'Unread notifications among the latest 50',

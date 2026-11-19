@@ -127,7 +127,7 @@ test('senior summary uses the calendar and accessible updates without requesting
     Date,
     planningRequest: async url => {
       paths.push(url);
-      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Rendez-vous prévu' }] };
+      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Rendez-vous prévu', scheduledAt: '2028-02-29T10:00:00Z' }] };
       if (url === '/api/shared-tasks') return { tasks: [{ completed: false, dueDate: null }] };
       if (url === '/api/messages/unread-count') return { count: 1 };
       if (url === '/api/notifications') return { unreadCount: 0 };
@@ -142,7 +142,7 @@ test('senior summary uses the calendar and accessible updates without requesting
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadSummary = chargerSyntheseSenior;`, context);
   await context.loadSummary();
   assert.match(elements.get('senior-summary-visit').textContent, /Rendez-vous prévu/);
-  assert.equal(elements.get('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui ou en retard : 0');
+  assert.equal(elements.get('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0');
   assert.equal(elements.get('senior-summary-messages').textContent, 'Messages non lus : 1');
   assert.equal(elements.get('senior-summary-notifications').textContent, '');
   assert.equal(elements.get('senior-summary-notifications').hidden, true);
@@ -150,6 +150,141 @@ test('senior summary uses the calendar and accessible updates without requesting
   assert.ok(!elements.has('senior-summary-logs'));
   assert.ok(paths.some(path => path === '/api/planning/calendar?start=2028-02-29&end=2028-03-01'));
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
+});
+
+test('senior today summary removes past dates without deleting data and refreshes across Paris midnight', async () => {
+  const elements = new Map();
+  const getElementById = id => {
+    if (!elements.has(id)) elements.set(id, { textContent: '', hidden: false });
+    return elements.get(id);
+  };
+  let today = '2028-02-29';
+  let resolveCalendar;
+  const paths = [];
+  const tasks = [
+    { completed: false, dueDate: '2028-02-28' },
+    { completed: false, dueDate: '2028-02-29' },
+    { completed: false, dueDate: '2028-03-01' },
+    { completed: false, dueDate: null }
+  ];
+  const events = [
+    { title: 'Hier à Paris', scheduledAt: '2028-02-28T22:30:00Z' },
+    { title: 'Aujourd’hui à Paris', scheduledAt: '2028-02-28T23:30:00Z' },
+    { title: 'Demain à Paris', scheduledAt: '2028-02-29T23:30:00Z' }
+  ];
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior', seniorId: 'profile' },
+    activeSeniorProfileId: '', aidantSummaryLoadId: 0, aidantSummaryContext: '',
+    document: { getElementById }, window: { generationLiaisonTranslate: value => value },
+    dateCheckinBienEtre: () => today, calendarEventLabel: event => event.title,
+    progressArray: value => value || [], stageLabel: value => value, Date, Intl,
+    planningRequest: url => {
+      paths.push(url);
+      if (url.startsWith('/api/planning/calendar')) {
+        if (today === '2028-03-01') return new Promise(resolve => { resolveCalendar = resolve; });
+        return Promise.resolve({ events });
+      }
+      if (url === '/api/shared-tasks') return Promise.resolve({ tasks });
+      if (url === '/api/messages/unread-count') return Promise.resolve({ count: 0 });
+      if (url === '/api/notifications') return Promise.resolve({ unreadCount: 0 });
+      if (url === '/api/planning/following') return Promise.resolve({ visits: [] });
+      if (url.startsWith('/api/planning/services/bookings')) {
+        return Promise.resolve({ bookings: events.map(event => ({ scheduledAt: event.scheduledAt, status: 'requested' })) });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }
+  };
+  const calendarStart = source.indexOf('    function calendarEventDate(value)');
+  const calendarEnd = source.indexOf('    function calendarEventLabel(event)', calendarStart);
+  const start = source.indexOf('    function chargerSyntheseAidant()');
+  const end = source.indexOf('    function afficherProchainRendezVous()', start);
+  vm.runInNewContext(`${source.slice(calendarStart, calendarEnd)}\n${source.slice(start, end)}`, context);
+  await context.chargerSyntheseSenior();
+  assert.equal(getElementById('senior-summary-visit').textContent, 'Rendez-vous aujourd’hui : 1\nAujourd’hui à Paris');
+  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui : 1');
+  assert.match(getElementById('senior-summary-services').textContent, /Services du jour : 1/);
+  assert.equal(tasks.length, 4);
+  today = '2028-03-01';
+  const pending = context.chargerSyntheseSenior();
+  assert.equal(getElementById('senior-summary-visit').textContent, 'Chargement…');
+  today = '2028-03-02';
+  resolveCalendar({ events });
+  await pending;
+  assert.equal(getElementById('senior-summary-visit').textContent, '');
+  assert.equal(getElementById('senior-summary-services').textContent, '');
+  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0');
+  assert.ok(paths.includes('/api/planning/calendar?start=2028-03-02&end=2028-03-03'));
+  assert.equal(tasks.length, 4);
+  assert.match(source, /screen-senior-pro'\)\.classList\.contains\('active'\)\) \{\s*chargerSyntheseSenior\(\);/);
+});
+
+test('senior history shows dated appointments and tasks for the previous 30 Paris days', async () => {
+  const children = [];
+  const list = {
+    textContent: '',
+    replaceChildren() { children.length = 0; },
+    append(child) { children.push(child); }
+  };
+  const details = { open: true };
+  const paths = [];
+  let today = '2028-03-01';
+  let release;
+  const tasks = [
+    { title: 'Limite incluse', dueDate: '2028-01-31', completed: true },
+    { title: 'Trop ancienne', dueDate: '2028-01-30', completed: false },
+    { title: 'Hier', dueDate: '2028-02-29', completed: false },
+    { title: 'Ce jour', dueDate: '2028-03-01', completed: false },
+    { title: 'Sans date', dueDate: null, completed: false }
+  ];
+  const events = [
+    { title: 'À la limite', scheduledAt: '2028-01-30T23:30:00Z' },
+    { title: 'Trop ancien', scheduledAt: '2028-01-30T22:30:00Z' },
+    { title: 'Dernier rendez-vous', scheduledAt: '2028-02-28T23:30:00Z' },
+    { title: 'Ce jour', scheduledAt: '2028-02-29T23:30:00Z' }
+  ];
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior', seniorId: 'profile' },
+    seniorHistoryLoadId: 0, seniorHistoryContext: '',
+    document: { getElementById: id => id === 'senior-history-details' ? details : list },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
+    dateCheckinBienEtre: () => today, calendarEventLabel: event => event.title,
+    makeTextElement: (tag, text) => ({ tag, text }), Date, Intl,
+    planningRequest: async path => {
+      paths.push(path);
+      return path.startsWith('/api/planning/calendar') ? { events } : { tasks };
+    }
+  };
+  const calendarStart = source.indexOf('    function calendarEventDate(value)');
+  const calendarEnd = source.indexOf('    function calendarEventLabel(event)', calendarStart);
+  const start = source.indexOf('    async function chargerHistoriqueSenior()');
+  const end = source.indexOf('    function afficherProchainRendezVous()', start);
+  vm.runInNewContext(`${source.slice(calendarStart, calendarEnd)}\n${source.slice(start, end)}`, context);
+  await context.chargerHistoriqueSenior();
+  assert.ok(paths.includes('/api/planning/calendar?start=2028-01-31&end=2028-03-01'));
+  assert.equal(children.length, 4);
+  assert.match(children[0].text, /Hier — À faire/);
+  assert.match(children[1].text, /Dernier rendez-vous/);
+  assert.ok(children.some(child => /Limite incluse — Terminée/.test(child.text)));
+  assert.ok(children.some(child => /À la limite/.test(child.text)));
+  assert.ok(children.every(child => !/Trop|Ce jour|Sans date/.test(child.text)));
+  assert.equal(tasks.length, 5);
+  context.planningRequest = path => path.startsWith('/api/planning/calendar')
+    ? Promise.reject(new Error('offline')) : Promise.resolve({ tasks: [] });
+  await context.chargerHistoriqueSenior();
+  assert.equal(children[0].text, 'Impossible de charger l’historique des rendez-vous.');
+  context.planningRequest = path => path.startsWith('/api/planning/calendar')
+    ? new Promise(resolve => { release = resolve; }) : Promise.resolve({ tasks });
+  const pending = context.chargerHistoriqueSenior();
+  details.open = false;
+  children.length = 0;
+  release({ events });
+  await pending;
+  assert.equal(children.length, 0);
+  details.open = true;
+  today = '2028-03-02';
+  context.planningRequest = async path => path.startsWith('/api/planning/calendar') ? { events: [] } : { tasks: [] };
+  await context.chargerHistoriqueSenior();
+  assert.match(children[0].text, /Aucun rendez-vous ou tâche datée/);
 });
 
 test('professional summary uses only professional-accessible data and shows pending requests', async () => {
