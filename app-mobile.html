@@ -390,7 +390,23 @@
             overflow-wrap: anywhere;
         }
         #aidant-senior-content > .form-card.aidant-tile-open > .senior-disclosure > summary { min-height: 80px; margin-bottom: 14px; }
-        #aidant-senior-content .senior-explanation[data-help-enhanced] > summary { display: none; }
+        #aidant-senior-content .senior-explanation[data-help-enhanced] > summary,
+        #screen-senior-pro .senior-explanation[data-help-enhanced] > summary { display: none; }
+        @media (hover: none) {
+            #screen-senior-pro .senior-explanation[data-help-enhanced] > summary {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 44px;
+                min-height: 44px;
+                padding: 0;
+                font-size: 0;
+            }
+            #screen-senior-pro .senior-explanation[data-help-enhanced] > summary::before {
+                content: '?';
+                font-size: 1.125rem;
+            }
+        }
         #aidant-senior-content summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #screen-aidant #aidant-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
         #screen-aidant #aidant-shortcuts .action-tile { min-height: 132px; justify-content: center; flex-direction: column; text-align: center; }
@@ -457,6 +473,17 @@
         #main-app-senior .senior-disclosure + .senior-disclosure { margin-top: 12px; }
         .senior-mode .senior-tab-disclosure + .senior-tab-disclosure { margin-top: 12px; }
         #main-app-senior .senior-action-tile { width: 100%; margin: 14px 0; }
+        #senior-pro-directory-action > .action-tile {
+            box-sizing: border-box;
+            width: 100%;
+            min-height: 56px;
+            padding: 14px 18px;
+            border: 1px solid #e3eee9;
+            border-radius: 18px;
+            font-size: 1.125rem;
+            font-family: inherit;
+            line-height: normal;
+        }
         #auth-box .btn-submit { background: #17684f; }
         :is(#screen-aidant, #screen-pro, #screen-settings, #screen-agenda, #screen-directory, #screen-contacts, #screen-video-call) button,
         #screen-settings summary {
@@ -1268,10 +1295,9 @@
     <div id="main-app-senior-pro" style="text-align: center;">
         <button type="button" id="senior-pro-back" onclick="switchScreen('senior')">&larr; Retour &agrave; l&rsquo;accueil</button>
         <h1>Pro</h1>
-            <summary>Pro</summary>
         <section class="form-card" style="text-align:left;">
-          <details class="senior-disclosure" id="senior-services-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🏠</span>Services du quotidien</summary>
+          <details class="senior-disclosure senior-tab-disclosure" id="senior-services-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🏠</span><span>Services du quotidien</span></summary>
             <div id="senior-service-area" aria-live="polite">Chargement des services…</div>
           </details>
             <details class="senior-disclosure senior-explanation" data-help-for="#senior-services-details > summary">
@@ -1281,12 +1307,12 @@
                 </div>
             </details>
         </section>
-        <div class="action-tiles">
+        <section class="form-card" id="senior-pro-directory-action">
             <button type="button" class="action-tile" onclick="switchScreen('directory')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🩺</span>Trouver un professionnel</button>
-        </div>
+        </section>
         <section class="form-card" style="text-align:left;">
-          <details class="senior-disclosure" id="senior-following-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📍</span>Suivi des interventions</summary>
+          <details class="senior-disclosure senior-tab-disclosure" id="senior-following-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📍</span><span>Suivi des interventions</span></summary>
             <div id="senior-live-following" aria-live="polite">Chargement du suivi…</div>
           </details>
             <details class="senior-disclosure senior-explanation" data-help-for="#senior-following-details > summary">
@@ -1295,8 +1321,10 @@
                 <p class="helper-text">Consultez les étapes de visite communiquées par vos intervenants.</p>
                 </div>
             </details>
-          <details class="senior-disclosure" id="senior-note-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Envoyer à l’équipe</summary>
+        </section>
+        <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure senior-tab-disclosure" id="senior-note-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span><span>Envoyer à l’équipe</span></summary>
             <form id="senior-person-note-form" class="form-grid" style="margin-top:14px;">
                 <h4>Transmettre une information à l’équipe</h4>
                 <select id="senior-note-recipient" required><option value="">Choisir une équipe autorisée</option></select>
@@ -1318,15 +1346,15 @@
             <p id="senior-summary-notifications" role="status">Chargement des notifications…</p>
             <p id="senior-summary-following" role="status">Chargement du suivi des interventions…</p>
             <p id="senior-summary-services" role="status">Chargement des services…</p>
-            <details id="senior-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('senior')">
-                <summary>Historique des 30 derniers jours</summary>
+            <details class="senior-tab-disclosure" id="senior-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('senior')">
+                <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🗓️</span><span>Historique des 30 derniers jours</span></summary>
                 <p class="helper-text">Rendez-vous et tâches datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
                 <div id="senior-history-list" aria-live="polite"></div>
             </details>
         </section>
         <section class="form-card" style="text-align:left;">
-          <details class="senior-disclosure" id="senior-tasks-details">
-            <summary>Tâches du quotidien</summary>
+          <details class="senior-disclosure senior-tab-disclosure" id="senior-tasks-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">✅</span><span>Tâches du quotidien</span></summary>
             <p class="helper-text">Ces tâches sont visibles et modifiables par vous et tous vos aidants associés. Un intervenant ne voit que les tâches que vous lui attribuez depuis votre annuaire partagé. Évitez les informations médicales.</p>
             <details class="senior-disclosure senior-explanation" data-help-for="#senior-tasks-refresh">
                 <summary>Explications</summary>

@@ -1093,7 +1093,7 @@ test('companionship and daily services have one control each on the senior home'
     assert.equal(dashboard.split(label).length - 1, 1, label);
   }
   assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🤝<\/span>Un peu de compagnie<\/summary>/);
-  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🏠<\/span>Services du quotidien<\/summary>/);
+  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🏠<\/span><span>Services du quotidien<\/span><\/summary>/);
   assert.match(tiles, /switchScreen\('directory'\)/);
   assert.doesNotMatch(tiles, /Mon agenda/);
   assert.doesNotMatch(dashboard, /Voir l’agenda/);
@@ -1106,7 +1106,7 @@ test('senior feature sections retain their content and can open programmatically
     ['senior-assistant-details', 'assistant-chat-form'],
     ['senior-services-details', 'senior-service-area']
   ]) {
-    const start = source.indexOf(`<details class="senior-disclosure" id="${id}">`);
+    const start = source.search(new RegExp(`<details class="senior-disclosure(?: senior-tab-disclosure)?" id="${id}">`));
     const end = source.indexOf(`id="${content}"`, start);
     assert.ok(start >= 0 && end > start, `${id} must contain ${content}`);
     assert.match(source.slice(start, end), /<summary><span class="tile-icon"/);
@@ -1121,7 +1121,7 @@ test('senior feature sections retain their content and can open programmatically
     `${extract('    function ouvrirSectionSenior(detailsId, targetId)', '    function switchScreen(screenName)')}\n` +
     'globalThis.openSection = ouvrirSectionSenior;', context
   );
-  assert.match(source, /<summary><span class="tile-icon"[^>]*>💬<\/span>Envoyer à l’équipe<\/summary>/);
+  assert.match(source, /<summary><span class="tile-icon"[^>]*>💬<\/span><span>Envoyer à l’équipe<\/span><\/summary>/);
   for (const [details, target] of [
     ['senior-services-details', 'senior-service-area'],
     ['senior-assistant-details', 'assistant-chat-panel']
@@ -1147,6 +1147,30 @@ test('sharing consent management is removed from the senior home but available i
   const settings = extract('<div id="screen-settings"', '<div id="screen-agenda"');
   assert.doesNotMatch(dashboard, /senior-sharing-consents|senior-consents-details/);
   assert.match(settings, /<details class="senior-tab-disclosure" id="senior-consents-details">[\s\S]*?id="senior-sharing-consents"/);
+});
+
+test('senior professional sections use consistent closed tabs and retain their controls', () => {
+  const professional = extract('<div id="screen-senior-pro"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  assert.doesNotMatch(professional, /<h1>Pro<\/h1>\s*<summary>/);
+  for (const [id, control] of [
+    ['senior-services-details', 'senior-service-area'],
+    ['senior-following-details', 'senior-live-following'],
+    ['senior-note-details', 'senior-person-note-form'],
+    ['senior-tasks-details', 'senior-tasks-form'],
+    ['senior-history-details', 'senior-history-list']
+  ]) {
+    const start = professional.search(new RegExp(`<details class="[^"]*senior-tab-disclosure[^"]*" id="${id}"`));
+    const end = professional.indexOf(`id="${control}"`, start);
+    assert.ok(start >= 0 && end > start, `${id} must retain ${control}`);
+    assert.match(professional.slice(start, end), /<summary><span class="tile-icon"/);
+    assert.doesNotMatch(professional.slice(start, professional.indexOf('>', start)), /\sopen(?:\s|>)/);
+  }
+  assert.match(professional, /<section class="form-card" id="senior-pro-directory-action">\s*<button[^>]*onclick="switchScreen\('directory'\)"/);
+  assert.match(source, /#senior-pro-directory-action > \.action-tile\s*\{[^}]*width:\s*100%;[^}]*padding:\s*14px 18px;/);
+  assert.match(professional, /data-help-for="#senior-services-details > summary"/);
+  assert.match(professional, /data-help-for="#senior-following-details > summary"/);
+  assert.match(source, /#screen-senior-pro \.senior-explanation\[data-help-enhanced\] > summary\s*\{\s*display:\s*none;/);
+  assert.match(source, /@media \(hover: none\) \{[\s\S]*?#screen-senior-pro \.senior-explanation\[data-help-enhanced\] > summary::before\s*\{\s*content:\s*'\?';/);
 });
 
 test('senior tabs retain controls and results', () => {
