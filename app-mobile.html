@@ -290,7 +290,7 @@
         [id^="message-list-"] { display: flex; flex-direction: column; align-items: flex-start; }
         .message-bubble {
             box-sizing: border-box;
-            max-width: 90%;
+            width: 100%;
             margin: 6px 0;
             padding: 12px 15px;
             border-radius: 18px 18px 18px 4px;
@@ -314,8 +314,6 @@
         }
         .message-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .message-bubble.mine {
-            align-self: flex-end;
-            border-radius: 18px 18px 4px 18px;
             background: #edf0f3;
         }
         input, select, textarea { border: 1.5px solid #d9e7e1; border-radius: 14px; background: #fbfdfc; }

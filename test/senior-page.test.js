@@ -1261,6 +1261,16 @@ test('opening a conversation marks received messages read and displays the sende
   assert.match(container.children[0].children[2].text, /· Lu/);
 });
 
+test('message bubbles use the full conversation width and stay left-aligned', () => {
+  const listStyle = extract('        [id^="message-list-"]', '        .message-bubble {');
+  const bubbleStyle = extract('        .message-bubble {', '        .message-bubble p');
+  const ownStyle = extract('        .message-bubble.mine {', '        input, select, textarea');
+  assert.match(listStyle, /align-items:\s*flex-start/);
+  assert.match(bubbleStyle, /width:\s*100%/);
+  assert.match(bubbleStyle, /box-sizing:\s*border-box/);
+  assert.doesNotMatch(ownStyle, /align-self:\s*flex-end/);
+});
+
 test('message bubbles distinguish participants and keep contact colours when options are reordered', async () => {
   for (const role of ['senior', 'aidant', 'pro']) {
     const container = { children: [], replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } };
