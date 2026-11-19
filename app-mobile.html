@@ -393,6 +393,7 @@
         #aidant-senior-content .senior-explanation[data-help-enhanced] > summary,
         #screen-senior-pro .senior-explanation[data-help-enhanced] > summary { display: none; }
         @media (hover: none) {
+            #aidant-senior-content .senior-explanation[data-help-enhanced] > summary,
             #screen-senior-pro .senior-explanation[data-help-enhanced] > summary {
                 display: inline-flex;
                 align-items: center;
@@ -402,6 +403,7 @@
                 padding: 0;
                 font-size: 0;
             }
+            #aidant-senior-content .senior-explanation[data-help-enhanced] > summary::before,
             #screen-senior-pro .senior-explanation[data-help-enhanced] > summary::before {
                 content: '?';
                 font-size: 1.125rem;
@@ -9182,6 +9184,7 @@
         container.replaceChildren();
         const today = dateCheckinBienEtre();
         const beforeToday = date => Number.isFinite(new Date(date).getTime()) && calendarEventDate(date) < today;
+        const throughToday = date => Number.isFinite(new Date(date).getTime()) && calendarEventDate(date) <= today;
         const entries = [];
         function ajouterNouvelles(page) {
             page.forEach(log => {
@@ -9193,7 +9196,7 @@
         if (logs.status === 'fulfilled') ajouterNouvelles(logs.value);
         if (following.status === 'fulfilled') following.value.visits.forEach(visit => {
             progressArray(visit.progress).forEach(event => {
-                if (beforeToday(event.createdAt)) entries.push({
+                if ((role === 'aidant' ? throughToday(event.createdAt) : beforeToday(event.createdAt))) entries.push({
                     date: event.createdAt, author: auteurAvecRole(event.authorRole),
                     text: `${visit.visitType} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`
                 });

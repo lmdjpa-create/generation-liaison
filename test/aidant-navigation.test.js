@@ -378,6 +378,7 @@ test('professional summary uses only professional-accessible data and shows pend
 
 test('daily journal sorts shared updates and reports unavailable sources', async () => {
   const children = [];
+  const requests = [];
   const container = {
     textContent: '',
     replaceChildren() { children.length = 0; },
@@ -392,24 +393,40 @@ test('daily journal sorts shared updates and reports unavailable sources', async
     makeTextElement: (tag, text) => ({ tag, text }),
     formatDateTime: value => value,
     dateCheckinBienEtre: () => '2028-01-03',
-    calendarEventDate: value => value.slice(0, 10),
     stageLabel: value => value,
     progressArray: value => value,
-    planningRequest: async path => path === '/api/logs/all'
-      ? [
+    planningRequest: async path => {
+      requests.push(path);
+      return path === '/api/logs/all' ? [
         { created_at: '2028-01-01T10:00:00Z', author_id: 2, content: 'Nouvelle familiale' },
-        { created_at: '2028-01-02T09:00:00Z', author_id: 3, content: 'Nouvelle professionnelle' }
+        { created_at: '2028-01-02T09:00:00Z', author_id: 3, content: 'Nouvelle professionnelle' },
+        { created_at: '2028-01-03T10:00:00Z', author_id: 2, content: 'Nouvelle du jour' }
       ]
-      : { visits: [{ visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent', authorRole: 'pro' }] }] }
+      : { visits: [{ visitType: 'Visite', progress: [
+        { type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent', authorRole: 'pro' },
+        { type: 'completed', createdAt: '2028-01-02T23:30:00Z', authorRole: 'pro' },
+        { type: 'future', createdAt: '2028-01-03T23:30:00Z', authorRole: 'pro' }
+      ] }] };
+    }
   };
   const helperStart = source.indexOf('    function auteurAvecRole(role, name = \'\')');
   const start = source.indexOf('    async function chargerJournalQuotidien(role)');
   const end = source.indexOf('    function configurerAlbumJournal()', start);
-  vm.runInNewContext(`${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
+  const dateStart = source.indexOf('    function calendarEventDate(value)');
+  const dateEnd = source.indexOf('    function calendarEventLabel(event)', dateStart);
+  vm.runInNewContext(`${source.slice(dateStart, dateEnd)}${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
   await context.loadJournal('aidant');
+  assert.deepEqual(requests, ['/api/logs/all', '/api/planning/following']);
+  assert.equal(children[0].children[2].text, '🩺 Soignant · Visite — completed');
+  assert.equal(children[1].children[2].text, '🩺 Soignant · Visite — arrived : Présent');
+  assert.equal(children[2].children[2].text, '🩺 Soignant · Nouvelle professionnelle');
+  assert.equal(children[3].children[2].text, '👨‍👩‍👧‍👦 Famille · Nouvelle familiale');
+  assert.equal(children.length, 4);
+  context.connectedUser = { id: 'senior', role: 'senior', seniorId: 'senior-1' };
+  await context.loadJournal('senior');
+  assert.equal(children.length, 3);
   assert.equal(children[0].children[2].text, '🩺 Soignant · Visite — arrived : Présent');
-  assert.equal(children[1].children[2].text, '🩺 Soignant · Nouvelle professionnelle');
-  assert.equal(children[2].children[2].text, '👨‍👩‍👧‍👦 Famille · Nouvelle familiale');
+  context.connectedUser = { id: 'aidant', role: 'aidant' };
   context.planningRequest = async path => {
     if (path === '/api/logs/all') throw new Error('unavailable');
     return { visits: [] };
@@ -426,6 +443,12 @@ test('daily journal sorts shared updates and reports unavailable sources', async
   release([{ created_at: '2028-01-01T10:00:00Z', content: 'Ancien profil' }]);
   await pending;
   assert.equal(children.length, 0);
+});
+
+test('caregiver explanations keep a touch-accessible control without changing desktop help', () => {
+  assert.match(source, /#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary,\s*#screen-senior-pro \.senior-explanation\[data-help-enhanced\] > summary\s*\{\s*display:\s*none;/);
+  assert.match(source, /@media \(hover: none\)\s*\{\s*#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary,[\s\S]*?display:\s*inline-flex;/);
+  assert.match(source, /#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary::before,[\s\S]*?content:\s*'\?';/);
 });
 
 test('daily journal loads older updates, retries failures and discards a stale page', async () => {
