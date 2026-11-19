@@ -550,6 +550,13 @@ test('games have named controls and are available in the senior full view', () =
   assert.match(games, /Rien n’est enregistré ni partagé/);
   assert.equal((games.match(/class="game-choice(?: riddle-choice)?"/g) || []).length, 17);
   assert.equal((games.match(/class="game-choice riddle-choice"/g) || []).length, 4);
+  const facile = games.slice(games.indexOf('<summary>Niveau facile</summary>'), games.indexOf('<summary>Niveau intermédiaire</summary>'));
+  const intermediaire = games.slice(games.indexOf('<summary>Niveau intermédiaire</summary>'), games.indexOf('<summary>Niveau avancé</summary>'));
+  const avance = games.slice(games.indexOf('<summary>Niveau avancé</summary>'));
+  for (const nom of ['Les couleurs', 'Petits calculs', 'Devinettes']) assert.ok(facile.includes(`<summary>${nom}</summary>`));
+  for (const nom of ['Morpion', 'Jeu des paires', 'Deviner le nombre', 'Sudoku 6 × 6']) assert.ok(intermediaire.includes(`<summary>${nom}</summary>`));
+  for (const nom of ['Sudoku 9 × 9', 'Suites logiques', 'Mots mêlés']) assert.ok(avance.includes(`<summary>${nom}</summary>`));
+  assert.ok(!avance.includes('<summary>Sudoku 6 × 6</summary>'));
 });
 
 test('tic-tac-toe handles moves, wins, a draw and restarting without losing accessible labels', () => {
@@ -668,6 +675,241 @@ test('number guessing gives higher and lower hints, stops after success and rest
   assert.match(element('number-game-status').textContent, /Choisissez/);
   context.devinerNombre(5);
   assert.match(element('number-game-status').textContent, /Bravo/);
+});
+
+test('sudoku generates solvable unique grids, validates entries and starts a fresh game', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', children: [],
+    replaceChildren() { this.children = []; },
+    append(child) { this.children.push(child); }
+  };
+  const context = {
+    document: {
+      getElementById: element,
+      createElement: () => ({ value: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } })
+    },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.nouveauSudoku();
+  const cells = element('sudoku-grid').children;
+  assert.equal(cells.length, 36);
+  assert.ok(cells.filter(cell => !cell.readOnly).length >= 18);
+  assert.match(cells[0].attributes['aria-label'], /Ligne 1, colonne 1/);
+  const puzzle = cells.map(cell => Number(cell.value));
+  assert.equal(context.compterSolutionsSudoku(puzzle.slice()), 1);
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /Complétez/);
+  const editable = cells.find(cell => !cell.readOnly);
+  editable.value = '7';
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /chiffre de 1 à 6/);
+
+  const solution = puzzle.slice();
+  function solve() {
+    const index = solution.indexOf(0);
+    if (index < 0) return true;
+    for (let n = 1; n <= 6; n++) {
+      const row = Math.floor(index / 6), col = index % 6;
+      const conflict = solution.some((value, i) => value === n &&
+        (Math.floor(i / 6) === row || i % 6 === col ||
+         (Math.floor(Math.floor(i / 6) / 2) === Math.floor(row / 2) && Math.floor((i % 6) / 3) === Math.floor(col / 3))));
+      if (!conflict) {
+        solution[index] = n;
+        if (solve()) return true;
+        solution[index] = 0;
+      }
+    }
+    return false;
+  }
+  assert.ok(solve());
+  cells.forEach((cell, index) => { if (!cell.readOnly) cell.value = String(solution[index]); });
+  const editableIndex = cells.indexOf(editable);
+  editable.value = String(solution[Math.floor(editableIndex / 6) * 6 + (editableIndex + 1) % 6]);
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /répétition/);
+  editable.value = String(solution[editableIndex]);
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /Bravo/);
+  context.Math.random = () => 0.9;
+  context.nouveauSudoku();
+  assert.notDeepEqual(element('sudoku-grid').children.map(cell => Number(cell.value)), puzzle);
+  assert.equal(context.compterSolutionsSudoku(element('sudoku-grid').children.map(cell => Number(cell.value))), 1);
+  assert.match(element('sudoku-status').textContent, /Complétez/);
+});
+
+test('9x9 sudoku provides a unique puzzle, validates entries and keeps both grids independent', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', children: [],
+    replaceChildren() { this.children = []; },
+    append(child) { this.children.push(child); }
+  };
+  const context = {
+    document: {
+      getElementById: element,
+      createElement: () => ({ value: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } })
+    },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.initialiserSudoku();
+  const sixCells = element('sudoku-grid').children;
+  const sixEditable = sixCells.find(cell => !cell.readOnly);
+  sixEditable.value = '4';
+  context.initialiserSudoku9();
+  const cells = element('sudoku-9-grid').children;
+  assert.equal(cells.length, 81);
+  assert.equal(cells.filter(cell => cell.readOnly).length, 30);
+  assert.match(cells[80].attributes['aria-label'], /Ligne 9, colonne 9/);
+  assert.match(cells[2].className, /block-right/);
+  assert.match(cells[18].className, /block-bottom/);
+  const puzzle = cells.map(cell => Number(cell.value));
+  assert.equal(context.compterSolutionsSudoku(puzzle.slice(), 9, 3), 1);
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /1 à 9/);
+  const editable = cells.find(cell => !cell.readOnly);
+  editable.value = '0';
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /1 à 9/);
+  context.initialiserSudoku9();
+  assert.equal(editable.value, '0');
+  const box = Array(81).fill(0);
+  box[10] = 7;
+  assert.ok(!Array.from(context.candidatsSudoku(box, 0, 9, 3)).includes(7));
+
+  const solution = puzzle.slice();
+  function solve() {
+    let best = -1, candidates = null;
+    for (let i = 0; i < 81; i++) {
+      if (solution[i]) continue;
+      const row = Math.floor(i / 9), col = i % 9;
+      const choices = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(n => !solution.some((value, j) =>
+        value === n && (Math.floor(j / 9) === row || j % 9 === col ||
+          (Math.floor(Math.floor(j / 9) / 3) === Math.floor(row / 3) && Math.floor((j % 9) / 3) === Math.floor(col / 3)))));
+      if (!choices.length) return false;
+      if (!candidates || choices.length < candidates.length) { best = i; candidates = choices; }
+    }
+    if (best === -1) return true;
+    for (const n of candidates) {
+      solution[best] = n;
+      if (solve()) return true;
+      solution[best] = 0;
+    }
+    return false;
+  }
+  assert.ok(solve());
+  cells.forEach((cell, index) => { if (!cell.readOnly) cell.value = String(solution[index]); });
+  const index = cells.indexOf(editable);
+  editable.value = String(solution[Math.floor(index / 9) * 9 + (index + 1) % 9]);
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /répétition/);
+  editable.value = String(solution[index]);
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /Bravo/);
+  context.Math.random = () => 0.9;
+  context.nouveauSudoku9();
+  const next = element('sudoku-9-grid').children.map(cell => Number(cell.value));
+  assert.notDeepEqual(next, puzzle);
+  assert.equal(context.compterSolutionsSudoku(next.slice(), 9, 3), 1);
+  assert.equal(sixEditable.value, '4');
+  assert.match(element('sudoku-9-status').textContent, /Complétez/);
+});
+
+test('logical sequences accept retries, reject invalid answers and generate both kinds of puzzle', () => {
+  const elements = {};
+  const element = id => elements[id] ||= { value: '', textContent: '' };
+  const context = {
+    document: { getElementById: element },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /nombre entier/);
+  element('sequence-answer').value = '32';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /réessayer/);
+  element('sequence-answer').value = '64';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /Bravo/);
+  context.nouvelleSuite();
+  assert.equal(element('sequence-question').textContent, '1, 2, 4, 8, 16, …');
+  assert.equal(element('sequence-answer').value, '');
+  element('sequence-answer').value = '32';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /Bravo/);
+  context.Math.random = () => 0.9;
+  context.nouvelleSuite();
+  assert.equal(element('sequence-question').textContent, '8, 12, 19, 29, 42, …');
+  assert.match(element('sequence-hint').textContent, /écart/);
+  element('sequence-answer').value = '58';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /Bravo/);
+});
+
+test('word search finds words in both directions, reports errors and restarts', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', children: [],
+    replaceChildren() { this.children = []; },
+    append(child) { this.children.push(child); }
+  };
+  const context = {
+    document: {
+      getElementById: element,
+      createElement: tag => ({
+        tagName: tag,
+        attributes: {}, handlers: {},
+        setAttribute(name, value) { this.attributes[name] = value; },
+        addEventListener(name, handler) { this.handlers[name] = handler; }
+      })
+    },
+    Math: { random: () => 0, floor: Math.floor, abs: Math.abs, max: Math.max, sign: Math.sign }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.initialiserMotsMeles();
+  const cells = element('word-grid').children;
+  assert.equal(cells.length, 64);
+  assert.match(cells[0].attributes['aria-label'], /Ligne 1, colonne 1/);
+  cells[0].handlers.click();
+  assert.equal(cells[0].attributes['aria-pressed'], 'true');
+  cells[10].handlers.click();
+  assert.match(element('word-status').textContent, /alignées/);
+  const words = Array.from(vm.runInNewContext('themesMotsMeles[themeMotsMeles].mots', context));
+  function findWord(word) {
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const endRow = r + dr * (word.length - 1), endCol = c + dc * (word.length - 1);
+        if (endRow < 0 || endRow >= 8 || endCol < 0 || endCol >= 8) continue;
+        if ([...word].every((letter, i) => cells[(r + dr * i) * 8 + c + dc * i].textContent === letter)) {
+          return [r * 8 + c, endRow * 8 + endCol];
+        }
+      }
+    }
+    return null;
+  }
+  for (const word of words) {
+    const positions = findWord(word);
+    assert.ok(positions, `${word} must be present in the grid`);
+    cells[positions[0]].handlers.click();
+    cells[positions[1]].handlers.click();
+    const listedWord = element('word-list').children.find(child => child.textContent === word);
+    assert.equal(listedWord.tagName, 's');
+    assert.ok(element('word-list').children.some(child => child.className === 'word-found-sr' && child.textContent === ' (trouvé)'));
+    assert.match(cells[positions[0]].className, /found/);
+    if (word === words[0]) {
+      cells[positions[0]].handlers.click();
+      cells[positions[1]].handlers.click();
+      assert.match(element('word-status').textContent, /déjà été trouvé/);
+    }
+  }
+  assert.match(element('word-status').textContent, /tous les mots/);
+  context.nouveauxMotsMeles();
+  assert.equal(element('word-grid').children.length, 64);
+  assert.ok(!element('word-list').children.some(child => child.tagName === 's' || child.className === 'word-found-sr'));
+  assert.match(element('word-status').textContent, /première lettre/);
 });
 
 test('birthday form submits the birth date and keeps it when saving fails', async () => {

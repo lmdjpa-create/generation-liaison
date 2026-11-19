@@ -538,7 +538,13 @@
         }
         #senior-game-section details details[open] { padding-bottom: 14px; }
         #senior-game-section details details > summary { cursor: pointer; font-size: 1.125rem; font-weight: 700; padding: 12px 0; }
-        .morpion-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; width: min(100%, 330px); margin: 12px 0; }
+        #senior-game-section details details.game-level { background: #edf7f1; border-color: #376d57; }
+        #senior-game-section .game-level > p { margin-top: 0; }
+        .morpion-grid {
+            display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+            box-sizing: border-box; width: min(100%, 330px); margin: 12px 0; padding: 10px;
+            border: 4px solid #347c70; border-radius: 16px; background: #d9eee6;
+        }
         #senior-game-section .morpion-case {
             min-width: 0; min-height: 64px; aspect-ratio: 1; padding: 4px; border: 2px solid #17684f;
             background: #fff; color: #18352e; font-size: 4.5rem; line-height: 1;
@@ -555,6 +561,25 @@
         #senior-game-section .riddle-choice img { width: 100%; height: 110px; object-fit: contain; background: #fff; border-radius: 6px; }
         #senior-game-section #riddle-game-next { display: block; margin: 0 auto; }
         #senior-game-section .memory-card:focus-visible, #senior-game-section .number-choice:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+        #senior-game-section .sudoku-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 420px; border: 2px solid #294f43; }
+        #senior-game-section .sudoku-scroll { overflow-x: auto; }
+        #senior-game-section .sudoku-grid.sudoku-grid-9 { grid-template-columns: repeat(9, 44px); width: max-content; }
+        #senior-game-section .sudoku-cell { width: 100%; min-width: 0; min-height: 48px; margin: 0; padding: 3px; border: 1px solid #b8cbc2; border-radius: 0; text-align: center; font-size: 1.25rem; color: #18352e; background: white; }
+        #senior-game-section .sudoku-cell[readonly] { background: #e6f4ee; font-weight: 700; }
+        #senior-game-section .sudoku-cell.block-right { border-right: 2px solid #294f43; }
+        #senior-game-section .sudoku-cell.block-bottom { border-bottom: 2px solid #294f43; }
+        #senior-game-section .sudoku-cell:focus-visible { outline: 3px solid #163b72; outline-offset: -3px; }
+        #senior-game-section .word-grid-scroll { overflow-x: auto; }
+        #senior-game-section .word-grid {
+            display: grid; grid-template-columns: repeat(8, 44px); width: max-content; margin: 12px 0; padding: 10px;
+            border: 4px solid #347c70; border-radius: 16px; background: #d9eee6;
+        }
+        #senior-game-section .word-cell { width: 44px; height: 44px; min-width: 0; padding: 0; border: 1px solid #719484; border-radius: 0; background: #fff; color: #18352e; font-size: 1.15rem; }
+        #senior-game-section .word-cell.found { background: #caecd8; }
+        #senior-game-section .word-cell[aria-pressed="true"] { background: #f9d984; }
+        #senior-game-section .word-cell:focus-visible { outline: 3px solid #163b72; outline-offset: -3px; }
+        #senior-game-section #word-list s { text-decoration-thickness: 2px; }
+        #senior-game-section .word-found-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
         .senior-simple-only { display: none; }
         body.senior-simple .senior-simple-only { display: block; }
         body.senior-simple .senior-full-only,
@@ -991,6 +1016,9 @@
           <details class="senior-disclosure senior-tab-disclosure">
             <summary>🎲 Jeux gratuits</summary>
             <p class="helper-text">Pour le plaisir, seul ou à tour de rôle avec un proche présent. Rien n’est enregistré ni partagé.</p>
+            <details class="game-level">
+            <summary>Niveau facile</summary>
+            <p>Pour commencer en douceur.</p>
             <details>
             <summary>Les couleurs</summary>
             <p id="color-game-question" aria-live="polite">Choisissez le mot : Rouge</p>
@@ -1029,6 +1057,10 @@
               <button class="game-choice" id="riddle-game-next" type="button" onclick="nouvelleDevinette()">Autre devinette</button>
               <p class="helper-text"><a href="riddle-images/credits.html" target="_blank" rel="noopener noreferrer">Crédits des photos</a></p>
             </details>
+            </details>
+            <details class="game-level">
+            <summary>Niveau intermédiaire</summary>
+            <p>Pour exercer sa mémoire et sa réflexion.</p>
             <details>
               <summary>Morpion</summary>
               <p>Vous jouez les croix (X), l’ordinateur joue les ronds (O). Alignez trois symboles pour gagner.</p>
@@ -1106,6 +1138,47 @@
               </div>
               <p id="number-game-status" role="status" aria-live="polite">Choisissez un nombre.</p>
               <button class="game-choice" type="button" onclick="nouveauNombreSecret()">Nouvelle partie</button>
+            </details>
+            <details ontoggle="if (this.open) initialiserSudoku()">
+              <summary>Sudoku 6 × 6</summary>
+              <p>Complétez la grille avec les chiffres de 1 à 6. Chaque ligne, chaque colonne et chaque rectangle de 2 lignes sur 3 colonnes doit contenir tous les chiffres une seule fois. Les cases vertes sont déjà remplies.</p>
+              <div id="sudoku-grid" class="sudoku-grid" role="group" aria-label="Grille de sudoku"></div>
+              <p id="sudoku-status" role="status" aria-live="polite"></p>
+              <button type="button" onclick="verifierSudoku()">Vérifier la grille</button>
+              <button type="button" onclick="nouveauSudoku()">Nouvelle grille</button>
+            </details>
+            </details>
+            <details class="game-level">
+            <summary>Niveau avancé</summary>
+            <p>Pour relever un défi plus difficile.</p>
+            <details ontoggle="if (this.open) initialiserSudoku9()">
+              <summary>Sudoku 9 × 9</summary>
+              <p>Complétez la grille avec les chiffres de 1 à 9. Chaque ligne, chaque colonne et chaque carré de 3 × 3 doit contenir tous les chiffres une seule fois. Les cases vertes sont déjà remplies. Sur un petit écran, faites défiler la grille horizontalement.</p>
+              <div class="sudoku-scroll"><div id="sudoku-9-grid" class="sudoku-grid sudoku-grid-9" role="group" aria-label="Grille de sudoku 9 × 9"></div></div>
+              <p id="sudoku-9-status" role="status" aria-live="polite"></p>
+              <button type="button" onclick="verifierSudoku9()">Vérifier la grille</button>
+              <button type="button" onclick="nouveauSudoku9()">Nouvelle grille</button>
+            </details>
+            <details>
+              <summary>Suites logiques</summary>
+              <p>Retrouvez le nombre suivant. Prenez votre temps et essayez autant de fois que vous le souhaitez.</p>
+              <p id="sequence-question">2, 4, 8, 16, 32, …</p>
+              <p id="sequence-hint">Indice : chaque nombre est multiplié par le même nombre.</p>
+              <label for="sequence-answer">Nombre suivant</label>
+              <input id="sequence-answer" type="number" inputmode="numeric" min="0" max="1000" step="1">
+              <button type="button" onclick="verifierSuite()">Vérifier</button>
+              <button type="button" onclick="nouvelleSuite()">Autre suite</button>
+              <p id="sequence-status" role="status" aria-live="polite"></p>
+            </details>
+            <details ontoggle="if (this.open) initialiserMotsMeles()">
+              <summary>Mots mêlés</summary>
+              <p>Retrouvez les mots sans accents, à l’horizontale, à la verticale ou en diagonale, dans les deux sens. Choisissez la première puis la dernière lettre du mot.</p>
+              <p id="word-theme"></p>
+              <p id="word-list"></p>
+              <div class="word-grid-scroll"><div id="word-grid" class="word-grid" role="group" aria-label="Grille de mots mêlés"></div></div>
+              <p id="word-status" role="status" aria-live="polite"></p>
+              <button type="button" onclick="nouveauxMotsMeles()">Nouvelle grille de mots mêlés</button>
+            </details>
             </details>
           </details>
         </section>
@@ -5814,6 +5887,300 @@
         } else {
             document.getElementById('number-game-status').textContent = nombre < nombreSecret
                 ? `Le nombre est plus grand que ${nombre}.` : `Le nombre est plus petit que ${nombre}.`;
+        }
+    }
+
+    let sudokuInitialise = false;
+    let sudokuCases = [];
+    let sudoku9Cases = [];
+
+    function melangerJeu(valeurs) {
+        const resultat = valeurs.slice();
+        for (let index = resultat.length - 1; index > 0; index--) {
+            const autre = Math.floor(Math.random() * (index + 1));
+            [resultat[index], resultat[autre]] = [resultat[autre], resultat[index]];
+        }
+        return resultat;
+    }
+
+    function candidatsSudoku(grille, position, taille = 6, hauteurBloc = 2) {
+        const ligne = Math.floor(position / taille);
+        const colonne = position % taille;
+        const utilises = new Set();
+        for (let index = 0; index < taille; index++) {
+            utilises.add(grille[ligne * taille + index]);
+            utilises.add(grille[index * taille + colonne]);
+        }
+        const haut = Math.floor(ligne / hauteurBloc) * hauteurBloc;
+        const gauche = Math.floor(colonne / 3) * 3;
+        for (let l = haut; l < haut + hauteurBloc; l++) {
+            for (let c = gauche; c < gauche + 3; c++) utilises.add(grille[l * taille + c]);
+        }
+        return Array.from({ length: taille }, (_, index) => index + 1).filter(chiffre => !utilises.has(chiffre));
+    }
+
+    function compterSolutionsSudoku(grille, taille = 6, hauteurBloc = 2) {
+        let position = -1;
+        let choix = null;
+        for (let index = 0; index < taille * taille; index++) {
+            if (grille[index]) continue;
+            const candidats = candidatsSudoku(grille, index, taille, hauteurBloc);
+            if (!candidats.length) return 0;
+            if (!choix || candidats.length < choix.length) {
+                choix = candidats;
+                position = index;
+            }
+        }
+        if (position === -1) return 1;
+        let total = 0;
+        for (const chiffre of choix) {
+            grille[position] = chiffre;
+            total += compterSolutionsSudoku(grille, taille, hauteurBloc);
+            grille[position] = 0;
+            if (total >= 2) break;
+        }
+        return total;
+    }
+
+    function initialiserSudoku() {
+        if (!sudokuInitialise) nouveauSudoku();
+    }
+
+    function nouveauSudoku() {
+        const chiffres = melangerJeu([1, 2, 3, 4, 5, 6]);
+        const grille = Array.from({ length: 36 }, (_, index) => {
+            const ligne = Math.floor(index / 6);
+            return chiffres[(ligne * 3 + Math.floor(ligne / 2) + index % 6) % 6];
+        });
+        let retirees = 0;
+        for (const position of melangerJeu(Array.from({ length: 36 }, (_, index) => index))) {
+            const chiffre = grille[position];
+            grille[position] = 0;
+            if (compterSolutionsSudoku(grille) !== 1) grille[position] = chiffre;
+            else if (++retirees === 22) break;
+        }
+        sudokuCases = afficherGrilleSudoku(grille, 6, 2, 'sudoku-grid');
+        sudokuInitialise = true;
+        document.getElementById('sudoku-status').textContent = 'Complétez les cases blanches, puis vérifiez votre grille.';
+    }
+
+    function afficherGrilleSudoku(grille, taille, hauteurBloc, id) {
+        const conteneur = document.getElementById(id);
+        conteneur.replaceChildren();
+        return grille.map((chiffre, index) => {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.inputMode = 'numeric';
+            input.maxLength = 1;
+            input.value = chiffre ? String(chiffre) : '';
+            input.readOnly = Boolean(chiffre);
+            const ligne = Math.floor(index / taille), colonne = index % taille;
+            input.className = `sudoku-cell${colonne % 3 === 2 && colonne < taille - 1 ? ' block-right' : ''}${ligne % hauteurBloc === hauteurBloc - 1 && ligne < taille - 1 ? ' block-bottom' : ''}`;
+            input.setAttribute('aria-label', `Ligne ${ligne + 1}, colonne ${colonne + 1}${chiffre ? ' : chiffre donné' : ' : à compléter'}`);
+            conteneur.append(input);
+            return input;
+        });
+    }
+
+    function verifierSudoku() {
+        if (!sudokuInitialise) return;
+        verifierGrilleSudoku(sudokuCases, 6, 2, 'sudoku-status');
+    }
+
+    function initialiserSudoku9() {
+        if (!sudoku9Cases.length) nouveauSudoku9();
+    }
+
+    function nouveauSudoku9() {
+        const modele = [
+            '530070000', '600195000', '098000060',
+            '800060003', '400803001', '700020006',
+            '060000280', '000419005', '000080079'
+        ];
+        const chiffres = melangerJeu([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        const indices = () => melangerJeu([0, 1, 2]).flatMap(groupe =>
+            melangerJeu([0, 1, 2]).map(index => groupe * 3 + index));
+        const lignes = indices(), colonnes = indices();
+        const grille = lignes.flatMap(ligne => colonnes.map(colonne => {
+            const chiffre = Number(modele[ligne][colonne]);
+            return chiffre ? chiffres[chiffre - 1] : 0;
+        }));
+        sudoku9Cases = afficherGrilleSudoku(grille, 9, 3, 'sudoku-9-grid');
+        document.getElementById('sudoku-9-status').textContent = 'Complétez les cases blanches, puis vérifiez votre grille.';
+    }
+
+    function verifierSudoku9() {
+        if (!sudoku9Cases.length) return;
+        verifierGrilleSudoku(sudoku9Cases, 9, 3, 'sudoku-9-status');
+    }
+
+    function verifierGrilleSudoku(cases, taille, hauteurBloc, idStatus) {
+        const valeurs = cases.map(input => input.value.trim());
+        const status = document.getElementById(idStatus);
+        if (valeurs.some(valeur => !/^[1-9]$/.test(valeur) || Number(valeur) > taille)) {
+            status.textContent = `Complétez chaque case avec un chiffre de 1 à ${taille}.`;
+            return;
+        }
+        const grille = valeurs.map(Number);
+        const correcte = grille.every((chiffre, position) => {
+            grille[position] = 0;
+            const possible = candidatsSudoku(grille, position, taille, hauteurBloc).includes(chiffre);
+            grille[position] = chiffre;
+            return possible;
+        });
+        status.textContent = correcte ? 'Bravo, la grille est complète et correcte !'
+            : 'Il y a une répétition dans une ligne, une colonne ou un bloc. Vous pouvez réessayer.';
+    }
+
+    let suiteReponse = 64;
+
+    function nouvelleSuite() {
+        const depart = 1 + Math.floor(Math.random() * 8);
+        const ecart = 1 + Math.floor(Math.random() * 4);
+        const progression = 1 + Math.floor(Math.random() * 3);
+        const multiplication = Math.random() < 0.5;
+        const nombres = [depart];
+        for (let index = 0; index < 5; index++) {
+            nombres.push(multiplication ? nombres[index] * 2 : nombres[index] + ecart + index * progression);
+        }
+        suiteReponse = nombres.pop();
+        document.getElementById('sequence-question').textContent = `${nombres.join(', ')}, …`;
+        document.getElementById('sequence-hint').textContent = multiplication
+            ? 'Indice : chaque nombre est multiplié par le même nombre.'
+            : 'Indice : l’écart entre les nombres augmente toujours de la même valeur.';
+        document.getElementById('sequence-answer').value = '';
+        document.getElementById('sequence-status').textContent = '';
+    }
+
+    function verifierSuite() {
+        const valeur = document.getElementById('sequence-answer').value.trim();
+        document.getElementById('sequence-status').textContent = !/^\d+$/.test(valeur)
+            ? 'Saisissez un nombre entier.'
+            : Number(valeur) === suiteReponse ? 'Bravo, c’est la bonne réponse !'
+                : 'Ce n’est pas encore la bonne réponse. Vous pouvez réessayer.';
+    }
+
+    const themesMotsMeles = [
+        { nom: 'Au jardin', mots: ['ROSE', 'TULIPE', 'JARDIN', 'FLEUR', 'ARBRE', 'GRAINE'] },
+        { nom: 'À la mer', mots: ['PLAGE', 'VAGUE', 'SABLE', 'BATEAU', 'PHARE', 'OCEAN'] },
+        { nom: 'À table', mots: ['POMME', 'POIRE', 'PAIN', 'FROMAGE', 'SOUPE', 'RAISIN'] }
+    ];
+    let themeMotsMeles = -1;
+    let grilleMotsMeles = [];
+    let motsTrouves = [];
+    let casesMotsTrouves = new Set();
+    let debutMot = null;
+
+    function initialiserMotsMeles() {
+        if (themeMotsMeles === -1) nouveauxMotsMeles();
+    }
+
+    function nouveauxMotsMeles() {
+        const saut = 1 + Math.floor(Math.random() * (themesMotsMeles.length - 1));
+        themeMotsMeles = (themeMotsMeles + saut) % themesMotsMeles.length;
+        const mots = themesMotsMeles[themeMotsMeles].mots;
+        grilleMotsMeles = Array(64).fill('');
+        const directions = [[0, 1], [1, 0], [1, 1], [1, -1], [0, -1], [-1, 0], [-1, -1], [-1, 1]];
+        let placementReussi = true;
+        for (const mot of mots) {
+            const placements = [];
+            for (let ligne = 0; ligne < 8; ligne++) {
+                for (let colonne = 0; colonne < 8; colonne++) {
+                    for (const [dl, dc] of directions) {
+                        const finLigne = ligne + dl * (mot.length - 1);
+                        const finColonne = colonne + dc * (mot.length - 1);
+                        if (finLigne < 0 || finLigne >= 8 || finColonne < 0 || finColonne >= 8) continue;
+                        const cases = Array.from({ length: mot.length }, (_, i) => (ligne + dl * i) * 8 + colonne + dc * i);
+                        if (cases.every((position, i) => !grilleMotsMeles[position] || grilleMotsMeles[position] === mot[i])) placements.push(cases);
+                    }
+                }
+            }
+            if (!placements.length) {
+                placementReussi = false;
+                break;
+            }
+            const cases = placements[Math.floor(Math.random() * placements.length)];
+            cases.forEach((position, i) => { grilleMotsMeles[position] = mot[i]; });
+        }
+        if (!placementReussi) {
+            grilleMotsMeles = Array(64).fill('');
+            mots.forEach((mot, ligne) => {
+                for (let colonne = 0; colonne < mot.length; colonne++) grilleMotsMeles[ligne * 8 + colonne] = mot[colonne];
+            });
+        }
+        grilleMotsMeles = grilleMotsMeles.map(lettre => lettre || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]);
+        motsTrouves = [];
+        casesMotsTrouves = new Set();
+        debutMot = null;
+        const conteneur = document.getElementById('word-grid');
+        conteneur.replaceChildren();
+        grilleMotsMeles.forEach((lettre, index) => {
+            const bouton = document.createElement('button');
+            bouton.type = 'button';
+            bouton.className = 'word-cell';
+            bouton.textContent = lettre;
+            bouton.setAttribute('aria-label', `Ligne ${Math.floor(index / 8) + 1}, colonne ${index % 8 + 1} : ${lettre}`);
+            bouton.setAttribute('aria-pressed', 'false');
+            bouton.addEventListener('click', () => choisirLettreMot(index));
+            conteneur.append(bouton);
+        });
+        document.getElementById('word-theme').textContent = `Thème : ${themesMotsMeles[themeMotsMeles].nom}`;
+        afficherMotsMeles('Choisissez la première lettre d’un mot.');
+    }
+
+    function afficherMotsMeles(message) {
+        const mots = themesMotsMeles[themeMotsMeles].mots;
+        const liste = document.getElementById('word-list');
+        liste.replaceChildren();
+        liste.append('Mots à trouver : ');
+        mots.forEach((mot, index) => {
+            if (index) liste.append(', ');
+            const trouve = motsTrouves.includes(mot);
+            const motElement = document.createElement(trouve ? 's' : 'span');
+            motElement.textContent = mot;
+            liste.append(motElement);
+            if (trouve) {
+                const indication = document.createElement('span');
+                indication.className = 'word-found-sr';
+                indication.textContent = ' (trouvé)';
+                liste.append(indication);
+            }
+        });
+        Array.from(document.getElementById('word-grid').children).forEach((bouton, index) => {
+            bouton.className = `word-cell${casesMotsTrouves.has(index) ? ' found' : ''}`;
+            bouton.setAttribute('aria-pressed', String(index === debutMot));
+        });
+        document.getElementById('word-status').textContent = message;
+    }
+
+    function choisirLettreMot(index) {
+        if (themeMotsMeles === -1 || motsTrouves.length === themesMotsMeles[themeMotsMeles].mots.length) return;
+        if (debutMot === null) {
+            debutMot = index;
+            afficherMotsMeles(`Première lettre ${grilleMotsMeles[index]} choisie. Choisissez la dernière lettre.`);
+            return;
+        }
+        const ligne = Math.floor(debutMot / 8), colonne = debutMot % 8;
+        const deltaLigne = Math.floor(index / 8) - ligne, deltaColonne = index % 8 - colonne;
+        const longueur = Math.max(Math.abs(deltaLigne), Math.abs(deltaColonne));
+        if (!longueur || (deltaLigne && deltaColonne && Math.abs(deltaLigne) !== Math.abs(deltaColonne))) {
+            debutMot = null;
+            afficherMotsMeles('Choisissez deux lettres alignées. Vous pouvez réessayer.');
+            return;
+        }
+        const dl = Math.sign(deltaLigne), dc = Math.sign(deltaColonne);
+        const cases = Array.from({ length: longueur + 1 }, (_, i) => (ligne + dl * i) * 8 + colonne + dc * i);
+        const mot = cases.map(position => grilleMotsMeles[position]).join('');
+        debutMot = null;
+        if (!themesMotsMeles[themeMotsMeles].mots.includes(mot)) {
+            afficherMotsMeles('Ce mot ne figure pas dans la liste. Vous pouvez réessayer.');
+        } else if (motsTrouves.includes(mot)) {
+            afficherMotsMeles(`${mot} a déjà été trouvé. Choisissez un autre mot.`);
+        } else {
+            motsTrouves.push(mot);
+            cases.forEach(position => casesMotsTrouves.add(position));
+            afficherMotsMeles(motsTrouves.length === themesMotsMeles[themeMotsMeles].mots.length
+                ? 'Bravo, vous avez trouvé tous les mots !' : `Bravo, ${mot} est trouvé. Choisissez un autre mot.`);
         }
     }
 
