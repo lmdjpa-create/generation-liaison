@@ -441,6 +441,7 @@ function createView(response) {
     authHeaders: () => ({}),
     afficherAccueilSenior() {},
     reinitialiserPhotosContacts() {},
+    reinitialiserPhotoMessages() {},
     reinitialiserProfil() {},
     chargerPhotoProfil() {},
     updatePlanningDateTitle() {},

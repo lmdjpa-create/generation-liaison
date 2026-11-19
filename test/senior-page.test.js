@@ -1128,7 +1128,7 @@ test('notifications become read only when visible, keep actions, and report fail
       window: { innerWidth: 100, innerHeight: 100, handlePendingNotification() { this.opened = true; } },
       setTimeout: (callback, delay) => { assert.equal(delay, 2000); timers.set(++timerId, callback); return timerId; },
       clearTimeout: id => timers.delete(id),
-      makeTextElement: (tag, text) => ({ tag, textContent: text }),
+      makeTextElement: (tag, text) => Object.assign(node(tag), { textContent: text }),
       formatDateTime: () => 'date',
       planningRequest: async (url, options) => {
         requests.push({ url, options });
@@ -1152,6 +1152,12 @@ test('notifications become read only when visible, keep actions, and report fail
     assert.equal(badge.textContent, '2 non lues');
     assert.equal(timers.size, 0);
     const [message, invitation] = container.children;
+    assert.match(message.className, /\bnotification-bubble\b/);
+    assert.match(invitation.className, /\bnotification-bubble\b/);
+    const messageMetadata = message.children.find(child => child.tag === 'small');
+    const invitationMetadata = invitation.children.find(child => child.tag === 'small');
+    assert.equal(messageMetadata.textContent, 'date · ');
+    assert.equal(messageMetadata.children[0].textContent, 'Non lu');
     assert.equal(message.children.filter(child => child.tag === 'button').length, 0);
     assert.equal(invitation.children.find(child => child.className === 'notification-actions').children.length, 2);
     const link = message.children.find(child => child.tag === 'a');
@@ -1169,7 +1175,7 @@ test('notifications become read only when visible, keep actions, and report fail
     const first = [...timers.values()][0];
     timers.clear();
     await first();
-    assert.equal(message.children.find(child => child.textContent === 'Lu').textContent, 'Lu');
+    assert.equal(messageMetadata.children[0].textContent, 'Lu');
     assert.equal(badge.textContent, '1 non lue');
     assert.equal(requests.filter(item => item.options?.method === 'PATCH').length, 1);
 
@@ -1184,7 +1190,7 @@ test('notifications become read only when visible, keep actions, and report fail
     context.check();
     await [...timers.values()][0]();
     assert.equal(errors[0], 'Lecture impossible');
-    assert.ok(invitation.children.some(child => child.textContent === 'Non lu'));
+    assert.equal(invitationMetadata.children[0].textContent, 'Non lu');
   }
 });
 
@@ -1215,16 +1221,21 @@ test('read receipts refresh only for the open and visible conversation', () => {
 
 test('opening a conversation marks received messages read and displays the sender receipt after refresh', async () => {
   const container = { children: [], replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } };
-  const select = { value: 'contact', selectedOptions: [{ text: 'Contact' }] };
+  const select = { value: 'contact', options: [{ value: '' }, { value: 'contact' }], selectedOptions: [{ text: 'Contact' }] };
   const status = {};
   const calls = [];
   let senderRead = false;
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
     openMessageConversations: {},
+    accountPhotoObjectUrl: null, messagePhotoObjectUrl: null, messagePhotoLoadId: 0,
+    SERVER_URL: '', authHeaders: () => ({}), fetch: async () => ({ status: 404 }),
     document: {
       getElementById: id => id === 'message-contact-senior' ? select : id === 'message-list-senior' ? container : status,
-      createElement: () => ({ children: [], append(item) { this.children.push(item); } })
+      createElement: () => ({
+        children: [], style: { setProperty() {} }, setAttribute() {},
+        append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }
+      })
     },
     makeTextElement: (tag, text) => ({ tag, text }),
     formatDateTime: () => 'date',
@@ -1248,6 +1259,103 @@ test('opening a conversation marks received messages read and displays the sende
   senderRead = true;
   assert.equal(await context.open('senior'), true);
   assert.match(container.children[0].children[2].text, /· Lu/);
+});
+
+test('message bubbles distinguish participants and keep contact colours when options are reordered', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const container = { children: [], replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } };
+    const select = {
+      value: 'alice', options: [{ value: '' }, { value: 'alice' }, { value: 'bob' }],
+      selectedOptions: [{ text: 'Alice' }]
+    };
+    const status = {};
+    const context = {
+      connectedUser: { id: 'user', role },
+      openMessageConversations: {},
+      accountPhotoObjectUrl: null, messagePhotoObjectUrl: null, messagePhotoLoadId: 0,
+      SERVER_URL: '', authHeaders: () => ({}), fetch: async () => ({ status: 404 }),
+      document: {
+        getElementById: id => id === `message-contact-${role}` ? select : id === `message-list-${role}` ? container : status,
+        createElement: () => ({
+          children: [], style: { setProperty(name, value) { this[name] = value; } },
+          setAttribute() {}, append(...items) { this.children.push(...items); },
+          replaceChildren(...items) { this.children = items; }
+        })
+      },
+      makeTextElement: (tag, text) => ({ tag, text }),
+      formatDateTime: () => 'date',
+      seniorLinksRequest: async () => ({ messages: [
+        { id: 'sent', mine: true, body: 'Bonjour', readAt: 'today' },
+        { id: 'received', mine: false, body: 'Bonjour', readAt: 'today' }
+      ] })
+    };
+    vm.runInNewContext(
+      `${extract('    async function ouvrirConversation(role, focusId', '    function rafraichirConversationVisible()')}\n` +
+      'globalThis.open = ouvrirConversation;', context
+    );
+    assert.equal(await context.open(role), true);
+    assert.equal(container.children[0].className, 'message-bubble mine');
+    assert.equal(container.children[1].className, 'message-bubble');
+    assert.equal(container.children[0].children[0].children[0].textContent, '🧑');
+    assert.equal(container.children[1].children[0].children[0].textContent, '🧑');
+    const aliceColour = container.children[1].style['--message-background'];
+    assert.match(aliceColour, /^hsl\(/);
+    select.options.reverse();
+    assert.equal(await context.open(role), true);
+    assert.equal(container.children[1].style['--message-background'], aliceColour);
+    select.value = 'bob';
+    select.selectedOptions = [{ text: 'Bob' }];
+    assert.equal(await context.open(role), true);
+    assert.notEqual(container.children[1].style['--message-background'], aliceColour);
+  }
+});
+
+test('message avatars use only available shared contact photos and discard stale loads', async () => {
+  const revoked = [];
+  let resolvePhoto;
+  const avatar = () => ({ children: [], replaceChildren(...items) { this.children = items; } });
+  const select = { value: 'alice' };
+  const context = {
+    connectedUser: { id: 'user', role: 'aidant' },
+    messagePhotoLoadId: 0, messagePhotoObjectUrl: null,
+    SERVER_URL: '', authHeaders: () => ({ Authorization: 'Bearer test' }),
+    document: { createElement: () => ({}) },
+    URL: { createObjectURL: () => 'blob:photo', revokeObjectURL: url => revoked.push(url) },
+    fetch: async (url, options) => {
+      assert.equal(url, '/api/contacts/alice/photo');
+      assert.equal(options.cache, 'no-store');
+      assert.equal(options.headers.Authorization, 'Bearer test');
+      return { status: 200, ok: true, blob: () => new Promise(resolve => { resolvePhoto = resolve; }) };
+    },
+    console
+  };
+  vm.runInNewContext(
+    `${extract('    function reinitialiserPhotoMessages()', '    let couleurJeu')}\n` +
+    'globalThis.loadPhoto = chargerPhotoMessages; globalThis.resetPhoto = reinitialiserPhotoMessages;',
+    context
+  );
+  const first = avatar();
+  const pending = context.loadPhoto('alice', 'user', 'aidant', select, [first]);
+  await new Promise(setImmediate);
+  context.resetPhoto();
+  resolvePhoto({});
+  await pending;
+  assert.equal(first.children.length, 0);
+
+  const second = avatar();
+  const loaded = context.loadPhoto('alice', 'user', 'aidant', select, [second]);
+  await new Promise(setImmediate);
+  resolvePhoto({});
+  await loaded;
+  assert.equal(second.children[0].src, 'blob:photo');
+  assert.equal(second.children[0].alt, '');
+  context.resetPhoto();
+  assert.deepEqual(revoked, ['blob:photo']);
+
+  context.fetch = async () => ({ status: 404 });
+  const unavailable = avatar();
+  await context.loadPhoto('alice', 'user', 'aidant', select, [unavailable]);
+  assert.equal(unavailable.children.length, 0);
 });
 
 test('device notifications can be enabled directly in each account settings', () => {

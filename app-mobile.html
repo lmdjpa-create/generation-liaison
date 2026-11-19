@@ -279,6 +279,45 @@
         .card, .form-card { background: rgba(255, 255, 255, 0.9); }
         .notification-card { border: 1px solid #e3eee9; }
         .notification-card.unread { border-left-color: var(--brand); }
+        .notification-bubble {
+            background: #fff6dc;
+            color: #20313c;
+            border-radius: 18px 18px 18px 4px;
+            overflow-wrap: anywhere;
+        }
+        .notification-bubble > p { color: #20313c; font-size: 1rem; white-space: pre-wrap; }
+        .notification-bubble small, .message-bubble small { color: #465b54; }
+        [id^="message-list-"] { display: flex; flex-direction: column; align-items: flex-start; }
+        .message-bubble {
+            box-sizing: border-box;
+            max-width: 90%;
+            margin: 6px 0;
+            padding: 12px 15px;
+            border-radius: 18px 18px 18px 4px;
+            background: var(--message-background);
+            color: #20313c;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+        .message-bubble p { margin: 6px 0; white-space: pre-wrap; }
+        .message-author { display: flex; align-items: center; gap: 8px; }
+        .message-avatar {
+            display: inline-grid;
+            place-items: center;
+            flex: 0 0 32px;
+            width: 32px;
+            height: 32px;
+            overflow: hidden;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .75);
+            font-size: 1.2rem;
+        }
+        .message-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .message-bubble.mine {
+            align-self: flex-end;
+            border-radius: 18px 18px 4px 18px;
+            background: #edf0f3;
+        }
         input, select, textarea { border: 1.5px solid #d9e7e1; border-radius: 14px; background: #fbfdfc; }
         input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(42, 157, 120, 0.15); }
         .btn-submit { background: linear-gradient(135deg, #34b087, var(--brand-dark)); border-radius: 14px; }
@@ -1913,6 +1952,8 @@
     let accountPhotoObjectUrl = null;
     let accountProfileRevision = 0;
     let accountPhotoLoadId = 0;
+    let messagePhotoLoadId = 0;
+    let messagePhotoObjectUrl = null;
     let contactsLoadId = 0;
     let contactPhotoUrls = [];
     let activeSeniorProfileId = localStorage.getItem('generation-liaison-active-senior') || '';
@@ -2912,6 +2953,7 @@
         }
         initialiserLectureSenior();
         reinitialiserPhotosContacts();
+        reinitialiserPhotoMessages();
         reinitialiserProfil();
         if (user.hasAccountPhoto) void chargerPhotoProfil();
         document.body.classList.toggle('senior-mode', user.role === 'senior');
@@ -5112,12 +5154,13 @@
             }
             result.notifications.forEach(notification => {
                 const card = document.createElement('article');
-                card.className = `notification-card${notification.read ? '' : ' unread'}`;
+                card.className = `notification-card notification-bubble${notification.read ? '' : ' unread'}`;
                 card.append(makeTextElement('strong', notification.title));
                 card.append(makeTextElement('p', notification.message, 'helper-text'));
-                card.append(makeTextElement('small', formatDateTime(notification.createdAt), 'helper-text'));
-                const readStatus = makeTextElement('p', notification.read ? 'Lu' : 'Non lu', 'helper-text');
-                card.append(readStatus);
+                const metadata = makeTextElement('small', `${formatDateTime(notification.createdAt)} · `, 'helper-text');
+                const readStatus = makeTextElement('span', notification.read ? 'Lu' : 'Non lu');
+                metadata.append(readStatus);
+                card.append(metadata);
                 if (!notification.read) {
                     notificationReadEntries.push({ id: notification.id, userId, role, card, status: readStatus });
                 }
@@ -5220,16 +5263,36 @@
                 status.textContent = 'Ce message n’est plus disponible.';
                 return false;
             }
+            reinitialiserPhotoMessages();
             container.replaceChildren();
             if (!result.messages.length) container.append(makeTextElement('p', 'Aucun message pour le moment.', 'helper-text'));
+            const contactIds = Array.from(select.options, option => option.value).filter(Boolean).sort();
+            const contactHue = (contactIds.indexOf(contactId) * 137.5) % 360;
+            const contactAvatars = [];
             result.messages.forEach(message => {
                 const item = document.createElement('article');
-                item.className = 'notification-card';
-                item.append(makeTextElement('strong', message.mine ? 'Vous' : select.selectedOptions[0].text));
+                item.className = `message-bubble${message.mine ? ' mine' : ''}`;
+                if (!message.mine) item.style.setProperty('--message-background', `hsl(${contactHue}, 65%, 90%)`);
+                const author = document.createElement('div');
+                author.className = 'message-author';
+                const avatar = document.createElement('span');
+                avatar.className = 'message-avatar';
+                avatar.setAttribute('aria-hidden', 'true');
+                avatar.textContent = message.mine
+                    ? ({ mr: '👨', mrs: '👩', unspecified: '🧑' }[connectedUser.civility] || '🧑') : '🧑';
+                if (message.mine && accountPhotoObjectUrl) {
+                    const image = document.createElement('img');
+                    image.alt = '';
+                    image.src = accountPhotoObjectUrl;
+                    avatar.replaceChildren(image);
+                } else if (!message.mine) contactAvatars.push(avatar);
+                author.append(avatar, makeTextElement('strong', message.mine ? 'Vous' : select.selectedOptions[0].text));
+                item.append(author);
                 item.append(makeTextElement('p', message.body));
                 item.append(makeTextElement('small', `${formatDateTime(message.createdAt)}${message.mine ? (message.readAt ? ' · Lu' : ' · Non lu') : ''}`, 'helper-text'));
                 container.append(item);
             });
+            if (contactAvatars.length) void chargerPhotoMessages(contactId, userId, role, select, contactAvatars);
             const unread = result.messages.filter(message => !message.mine && !message.readAt).map(message => message.id);
             if (unread.length) {
                 await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}/read`, {
@@ -5244,6 +5307,37 @@
         } catch (error) {
             status.textContent = error.message || 'Impossible de charger les messages.';
             return false;
+        }
+    }
+
+    function reinitialiserPhotoMessages() {
+        messagePhotoLoadId++;
+        if (messagePhotoObjectUrl) URL.revokeObjectURL(messagePhotoObjectUrl);
+        messagePhotoObjectUrl = null;
+    }
+
+    async function chargerPhotoMessages(contactId, userId, role, select, avatars) {
+        const loadId = messagePhotoLoadId;
+        try {
+            const response = await fetch(`${SERVER_URL}/api/contacts/${encodeURIComponent(contactId)}/photo`, {
+                headers: authHeaders(false), cache: 'no-store'
+            });
+            if (response.status === 404) return;
+            if (!response.ok) throw new Error('Impossible de charger la photo du correspondant.');
+            const blob = await response.blob();
+            if (loadId !== messagePhotoLoadId || connectedUser?.id !== userId ||
+                connectedUser?.role !== role || select.value !== contactId) return;
+            messagePhotoObjectUrl = URL.createObjectURL(blob);
+            avatars.forEach(avatar => {
+                const image = document.createElement('img');
+                image.alt = '';
+                image.src = messagePhotoObjectUrl;
+                avatar.replaceChildren(image);
+            });
+        } catch (error) {
+            if (loadId === messagePhotoLoadId && connectedUser?.id === userId) {
+                console.error('Chargement de la photo du correspondant impossible :', error);
+            }
         }
     }
 
@@ -7738,6 +7832,7 @@
         annulerPropositionMessage();
         reinitialiserAlbumJournal();
         reinitialiserPhotosContacts();
+        reinitialiserPhotoMessages();
         reinitialiserProfil();
         nextVisitLoadId++;
         nextVisitEvent = null;
