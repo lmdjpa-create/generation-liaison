@@ -72,8 +72,8 @@ test('daily caregiver summary shows only current profile data and reports partia
     planningRequest: url => {
       if (context.activeSeniorProfileId === 'old') return new Promise(resolve => { firstResolvers.push(resolve); });
       if (url.startsWith('/api/planning/calendar')) return Promise.resolve({ events: [
-        { status: 'pending', title: 'En attente', scheduledAt: '2999-03-01T14:00:00Z' },
-        { status: 'scheduled', title: 'Visite prévue', scheduledAt: '2999-03-01T15:00:00Z' }
+        { status: 'pending', title: 'En attente', scheduledAt: '2028-02-29T14:00:00Z' },
+        { status: 'scheduled', title: 'Visite prévue', scheduledAt: '2028-02-29T15:00:00Z' }
       ] });
       if (url === '/api/shared-tasks') return Promise.resolve({ tasks: [
         { dueDate: '2028-02-29', completed: false, assigned: false },
@@ -86,7 +86,7 @@ test('daily caregiver summary shows only current profile data and reports partia
       if (url === '/api/planning/following') return Promise.resolve({ visits: [
         { scheduledAt: '2028-02-29T10:00:00Z', visitType: 'Visite', progress: [{ type: 'arrived', createdAt: '2028-02-29T10:01:00Z' }] }
       ] });
-      if (url.startsWith('/api/planning/services/bookings')) return Promise.resolve({ bookings: [{ status: 'requested' }, { status: 'cancelled' }] });
+      if (url.startsWith('/api/planning/services/bookings')) return Promise.resolve({ bookings: [{ status: 'requested', scheduledAt: '2028-02-29T10:00:00Z' }, { status: 'cancelled', scheduledAt: '2028-02-29T11:00:00Z' }] });
       if (url === '/api/logs/all') return Promise.resolve([{ created_at: '2028-02-29T10:00:00Z', content: 'Repas reçu' }]);
       if (url === '/api/wellbeing/shared-check-ins') return Promise.resolve({ checkins: [{ createdAt: '2028-02-29T09:00:00Z' }] });
       throw new Error(`Unexpected request: ${url}`);
@@ -99,7 +99,7 @@ test('daily caregiver summary shows only current profile data and reports partia
   context.activeSeniorProfileId = 'new';
   await context.loadSummary();
   assert.equal(getElementById('aidant-summary-visit').textContent, 'Rendez-vous aujourd’hui : 2\nEn attente\nVisite prévue');
-  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui ou en retard : 2 · Sans volontaire : 2');
+  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1 · Sans volontaire : 2');
   assert.equal(getElementById('aidant-summary-messages').textContent, 'Impossible de charger les messages.');
   assert.equal(getElementById('aidant-summary-notifications').textContent, 'Notifications non lues parmi les 50 dernières : 2');
   assert.match(getElementById('aidant-summary-following').textContent, /Dernière étape : Visite — arrived/);
@@ -108,7 +108,7 @@ test('daily caregiver summary shows only current profile data and reports partia
   assert.match(getElementById('aidant-summary-checkins').textContent, / : 1$/);
   firstResolvers.forEach(resolve => resolve({}));
   await first;
-  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui ou en retard : 2 · Sans volontaire : 2');
+  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1 · Sans volontaire : 2');
 });
 
 test('senior summary uses the calendar and accessible updates without requesting shared check-ins', async () => {
@@ -244,7 +244,7 @@ test('senior history shows dated appointments and tasks for the previous 30 Pari
   ];
   const context = {
     connectedUser: { id: 'senior', role: 'senior', seniorId: 'profile' },
-    seniorHistoryLoadId: 0, seniorHistoryContext: '',
+    historyLoadId: 0, historyContext: '',
     document: { getElementById: id => id === 'senior-history-details' ? details : list },
     window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
     dateCheckinBienEtre: () => today, calendarEventLabel: event => event.title,
@@ -256,10 +256,10 @@ test('senior history shows dated appointments and tasks for the previous 30 Pari
   };
   const calendarStart = source.indexOf('    function calendarEventDate(value)');
   const calendarEnd = source.indexOf('    function calendarEventLabel(event)', calendarStart);
-  const start = source.indexOf('    async function chargerHistoriqueSenior()');
+  const start = source.indexOf('    async function chargerHistoriqueQuotidien(role)');
   const end = source.indexOf('    function afficherProchainRendezVous()', start);
   vm.runInNewContext(`${source.slice(calendarStart, calendarEnd)}\n${source.slice(start, end)}`, context);
-  await context.chargerHistoriqueSenior();
+  await context.chargerHistoriqueQuotidien('senior');
   assert.ok(paths.includes('/api/planning/calendar?start=2028-01-31&end=2028-03-01'));
   assert.equal(children.length, 4);
   assert.match(children[0].text, /Hier — À faire/);
@@ -270,11 +270,11 @@ test('senior history shows dated appointments and tasks for the previous 30 Pari
   assert.equal(tasks.length, 5);
   context.planningRequest = path => path.startsWith('/api/planning/calendar')
     ? Promise.reject(new Error('offline')) : Promise.resolve({ tasks: [] });
-  await context.chargerHistoriqueSenior();
+  await context.chargerHistoriqueQuotidien('senior');
   assert.equal(children[0].text, 'Impossible de charger l’historique des rendez-vous.');
   context.planningRequest = path => path.startsWith('/api/planning/calendar')
     ? new Promise(resolve => { release = resolve; }) : Promise.resolve({ tasks });
-  const pending = context.chargerHistoriqueSenior();
+  const pending = context.chargerHistoriqueQuotidien('senior');
   details.open = false;
   children.length = 0;
   release({ events });
@@ -283,8 +283,51 @@ test('senior history shows dated appointments and tasks for the previous 30 Pari
   details.open = true;
   today = '2028-03-02';
   context.planningRequest = async path => path.startsWith('/api/planning/calendar') ? { events: [] } : { tasks: [] };
-  await context.chargerHistoriqueSenior();
+  await context.chargerHistoriqueQuotidien('senior');
   assert.match(children[0].text, /Aucun rendez-vous ou tâche datée/);
+});
+
+test('caregiver and professional histories use their authorized tasks and discard old profile responses', async () => {
+  const children = [];
+  const lists = {
+    aidant: { replaceChildren() { children.length = 0; }, append(item) { children.push(item); } },
+    pro: { replaceChildren() { children.length = 0; }, append(item) { children.push(item); } }
+  };
+  const details = { open: true };
+  const paths = [];
+  let release;
+  const context = {
+    connectedUser: { id: 'user', role: 'aidant' }, activeSeniorProfileId: 'old',
+    historyLoadId: 0, historyContext: '',
+    document: { getElementById: id => id.endsWith('-details') ? details : lists[id.split('-')[0]] },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
+    dateCheckinBienEtre: () => '2028-03-01',
+    calendarEventDate: value => value.slice(0, 10), calendarEventLabel: event => event.title,
+    makeTextElement: (tag, text) => ({ tag, text }), Date, Intl,
+    planningRequest: path => {
+      paths.push(path);
+      if (path.startsWith('/api/planning/calendar')) return Promise.resolve({ events: [] });
+      if (context.activeSeniorProfileId === 'old') return new Promise(resolve => { release = resolve; });
+      return Promise.resolve({ tasks: [{ dueDate: '2028-02-29', title: 'Tâche autorisée', seniorName: 'Camille' }] });
+    }
+  };
+  const start = source.indexOf('    async function chargerHistoriqueQuotidien(role)');
+  const end = source.indexOf('    function afficherProchainRendezVous()', start);
+  vm.runInNewContext(source.slice(start, end), context);
+  const pending = context.chargerHistoriqueQuotidien('aidant');
+  context.activeSeniorProfileId = 'new';
+  await context.chargerHistoriqueQuotidien('aidant');
+  assert.match(children[0].text, /Tâche autorisée/);
+  release({ tasks: [{ dueDate: '2028-02-29', title: 'Ancien profil' }] });
+  await pending;
+  assert.doesNotMatch(children[0].text, /Ancien profil/);
+  assert.ok(paths.includes('/api/shared-tasks'));
+  paths.length = 0;
+  context.connectedUser = { id: 'professional', role: 'pro' };
+  await context.chargerHistoriqueQuotidien('pro');
+  assert.ok(paths.includes('/api/intervention-tasks'));
+  assert.ok(!paths.includes('/api/shared-tasks'));
+  assert.match(children[0].text, /Tâche autorisée — Camille/);
 });
 
 test('professional summary uses only professional-accessible data and shows pending requests', async () => {
@@ -297,14 +340,20 @@ test('professional summary uses only professional-accessible data and shows pend
     window: { generationLiaisonTranslate: value => value },
     dateCheckinBienEtre: () => '2028-02-29',
     calendarEventLabel: event => event.title,
+    calendarEventDate: value => value.slice(0, 10),
     Date,
     planningRequest: async url => {
       paths.push(url);
-      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Visite prévue' }] };
+      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Visite prévue', scheduledAt: '2028-02-29T10:00:00Z' }] };
       if (url === '/api/messages/unread-count') return { count: 1 };
       if (url === '/api/notifications') return { unreadCount: 2 };
       if (url.startsWith('/api/planning/services/bookings')) return { bookings: [] };
       if (url === '/api/directory/bookings') return { bookings: [{ status: 'pending' }, { status: 'confirmed' }] };
+      if (url === '/api/intervention-tasks') return { tasks: [
+        { completed: false, dueDate: '2028-02-28' },
+        { completed: false, dueDate: '2028-02-29' },
+        { completed: false, dueDate: null }
+      ] };
       throw new Error(`Unexpected request: ${url}`);
     }
   };
@@ -314,6 +363,7 @@ test('professional summary uses only professional-accessible data and shows pend
   await context.loadSummary();
   assert.match(elements.get('pro-summary-visit').textContent, /Visite prévue/);
   assert.equal(elements.get('pro-summary-demands').textContent, 'Demandes de rendez-vous en attente : 1');
+  assert.equal(elements.get('pro-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1');
   assert.ok(!paths.includes('/api/shared-tasks'));
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
 });

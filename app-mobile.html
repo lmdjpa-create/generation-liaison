@@ -1318,7 +1318,7 @@
             <p id="senior-summary-notifications" role="status">Chargement des notifications…</p>
             <p id="senior-summary-following" role="status">Chargement du suivi des interventions…</p>
             <p id="senior-summary-services" role="status">Chargement des services…</p>
-            <details id="senior-history-details" ontoggle="if (this.open) chargerHistoriqueSenior()">
+            <details id="senior-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('senior')">
                 <summary>Historique des 30 derniers jours</summary>
                 <p class="helper-text">Rendez-vous et tâches datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
                 <div id="senior-history-list" aria-live="polite"></div>
@@ -1385,6 +1385,11 @@
         <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
         <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
         <p id="aidant-summary-services" role="status">Chargement des services…</p>
+        <details id="aidant-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('aidant')">
+            <summary>Historique des 30 derniers jours</summary>
+            <p class="helper-text">Rendez-vous et tâches datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
+            <div id="aidant-history-list" aria-live="polite"></div>
+        </details>
     </section>
     <div id="aidant-shortcuts" class="action-tiles">
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
@@ -1558,8 +1563,14 @@
         <p id="pro-summary-visit" role="status">Chargement des rendez-vous…</p>
         <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
         <p id="pro-summary-services" role="status">Chargement des services…</p>
+        <p id="pro-summary-tasks" role="status">Chargement des tâches…</p>
         <p id="pro-summary-messages" role="status">Chargement des messages…</p>
         <p id="pro-summary-notifications" role="status">Chargement des notifications…</p>
+        <details id="pro-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('pro')">
+            <summary>Historique des 30 derniers jours</summary>
+            <p class="helper-text">Rendez-vous autorisés et tâches qui vous sont confiées, datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
+            <div id="pro-history-list" aria-live="polite"></div>
+        </details>
     </section>
     <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
     <section class="form-card">
@@ -2276,8 +2287,8 @@
     let consentLoadId = 0;
     let aidantSummaryLoadId = 0;
     let aidantSummaryContext = '';
-    let seniorHistoryLoadId = 0;
-    let seniorHistoryContext = '';
+    let historyLoadId = 0;
+    let historyContext = '';
     let calendarRequestsLoadId = 0;
     let calendarSettingsLoadId = 0;
     let directoryBookingsLoadId = 0;
@@ -2679,6 +2690,7 @@
         }
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerSyntheseAidant();
+            if (document.getElementById('aidant-history-details').open) chargerHistoriqueQuotidien('aidant');
             chargerLogs();
             if (document.getElementById('aidant-album-details').open) chargerAlbumFamilial('aidant');
             if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
@@ -2691,7 +2703,7 @@
         } else if (screenName === 'more' || screenName === 'senior-pro') {
             document.getElementById(`screen-${screenName}`).scrollTop = 0;
             chargerSyntheseSenior();
-            if (screenName === 'senior-pro' && document.getElementById('senior-history-details').open) chargerHistoriqueSenior();
+            if (screenName === 'senior-pro' && document.getElementById('senior-history-details').open) chargerHistoriqueQuotidien('senior');
             if (document.getElementById('senior-album-details').open) chargerAlbumFamilial('senior');
             if (document.getElementById('senior-journal-details').open) chargerJournalQuotidien('senior');
             if (screenName === 'senior-pro' && document.getElementById('senior-tasks-details').open) chargerTachesPartagees('senior');
@@ -2710,6 +2722,7 @@
             chargerAssistantConversation();
         } else if (screenName === 'pro') {
             chargerSynthesePro();
+            if (document.getElementById('pro-history-details').open) chargerHistoriqueQuotidien('pro');
             chargerPlanningPro();
             chargerPlanningServices();
             chargerDirectoryProfile();
@@ -3366,7 +3379,10 @@
                 chargerPlanningPro();
                 chargerPlanningServices();
                 chargerDirectoryBookings(true);
-                if (document.getElementById('screen-pro').classList.contains('active')) chargerSynthesePro();
+                if (document.getElementById('screen-pro').classList.contains('active')) {
+                    chargerSynthesePro();
+                    if (document.getElementById('pro-history-details').open) chargerHistoriqueQuotidien('pro');
+                }
             }
             if (connectedUser.role === 'senior' || (connectedUser.role === 'aidant' && activeSeniorProfileId)) {
                 chargerSuiviPartage(connectedUser.role);
@@ -3374,7 +3390,10 @@
             }
             if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
                 chargerCheckinsPartages();
-                if (document.getElementById('screen-aidant').classList.contains('active')) chargerSyntheseAidant();
+                if (document.getElementById('screen-aidant').classList.contains('active')) {
+                    chargerSyntheseAidant();
+                    if (document.getElementById('aidant-history-details').open) chargerHistoriqueQuotidien('aidant');
+                }
             }
             if (connectedUser.role === 'senior') {
                 chargerAssistantConversation();
@@ -3383,7 +3402,7 @@
                     chargerSyntheseSenior();
                 } else if (document.getElementById('screen-senior-pro').classList.contains('active')) {
                     chargerSyntheseSenior();
-                    if (document.getElementById('senior-history-details').open) chargerHistoriqueSenior();
+                    if (document.getElementById('senior-history-details').open) chargerHistoriqueQuotidien('senior');
                 }
                 if (wellbeingLoadedDate !== dateCheckinBienEtre()) {
                     afficherAccueilSenior(connectedUser);
@@ -6898,7 +6917,7 @@
         const userId = connectedUser.id;
         const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
         const fieldKeys = role === 'pro'
-            ? ['visit', 'demands', 'services', 'messages', 'notifications']
+            ? ['visit', 'demands', 'services', 'messages', 'notifications', 'tasks']
             : ['visit', 'tasks', 'messages', 'notifications', 'following', 'services']
                 .concat(role === 'aidant' ? ['checkins'] : []);
         const fields = Object.fromEntries(fieldKeys.map(key => [key, document.getElementById(`${role}-summary-${key}`)]));
@@ -6919,6 +6938,7 @@
         };
         if (role === 'pro') {
             requests.demands = '/api/directory/bookings';
+            requests.tasks = '/api/intervention-tasks';
         } else {
             requests.tasks = '/api/shared-tasks';
             requests.following = '/api/planning/following';
@@ -6933,7 +6953,7 @@
         if (today !== dateCheckinBienEtre()) return chargerSyntheseQuotidienne(role);
         const todayDate = value => value && Number.isFinite(new Date(value).getTime()) && calendarEventDate(value) === today;
         if (results.visit.status === 'fulfilled') {
-            const events = role === 'senior' ? results.visit.value.events.filter(event => todayDate(event.scheduledAt)) : results.visit.value.events;
+            const events = results.visit.value.events.filter(event => todayDate(event.scheduledAt));
             const labels = events.slice(0, 3).map(event => calendarEventLabel(event));
             const extra = events.length > 3 ? `\n${t('Autres rendez-vous')} : ${events.length - 3}` : '';
             fields.visit.textContent = events.length
@@ -6942,14 +6962,13 @@
         } else {
             fields.visit.textContent = t('Impossible de charger les rendez-vous.');
         }
-        if (role !== 'pro' && results.tasks.status === 'fulfilled') {
-            const open = results.tasks.value.tasks.filter(task => !task.completed &&
-                (role !== 'senior' || !task.dueDate || task.dueDate >= today));
-            const due = open.filter(task => task.dueDate && (role === 'senior' ? task.dueDate === today : task.dueDate <= today));
-            fields.tasks.textContent = !open.length ? '' : role === 'senior'
-                ? `${t('Tâches à faire')} : ${open.length} · ${t('Pour aujourd’hui')} : ${due.length}`
-                : `${t('Tâches à faire')} : ${open.length} · ${t('Pour aujourd’hui ou en retard')} : ${due.length} · ${t('Sans volontaire')} : ${open.filter(task => !task.assigned).length}`;
-        } else if (role !== 'pro') {
+        if (results.tasks.status === 'fulfilled') {
+            const open = results.tasks.value.tasks.filter(task => !task.completed && (!task.dueDate || task.dueDate >= today));
+            const due = open.filter(task => task.dueDate === today);
+            fields.tasks.textContent = !open.length ? '' :
+                `${t('Tâches à faire')} : ${open.length} · ${t('Pour aujourd’hui')} : ${due.length}` +
+                (role === 'aidant' ? ` · ${t('Sans volontaire')} : ${open.filter(task => !task.assigned).length}` : '');
+        } else {
             fields.tasks.textContent = t('Impossible de charger les tâches.');
         }
         fields.messages.textContent = results.messages.status === 'fulfilled'
@@ -6971,7 +6990,7 @@
             fields.following.textContent = t('Impossible de charger le suivi des interventions.');
         }
         if (results.services.status === 'fulfilled') {
-            const bookings = role === 'senior' ? results.services.value.bookings.filter(item => todayDate(item.scheduledAt)) : results.services.value.bookings;
+            const bookings = results.services.value.bookings.filter(item => todayDate(item.scheduledAt));
             fields.services.textContent = !bookings.length ? '' : `${t('Services du jour')} : ${bookings.length} · ${t('En attente de réponse')} : ${bookings.filter(item => item.status === 'requested').length} · ${t('Annulés')} : ${bookings.filter(item => item.status === 'cancelled').length}`;
         } else {
             fields.services.textContent = t('Impossible de charger les services.');
@@ -6993,29 +7012,29 @@
         Object.values(fields).forEach(field => { field.hidden = !field.textContent; });
     }
 
-    async function chargerHistoriqueSenior() {
-        const details = document.getElementById('senior-history-details');
-        if (connectedUser?.role !== 'senior' || !details.open) return;
-        const loadId = ++seniorHistoryLoadId;
+    async function chargerHistoriqueQuotidien(role) {
+        const details = document.getElementById(`${role}-history-details`);
+        if (connectedUser?.role !== role || (role === 'aidant' && !activeSeniorProfileId) || !details.open) return;
+        const loadId = ++historyLoadId;
         const userId = connectedUser.id;
-        const seniorId = connectedUser.seniorId;
+        const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
         const today = dateCheckinBienEtre();
         const start = new Date(`${today}T00:00:00Z`);
         start.setUTCDate(start.getUTCDate() - 30);
         const from = start.toISOString().slice(0, 10);
-        const list = document.getElementById('senior-history-list');
-        const context = `${userId}:${seniorId}:${today}`;
-        if (context !== seniorHistoryContext) {
-            seniorHistoryContext = context;
+        const list = document.getElementById(`${role}-history-list`);
+        const context = `${role}:${userId}:${seniorId}:${today}`;
+        if (context !== historyContext) {
+            historyContext = context;
             list.textContent = 'Chargement de l’historique…';
         }
         const [calendar, tasks] = await Promise.allSettled([
             planningRequest(`/api/planning/calendar?start=${from}&end=${today}`),
-            planningRequest('/api/shared-tasks')
+            planningRequest(role === 'pro' ? '/api/intervention-tasks' : '/api/shared-tasks')
         ]);
-        if (loadId !== seniorHistoryLoadId || connectedUser?.role !== 'senior' ||
-            connectedUser.id !== userId || connectedUser.seniorId !== seniorId || !details.open) return;
-        if (today !== dateCheckinBienEtre()) return chargerHistoriqueSenior();
+        if (loadId !== historyLoadId || connectedUser?.role !== role || connectedUser.id !== userId ||
+            (role === 'aidant' ? activeSeniorProfileId !== seniorId : connectedUser.seniorId !== seniorId) || !details.open) return;
+        if (today !== dateCheckinBienEtre()) return chargerHistoriqueQuotidien(role);
         list.replaceChildren();
         const entries = [];
         const dateLabel = value => new Intl.DateTimeFormat(window.generationLiaisonLocale(), {
@@ -7033,7 +7052,7 @@
         if (tasks.status === 'fulfilled') {
             tasks.value.tasks.forEach(task => {
                 if (task.dueDate && task.dueDate >= from && task.dueDate < today) entries.push({
-                    sort: new Date(`${task.dueDate}T12:00:00Z`).getTime(), text: `${dateLabel(`${task.dueDate}T12:00:00Z`)} · ${window.generationLiaisonTranslate('Tâche')} : ${task.title} — ${window.generationLiaisonTranslate(task.completed ? 'Terminée' : 'À faire')}`
+                    sort: new Date(`${task.dueDate}T12:00:00Z`).getTime(), text: `${dateLabel(`${task.dueDate}T12:00:00Z`)} · ${window.generationLiaisonTranslate('Tâche')} : ${task.title}${role === 'pro' && task.seniorName ? ` — ${task.seniorName}` : ''} — ${window.generationLiaisonTranslate(task.completed ? 'Terminée' : 'À faire')}`
                 });
             });
         }
@@ -8408,6 +8427,10 @@
             switchScreen('settings');
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
+            historyLoadId++;
+            historyContext = '';
+            document.getElementById('aidant-history-list').replaceChildren();
+            document.getElementById('aidant-history-details').open = false;
             reinitialiserAlbumJournal();
             reinitialiserTachesPartagees();
             reinitialiserAnnuairePartage();
@@ -8740,10 +8763,12 @@
         connectedUser = null;
         aidantSummaryLoadId++;
         aidantSummaryContext = '';
-        seniorHistoryLoadId++;
-        seniorHistoryContext = '';
-        document.getElementById('senior-history-list').replaceChildren();
-        document.getElementById('senior-history-details').open = false;
+        historyLoadId++;
+        historyContext = '';
+        ['senior', 'aidant', 'pro'].forEach(role => {
+            document.getElementById(`${role}-history-list`).replaceChildren();
+            document.getElementById(`${role}-history-details`).open = false;
+        });
         reinitialiserMeteo();
         arreterLectureSenior();
         annulerDicteeMessage();
