@@ -1252,7 +1252,7 @@
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure" id="senior-journal-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
-            <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Ce journal ne surveille pas votre sécurité.</p>
+            <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas votre sécurité.</p>
             <button type="button" id="senior-weekly-prepare">Préparer la gazette de la semaine</button>
             <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
             <p id="senior-weekly-status" role="status" aria-live="polite"></p>
@@ -1472,7 +1472,7 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-journal-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
-        <p class="helper-text">Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Ce journal ne surveille pas la sécurité de la personne accompagnée.</p>
+        <p class="helper-text">Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas la sécurité de la personne accompagnée.</p>
         <button type="button" id="aidant-weekly-prepare">Préparer la gazette de la semaine</button>
         <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
         <p id="aidant-weekly-status" role="status" aria-live="polite"></p>
@@ -2257,6 +2257,7 @@
     let familyAlbumRevision = 0;
     let familyAlbumUrls = [];
     let familyJournalRevision = 0;
+    let logsLoadId = 0;
     let weeklyGazetteRevision = 0;
     let weeklyGazetteUrls = [];
     let wellbeingLoadedDate = null;
@@ -9041,6 +9042,8 @@
     function reinitialiserAlbumJournal() {
         familyAlbumRevision++;
         familyJournalRevision++;
+        logsLoadId++;
+        document.getElementById('logs-list').replaceChildren();
         reinitialiserGazette();
         familyAlbumUrls.forEach(url => URL.revokeObjectURL(url));
         familyAlbumUrls = [];
@@ -9152,11 +9155,14 @@
         const today = dateCheckinBienEtre();
         const beforeToday = date => Number.isFinite(new Date(date).getTime()) && calendarEventDate(date) < today;
         const entries = [];
-        if (logs.status === 'fulfilled') logs.value.forEach(log => {
-            if (beforeToday(log.created_at)) entries.push({
-                date: log.created_at, author: auteurAvecRole(log.author_id), text: log.content
+        function ajouterNouvelles(page) {
+            page.forEach(log => {
+                if (beforeToday(log.created_at)) entries.push({
+                    date: log.created_at, author: auteurAvecRole(log.author_id, log.author_name), text: log.content
+                });
             });
-        });
+        }
+        if (logs.status === 'fulfilled') ajouterNouvelles(logs.value);
         if (following.status === 'fulfilled') following.value.visits.forEach(visit => {
             progressArray(visit.progress).forEach(event => {
                 if (beforeToday(event.createdAt)) entries.push({
@@ -9165,19 +9171,49 @@
                 });
             });
         });
-        entries.sort((a, b) => new Date(b.date) - new Date(a.date));
-        entries.forEach(entry => {
-            const item = document.createElement('div');
-            item.className = 'progress-item';
-            item.append(makeTextElement('strong', formatDateTime(entry.date)), document.createElement('br'),
-                makeTextElement('span', `${entry.author} · ${entry.text}`));
-            container.append(item);
-        });
-        if (logs.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les nouvelles.', 'helper-text'));
-        if (following.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les interventions.', 'helper-text'));
-        if (!entries.length && logs.status === 'fulfilled' && following.status === 'fulfilled') {
-            container.append(makeTextElement('p', 'Aucune nouvelle pour le moment.', 'helper-text'));
+        let lastPage = logs.status === 'fulfilled' ? logs.value : [];
+        let pageError = '';
+        const current = () => revision === familyJournalRevision && connectedUser?.id === userId &&
+            connectedUser?.role === role && (role !== 'aidant' || activeSeniorProfileId === seniorId);
+        function afficherJournal() {
+            container.replaceChildren();
+            entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+            entries.forEach(entry => {
+                const item = document.createElement('div');
+                item.className = 'progress-item';
+                item.append(makeTextElement('strong', formatDateTime(entry.date)), document.createElement('br'),
+                    makeTextElement('span', `${entry.author} · ${entry.text}`));
+                container.append(item);
+            });
+            if (logs.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les nouvelles.', 'helper-text'));
+            if (following.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les interventions.', 'helper-text'));
+            if (!entries.length && logs.status === 'fulfilled' && following.status === 'fulfilled' && lastPage.length < 100) {
+                container.append(makeTextElement('p', 'Aucune nouvelle pour le moment.', 'helper-text'));
+            }
+            if (pageError) container.append(makeTextElement('p', window.generationLiaisonTranslate(pageError), 'helper-text'));
+            if (lastPage.length === 100) {
+                const button = makeTextElement('button', window.generationLiaisonTranslate('Afficher les nouvelles plus anciennes'));
+                button.type = 'button';
+                button.addEventListener('click', async () => {
+                    button.disabled = true;
+                    try {
+                        const cursor = lastPage[lastPage.length - 1].id;
+                        const page = await planningRequest(`/api/logs/all?before=${encodeURIComponent(cursor)}`);
+                        if (!current()) return;
+                        lastPage = page;
+                        ajouterNouvelles(page);
+                        pageError = '';
+                    } catch (error) {
+                        if (!current()) return;
+                        console.error('Chargement des nouvelles anciennes impossible :', error);
+                        pageError = 'Impossible de charger les nouvelles plus anciennes. Réessayez.';
+                    }
+                    if (current()) afficherJournal();
+                });
+                container.append(button);
+            }
         }
+        afficherJournal();
     }
 
     function reinitialiserGazette() {
@@ -9224,7 +9260,7 @@
             if (!notes.length) content.append(makeTextElement('p', 'Aucune nouvelle familiale cette semaine.'));
             for (const note of notes) {
                 const item = document.createElement('article');
-                item.append(makeTextElement('strong', `${formatDateTime(note.created_at)} · ${auteurAvecRole(note.author_id)}`),
+                item.append(makeTextElement('strong', `${formatDateTime(note.created_at)} · ${auteurAvecRole(note.author_id, note.author_name)}`),
                     makeTextElement('p', note.content));
                 content.append(item);
             }
@@ -9336,6 +9372,10 @@
 
     function chargerLogs() {
         const logsList = document.getElementById('logs-list');
+        const revision = ++logsLoadId;
+        const userId = connectedUser?.id;
+        const seniorId = activeSeniorProfileId;
+        const current = () => revision === logsLoadId && connectedUser?.id === userId && activeSeniorProfileId === seniorId;
         logsList.innerHTML = 'Chargement du journal...';
 
         fetch(`${SERVER_URL}/api/logs/all`, { headers: authHeaders() })
@@ -9344,6 +9384,7 @@
                 return response.json();
             })
             .then(logs => {
+                if (!current()) return;
                 if (!Array.isArray(logs) || logs.length === 0) {
                     logsList.textContent = 'Aucun événement pour le moment.';
                     return;
@@ -9351,11 +9392,7 @@
 
                 logsList.replaceChildren();
                 logs.slice(0, 5).forEach(log => {
-                    const author = log.author_id === 3
-                        ? '🩺 Soignant'
-                        : log.author_id === 2
-                            ? '👨‍👩‍👧 Famille'
-                            : `👴 ${connectedUser.seniorName}`;
+                    const author = auteurAvecRole(log.author_id, log.author_name);
                     const time = new Date(log.created_at).toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' });
                     const item = document.createElement('div');
                     const body = document.createElement('div');
@@ -9373,6 +9410,7 @@
                 });
             })
             .catch(error => {
+                if (!current()) return;
                 console.error('Chargement du carnet impossible :', error);
                 logsList.textContent = error.message || 'Erreur de connexion au serveur.';
             });

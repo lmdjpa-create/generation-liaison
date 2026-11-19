@@ -445,6 +445,8 @@ function createAuthService(pool) {
           log_type VARCHAR(32) NOT NULL,
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE app_logs
+          ADD COLUMN IF NOT EXISTS author_user_id UUID REFERENCES app_users(id) ON DELETE SET NULL;
         CREATE TABLE IF NOT EXISTS planning_organizations (
           id UUID PRIMARY KEY,
           name VARCHAR(160) NOT NULL,
@@ -619,6 +621,7 @@ function createAuthService(pool) {
         );
         CREATE INDEX IF NOT EXISTS app_sessions_expiry_idx ON app_sessions (expires_at);
         CREATE INDEX IF NOT EXISTS app_logs_senior_created_idx ON app_logs (senior_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS app_logs_senior_cursor_idx ON app_logs (senior_id, created_at DESC, id DESC);
         CREATE INDEX IF NOT EXISTS planning_visits_assigned_date_idx
           ON planning_visits (assigned_user_id, scheduled_at);
         CREATE INDEX IF NOT EXISTS planning_visits_org_date_idx
@@ -1141,6 +1144,7 @@ function createAuthService(pool) {
         [userId]
       );
       await client.query('DELETE FROM app_sessions WHERE user_id = $1', [userId]);
+      await client.query('UPDATE app_logs SET author_user_id = NULL WHERE author_user_id = $1', [userId]);
       await client.query('DELETE FROM app_shopping_lists WHERE user_id = $1', [userId]);
       await client.query(
         `DELETE FROM app_family_photos

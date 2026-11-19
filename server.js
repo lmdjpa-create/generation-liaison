@@ -7576,11 +7576,13 @@ app.post('/api/logs', requireAuth, requireAidantSeniorContext, async (req, res) 
   try {
     await authService.ensureSchema();
     const { rows } = await pool.query(
-      `INSERT INTO app_logs (senior_id, author_id, content, log_type)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO app_logs (senior_id, author_id, author_user_id, content, log_type)
+       SELECT $1, $2, author.id, $4, $5
+       FROM (SELECT id FROM app_users WHERE id = $3 AND is_active = TRUE FOR SHARE) author
        RETURNING id, senior_id, author_id, content, log_type, created_at`,
-      [req.authUser.seniorId, authorIds[req.authUser.role], content.trim(), logType]
+      [req.authUser.seniorId, authorIds[req.authUser.role], req.authUser.id, content.trim(), logType]
     );
+    if (!rows.length) return res.status(401).json({ error: 'Cette session n’est plus active.' });
     res.status(201).json(rows[0]);
   } catch (error) {
     sendApiError(res, error, 'Erreur lors de l’enregistrement.');
@@ -7620,12 +7622,13 @@ app.get('/api/logs/weekly-family', requireAuth, requireFamilyAlbum, async (req, 
     startDate.setUTCDate(startDate.getUTCDate() - 6);
     const start = startDate.toISOString().slice(0, 10);
     const { rows } = await pool.query(
-      `SELECT author_id, content, log_type, created_at
-       FROM app_logs
-       WHERE senior_id = $1 AND log_type = 'family_note'
-         AND created_at >= ($2::date::timestamp AT TIME ZONE 'Europe/Paris')
-         AND created_at < (($3::date + 1)::timestamp AT TIME ZONE 'Europe/Paris')
-       ORDER BY created_at DESC, id DESC
+      `SELECT log.author_id, author.name AS author_name, log.content, log.log_type, log.created_at
+       FROM app_logs log
+       LEFT JOIN app_users author ON author.id = log.author_user_id AND author.is_active
+       WHERE log.senior_id = $1 AND log.log_type = 'family_note'
+         AND log.created_at >= ($2::date::timestamp AT TIME ZONE 'Europe/Paris')
+         AND log.created_at < (($3::date + 1)::timestamp AT TIME ZONE 'Europe/Paris')
+       ORDER BY log.created_at DESC, log.id DESC
        LIMIT 1001`,
       [req.authUser.seniorId, start, end]
     );
@@ -7637,16 +7640,28 @@ app.get('/api/logs/weekly-family', requireAuth, requireFamilyAlbum, async (req, 
 });
 
 app.get('/api/logs/all', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  const before = req.query.before;
+  if (before !== undefined && (typeof before !== 'string' || !/^[1-9]\d{0,18}$/.test(before) || BigInt(before) > 9223372036854775807n)) {
+    return res.status(400).json({ error: 'Le repère du carnet est invalide.' });
+  }
   try {
     await authService.ensureSchema();
+    if (before !== undefined) {
+      const cursor = await pool.query('SELECT id FROM app_logs WHERE senior_id = $1 AND id = $2', [req.authUser.seniorId, before]);
+      if (!cursor.rows.length) return res.status(400).json({ error: 'Le repère du carnet est invalide.' });
+    }
     const { rows } = await pool.query(
-      `SELECT id, senior_id, author_id, content, log_type, created_at
-       FROM app_logs
-       WHERE senior_id = $1
-       ORDER BY created_at DESC
+      `SELECT log.id, log.senior_id, log.author_id, author.name AS author_name, log.content, log.log_type, log.created_at
+       FROM app_logs log
+       LEFT JOIN app_users author ON author.id = log.author_user_id AND author.is_active
+       WHERE log.senior_id = $1
+         AND ($2::bigint IS NULL OR (log.created_at, log.id) <
+              (SELECT created_at, id FROM app_logs WHERE senior_id = $1 AND id = $2::bigint))
+       ORDER BY log.created_at DESC, log.id DESC
        LIMIT 100`,
-      [req.authUser.seniorId]
+      [req.authUser.seniorId, before || null]
     );
+    res.set('Cache-Control', 'private, no-store');
     res.json(rows);
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger le carnet.');
@@ -7659,11 +7674,14 @@ app.post('/api/video/urgency', requireAuth, requireAidantSeniorContext, async (r
 
   try {
     await authService.ensureSchema();
-    await pool.query(
-      `INSERT INTO app_logs (senior_id, author_id, content, log_type)
-       VALUES ($1, $2, $3, 'medical_report')`,
-      [req.authUser.seniorId, authorId, `Demande d’appel vidéo urgent : ${videoUrl}`]
+    const { rows } = await pool.query(
+      `INSERT INTO app_logs (senior_id, author_id, author_user_id, content, log_type)
+       SELECT $1, $2, author.id, $4, 'medical_report'
+       FROM (SELECT id FROM app_users WHERE id = $3 AND is_active = TRUE FOR SHARE) author
+       RETURNING id`,
+      [req.authUser.seniorId, authorId, req.authUser.id, `Demande d’appel vidéo urgent : ${videoUrl}`]
     );
+    if (!rows.length) return res.status(401).json({ error: 'Cette session n’est plus active.' });
     res.status(201).json({ url: videoUrl });
   } catch (error) {
     sendApiError(res, error, 'Impossible de créer l’appel vidéo.');

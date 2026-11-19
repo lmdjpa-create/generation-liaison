@@ -428,6 +428,62 @@ test('daily journal sorts shared updates and reports unavailable sources', async
   assert.equal(children.length, 0);
 });
 
+test('daily journal loads older updates, retries failures and discards a stale page', async () => {
+  const children = [];
+  const container = {
+    replaceChildren() { children.length = 0; },
+    append(item) { children.push(item); }
+  };
+  const page = Array.from({ length: 100 }, (_, index) => ({
+    id: 100 - index, created_at: '2020-01-01T10:00:00Z',
+    author_id: 2, author_name: 'Camille', content: `Note ${index}`
+  }));
+  let nextPage = async () => { throw new Error('offline'); };
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' }, activeSeniorProfileId: 'senior-1', familyJournalRevision: 0,
+    document: {
+      getElementById: () => container,
+      createElement: tag => ({ tag, children: [], append(...items) { this.children.push(...items); } })
+    },
+    makeTextElement: (tag, text) => ({
+      tag, text, addEventListener(event, callback) { this[event] = callback; }
+    }),
+    formatDateTime: value => value,
+    dateCheckinBienEtre: () => '2028-01-03',
+    calendarEventDate: value => value.slice(0, 10),
+    stageLabel: value => value,
+    progressArray: value => value,
+    console: { error() {} },
+    window: { generationLiaisonTranslate: value => value },
+    planningRequest: async path => path === '/api/logs/all' ? page
+      : path === '/api/planning/following' ? { visits: [] } : nextPage(path)
+  };
+  const helperStart = source.indexOf('    function auteurAvecRole(role, name = \'\')');
+  const start = source.indexOf('    async function chargerJournalQuotidien(role)');
+  const end = source.indexOf('    function configurerAlbumJournal()', start);
+  vm.runInNewContext(`${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
+  await context.loadJournal('aidant');
+  assert.equal(children[0].children[2].text, '👨‍👩‍👧‍👦 Famille · Camille · Note 0');
+  await children[100].click();
+  assert.match(children[100].text, /Impossible de charger/);
+  nextPage = async path => {
+    assert.equal(path, '/api/logs/all?before=1');
+    return [{ id: 0, created_at: '2019-01-01T10:00:00Z', author_id: 2, content: 'Ancienne' }];
+  };
+  await children[101].click();
+  assert.equal(children.length, 101);
+  assert.equal(children[100].children[2].text, '👨‍👩‍👧‍👦 Famille · Ancienne');
+  await context.loadJournal('aidant');
+  let release;
+  nextPage = () => new Promise(resolve => { release = resolve; });
+  const pending = children[100].click();
+  context.activeSeniorProfileId = 'senior-2';
+  container.replaceChildren();
+  release([{ id: 0, created_at: '2019-01-01T10:00:00Z', content: 'Ancien profil' }]);
+  await pending;
+  assert.equal(children.length, 0);
+});
+
 test('weekly gazette includes only family notes and approved photos from the seven Paris days', async () => {
   const nodes = {};
   function node(tag = 'div') {

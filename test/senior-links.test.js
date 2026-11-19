@@ -349,6 +349,58 @@ test('weekly family notes exclude other records and profiles and report truncati
   assert.equal((await request('/api/logs/weekly-family', { user: aidant, seniorId })).status, 403);
 });
 
+test('journal attributes authenticated authors and pages privately through equal timestamps', async () => {
+  const senior = await register('journal-author-senior@example.test', 'senior');
+  const other = await register('journal-author-other@example.test', 'senior');
+  const aidant = await register('journal-author-aidant@example.test', 'aidant');
+  const seniorId = senior.user.seniorId;
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, seniorId]);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type, created_at)
+    SELECT $1, 2, 'Ancienne ' || n, 'family_note', '2020-01-01T10:00:00Z'::timestamptz
+    FROM generate_series(1, 101) n`, [seniorId]);
+  const foreign = await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type)
+    VALUES ($1, 1, 'Autre carnet', 'family_note') RETURNING id`, [other.user.seniorId]);
+  const created = await request('/api/logs', {
+    user: aidant, seniorId, body: { content: 'Nouvelle authentifiée', log_type: 'family_note', author_user_id: other.user.id }
+  });
+  assert.equal(created.status, 201);
+  const first = await request('/api/logs/all', { user: aidant, seniorId });
+  assert.equal(first.status, 200);
+  assert.equal(first.data.length, 100);
+  assert.equal(first.data[0].author_name, aidant.user.name);
+  assert.equal(first.data[1].author_name, null);
+  assert.equal(first.data[1].author_id, 2);
+  const next = await request(`/api/logs/all?before=${first.data[99].id}`, { user: aidant, seniorId });
+  assert.equal(next.status, 200);
+  assert.equal(next.data.length, 2);
+  assert.equal(new Set([...first.data, ...next.data].map(item => String(item.id))).size, 102);
+  assert.ok(next.data.every(item => item.author_name === null));
+  assert.equal((await request(`/api/logs/all?before=${foreign.rows[0].id}`, { user: aidant, seniorId })).status, 400);
+  for (const cursor of ['-1', '0', '1.1', '9223372036854775808', 'abc']) {
+    assert.equal((await request(`/api/logs/all?before=${cursor}`, { user: aidant, seniorId })).status, 400);
+  }
+  const weekly = await request('/api/logs/weekly-family', { user: senior });
+  assert.equal(weekly.data.notes.find(note => note.content === 'Nouvelle authentifiée').author_name, aidant.user.name);
+  const video = await request('/api/video/urgency', { user: aidant, seniorId, body: {} });
+  assert.equal(video.status, 201);
+  const videoLog = await db.query('SELECT author_user_id FROM app_logs WHERE senior_id = $1 AND content = $2',
+    [seniorId, `Demande d’appel vidéo urgent : ${video.data.url}`]);
+  assert.equal(videoLog.rows[0].author_user_id, aidant.user.id);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1 AND senior_profile_id = $2', [aidant.user.id, seniorId]);
+  assert.equal((await request(`/api/logs/all?before=${first.data[99].id}`, { user: aidant, seniorId })).status, 403);
+  assert.equal((await request('/api/account/closure-request', {
+    user: aidant, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  const stored = await db.query('SELECT author_user_id FROM app_logs WHERE id = $1', [created.data.id]);
+  assert.equal(stored.rows[0].author_user_id, null);
+  const erased = await db.query('SELECT author_user_id FROM app_logs WHERE senior_id = $1 AND content = $2',
+    [seniorId, `Demande d’appel vidéo urgent : ${video.data.url}`]);
+  assert.equal(erased.rows[0].author_user_id, null);
+  const afterClosure = await request('/api/logs/all', { user: senior });
+  assert.equal(afterClosure.data.find(note => note.content === 'Nouvelle authentifiée').author_name, null);
+});
+
 test('family photos require senior approval, active links and remain private between profiles', async () => {
   const senior = await register('album-senior@example.test', 'senior');
   const aidant = await register('album-aidant@example.test', 'aidant');

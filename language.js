@@ -1,6 +1,12 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Afficher les nouvelles plus anciennes': 'Show older updates',
+    'Impossible de charger les nouvelles plus anciennes. Réessayez.': 'Unable to load older updates. Please try again.',
+    'Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas votre sécurité.':
+      'An archive of updates and visit stages from yesterday and earlier. Today’s information appears in “Today” and is kept here from the next day. The author’s name is shown when available; otherwise only their role is shown. This journal does not monitor your safety.',
+    'Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas la sécurité de la personne accompagnée.':
+      'Visit stages appear here from today and remain in the journal. Updates from previous days are also kept here. The author’s name is shown when available; otherwise only their role is shown. This journal does not monitor the safety of the person receiving support.',
     '🧑 Personne accompagnée': '🧑 Person receiving support',
     'Personne accompagnée': 'Person receiving support',
     'Nom de la personne accompagnée (facultatif)': 'Name of the person receiving support (optional)',
