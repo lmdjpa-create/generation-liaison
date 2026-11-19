@@ -446,6 +446,7 @@
         #main-app-senior .btn-danger { background: #a32222 !important; }
         #main-app-senior .senior-disclosure > summary { display: list-item; }
         #main-app-senior .senior-disclosure:not(.senior-explanation) > summary,
+        #screen-directory .senior-tab-disclosure > summary,
         .senior-mode .senior-tab-disclosure > summary {
             display: flex;
             flex-direction: column;
@@ -465,12 +466,14 @@
             cursor: pointer;
         }
         #main-app-senior .senior-disclosure[open]:not(.senior-explanation) > summary,
+        #screen-directory .senior-tab-disclosure[open] > summary,
         .senior-mode .senior-tab-disclosure[open] > summary { margin-bottom: 14px; }
         .senior-mode #senior-album-details > summary,
         .senior-mode #senior-journal-details > summary {
             min-height: 132px;
             justify-content: center;
         }
+        #screen-directory .senior-tab-disclosure > summary:focus-visible,
         .senior-mode .senior-tab-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #main-app-senior .senior-disclosure + .senior-disclosure { margin-top: 12px; }
         .senior-mode .senior-tab-disclosure + .senior-tab-disclosure { margin-top: 12px; }
@@ -2182,18 +2185,22 @@
         <p id="directory-location-status" class="helper-text" aria-live="polite">La ville ou le code postal est transmis au service public geo.api.gouv.fr pour trouver le centre de la commune. Le rayon est calculé à vol d’oiseau. Sans lieu, la recherche est nationale.</p>
         <button type="submit">Rechercher des professionnels</button>
     </form>
+        <div id="directory-results" aria-live="polite">Recherchez un professionnel pour voir les profils disponibles.</div>
       </details>
     </section>
     <section class="form-card">
-        <h3>Annuaire partagé</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📒</span>Annuaire partagé</summary>
         <p class="helper-text">Les professionnels enregistrés ici sont visibles et modifiables par le senior et ses aidants associés.</p>
         <button id="shared-directory-refresh" type="button">Actualiser l’annuaire partagé</button>
         <div id="shared-directory-results" aria-live="polite"></div>
+      </details>
     </section>
-    <div id="directory-results" aria-live="polite">Recherchez un professionnel pour voir les profils disponibles.</div>
     <section class="form-card">
-        <h3>Mes demandes de rendez-vous</h3>
+      <details class="senior-tab-disclosure">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Mes demandes de rendez-vous</summary>
         <div id="directory-requester-bookings" aria-live="polite">Chargement de vos demandes…</div>
+      </details>
     </section>
 </div>
 

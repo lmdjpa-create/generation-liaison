@@ -1179,7 +1179,11 @@ test('senior tabs retain controls and results', () => {
   const contacts = extract('<div id="screen-contacts"', '<div id="screen-video-call"');
   assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?id="personal-event-form"/);
   assert.match(agenda, /id="calendar-grid"/);
-  assert.match(directory, /<details class="senior-tab-disclosure">[\s\S]*?id="directory-search-form"[\s\S]*?<\/details>[\s\S]*?id="directory-results"/);
+  assert.match(directory, /<details class="senior-tab-disclosure">\s*<summary>[\s\S]*?Chercher un professionnel<\/summary>[\s\S]*?id="directory-search-form"[\s\S]*?id="directory-results"[\s\S]*?<\/details>/);
+  assert.match(directory, /<details class="senior-tab-disclosure">\s*<summary>[\s\S]*?Annuaire partagé<\/summary>[\s\S]*?id="shared-directory-refresh"[\s\S]*?id="shared-directory-results"[\s\S]*?<\/details>/);
+  assert.match(directory, /<details class="senior-tab-disclosure">\s*<summary>[\s\S]*?Mes demandes de rendez-vous<\/summary>[\s\S]*?id="directory-requester-bookings"[\s\S]*?<\/details>/);
+  assert.equal((directory.match(/<details class="senior-tab-disclosure">/g) || []).length, 3);
+  assert.match(source, /#screen-directory \.senior-tab-disclosure > summary,[\s\S]*?display:\s*flex;/);
   assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?id="contacts-list"/);
 });
 
