@@ -14,6 +14,9 @@ function fakeDatabase() {
         state.reset = null;
         return { rows: [{ user_id: userId }] };
       }
+      if (sql.includes('SELECT id, admin_password_change_required FROM app_users')) {
+        return { rows: state.active ? [{ id: userId, admin_password_change_required: false }] : [] };
+      }
       if (sql.includes('UPDATE app_users SET password_salt')) {
         if (!state.active) return { rows: [] };
         state.password = { salt: params[1], hash: params[2] };

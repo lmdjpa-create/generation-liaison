@@ -28,7 +28,11 @@ function setup({ closedParent = false, homepage = false } = {}) {
   };
   const document = {
     readyState: 'complete', activeElement: null, events: {},
-    querySelectorAll(selector) { return selector === '#action' ? [button] : [details]; },
+    querySelectorAll(selector) {
+      if (selector === '#action') return [button];
+      if (selector === 'details[data-help-for], details.info-card') return [details];
+      return [];
+    },
     addEventListener(type, fn) { this.events[type] = fn; }
   };
   const window = { innerWidth: 600, innerHeight: 500, addEventListener() {} };
@@ -96,5 +100,69 @@ test('homepage disclosures use the same timed help and keep their native click b
   timers.get(1).callback();
   assert.equal(details.open, true);
   button.events.click();
+  assert.equal(details.open, true);
+});
+
+test('help opened by a mouse click closes on mouse leave, without closing when entering the bubble', () => {
+  const { summary, bubble, details, document } = setup({ homepage: true });
+  summary.events.pointerdown({ pointerType: 'mouse' });
+  summary.events.click({ detail: 1 });
+  details.open = true;
+  document.activeElement = summary;
+  summary.events.pointerleave({ pointerType: 'mouse', relatedTarget: bubble });
+  assert.equal(details.open, true);
+  details.events.pointerleave({ pointerType: 'mouse', relatedTarget: null });
+  assert.equal(details.open, false);
+});
+
+test('help opened by touch or keyboard stays open when the pointer leaves', () => {
+  for (const [pointerType, detail] of [['touch', 1], ['mouse', 0]]) {
+    const { summary, details } = setup({ homepage: true });
+    summary.events.pointerdown({ pointerType });
+    summary.events.click({ detail });
+    details.open = true;
+    details.events.pointerleave({ pointerType: 'mouse', relatedTarget: null });
+    assert.equal(details.open, true);
+  }
+});
+
+test('informational disclosures close on mouse leave without interrupting focused content', () => {
+  const handlers = {};
+  const summaryHandlers = {};
+  const summary = { addEventListener: (type, handler) => { summaryHandlers[type] = handler; } };
+  const link = {};
+  const details = {
+    open: false,
+    querySelector: () => summary,
+    contains: node => node === summary || node === link,
+    addEventListener: (type, handler) => { handlers[type] = handler; }
+  };
+  const document = {
+    readyState: 'complete', activeElement: summary,
+    querySelectorAll: selector => selector === 'details.landing-disclosure, details[data-close-on-mouse-leave]' ? [details] : []
+  };
+  vm.runInNewContext(script, { document, window: {} });
+  summaryHandlers.pointerdown({ pointerType: 'mouse' });
+  summaryHandlers.click({ detail: 1 });
+  details.open = true;
+  handlers.pointerleave({ pointerType: 'touch', relatedTarget: null });
+  assert.equal(details.open, true);
+  handlers.pointerleave({ pointerType: 'mouse', relatedTarget: link });
+  assert.equal(details.open, true);
+  document.activeElement = link;
+  handlers.pointerleave({ pointerType: 'mouse', relatedTarget: null });
+  assert.equal(details.open, true);
+  document.activeElement = summary;
+  handlers.pointerleave({ pointerType: 'mouse', relatedTarget: null });
+  assert.equal(details.open, false);
+  summaryHandlers.pointerdown({ pointerType: 'touch' });
+  summaryHandlers.click({ detail: 1 });
+  details.open = true;
+  handlers.pointerleave({ pointerType: 'mouse', relatedTarget: null });
+  assert.equal(details.open, true);
+  details.open = false;
+  summaryHandlers.click({ detail: 0 });
+  details.open = true;
+  handlers.pointerleave({ pointerType: 'mouse', relatedTarget: null });
   assert.equal(details.open, true);
 });

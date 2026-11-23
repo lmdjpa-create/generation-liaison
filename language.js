@@ -1,6 +1,287 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Lier mon compte à un aidant': 'Connect my account to a caregiver',
+    'Un aidant peut demander à vous rejoindre. Vérifiez son identité, puis acceptez ou refusez sa demande.': 'A caregiver can ask to connect with you. Check their identity, then accept or decline their request.',
+    'Voir les demandes des aidants': 'See caregiver requests',
+    'Lier mon compte à une personne accompagnée': 'Connect my account to a person receiving support',
+    'Si vous n’êtes pas tuteur légal, demandez l’accès avec son adresse e-mail. Votre demande marque votre accord ; la personne doit ensuite l’accepter pour lier vos comptes. Les tuteurs légaux doivent contacter l’administration.': 'If you are not a legal guardian, request access using their email address. Your request shows your agreement; the person must then accept it to connect your accounts. Legal guardians must contact the administration.',
+    'Demandes d’accès des aidants': 'Caregiver access requests',
+    'Le senior peut normalement accepter lui-même. En cas d’oubli, confirmez uniquement après avoir vérifié son accord directement auprès de lui. Cette action ne donne pas accès à ses contenus privés à l’administration.': 'The person can normally accept the request themselves. If they forget, confirm only after checking their agreement directly with them. This does not give administrators access to private content.',
+    'Aucune demande d’accès en cours.': 'No pending access requests.',
+    'Comment avez-vous vérifié l’accord du senior ?': 'How did you verify the person’s agreement?',
+    'Indiquez le mode de vérification, sans donnée de santé ni information privée (20 caractères minimum).': 'Describe how you verified it, without health or private information (at least 20 characters).',
+    ' Je confirme avoir vérifié l’accord du senior.': ' I confirm that I verified the person’s agreement.',
+    'Confirmer à la place du senior': 'Confirm on the person’s behalf',
+    'Confirmer cet accès après avoir vérifié l’accord du senior ?': 'Confirm this access after verifying the person’s agreement?',
+    'Accord confirmé et accès activé.': 'Agreement confirmed and access activated.',
+    'Impossible de confirmer la demande.': 'Unable to confirm the request.',
+    'Impossible de charger les demandes d’accès.': 'Unable to load access requests.',
+    'Découvrir la présentation': 'Explore the overview',
+    'Présentations': 'Overviews',
+    'Proches': 'Family and caregivers',
+    'Entreprises et résidences': 'Businesses and residences',
+    'Personnes accompagnées': 'People receiving support',
+    'Lors de l’inscription, choisissez « Personne accompagnée ».': 'When registering, choose “Person receiving support”.',
+    'Lors de l’inscription, choisissez « Proche / Aidant Familial ».': 'When registering, choose “Family caregiver”.',
+    'Lors de l’inscription, choisissez « Intervenant ou partenaire ».': 'When registering, choose “Professional or partner”.',
+    'Lors de l’inscription, choisissez « Entreprise / résidence ».': 'When registering, choose “Business / residence”.',
+    'Rester entouré au quotidien': 'Stay connected every day',
+    'Une interface simple': 'A simple interface',
+    'La vue simplifiée est activée par défaut. Retrouvez vos messages, contacts et rendez-vous ; les jeux et les autres fonctions sont accessibles en affichant toutes les fonctions dans les réglages.': 'Simplified view is enabled by default. Find your messages, contacts and appointments; games and other features are accessible by showing all features in settings.',
+    'Choisir les personnes autorisées': 'Choose authorized people',
+    'Vous acceptez les demandes de vos proches. Le partage du carnet de l’établissement avec les soignants demande votre accord ou celui de votre représentant légal vérifié.': 'You accept requests from your family and caregivers. Sharing the residence journal with care staff requires your consent or that of your verified legal representative.',
+    'Un carnet pour la vie quotidienne': 'A journal for everyday life',
+    'Partagez des nouvelles du quotidien avec les personnes autorisées. Le carnet n’est pas destiné aux informations de santé.': 'Share everyday updates with authorized people. The journal is not intended for health information.',
+    'Génération Liaison ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, appelez le 15 ou le 112.': 'Génération Liaison does not replace a medical record or an emergency service. In an emergency in France, call 15 or 112.',
+    'Retour à l’accueil': 'Back to home',
+    'Tarifs et conditions': 'Pricing and terms',
+    'Garder le lien, même à distance': 'Stay connected, even from a distance',
+    'Partager des nouvelles': 'Share updates',
+    'Selon vos autorisations, consultez et écrivez dans le carnet, échangez des messages et retrouvez les informations utiles du quotidien.': 'Depending on your permissions, read and write in the journal, exchange messages and find useful daily information.',
+    'Organiser le quotidien': 'Organize daily life',
+    'Retrouvez les rendez-vous accessibles et gérez les tâches partagées avec la personne accompagnée et les intervenants concernés.': 'Find appointments you can access and manage tasks shared with the person receiving support and the relevant professionals.',
+    'Respecter le choix de votre proche': 'Respect your loved one’s choice',
+    'La personne accompagnée accepte les demandes d’association. Un représentant légal vérifié peut être associé par l’administration ; l’association ne donne pas automatiquement accès aux autres proches.': 'The person receiving support accepts connection requests. A verified legal representative can be linked by the administration; this does not automatically grant access to other relatives.',
+    'Le carnet de l’établissement est destiné aux nouvelles du quotidien, pas aux informations de santé. En cas d’urgence en France, appelez le 15 ou le 112.': 'The residence journal is intended for everyday updates, not health information. In an emergency in France, call 15 or 112.',
+    'Pour les intervenants et services à domicile': 'For professionals and home services',
+    'Coordonner ses interventions': 'Coordinate your visits',
+    'Rendez-vous et tâches': 'Appointments and tasks',
+    'Retrouvez vos rendez-vous et les tâches qui vous sont attribuées, selon les autorisations accordées. Une notification dans l’application vous informe lorsqu’une tâche vous est confiée.': 'Find your appointments and assigned tasks, according to your permissions. An in-app notification informs you when a task is assigned to you.',
+    'Nouvelle tâche confiée': 'New task assigned',
+    'Une tâche vous a été confiée. Consultez votre espace intervenant.': 'A task has been assigned to you. Check your professional workspace.',
+    'Chacun peut se proposer ou attribuer une tâche à une personne associée ou à un intervenant enregistré dans l’annuaire partagé. L’intervenant reçoit une notification dans l’application ; pour une autre personne, prévenez-la. L’attribution ne confirme pas son accord. Vous pouvez libérer une tâche si nécessaire.': 'Anyone can volunteer or assign a task to a linked person or a professional saved in the shared directory. Professionals receive an in-app notification; notify other people yourself. Assignment does not confirm their agreement. You can release a task if needed.',
+    'Vous pouvez vous proposer ou attribuer une tâche à une personne associée ou à un intervenant enregistré dans l’annuaire partagé. L’intervenant reçoit une notification dans l’application ; pour une autre personne, prévenez-la. L’attribution ne confirme pas son accord. Vous pouvez libérer une tâche confiée à un intervenant.': 'You can volunteer or assign a task to a linked person or a professional saved in the shared directory. Professionals receive an in-app notification; notify other people yourself. Assignment does not confirm their agreement. You can release a task assigned to a professional.',
+    'Ajoutez d’abord l’intervenant à l’annuaire partagé. Il reçoit une notification dans l’application ; prévenez les autres personnes.': 'First add the professional to the shared directory. They receive an in-app notification; notify other people yourself.',
+    'Présenter son activité': 'Present your services',
+    'Après validation de votre dossier, vous pouvez publier votre activité dans l’annuaire et gérer les demandes de rendez-vous selon vos disponibilités.': 'Once your application is approved, you can publish your services in the directory and manage appointment requests according to your availability.',
+    'Vérification et confidentialité': 'Verification and privacy',
+    'Les nouveaux comptes intervenants sont vérifiés par l’administration. Les échanges et accès restent limités aux personnes autorisées.': 'New professional accounts are reviewed by the administration. Exchanges and access remain limited to authorized people.',
+    'Génération Liaison facilite l’organisation du quotidien et ne remplace pas un service d’urgence. En cas d’urgence en France, appelez le 15 ou le 112.': 'Génération Liaison helps organize daily life and does not replace an emergency service. In an emergency in France, call 15 or 112.',
+    'Gérer les accès': 'Manage access',
+    'Retrouvez les résidents, soignants et intervenants dans trois tableaux distincts. Avec leur accord, créez des comptes individuels pour les résidents et soignants, même sans e-mail.': 'Find residents, care staff and professionals in three separate tables. With their consent, create individual accounts for residents and care staff, even without email.',
+    'Un carnet partagé avec accord': 'A journal shared with consent',
+    'Le résident ou son représentant légal vérifié décide du partage avec les soignants de l’établissement. La direction ne consulte ni les carnets ni les messages privés. Le carnet concerne les nouvelles du quotidien, pas les données de santé.': 'The resident or their verified legal representative decides whether to share with the residence’s care staff. Management cannot read journals or private messages. The journal is for daily updates, not health data.',
+    'Abonnement et tarifs': 'Subscription and pricing',
+    'L’activation de l’abonnement est manuelle. La grille mensuelle indicative est de 29 € HT pour 1 à 10 personnes, 49 € pour 11 à 25, 79 € pour 26 à 50, 129 € pour 51 à 100, puis sur devis. Aucun paiement en ligne ni facturation automatique n’est actuellement proposé.': 'Subscriptions are activated manually. Indicative monthly prices excluding tax are €29 for 1–10 people, €49 for 11–25, €79 for 26–50, €129 for 51–100, and by quote above that. Online payments and automatic invoicing are not currently available.',
+    'Créer un compte': 'Create an account',
+    'Avec l’accord de la personne, créez un nouveau compte. Elle reçoit un e-mail pour choisir elle-même son mot de passe et accepter les conditions. Cette création ne donne pas accès à ses contenus privés.': 'With the person’s agreement, create a new account. They receive an email to choose their own password and accept the terms. Creating the account does not grant access to their private content.',
+    'Type de compte': 'Account type',
+    'Proche / aidant': 'Relative / caregiver',
+    'Je confirme l’accord de la personne.': 'I confirm the person has agreed.',
+    'Compte créé. Un lien d’activation a été envoyé à la personne.': 'Account created. An activation link has been sent to the person.',
+    'Compte créé, mais l’e-mail n’a pas pu être envoyé. Après une minute, demandez à la personne de créer son mot de passe avec « Mot de passe oublié » sur la page de connexion.': 'Account created, but the email could not be sent. After one minute, ask the person to set their password using “Forgot password” on the sign-in page.',
+    'Abonnement dans Entreprises / résidences.': 'Subscription in Businesses / residences.',
+    'Pour activer votre compte, acceptez les conditions générales d’utilisation en vigueur.': 'To activate your account, accept the current terms of use.',
+    'Connexion résident ou soignant sans e-mail': 'Resident or care worker sign-in without email',
+    'Copiez ce lien et transmettez-le à la personne concernée. Elle pourra l’ouvrir sur son appareil et se connecter avec ses propres identifiants. Sur un appareil partagé, déconnectez d’abord le compte directeur.': 'Copy this link and send it to the person concerned. They can open it on their device and sign in with their own credentials. On a shared device, first sign out of the director account.',
+    'Lien de connexion': 'Sign-in link',
+    'Copier le lien de connexion': 'Copy sign-in link',
+    'Lien copié. Transmettez-le à la personne concernée.': 'Link copied. Send it to the person concerned.',
+    'Copie automatique impossible : copiez le lien sélectionné.': 'Automatic copying failed: copy the selected link.',
+    'Réglages d’affichage': 'Display settings',
+    'Utiliser l’affichage standard': 'Use standard display',
+    'La vue simplifiée est activée par défaut sur cet appareil et pour ce compte.': 'Simplified view is enabled by default on this device for this account.',
+    'La vue simplifiée est activée par défaut sur cet appareil et pour ce compte. Vous pouvez afficher toutes les fonctions à tout moment.':
+      'Simplified view is enabled by default on this device for this account. You can show all features at any time.',
+    'La vue simplifiée est activée par défaut sur cet appareil et pour ce compte. Elle agrandit les éléments sans retirer de fonctions.':
+      'Simplified view is enabled by default on this device for this account. It enlarges elements without removing features.',
+    'Capture en français de la vue simplifiée activée par défaut, avec des données fictives.':
+      'French screenshot of the simplified view enabled by default, using fictional data.',
+    'Accédez à vos messages, vos prochains rendez-vous et vos jeux gratuits depuis une interface claire. La vue simplifiée est activée par défaut ; vous pouvez afficher toutes les fonctions dans les réglages.':
+      'Access messages, upcoming appointments and free games in a clear interface. Simplified view is enabled by default; you can show all features in settings.',
+    'À qui s’adresse Génération Liaison ?': 'Who is Génération Liaison for?',
+    'Voir les aperçus de l’interface senior': 'View the senior interface previews',
+    'Informations sur les prestataires': 'Information about service providers',
+    'Comment accéder à l’application ?': 'How to access the application',
+    'Aide et informations légales': 'Help and legal information',
+    'Informations sur les tableaux': 'About the tables',
+    'Informations sur le carnet et les messages': 'About the journal and messages',
+    'Informations sur les espaces': 'About the workspaces',
+    'Espaces séparés : soins et services du quotidien.': 'Separate workspaces: care and daily services.',
+    'Un carnet de liaison pour les proches, les intervenants et les établissements': 'A shared journal for families, professionals and organizations',
+    'Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.':
+      'For older adults and anyone who needs daily support, including people with disabilities: share updates and organize visits with authorized people, at home or in a residence.',
+    'Découvrir l’espace entreprises et résidences': 'Explore the business and residence workspace',
+    'La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Le partage avec les soignants de l’établissement nécessite l’accord du résident ou de son représentant légal vérifié. Le carnet sert aux nouvelles du quotidien, pas aux données de santé.':
+      'The person receiving support accepts caregivers’ requests; a verified legal guardian is linked by the administration. Sharing with the organization’s care staff requires consent from the resident or their verified legal representative. The journal is for daily updates, not health data.',
+    'Un espace pour les personnes accompagnées, leurs proches et les professionnels': 'A workspace for people receiving support, their families and professionals',
+    'Pour les entreprises et résidences': 'For businesses and residences',
+    'Un espace dédié à la direction': 'A dedicated manager workspace',
+    'Retrouvez les résidents, soignants et intervenants dans des tableaux séparés, et gérez les comptes individuels des résidents et des soignants.':
+      'Find residents, care staff and service providers in separate tables and manage individual resident and staff accounts.',
+    'Entreprises et résidences : un espace pour la direction': 'Businesses and residences: a workspace for managers',
+    'Organisez les accès de votre établissement et gardez le lien avec les résidents et leurs proches, dans le respect des autorisations de chacun.':
+      'Organize your organization’s access and stay in touch with residents and their families while respecting everyone’s permissions.',
+    'Les trois tableaux de l’espace directeur': 'The three tables in the manager workspace',
+    'Résidents': 'Residents',
+    'Soignants': 'Care staff',
+    'Intervenants': 'Service providers',
+    'Avec leur accord, créez leurs accès individuels, même sans adresse e-mail.': 'With their consent, create individual access even without an email address.',
+    'Créez leurs comptes et gérez leurs accès à l’établissement.': 'Create their accounts and manage their organization access.',
+    'Retrouvez leurs coordonnées dans un tableau distinct.': 'Find their contact details in a separate table.',
+    'Le résident ou son représentant légal vérifié choisit le partage du carnet de liaison avec les soignants. La direction ne consulte pas les carnets ni les messages privés. Le carnet est réservé aux nouvelles du quotidien, sans données de santé.':
+      'The resident or their verified legal representative decides whether to share the journal with care staff. Management cannot view journals or private messages. The journal is for daily updates, not health data.',
+    'L’accès de l’établissement est activé manuellement par l’administration. Un abonnement est envisagé, avec une grille tarifaire et des options de tablettes indicatives ; aucun paiement en ligne n’est effectué.':
+      'Organization access is activated manually by the administration. A subscription is being considered, with indicative prices and tablet options; no online payment is taken.',
+    'Créer un compte établissement': 'Create an organization account',
+    'Lors de l’inscription, choisissez « Entreprise / résidence ».': 'When registering, choose “Business / residence”.',
+    '🏢 Entreprise / résidence': '🏢 Business / residence',
+    'Entreprise / résidence': 'Business / residence',
+    'Espace Directeur · Entreprise / Résidence': 'Manager workspace · business / residence',
+    'Présentation de l’établissement': 'Organization profile',
+    'Nom de l’établissement': 'Organization name',
+    'Présentation': 'Description',
+    'Adresse': 'Address',
+    'Téléphone': 'Phone',
+    'E-mail de contact': 'Contact email',
+    'Option tablettes (facultatif)': 'Tablet option (optional)',
+    'Aucune demande': 'No request',
+    'Location envisagée : 15 à 25 € HT / mois / tablette': 'Possible rental: €15–25 excluding tax / month / tablet',
+    'Achat envisagé : 229 à 299 € TTC / tablette': 'Possible purchase: €229–299 including tax / tablet',
+    'Nombre de tablettes souhaitées': 'Number of tablets requested',
+    'Tarifs indicatifs, selon devis et disponibilité. La location suppose un partenaire ; celui-ci n’est pas encore confirmé. Ce choix exprime un intérêt et ne constitue pas une commande.':
+      'Indicative prices, subject to a quote and availability. Rental requires a partner that has not yet been confirmed. This expresses interest and is not an order.',
+    'Résidents et soignants': 'Residents and caregivers',
+    'Catégorie': 'Category',
+    'Résident': 'Resident',
+    'Soignant': 'Caregiver',
+    'Enregistrer les coordonnées': 'Save contact details',
+    'Annuler la modification': 'Cancel editing',
+    'Actualiser la fiche': 'Refresh profile',
+    'Demander la clôture': 'Request account closure',
+    'Coordonnées privées du compte directeur. Ne saisissez aucune information médicale. Assurez-vous d’être autorisé à enregistrer ces informations et informez les personnes concernées. Ces fiches ne créent pas de comptes et ne donnent aucun accès aux dossiers.':
+      'These contact details are private to the manager account. Do not enter medical information. Ensure you are authorized to record the details and inform the people concerned. These entries do not create accounts or grant access to records.',
+    'Explications du journal du quotidien': 'Daily journal help',
+    'Retrouvez les nouvelles et étapes des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui ».':
+      'Find updates and visit stages from previous days. Today’s information appears in “Today”.',
+    'Retrouvez les étapes d’intervention, y compris celles du jour, et les nouvelles des jours précédents.':
+      'Find visit stages, including today’s, and updates from previous days.',
+    'Retrouvez les étapes des visites à la date sélectionnée dans l’agenda.':
+      'Find visit stages for the date selected in the calendar.',
+    'Ce journal ne surveille pas votre sécurité.': 'This journal does not monitor your safety.',
+    'Ce journal ne surveille pas la sécurité de la personne accompagnée.': 'This journal does not monitor the safety of the person receiving support.',
+    'Avant d’imprimer, vérifiez le contenu : le papier peut être lu par d’autres personnes.':
+      'Before printing, check the contents: other people may read the paper copy.',
+    'Suivi des collègues limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées. Ce journal ne remplace pas un dossier médical.':
+      'Colleague updates are limited to the last 100 stages over 30 days and 100 visits between 30 days before and 30 days after today. A completed visit does not specify the tasks performed. This journal does not replace a medical record.',
+    'Afficher les nouvelles plus anciennes': 'Show older updates',
+    'Impossible de charger les nouvelles plus anciennes. Réessayez.': 'Unable to load older updates. Please try again.',
+    'Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas votre sécurité.':
+      'An archive of updates and visit stages from yesterday and earlier. Today’s information appears in “Today” and is kept here from the next day. The author’s name is shown when available; otherwise only their role is shown. This journal does not monitor your safety.',
+    'Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas la sécurité de la personne accompagnée.':
+      'Visit stages appear here from today and remain in the journal. Updates from previous days are also kept here. The author’s name is shown when available; otherwise only their role is shown. This journal does not monitor the safety of the person receiving support.',
+    '🧑 Personne accompagnée': '🧑 Person receiving support',
+    'Personne accompagnée': 'Person receiving support',
+    'Nom de la personne accompagnée (facultatif)': 'Name of the person receiving support (optional)',
+    'Vous pouvez créer votre compte même si la personne accompagnée n’est pas encore inscrite. Le suivi apparaîtra lorsqu’elle rejoindra l’application et partagera son profil.':
+      'You can create your account even if the person receiving support has not registered yet. Updates will appear when they join the app and share their profile.',
+    'Je suis tuteur légal et souhaite accéder aux profils des personnes accompagnées qui me seront associés par l’administration.':
+      'I am a legal guardian and wish to access the profiles of people receiving support that the administration links to me.',
+    'Si vous êtes un proche et le représentant légal d’une personne qui ne peut plus gérer son compte, cochez cette case. Après vérification des justificatifs, l’administration peut associer votre compte au profil concerné. Cet accès ne donne pas automatiquement accès aux autres proches.':
+      'If you are a loved one and the legal representative of a person who can no longer manage their account, check this box. After verifying the documents, the administration can link your account to the relevant profile. This does not automatically grant access to other loved ones.',
+    'L’accès aux profils des personnes accompagnées sera activé après vérification manuelle par l’administration. Seuls les administrateurs autorisés peuvent consulter ces justificatifs.':
+      'Access to the profiles of people receiving support will be enabled after manual verification by the administration. Only authorized administrators can view these documents.',
+    'L’accès aux profils des personnes accompagnées sera activé après validation par l’administration.':
+      'Access to the profiles of people receiving support will be enabled after approval by the administration.',
+    'Aucune personne accompagnée associée': 'No person receiving support is linked',
+    'Aucun profil n’est disponible. Demandez l’accès à une personne accompagnée ou contactez l’administration si vous êtes tuteur légal.':
+      'No profile is available. Request access to a person receiving support or contact the administration if you are a legal guardian.',
+    'Actualiser les profils': 'Refresh profiles',
+    'Gérer mes profils accompagnés': 'Manage my linked profiles',
+    'Mes profils accompagnés': 'My linked profiles',
+    'Saisissez l’adresse e-mail de la personne accompagnée pour lui envoyer une invitation à découvrir l’application. Si elle ne possède pas encore de compte, faites une nouvelle demande après son inscription. Elle devra l’accepter avant que vous puissiez consulter son profil.':
+      'Enter the email address of the person receiving support to invite them to discover the app. If they do not have an account yet, make a new request after they register. They must accept it before you can view their profile.',
+    'Adresse e-mail de la personne accompagnée': 'Email address of the person receiving support',
+    'Pour un tuteur légal, l’administration vérifie les justificatifs et associe le profil de la personne accompagnée à son compte. Les autres proches n’obtiennent pas automatiquement l’accès.':
+      'For a legal guardian, the administration verifies the documents and links the profile of the person receiving support to their account. Other loved ones do not automatically gain access.',
+    'Profils accompagnés indisponibles': 'Linked profiles unavailable',
+    'Impossible de charger les profils accompagnés. Vérifiez votre connexion et réessayez.':
+      'Unable to load linked profiles. Check your connection and try again.',
+    'Aucune personne accompagnée associée pour le moment': 'No person receiving support is linked yet',
+    'Ces contacts sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.':
+      'These contacts can be viewed and edited by the person receiving support and all their linked caregivers. Check the numbers regularly. In an emergency, call 15 or 112.',
+    'Ces tâches sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Un intervenant ne voit que les tâches que vous lui attribuez depuis l’annuaire partagé. Évitez les informations médicales.':
+      'These tasks can be viewed and edited by the person receiving support and all their linked caregivers. A professional sees only tasks assigned to them from the shared directory. Avoid medical information.',
+    'La personne accompagnée doit accepter chaque photo proposée avant son partage avec les aidants associés. Les photos peuvent contenir des informations de localisation.':
+      'The person receiving support must accept each proposed photo before it is shared with linked caregivers. Photos may contain location information.',
+    'Proposer la photo à la personne accompagnée': 'Propose the photo to the person receiving support',
+    'Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Ce journal ne surveille pas la sécurité de la personne accompagnée.':
+      'Visit updates appear here from today and remain in the journal. Updates from previous days are also kept here. This journal does not monitor the safety of the person receiving support.',
+    'Aucune personne accompagnée pour le moment : les rendez-vous apparaîtront ici dès qu’une personne sera associée à votre compte.':
+      'No person receiving support yet: appointments will appear here once a person is linked to your account.',
+    'Votre dossier est en attente de vérification manuelle. L’accès aux profils des personnes accompagnées sera ouvert après validation.':
+      'Your application is awaiting manual verification. Access to the profiles of people receiving support will open after approval.',
+    'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.':
+      'Whether you are an older adult or need support for another reason, choose the “Person receiving support” profile in the app.',
+    'Le carnet de liaison simple pour les personnes accompagnées et leurs proches':
+      'The simple shared journal for people receiving support and their loved ones',
+    'Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : coordonnez les visites, partagez les nouvelles et retrouvez les services à domicile, même à distance.':
+      'For older adults and anyone who needs everyday support, including people with disabilities: coordinate visits, share updates and find home services, even from a distance.',
+    'La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Certaines transmissions professionnelles sont enregistrées dans l’espace prévu à cet effet.':
+      'The person receiving support accepts caregivers’ requests; a verified legal guardian is linked by the administration. Génération Liaison helps organize daily life and does not replace a medical record. Some professional care updates are recorded in the designated space.',
+    'Pour les personnes accompagnées': 'For people receiving support',
+    'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, votre espace est appelé « senior » dans l’application.':
+      'Whether you are an older adult or need support for another reason, your space is called “senior” in the app.',
+    'Consultez le carnet de liaison partagé, recevez des notifications utiles et organisez les visites autour de votre proche, selon vos accès.':
+      'View the shared journal, receive useful notifications and organize visits for your loved one, according to your access.',
+    'Mon proche n’est pas à l’aise avec Internet, comment faire ?': 'My loved one is not comfortable with the internet. What can we do?',
+    'Plusieurs proches peuvent demander l’accès : la personne accompagnée doit accepter chaque demande. Il n’y a pas de plafond fixe dans l’application ; un message groupé peut être envoyé à 20 correspondants au maximum.':
+      'Several loved ones can request access: the person receiving support must accept each request. There is no fixed limit in the app; a group message can be sent to up to 20 contacts.',
+    'Gestion des cookies': 'Cookie settings',
+    'Le lien au quotidien entre générations': 'Connecting generations every day',
+    'Le carnet de liaison numérique simple et rassurant pour les seniors et leurs proches':
+      'The simple, reassuring digital journal for older adults and their loved ones',
+    'Coordonnez les visites, partagez les nouvelles du quotidien et retrouvez les services à domicile au même endroit. Une interface pensée pour la sérénité des familles et l’autonomie des aînés, même à distance.':
+      'Coordinate visits, share daily updates and find home services in one place. An interface designed for families’ peace of mind and older adults’ independence, even from a distance.',
+    '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation':
+      '✓ Free during launch · ✓ No analytics tracking in signed-in areas · ✓ Accessible without installation',
+    'Vos échanges restent privés et sécurisés': 'Your conversations remain private and secure',
+    'Aucun outil statistique ou publicitaire n’est installé dans les espaces connectés. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.':
+      'No analytics or advertising tools are installed in signed-in areas. Before approving a professional account, the administration reviews identification and the Kbis business registration document.',
+    'Bon à savoir : Génération Liaison facilite l’organisation de la vie sociale et du quotidien. Il ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.':
+      'Good to know: Génération Liaison helps organize social and everyday life. It does not replace a medical record or an emergency service. In an emergency in France, call 15 or 112.',
+    'Un espace pensé pour toute la famille et les intervenants du quotidien': 'A space designed for the whole family and everyday professionals',
+    'Restez entouré en toute simplicité': 'Stay connected with ease',
+    'Accédez à vos messages, vos prochains rendez-vous et vos jeux gratuits depuis une interface claire. Activez la vue simplifiée en un clic pour profiter de boutons larges et lisibles, sans réglages complexes.':
+      'Access your messages, upcoming appointments and free games in a clear interface. Turn on the simplified view in one click for large, readable buttons without complicated settings.',
+    'Gardez l’esprit léger, même à distance': 'Enjoy peace of mind, even from a distance',
+    'Consultez le carnet de liaison partagé, recevez des notifications utiles et organisez les visites autour de votre parent, selon vos accès.':
+      'View the shared journal, receive useful notifications and organize visits for your parent, according to your access.',
+    'Valorisez vos interventions à domicile': 'Make the most of your home visits',
+    'Coiffeurs, aides ménagères ou prestataires de services : confirmez vos passages, échangez avec les personnes autorisées et simplifiez la gestion de vos rendez-vous auprès des familles.':
+      'Hairdressers, home helpers and other service providers: confirm your visits, communicate with authorized people and simplify appointment management with families.',
+    'Tout le quotidien réuni dans un seul carnet': 'Everything you need for daily life in one journal',
+    'Notez les petits événements de la journée, les promenades prévues ou les passages à domicile. Les personnes autorisées retrouvent les informations partagées dans leur carnet.':
+      'Record the day’s small events, planned walks or home visits. Authorized people can find shared information in their journal.',
+    'Visualisez les rendez-vous à venir et découvrez des services de confort à domicile, comme la coiffure, pour faciliter la vie de tous les jours.':
+      'See upcoming appointments and discover home comfort services, such as hairdressing, to make everyday life easier.',
+    'Choisissez les alertes qui comptent pour vous et laissez-vous guider dans l’application grâce à l’assistant intégré.':
+      'Choose the alerts that matter to you and let the built-in assistant guide you through the app.',
+    'Profitez gratuitement de toutes les fonctionnalités': 'Enjoy all features for free',
+    'Les tarifs futurs sont à l’étude et ne sont pas appliqués. Toute formule payante future fera l’objet d’une information claire et préalable.':
+      'Future prices are under consideration and are not currently applied. Any future paid plan will be clearly communicated in advance.',
+    'Vos questions, nos réponses': 'Your questions, our answers',
+    'Un proche peut l’aider à créer son compte, activer la vue simplifiée et ajouter le site à l’écran d’accueil de son téléphone ou de sa tablette. L’application fonctionne dans un navigateur et nécessite une connexion Internet.':
+      'A family member can help them create an account, enable the simplified view and add the site to their phone or tablet home screen. The app works in a browser and requires an internet connection.',
+    'Faut-il télécharger une application sur téléphone ?': 'Do I need to download an app on my phone?',
+    'Non, Génération Liaison fonctionne directement dans un navigateur Internet. Sur Android, une application est aussi disponible au téléchargement. Sur iPhone, utilisez « Partager » dans Safari puis « Ajouter à l’écran d’accueil ».':
+      'No, Génération Liaison works directly in a web browser. An Android app is also available to download. On iPhone, use “Share” in Safari, then “Add to Home Screen”.',
+    'Comment sont sélectionnés les prestataires à domicile ?': 'How are home service providers selected?',
+    'Avant d’activer un compte professionnel, l’administration examine la pièce d’identité et le Kbis de l’intervenant. Demandez un devis et une attestation d’assurance au professionnel avant votre premier rendez-vous.':
+      'Before activating a professional account, the administration reviews the provider’s identification and Kbis business registration document. Ask the professional for a quote and proof of insurance before your first appointment.',
+    'Une question ou besoin d’aide pour démarrer ? Écrivez-nous à': 'A question or need help getting started? Write to us at',
+    'Projet de tarifs et CGV': 'Draft prices and terms of sale',
+    'Politique de confidentialité': 'Privacy policy',
+    'Choix des cookies': 'Cookie choices',
+    'Mesure de fréquentation': 'Audience measurement',
+    'Avec votre accord, Google Analytics mesure les visites de cette page. Des cookies et des données techniques, dont votre adresse IP, sont transmis à Google. Aucun suivi n’est installé dans les espaces connectés. Vous pouvez refuser ou changer votre choix à tout moment.':
+      'With your consent, Google Analytics measures visits to this page. Cookies and technical data, including your IP address, are sent to Google. No tracking is installed in signed-in areas. You can refuse or change your choice at any time.',
+    'En savoir plus': 'Learn more',
+    'Impossible d’enregistrer votre choix sur cet appareil. La mesure est désactivée.':
+      'Unable to save your choice on this device. Measurement is disabled.',
+    'Effacez les données du site dans votre navigateur pour retirer un accord enregistré précédemment.':
+      'Clear the site data in your browser to withdraw any previously saved consent.',
     'Génération Liaison': 'Génération Liaison',
     'Confidentialité, RGPD et données de santé': 'Privacy, GDPR and health data',
     'La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées.':
@@ -88,6 +369,14 @@
       'Find appointments and discover everyday services, independent of medical care.',
     'Choisissez vos notifications et laissez-vous guider dans l’application par l’assistant.':
       'Choose your notifications and let the assistant guide you through the app.',
+    'Les informations du jour': 'Today’s information',
+    'Dans « Aujourd’hui », retrouvez les informations accessibles à votre compte, comme les rendez-vous, les tâches et les messages, présentées en bulles colorées.':
+      'In “Today”, find the information available to your account, such as appointments, tasks and messages, displayed in colorful bubbles.',
+    'Le senior et ses aidants associés peuvent préparer des tâches et les attribuer à un intervenant enregistré dans leur annuaire partagé. L’intervenant reçoit une notification dans l’application, ne voit que les tâches qui lui sont confiées et peut indiquer qu’elles sont terminées. L’attribution ne vaut pas accord de sa part.':
+      'The senior and their linked caregivers can prepare tasks and assign them to a professional saved in their shared directory. The professional receives an in-app notification, sees only tasks assigned to them and can mark them as completed. Assignment does not imply their agreement.',
+    'Liste de courses': 'Shopping list',
+    'Le senior peut enregistrer une liste de courses privée et, s’il le souhaite, en envoyer une copie par message aux personnes choisies. Une copie envoyée ne se met pas à jour automatiquement.':
+      'The senior can save a private shopping list and choose to send a copy by message to selected people. A sent copy does not update automatically.',
     'Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins.':
       'Discover everyday services, such as hairdressing at home, separate from care coordination.',
     'Découvrez des services du quotidien, comme la coiffure à domicile, indépendants du suivi médical.':
@@ -115,6 +404,19 @@
       'You can add a shortcut to your phone without downloading a file. Menus and their names may vary by browser.',
     '1. Ouvrez le site': '1. Open the site',
     'Sur votre téléphone, ouvrez Génération Liaison dans votre navigateur.': 'On your phone, open Génération Liaison in your browser.',
+    'Sur iPhone : ajouter le site à l’écran d’accueil': 'On iPhone: add the website to your home screen',
+    'Ce raccourci ouvre le site : il ne s’agit pas d’une application téléchargée. Les menus peuvent varier selon la version d’iOS.':
+      'This shortcut opens the website; it is not a downloaded app. Menus may vary depending on the iOS version.',
+    '1. Ouvrez Safari': '1. Open Safari',
+    'Sur votre iPhone, ouvrez Génération Liaison dans Safari.': 'On your iPhone, open Génération Liaison in Safari.',
+    '2. Touchez Partager': '2. Tap Share',
+    'Touchez le bouton Partager : le carré avec une flèche vers le haut.': 'Tap the Share button: the square with an upward arrow.',
+    'Choisissez « Ajouter à l’écran d’accueil », puis touchez « Ajouter ». Faites défiler le menu si nécessaire.':
+      'Choose “Add to Home Screen”, then tap “Add”. Scroll through the menu if necessary.',
+    'Sur Android, vous pouvez aussi utiliser le menu à trois points de votre navigateur pour ajouter le site à l’écran d’accueil, ou télécharger l’application ci-dessous.':
+      'On Android, you can also use your browser’s three-dot menu to add the website to your home screen, or download the app below.',
+    'Sur iPhone, utilisez le site dans Safari : aucune application iOS native n’est proposée. Vous pouvez ajouter un raccourci à l’écran d’accueil en suivant les étapes ci-dessous.':
+      'On iPhone, use the website in Safari: no native iOS app is offered. You can add a home screen shortcut by following the steps below.',
     '2. Ouvrez le menu': '2. Open the menu',
     'Sur Android, touchez les trois points du navigateur. Sur iPhone, dans Safari, touchez le bouton Partager (carré avec une flèche).':
       'On Android, tap the three dots in the browser. On iPhone, in Safari, tap the Share button (a square with an arrow).',
@@ -143,7 +445,20 @@
       'The assistant’s answers may be imprecise or incomplete; they do not replace professional advice.',
     'Un proche · Aujourd’hui à 9 h 30': 'Family member · Today at 9:30 AM',
     'La promenade de cet après-midi est prévue avec un proche.': 'A walk is planned with a family member this afternoon.',
-    'Un soignant · Aujourd’hui à 8 h 15': 'Care professional · Today at 8:15 AM',
+    'Un intervenant à domicile · Aujourd’hui à 8 h 15': 'Home support worker · Today at 8:15 AM',
+    'Espace Proche de l’interface senior : boutons Notifications et messages, Contacts et Jeux gratuits.':
+      'Family section of the senior interface: Notifications and messages, Contacts and Free games buttons.',
+    'Capture en français de l’espace Proche de l’interface senior.':
+      'Screenshot in French of the family section of the senior interface.',
+    'Voir aussi la vue simplifiée': 'See the simplified view too',
+    'Capture en français de la vue simplifiée facultative, avec des données fictives.':
+      'Screenshot in French of the optional simplified view, with fictional data.',
+    'Accueil senior en vue simplifiée : notifications et messages, journal, rendez-vous et contacts.':
+      'Senior home screen in simplified view: notifications and messages, journal, appointments and contacts.',
+    'Les services disponibles dépendent des équipes associées et de leur disponibilité. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.':
+      'Available services depend on associated teams and their availability. Before approving a professional account, the administration reviews identification and the Kbis business registration document.',
+    'L’assurance et la qualité des prestations ne sont pas vérifiées par l’application. Demandez les justificatifs et un devis au prestataire avant de vous engager.':
+      'The app does not verify insurance or service quality. Ask the provider for supporting documents and a quote before committing.',
     'Le prochain rendez-vous est confirmé.': 'The next appointment is confirmed.',
     'Un aperçu du carnet de liaison avec des données fictives.':
       'A preview of the activity log with fictional data.',
@@ -161,6 +476,7 @@
     'Rendez-vous aujourd’hui': 'Appointments today',
     'Autres rendez-vous': 'Other appointments',
     'Tâches à faire': 'Tasks to do',
+    'Pour aujourd’hui': 'Due today',
     'Pour aujourd’hui ou en retard': 'Due today or overdue',
     'Messages non lus': 'Unread messages',
     'Notifications non lues parmi les 50 dernières': 'Unread notifications among the latest 50',

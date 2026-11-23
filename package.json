@@ -7,6 +7,7 @@
     "start": "node server.js",
     "build:web": "node scripts/build-web.js",
     "android:sync": "node scripts/build-web.js --android && cap sync android && node scripts/prepare-android-entry.js",
+    "ios:sync": "node scripts/build-web.js --ios && cap sync ios && node scripts/prepare-ios-entry.js",
     "android:release": "npm run android:sync && node scripts/build-android-release.js",
     "test": "node --test"
   },

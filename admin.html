@@ -61,11 +61,38 @@
     th { color: var(--muted); font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; }
     td { min-width: 110px; }
     td small { display: block; color: var(--muted); }
+    .email-link { color: #0e5c43; text-decoration: underline; overflow-wrap: anywhere; }
     .table-empty { padding: 18px 12px; color: var(--muted); }
     .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; background: var(--mint); color: var(--green); font-size: .8rem; font-weight: 700; }
     .badge.off { background: #f1f2f2; color: #68716d; }
 
     .control-group { display: flex; align-items: center; gap: 8px; }
+    .establishment-account-form { display: grid; gap: 8px; min-width: 220px; margin-top: 12px; }
+    .establishment-account-form label { display: grid; gap: 4px; }
+    .establishment-account-form input:not([type="checkbox"]), .establishment-account-form select { width: 100%; }
+    .establishment-access { min-width: 250px; }
+    .establishment-access > button, .establishment-access > details > summary {
+      display: block;
+      width: 100%;
+      min-height: 42px;
+      padding: 9px 14px;
+      border: 1px solid #b7cfc2;
+      border-radius: 8px;
+      background: white;
+      color: var(--ink);
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+    }
+    .establishment-access > details { margin: 8px 0; }
+    .establishment-access > details > summary { background: var(--green); border-color: var(--green); color: white; list-style: none; }
+    .establishment-access > details > summary::-webkit-details-marker { display: none; }
+    .establishment-access > details > summary::after { content: " +"; }
+    .establishment-access > details[open] > summary::after { content: " −"; }
+    .establishment-access > button.establishment-close { border-color: #dfb9b9; color: var(--danger); }
+    .establishment-access > button:hover, .establishment-access > details > summary:hover { filter: brightness(.96); }
+    .establishment-access > button:focus-visible, .establishment-access > details > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 2px; }
+    .establishment-access > button:disabled { opacity: .6; cursor: wait; }
     .admin-form { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin: 0 0 16px; }
     .admin-form input, .admin-form select { width: 100%; }
     .assistant-handoff { margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
@@ -200,12 +227,13 @@
         <h1>Vue d’ensemble</h1>
         <p>Gérez les comptes et les services du quotidien depuis votre ordinateur.</p>
       </section>
-      <div class="notice"><strong>Données protégées :</strong> cet espace ne présente ni notes de soins, ni transmissions médicales, ni contacts d’urgence, ni adresses ou téléphones des clients. Pour les demandes de clôture, l’IA reçoit uniquement le rôle, la catégorie de formule et des décomptes de dossiers ; elle donne un pré-jugement indicatif, jamais une décision. L’administration vérifie les dossiers réels et confirme seule la clôture.</div>
+      <div class="notice"><strong>Données protégées :</strong> cet espace ne présente ni notes de soins, ni transmissions médicales, ni contacts d’urgence, ni adresses ou téléphones des clients. Les coordonnées des établissements sont visibles dans leur rubrique dédiée. Pour les demandes de clôture, l’IA reçoit uniquement le rôle, la catégorie de formule et des décomptes de dossiers ; elle donne un pré-jugement indicatif, jamais une décision. L’administration vérifie les dossiers réels et confirme seule la clôture.</div>
       <div id="page-status" class="status" role="status" aria-live="polite"></div>
       <div class="admin-body">
         <nav class="side-nav" id="admin-nav" aria-label="Rubriques de l’administration">
           <button type="button" class="nav-item active" data-target="overview"><span aria-hidden="true">📊</span> Vue d’ensemble</button>
           <button type="button" class="nav-item" data-target="accounts"><span aria-hidden="true">👥</span> Comptes et abonnements</button>
+          <button type="button" class="nav-item" data-target="establishments"><span aria-hidden="true">🏢</span> Entreprises / résidences</button>
           <button type="button" class="nav-item" data-target="services"><span aria-hidden="true">🧰</span> Services du quotidien</button>
           <button type="button" class="nav-item" data-target="care"><span aria-hidden="true">📅</span> Accompagnement</button>
           <button type="button" class="nav-item" data-target="assist"><span aria-hidden="true">💬</span> Assistant et demandes</button>
@@ -214,6 +242,27 @@
         <div class="admin-content">
       <section id="stats" class="stats" aria-label="Indicateurs"></section>
       <div class="layout">
+        <section class="panel" data-section="establishments">
+          <div class="panel-head"><div><h2>Entreprises / résidences</h2><p>Fiches privées renseignées par les établissements. Leur identité et leurs coordonnées ne sont pas vérifiées automatiquement. L’abonnement est géré manuellement : aucun paiement en ligne ni échéance automatique.</p><p>Nombre de personnes renseigné par l’administration, non compté automatiquement. Grille mensuelle indicative HT : 1–10 : 29 € ; 11–25 : 49 € ; 26–50 : 79 € ; 51–100 : 129 € ; au-delà : devis.</p></div></div>
+          <h3>Inviter une entreprise à créer son accès</h3>
+          <p>Le lien est commun : l’entreprise choisit « Entreprise / résidence » et son propre mot de passe. Il ne crée pas de compte et ne donne accès à aucun carnet.</p>
+          <div class="control-group">
+            <label for="establishment-invitation-link">Lien d’inscription à partager</label>
+            <input id="establishment-invitation-link" type="url" readonly>
+            <button type="button" class="button secondary" id="establishment-invitation-copy">Copier le lien</button>
+            <a href="/app-mobile.html#inscription" target="_blank" rel="noopener">Ouvrir</a>
+          </div>
+          <form id="establishment-invitation-form" class="control-group">
+            <label for="establishment-invitation-email">Adresse e-mail de l’entreprise</label>
+            <input id="establishment-invitation-email" type="email" maxlength="254" required>
+            <button type="submit" class="button secondary">Envoyer le lien par e-mail</button>
+          </form>
+          <p class="hint">Après inscription, indiquez le nombre de personnes et activez manuellement l’abonnement dans le tableau. Aucun paiement n’est effectué ici.</p>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Compte</th><th>Établissement</th><th>Présentation</th><th>Adresse</th><th>Coordonnées</th><th>Tablettes envisagées</th><th>Personnes et tarif</th><th>Abonnement</th><th>Accès au compte</th></tr></thead>
+            <tbody id="establishments-body"></tbody>
+          </table></div>
+        </section>
         <section class="panel" data-section="overview">
           <div class="panel-head">
             <div><h2>Surveillance technique et aide IA</h2><p>Compteurs anonymes des requêtes API reçues par ce serveur pendant les 15 dernières minutes. Ils sont remis à zéro au redémarrage et ne détectent pas une panne complète du serveur.</p></div>
@@ -307,10 +356,38 @@
           <div class="panel-head">
             <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
           </div>
+          <details>
+            <summary>Créer un compte</summary>
+            <p class="hint">Avec l’accord de la personne, créez un nouveau compte. Elle reçoit un e-mail pour choisir elle-même son mot de passe et accepter les conditions. Cette création ne donne pas accès à ses contenus privés.</p>
+            <form id="admin-create-account-form" class="admin-form">
+              <input id="admin-create-first-name" placeholder="Prénom" aria-label="Prénom" maxlength="120" required>
+              <input id="admin-create-last-name" placeholder="Nom" aria-label="Nom" maxlength="120" required>
+              <input id="admin-create-email" type="email" placeholder="Adresse e-mail" aria-label="Adresse e-mail" maxlength="254" required>
+              <select id="admin-create-role" aria-label="Type de compte" required>
+                <option value="senior">Personne accompagnée</option>
+                <option value="aidant">Proche / aidant</option>
+                <option value="pro">Intervenant</option>
+                <option value="establishment">Entreprise / résidence</option>
+              </select>
+              <label><input id="admin-create-confirmed" type="checkbox" required> Je confirme l’accord de la personne.</label>
+              <button type="submit" class="button">Créer le compte</button>
+            </form>
+            <p id="admin-create-account-status" role="status" aria-live="polite"></p>
+          </details>
+          <form id="account-invitation-form" class="control-group">
+            <label for="account-invitation-email">Inviter à créer un compte</label>
+            <input id="account-invitation-email" type="email" maxlength="254" required>
+            <button type="submit" class="button secondary">Envoyer l’invitation</button>
+          </form>
+          <p class="hint">La personne crée elle-même son compte et choisit son mot de passe. L’invitation ne donne accès à aucun dossier.</p>
           <div class="table-wrap"><table>
             <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Profil</th><th>Équipes</th><th>Créé le</th><th>Vérification et profils seniors</th><th>Accès</th></tr></thead>
             <tbody id="accounts-body"></tbody>
           </table></div>
+        </section>
+        <section class="panel" data-section="accounts">
+          <div class="panel-head"><div><h2>Demandes d’accès des aidants</h2><p>Le senior peut normalement accepter lui-même. En cas d’oubli, confirmez uniquement après avoir vérifié son accord directement auprès de lui. Cette action ne donne pas accès à ses contenus privés à l’administration.</p></div></div>
+          <div id="senior-link-requests" aria-live="polite">Chargement des demandes…</div>
         </section>
         <section class="panel" data-section="accounts">
           <div class="panel-head">
@@ -374,7 +451,9 @@
     const roleLabels = {
       senior: window.generationLiaisonTranslate('Senior'),
       aidant: window.generationLiaisonTranslate('Aidant'),
-      pro: window.generationLiaisonTranslate('Intervenant')
+      pro: window.generationLiaisonTranslate('Intervenant'),
+      staff: window.generationLiaisonTranslate('Soignant en établissement'),
+      establishment: window.generationLiaisonTranslate('Entreprise / résidence')
     };
     const closureJudgmentLabels = {
       simple_to_review: window.generationLiaisonTranslate('Dossier apparemment simple à examiner'),
@@ -471,6 +550,30 @@
         cell.append(detail);
       }
       row.append(cell);
+      return cell;
+    }
+
+    function emailNode(value) {
+      const email = typeof value === 'string' ? value.trim() : '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /[\uD800-\uDFFF]/u.test(email)) {
+        return document.createTextNode(email || '—');
+      }
+      const link = document.createElement('a');
+      link.className = 'email-link';
+      link.href = `mailto:${encodeURIComponent(email)}`;
+      link.textContent = email;
+      return link;
+    }
+
+    function addContactCell(row, value, email, prefix = '') {
+      const cell = addCell(row, value);
+      if (prefix || email) {
+        const detail = document.createElement('small');
+        if (prefix) detail.append(document.createTextNode(prefix));
+        if (prefix && email) detail.append(document.createTextNode(' · '));
+        if (email) detail.append(emailNode(email));
+        cell.append(detail);
+      }
       return cell;
     }
 
@@ -682,7 +785,7 @@
       tbody.replaceChildren();
       partners.forEach(partner => {
         const row = document.createElement('tr');
-        addCell(row, partner.displayName, `${partner.accountName} · ${partner.email}`);
+        addContactCell(row, partner.displayName, partner.email, partner.accountName);
         addCell(row, serviceLabels[partner.serviceType] || 'Service');
         addCell(row, partner.organizationName);
         addCell(row, partner.serviceArea);
@@ -828,6 +931,106 @@
         button.disabled = false;
       }
     }
+
+    async function initiateAccountClosure(account, button) {
+      const reason = prompt('Indiquez le motif de cette clôture administrative (20 caractères minimum, sans donnée privée).');
+      if (reason === null) return;
+      if (reason.trim().length < 20 || reason.trim().length > 500) {
+        setStatus('Le motif doit contenir de 20 à 500 caractères.', true);
+        return;
+      }
+      if (!confirm(`Clôturer le compte de ${account.name} ? Il sera désactivé immédiatement et certaines données seront effacées sans retour possible. L’effacement complet devra être examiné par l’administration.`)) return;
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/accounts/${encodeURIComponent(account.id)}/closure`, {
+          method: 'POST', body: { confirmed: true, reason: reason.trim() }
+        });
+        await loadOverview();
+        setStatus('Clôture administrative lancée. Le compte est désactivé ; le traitement reste à examiner.');
+      } catch (error) {
+        setStatus(error.message || 'Impossible de lancer la clôture.', true);
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('admin-create-account-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button');
+      const status = document.getElementById('admin-create-account-status');
+      button.disabled = true;
+      status.textContent = '';
+      try {
+        const result = await adminRequest('/api/admin/accounts', {
+          method: 'POST',
+          body: {
+            firstName: document.getElementById('admin-create-first-name').value.trim(),
+            lastName: document.getElementById('admin-create-last-name').value.trim(),
+            email: document.getElementById('admin-create-email').value.trim(),
+            role: document.getElementById('admin-create-role').value,
+            confirmed: document.getElementById('admin-create-confirmed').checked
+          }
+        });
+        form.reset();
+        status.textContent = result.activationEmailSent
+          ? 'Compte créé. Un lien d’activation a été envoyé à la personne.'
+          : 'Compte créé, mais l’e-mail n’a pas pu être envoyé. Après une minute, demandez à la personne de créer son mot de passe avec « Mot de passe oublié » sur la page de connexion.';
+        await loadOverview();
+      } catch (error) {
+        status.textContent = error.message || 'Impossible de créer le compte.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.getElementById('account-invitation-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button');
+      button.disabled = true;
+      try {
+        const result = await adminRequest('/api/admin/account-invitations', {
+          method: 'POST', body: { email: document.getElementById('account-invitation-email').value.trim() }
+        });
+
+        const establishmentInvitationLink = document.getElementById('establishment-invitation-link');
+        establishmentInvitationLink.value = new URL('/app-mobile.html#inscription', window.location.origin).toString();
+        document.getElementById('establishment-invitation-copy').addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(establishmentInvitationLink.value);
+            setStatus('Lien d’inscription copié.');
+          } catch (error) {
+            establishmentInvitationLink.focus();
+            establishmentInvitationLink.select();
+            setStatus('La copie automatique est indisponible : copiez le lien sélectionné.', true);
+          }
+        });
+
+        document.getElementById('establishment-invitation-form').addEventListener('submit', async event => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          const button = form.querySelector('button');
+          button.disabled = true;
+          try {
+            const result = await adminRequest('/api/admin/account-invitations', {
+              method: 'POST', body: { email: document.getElementById('establishment-invitation-email').value.trim(), role: 'establishment' }
+            });
+            form.reset();
+            setStatus(result.message);
+          } catch (error) {
+            setStatus(error.message || 'Impossible d’envoyer l’invitation.', true);
+          } finally {
+            button.disabled = false;
+          }
+        });
+        form.reset();
+        setStatus(result.message);
+      } catch (error) {
+        setStatus(error.message || 'Impossible d’envoyer l’invitation.', true);
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     async function downloadVerificationDocument(accountId, documentType) {
       const headers = { ...authHeaders() };
@@ -1023,12 +1226,15 @@
 
     function renderAccounts(accounts, limits) {
       const tbody = document.getElementById('accounts-body');
-      if (!accounts.length) return renderEmpty(tbody, 8, 'Aucun compte.');
+      const regularAccounts = accounts;
+      if (!regularAccounts.length) return renderEmpty(tbody, 8, 'Aucun compte.');
       tbody.replaceChildren();
-      accounts.forEach(account => {
+      regularAccounts.forEach(account => {
         const row = document.createElement('tr');
         addCell(row, account.name);
-        addCell(row, account.email);
+        const emailCell = document.createElement('td');
+        emailCell.append(emailNode(account.email));
+        row.append(emailCell);
         addCell(row, `${roleLabels[account.role] || account.role}${account.administrator ? ' · Admin' : ''}`);
         addCell(row, account.profileName);
         addCell(row, String(account.teamCount));
@@ -1193,31 +1399,44 @@
           button.textContent = account.active ? 'Suspendre' : 'Réactiver';
           button.addEventListener('click', () => updateAccount(account, button));
           stateLine.append(button);
+          const close = document.createElement('button');
+          close.className = 'button secondary';
+          close.type = 'button';
+          close.textContent = 'Lancer la clôture';
+          close.addEventListener('click', () => initiateAccountClosure(account, close));
+          stateLine.append(close);
         }
-        const premium = document.createElement('div');
-        premium.className = 'account-line';
-        const premiumBadge = document.createElement('span');
-        premiumBadge.className = `badge${account.premiumActive ? '' : ' off'}`;
-        premiumBadge.textContent = account.premiumActive
-          ? `${account.premiumStatus === 'trial' ? 'Essai' : 'Premium'}${account.premiumUntil ? ` jusqu’au ${new Date(account.premiumUntil).toLocaleDateString('fr-FR')}` : ''}`
-          : 'Sans abonnement';
-        const premiumChoice = document.createElement('select');
-        premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
-        [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
-          ['year', 'Premium 12 mois'], ['forever', 'Premium sans fin'],
-          ['trial', 'Essai 14 jours'], ['none', 'Retirer l’abonnement']].forEach(([value, label]) => {
-          const option = document.createElement('option');
-          option.value = value;
-          option.textContent = label;
-          premiumChoice.append(option);
-        });
-        const premiumButton = document.createElement('button');
-        premiumButton.className = 'button secondary';
-        premiumButton.type = 'button';
-        premiumButton.textContent = 'Appliquer';
-        premiumButton.addEventListener('click', () => updatePremium(account, premiumChoice.value, premiumButton));
-        premium.append(premiumBadge, premiumChoice, premiumButton);
-        action.append(premium);
+        if (account.role !== 'establishment' && account.role !== 'staff') {
+          const premium = document.createElement('div');
+          premium.className = 'account-line';
+          const premiumBadge = document.createElement('span');
+          premiumBadge.className = `badge${account.premiumActive ? '' : ' off'}`;
+          premiumBadge.textContent = account.premiumActive
+            ? `${account.premiumStatus === 'trial' ? 'Essai' : 'Premium'}${account.premiumUntil ? ` jusqu’au ${new Date(account.premiumUntil).toLocaleDateString('fr-FR')}` : ''}`
+            : 'Sans abonnement';
+          const premiumChoice = document.createElement('select');
+          premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
+          [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
+            ['year', 'Premium 12 mois'], ['forever', 'Premium sans fin'],
+            ['trial', 'Essai 14 jours'], ['none', 'Retirer l’abonnement']].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            premiumChoice.append(option);
+          });
+          const premiumButton = document.createElement('button');
+          premiumButton.className = 'button secondary';
+          premiumButton.type = 'button';
+          premiumButton.textContent = 'Appliquer';
+          premiumButton.addEventListener('click', () => updatePremium(account, premiumChoice.value, premiumButton));
+          premium.append(premiumBadge, premiumChoice, premiumButton);
+          action.append(premium);
+        } else if (account.role === 'establishment') {
+          const hint = document.createElement('p');
+          hint.className = 'hint';
+          hint.textContent = 'Abonnement dans Entreprises / résidences.';
+          action.append(hint);
+        }
         row.append(action);
         tbody.append(row);
       });
@@ -1299,12 +1518,13 @@
         addCell(row, formatDate(request.requestedAt));
         const overdue = new Date(request.dueAt).getTime() < Date.now();
         addCell(row, formatDate(request.dueAt), overdue ? 'Délai dépassé' : '');
-        addCell(row, request.name, request.email);
+        addContactCell(row, request.name, request.email);
         const accountTier = ['active', 'trial'].includes(request.premiumStatus)
           ? 'Premium ou essai'
           : 'Gratuit ou formule inactive';
         addCell(row, roleLabels[request.role] || request.role, accountTier);
-        addCell(row, request.status === 'processing' ? 'En cours de traitement' : 'À examiner');
+        addCell(row, request.status === 'processing' ? 'En cours de traitement' : 'À examiner',
+          request.initiatedBy ? `Initiée par l’administration : ${request.initiationReason}` : 'Demandée par le titulaire');
         const reviewCell = document.createElement('td');
         if (request.aiReviewSummary) {
           const details = document.createElement('details');
@@ -1419,6 +1639,78 @@
       }
     }
 
+    async function loadSeniorLinkRequests() {
+      const container = document.getElementById('senior-link-requests');
+      const hasDraft = () => container.contains(document.activeElement) ||
+          [...container.querySelectorAll('textarea')].some(input => input.value.trim()) ||
+          container.querySelector('input[type="checkbox"]:checked');
+      if (hasDraft()) return;
+      try {
+        const { requests } = await adminRequest('/api/admin/senior-link-requests');
+        if (hasDraft()) return;
+        container.replaceChildren();
+        if (!requests.length) {
+          container.textContent = window.generationLiaisonTranslate('Aucune demande d’accès en cours.');
+          return;
+        }
+        for (const request of requests) {
+          const item = document.createElement('div');
+          item.className = 'assistant-handoff';
+          const description = document.createElement('p');
+          description.append(
+            document.createTextNode(`${request.aidant_name} (`), emailNode(request.aidant_email),
+            document.createTextNode(`) → ${request.senior_name} (`), emailNode(request.senior_email),
+            document.createTextNode(')')
+          );
+          const form = document.createElement('form');
+          form.className = 'assistant-settings';
+          const noteLabel = document.createElement('label');
+          noteLabel.textContent = window.generationLiaisonTranslate('Comment avez-vous vérifié l’accord du senior ?');
+          const note = document.createElement('textarea');
+          note.required = true;
+          note.minLength = 20;
+          note.maxLength = 500;
+          note.rows = 2;
+          noteLabel.append(note);
+          const hint = document.createElement('p');
+          hint.className = 'hint';
+          hint.textContent = window.generationLiaisonTranslate('Indiquez le mode de vérification, sans donnée de santé ni information privée (20 caractères minimum).');
+          const confirmationLabel = document.createElement('label');
+          const confirmation = document.createElement('input');
+          confirmation.type = 'checkbox';
+          confirmation.required = true;
+          confirmationLabel.append(confirmation, document.createTextNode(window.generationLiaisonTranslate(' Je confirme avoir vérifié l’accord du senior.')));
+          const button = document.createElement('button');
+          button.className = 'button secondary';
+          button.type = 'submit';
+          button.textContent = window.generationLiaisonTranslate('Confirmer à la place du senior');
+          form.append(noteLabel, hint, confirmationLabel, button);
+          form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!window.confirm(window.generationLiaisonTranslate('Confirmer cet accès après avoir vérifié l’accord du senior ?'))) return;
+            button.disabled = true;
+            try {
+              await adminRequest(`/api/admin/senior-link-requests/${encodeURIComponent(request.id)}/confirm`, {
+                method: 'POST', body: { confirmed: confirmation.checked, note: note.value.trim() }
+              });
+              item.remove();
+              await loadOverview();
+              setStatus('Accord confirmé et accès activé.');
+            } catch (error) {
+              setStatus(error.message || 'Impossible de confirmer la demande.', true);
+              button.disabled = false;
+            }
+          });
+          item.append(description, form);
+          container.append(item);
+        }
+      } catch (error) {
+        const message = error.message || 'Impossible de charger les demandes d’accès.';
+        if (hasDraft()) setStatus(message, true);
+        else container.textContent = window.generationLiaisonTranslate(message);
+      }
+    }
+
     async function loadSeniorLinkRemovals() {
       const container = document.getElementById('senior-link-removals');
       try {
@@ -1485,14 +1777,190 @@
         renderRedEvaluations(result.redEvaluations || []);
         renderAccounts(result.accounts, result.limits);
         await loadSiteMonitor();
+        await loadSeniorLinkRequests();
         await loadSeniorLinkRemovals();
         await loadAccountClosureRequests();
         await loadAssistantHandoffs();
         await loadExternalPros();
+        await loadEstablishments();
         setStatus(`${window.generationLiaisonTranslate('Données actualisées à')} ${new Date().toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' })}.`);
       } catch (error) {
         setStatus(error.message || 'Impossible de charger le tableau de bord.', true);
       }
+    }
+
+    function createEstablishmentAccountForm(item) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = 'Créer un compte rattaché';
+      details.append(summary);
+      const help = document.createElement('p');
+      help.textContent = 'Avec l’accord de la personne, créez un nouveau compte résident ou soignant. Remettez l’identifiant et le mot de passe provisoire en privé. Toute personne connaissant ce mot de passe peut activer le compte. Le partage du carnet nécessite un accord distinct du résident ou de son représentant légal vérifié.';
+      details.append(help);
+      const form = document.createElement('form');
+      form.className = 'establishment-account-form';
+      function field(labelText, input) {
+        const label = document.createElement('label');
+        label.textContent = labelText;
+        label.append(input);
+        form.append(label);
+        return input;
+      }
+      const role = document.createElement('select');
+      for (const [value, text] of [['senior', 'Résident'], ['staff', 'Soignant']]) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = text;
+        role.append(option);
+      }
+      field('Type de compte ', role);
+      function input(label, type) {
+        const element = document.createElement('input');
+        element.type = type;
+        element.required = true;
+        return field(label, element);
+      }
+      const firstName = input('Prénom ', 'text');
+      const lastName = input('Nom ', 'text');
+      firstName.maxLength = lastName.maxLength = 120;
+      const birthDate = input('Date de naissance ', 'date');
+      const password = input('Mot de passe provisoire (12 caractères minimum) ', 'password');
+      password.minLength = 12;
+      password.maxLength = 256;
+      password.autocomplete = 'new-password';
+      const confirmed = input('J’ai obtenu l’accord de la personne pour créer ce compte ', 'checkbox');
+      const submit = document.createElement('button');
+      submit.type = 'submit';
+      submit.textContent = 'Créer et rattacher le compte';
+      submit.disabled = !item.account_active || !item.active;
+      const status = document.createElement('p');
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      if (submit.disabled) status.textContent = 'Le compte entreprise et son abonnement doivent être actifs.';
+      form.append(submit, status);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        submit.disabled = true;
+        status.textContent = '';
+        try {
+          const account = await adminRequest(`/api/admin/establishments/${encodeURIComponent(item.id)}/accounts`, {
+            method: 'POST',
+            body: { role: role.value, firstName: firstName.value.trim(), lastName: lastName.value.trim(),
+              birthDate: birthDate.value, password: password.value, confirmed: confirmed.checked }
+          });
+          form.reset();
+          status.textContent = `Compte créé. Identifiant à remettre en privé : ${account.identifier}. Transmettez aussi le mot de passe provisoire séparément.`;
+        } catch (error) {
+          status.textContent = error.message || 'Impossible de créer le compte.';
+        } finally {
+          submit.disabled = false;
+        }
+      });
+      details.append(form);
+      return details;
+    }
+
+    function establishmentTariff(count) {
+      if (count === null) return 'Nombre non renseigné';
+      if (count > 100) return 'Sur devis';
+      return `${count <= 10 ? 29 : count <= 25 ? 49 : count <= 50 ? 79 : 129} € HT / mois`;
+    }
+
+    async function loadEstablishments() {
+      const body = document.getElementById('establishments-body');
+      const { establishments } = await adminRequest('/api/admin/establishments');
+      if (!establishments.length) return renderEmpty(body, 9, 'Aucun établissement.');
+      body.replaceChildren(...establishments.map(item => {
+        const row = document.createElement('tr');
+        addContactCell(row, item.account_name, item.account_email);
+        addCell(row, item.name);
+        addCell(row, item.description);
+        addCell(row, item.address);
+        addContactCell(row, item.phone, item.email);
+        addCell(row, item.tablet_interest === 'rental' ? `Location : ${item.tablet_quantity}` :
+          item.tablet_interest === 'purchase' ? `Achat : ${item.tablet_quantity}` : 'Aucune demande');
+        const pricing = document.createElement('td');
+        const pricingForm = document.createElement('form');
+        const count = document.createElement('input');
+        count.type = 'number';
+        count.min = '1';
+        count.max = '100000';
+        count.required = true;
+        count.value = item.user_count ?? '';
+        count.setAttribute('aria-label', `Nombre de personnes pour ${item.account_name}`);
+        const price = document.createElement('span');
+        price.textContent = establishmentTariff(item.user_count);
+        const save = document.createElement('button');
+        save.type = 'submit';
+        save.textContent = 'Enregistrer';
+        count.disabled = save.disabled = !item.account_active;
+        pricingForm.append(count, save);
+        pricingForm.addEventListener('submit', async event => {
+          event.preventDefault();
+          save.disabled = true;
+          try {
+            await adminRequest(`/api/admin/establishments/${item.id}/users`, {
+              method: 'PATCH', body: { count: Number(count.value) }
+            });
+            await loadEstablishments();
+          } catch (error) {
+            setStatus(error.message, true);
+            save.disabled = false;
+          }
+        });
+        pricing.append(pricingForm, price);
+        row.append(pricing);
+        const cell = document.createElement('td');
+        const label = document.createElement('span');
+        label.textContent = item.active ? 'Actif ' : 'Inactif ';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = item.active ? 'Désactiver' : 'Activer';
+        button.disabled = !item.account_active;
+        button.addEventListener('click', async () => {
+          if (!confirm(`${item.active ? 'Désactiver' : 'Activer'} manuellement cet abonnement ?`)) return;
+          button.disabled = true;
+          try {
+            await adminRequest(`/api/admin/establishments/${item.id}/subscription`, {
+              method: 'PATCH', body: { active: !item.active }
+            });
+            await loadEstablishments();
+          } catch (error) {
+            setStatus(error.message, true);
+            button.disabled = false;
+          }
+        });
+        cell.append(label, button);
+        row.append(cell);
+        const accountCell = document.createElement('td');
+        accountCell.className = 'establishment-access';
+        const accountButton = document.createElement('button');
+        accountButton.type = 'button';
+        accountButton.textContent = item.account_active ? 'Suspendre le compte' : 'Réactiver le compte';
+        accountButton.addEventListener('click', async () => {
+          if (!confirm(`${item.account_active ? 'Suspendre' : 'Réactiver'} ce compte établissement ?`)) return;
+          accountButton.disabled = true;
+          try {
+            await adminRequest(`/api/admin/accounts/${encodeURIComponent(item.id)}`, {
+              method: 'PATCH', body: { active: !item.account_active }
+            });
+            await loadEstablishments();
+          } catch (error) {
+            setStatus(error.message || 'Impossible de modifier ce compte.', true);
+            accountButton.disabled = false;
+          }
+        });
+        accountCell.append(accountButton);
+        accountCell.append(createEstablishmentAccountForm(item));
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.className = 'establishment-close';
+        close.textContent = 'Lancer la clôture';
+        close.addEventListener('click', () => initiateAccountClosure({ id: item.id, name: item.account_name }, close));
+        accountCell.append(close);
+        row.append(accountCell);
+        return row;
+      }));
     }
 
     async function loadExternalPros() {
@@ -1503,7 +1971,7 @@
         const row = document.createElement('tr');
         addCell(row, pro.name);
         addCell(row, pro.activity);
-        addCell(row, pro.phone, pro.email);
+        addContactCell(row, pro.phone, pro.email);
         addCell(row, [pro.postalCode, pro.city].filter(Boolean).join(' '), pro.address);
         const cell = document.createElement('td');
         const button = document.createElement('button');

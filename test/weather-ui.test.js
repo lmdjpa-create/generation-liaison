@@ -51,17 +51,19 @@ const data = {
   }))
 };
 
-test('both home pages offer weather before the other dashboard cards', () => {
-  const senior = source.indexOf('id="senior-weather-title"');
-  const aidant = source.indexOf('id="aidant-weather-title"');
-  assert.ok(senior > source.indexOf('id="welcome-senior-name"') && senior < source.indexOf('id="senior-next-visit"'));
-  assert.ok(aidant > source.indexOf('id="welcome-aidant-name"') && aidant < source.indexOf('id="aidant-daily-summary"'));
+test('daily information screens offer weather without hiding the visit or summary', () => {
+  const seniorInfo = source.slice(source.indexOf('id="screen-informations-senior"'), source.indexOf('id="screen-informations-aidant"'));
+  const aidantInfo = source.slice(source.indexOf('id="screen-informations-aidant"'), source.indexOf('id="screen-informations-pro"'));
+  assert.match(seniorInfo, /id="senior-weather-title"/);
+  assert.match(seniorInfo, /id="senior-next-visit"/);
+  assert.match(aidantInfo, /id="aidant-weather-title"/);
+  assert.match(aidantInfo, /id="aidant-daily-summary"/);
   assert.match(source, /id="settings-weather"[\s\S]*id="weather-enabled"[^>]*type="checkbox"[^>]*checked/);
   const warning = 'Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.';
   const settings = source.slice(source.indexOf('id="settings-weather"'), source.indexOf('id="settings-senior-voice"'));
   assert.equal(settings.split(warning).length - 1, 2);
-  assert.ok(!source.slice(senior, source.indexOf('id="senior-next-visit"')).includes('Réglages de la météo'));
-  assert.ok(!source.slice(aidant, source.indexOf('id="aidant-daily-summary"')).includes('Réglages de la météo'));
+  assert.ok(!seniorInfo.includes('Réglages de la météo'));
+  assert.ok(!aidantInfo.includes('Réglages de la météo'));
 });
 
 test('multiple communes require a choice and show seven days', async () => {

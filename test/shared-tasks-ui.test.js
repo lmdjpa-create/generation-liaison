@@ -20,7 +20,7 @@ test('shared task loads clear old data and ignore responses from an earlier prof
   let resolveFirst;
   let calls = 0;
   const context = {
-    sharedTasksLoadId: 0, keyContactsLoadId: 0,
+    sharedTasksLoadId: 0, keyContactsLoadId: 0, shoppingListRevision: 0, shoppingListLoaded: false,
     window: { generationLiaisonTranslate: value => value },
     document: { getElementById: element, createElement: () => element(Symbol()) },
     dateCheckinBienEtre: () => '2028-02-28',
@@ -252,7 +252,8 @@ test('both task panels provide a manual refresh button that reloads the right li
         return elements.get(id);
       }
     },
-    chargerTachesPartagees: role => loaded.push(role)
+    chargerTachesPartagees: role => loaded.push(role),
+    chargerTachesIntervenant() {}
   };
   const start = source.indexOf('        for (const role of [\'senior\', \'aidant\']) {', source.indexOf('    function configurerFormulairesCoordination()'));
   const end = source.indexOf("        document.getElementById('reg-role')", start);
@@ -261,4 +262,91 @@ test('both task panels provide a manual refresh button that reloads the right li
   elements.get('senior-tasks-refresh').events.click();
   elements.get('aidant-tasks-refresh').events.click();
   assert.deepEqual(loaded, ['senior', 'aidant']);
+});
+
+test('professional sees only returned assignments and can update their state', async () => {
+  const elements = new Map(), requests = [];
+  function makeElement() {
+    return {
+      textContent: '', children: [], events: {},
+      replaceChildren(...children) { this.children = children; },
+      append(...children) { this.children.push(...children); },
+      setAttribute() {}, addEventListener(type, handler) { this.events[type] = handler; }
+    };
+  }
+  const context = {
+    sharedTasksLoadId: 0, connectedUser: { id: 'pro', role: 'pro' },
+    document: {
+      getElementById(id) { if (!elements.has(id)) elements.set(id, makeElement()); return elements.get(id); },
+      createElement: makeElement
+    },
+    makeTextElement(tag, text) { const result = makeElement(); result.textContent = text; return result; },
+    window: { generationLiaisonLocale: () => 'fr-FR' },
+    planningRequest: async (url, options) => {
+      requests.push({ url, options });
+      return { tasks: [{ id: 'one', title: 'Laver le sol', seniorName: 'Camille', completed: false }] };
+    }
+  };
+  const start = source.indexOf('    async function chargerTachesIntervenant()');
+  const end = source.indexOf('    async function chargerListeCourses()', start);
+  vm.runInNewContext(source.slice(start, end), context);
+  await context.chargerTachesIntervenant();
+  const row = context.document.getElementById('pro-intervention-tasks-list').children[0];
+  assert.equal(row.children[0].textContent, 'Laver le sol');
+  assert.equal(row.children[1].textContent, 'Pour : Camille');
+  await row.children[4].events.click();
+  assert.equal(requests[1].url, '/api/intervention-tasks/one');
+  assert.equal(requests[1].options.body.completed, true);
+});
+
+test('shopping list loading ignores a response after logout', async () => {
+  const elements = new Map();
+  let resolve;
+  const context = {
+    shoppingListRevision: 0, shoppingListLoaded: false, connectedUser: { id: 'senior', role: 'senior' },
+    document: { getElementById(id) {
+      if (!elements.has(id)) elements.set(id, { value: '', textContent: '', disabled: false });
+      return elements.get(id);
+    } },
+    planningRequest: () => new Promise(done => { resolve = done; })
+  };
+  const start = source.indexOf('    async function chargerListeCourses()');
+  const end = source.indexOf('    async function chargerDestinatairesCourses()', start);
+  vm.runInNewContext(source.slice(start, end), context);
+  const loading = context.chargerListeCourses();
+  assert.equal(context.document.getElementById('senior-shopping-content').disabled, true);
+  context.shoppingListRevision++;
+  context.connectedUser = null;
+  resolve({ content: 'Contenu privé' });
+  await loading;
+  assert.equal(context.document.getElementById('senior-shopping-content').value, '');
+});
+
+test('shopping list is sent only to selected contacts and not automatically saved', async () => {
+  const elements = new Map(), requests = [];
+  function element(id) {
+    if (!elements.has(id)) elements.set(id, {
+      value: '', textContent: '', disabled: false, events: {},
+      addEventListener(type, handler) { this.events[type] = handler; }
+    });
+    return elements.get(id);
+  }
+  const context = {
+    shoppingListRevision: 0, shoppingListLoaded: true, connectedUser: { id: 'senior', role: 'senior' },
+    document: { getElementById: element, querySelectorAll: () => [{ value: 'chosen' }] },
+    seniorLinksRequest: async (url, options) => { requests.push({ url, options }); },
+    planningRequest: async () => { throw new Error('Unexpected save'); }
+  };
+  const start = source.lastIndexOf("        document.getElementById('senior-shopping-details').addEventListener");
+  const end = source.indexOf("        document.getElementById('reg-role')", start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(source.slice(start, end), context);
+  element('senior-shopping-content').value = 'Pain\nPommes';
+  const button = element('senior-shopping-send');
+  await button.events.click({ currentTarget: button });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].url, '/api/messages/multiple');
+  assert.equal(requests[0].options.body.message, 'Liste de courses :\nPain\nPommes');
+  assert.deepEqual(Array.from(requests[0].options.body.recipients), ['chosen']);
+  assert.equal(element('senior-shopping-status').textContent, 'Liste envoyée par message.');
 });

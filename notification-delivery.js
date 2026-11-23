@@ -53,6 +53,16 @@ async function sendPasswordResetEmail(email, url) {
   if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
 }
 
+async function sendAdministrativeActivation(email, url) {
+  const result = await getResendClient().emails.send({
+    from: process.env.NOTIFICATIONS_FROM_EMAIL,
+    to: email,
+    subject: 'Activation de votre compte Génération Liaison',
+    text: `L’administration a créé un compte à votre adresse. Pour l’activer, choisissez votre mot de passe et acceptez les conditions en ouvrant ce lien dans les 15 minutes :\n\n${url}\n\nSi le lien a expiré, demandez-en un autre depuis « Mot de passe oublié ». Si vous ne souhaitez pas utiliser ce compte, ignorez cet e-mail et contactez l’administration.`
+  });
+  if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
+}
+
 async function sendSeniorUnlinkCode(email, code) {
   const result = await getResendClient().emails.send({
     from: process.env.NOTIFICATIONS_FROM_EMAIL,
@@ -72,6 +82,19 @@ async function sendSeniorInvitation(email, appUrl) {
       `Vous pouvez ouvrir l’application en ligne ou trouver les indications pour la télécharger ici :\n${appUrl}\n\n` +
       `Si un proche demande accès à votre profil, vous restez libre d’accepter ou de refuser dans votre espace. ` +
       `Si vous ne souhaitez pas utiliser l’application, vous pouvez ignorer ce message.`
+  });
+  if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
+}
+
+async function sendRegistrationInvitation(email, appUrl, role) {
+  const result = await getResendClient().emails.send({
+    from: process.env.NOTIFICATIONS_FROM_EMAIL,
+    to: email,
+    subject: 'Invitation à créer votre compte Génération Liaison',
+    text: `L’administration vous invite à créer votre compte Génération Liaison :\n\n${appUrl}\n\n` +
+      `${role === 'establishment' ? 'Choisissez « Entreprise / résidence » comme type de compte.' : 'Choisissez votre type de compte.'} ` +
+      `Choisissez votre mot de passe, puis acceptez les conditions si vous souhaitez vous inscrire. ` +
+      `Cette invitation ne crée pas de compte et ne donne aucun accès à un dossier. Si vous ne souhaitez pas vous inscrire, ignorez ce message.`
   });
   if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
 }
@@ -134,7 +157,7 @@ async function sendPush(delivery) {
   const notification = externalNotification(delivery.notification_type);
 
   const nativeTokens = subscriptions
-    .filter(subscription => subscription.platform === 'android' || subscription.platform === 'ios')
+    .filter(subscription => subscription.platform === 'android')
     .map(subscription => subscription.token);
   const webSubscriptions = subscriptions
     .filter(subscription => subscription.platform === 'web')
@@ -157,7 +180,7 @@ async function sendPush(delivery) {
       .map(({ token }) => token);
     if (invalidTokens.length) {
       await delivery.pool.query(
-        'DELETE FROM app_push_subscriptions WHERE platform IN (\'android\', \'ios\') AND token = ANY($1)',
+        'DELETE FROM app_push_subscriptions WHERE platform = \'android\' AND token = ANY($1)',
         [invalidTokens]
       );
     }
@@ -196,10 +219,19 @@ async function sendPush(delivery) {
     }
   }
 
-  return true;
+  return nativeTokens.length > 0 || webSubscriptions.length > 0;
 }
 
 async function deliver(delivery) {
+  if (delivery.notification_type === 'birthday_reminder') {
+    const { rows } = await delivery.pool.query(
+      `SELECT 1 FROM app_personal_events event
+       JOIN app_users owner ON owner.id = event.owner_user_id AND owner.is_active = TRUE
+       WHERE event.id = $2 AND event.owner_user_id = $1 AND event.birth_date IS NOT NULL`,
+      [delivery.user_id, delivery.entity_id]
+    );
+    if (!rows.length) return false;
+  }
   if (delivery.notification_type === 'task_reminder') {
     const { rows } = await delivery.pool.query(
       `SELECT 1 FROM app_shared_tasks task
@@ -213,6 +245,22 @@ async function deliver(delivery) {
        WHERE task.id = $2 AND NOT task.completed
          AND task.due_date = (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Paris')::date
          AND (task.assignee_user_id IS NULL OR task.assignee_user_id = aidant.id)`,
+      [delivery.user_id, delivery.entity_id]
+    );
+    if (!rows.length) return false;
+  }
+  if (delivery.notification_type === 'task_assignment') {
+    const { rows } = await delivery.pool.query(
+      `SELECT 1 FROM app_shared_tasks task
+       JOIN app_shared_directory entry ON entry.senior_id = task.senior_id
+         AND entry.professional_user_id = task.assignee_user_id
+       JOIN app_users senior ON senior.senior_id = task.senior_id
+         AND senior.role = 'senior' AND senior.is_active = TRUE
+       JOIN app_users professional ON professional.id = task.assignee_user_id
+         AND professional.role = 'pro' AND professional.is_active = TRUE
+         AND professional.verification_status = 'approved' AND professional.directory_listed = TRUE
+         AND professional.home_latitude IS NOT NULL AND professional.home_longitude IS NOT NULL
+       WHERE task.id = $2 AND task.assignee_user_id = $1 AND NOT task.completed`,
       [delivery.user_id, delivery.entity_id]
     );
     if (!rows.length) return false;
@@ -359,7 +407,9 @@ module.exports = {
   isConfigured,
   publicConfiguration,
   sendPasswordResetEmail,
+  sendAdministrativeActivation,
   sendSeniorUnlinkCode,
   sendSeniorInvitation,
+  sendRegistrationInvitation,
   startDeliveryWorker
 };

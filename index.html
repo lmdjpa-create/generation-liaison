@@ -3,15 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Génération Liaison accompagne les seniors, leurs aidants et les professionnels : échanges, rendez-vous, suivi du quotidien et services de proximité." />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement, leurs proches et les intervenants. Gratuit au lancement." />
   <link rel="canonical" href="https://generation-liaison.fr/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Génération Liaison — Bien entouré, mieux accompagné" />
-  <meta property="og:description" content="Des outils pour faciliter les échanges entre seniors, aidants et professionnels, et mieux accompagner le quotidien." />
+  <meta property="og:title" content="Génération Liaison : carnet de liaison pour tous" />
+  <meta property="og:description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement, leurs proches et les intervenants. Gratuit au lancement." />
   <meta property="og:url" content="https://generation-liaison.fr/" />
-  <title>Génération Liaison — Bien entouré, mieux accompagné</title>
+  <title>Génération Liaison : carnet de liaison pour tous</title>
   <script src="/language.js" defer></script>
   <script src="/help-bubbles.js" defer></script>
+  <script src="/homepage-analytics.js" defer></script>
   <style>
     :root {
       --bg: #f4f7f6;
@@ -815,6 +817,26 @@
       margin: 0 auto 24px;
     }
 
+    .landing-interface-preview {
+      max-width: 320px;
+      margin: 0 auto 20px;
+    }
+
+    .landing-interface-preview img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+    }
+
+    .landing-interface-details summary {
+      color: var(--primary-dark);
+      cursor: pointer;
+      font-weight: 700;
+      margin: 0 0 14px;
+    }
+
     .journal-preview {
       display: grid;
       gap: 12px;
@@ -861,7 +883,8 @@
       border-radius: 16px;
     }
 
-    .landing-preview figcaption {
+    .landing-preview figcaption,
+    .landing-interface-preview figcaption {
       margin-top: 10px;
       color: #53665c;
       font-size: 0.9rem;
@@ -961,6 +984,8 @@
       line-height: 1.6;
     }
 
+    .info-card p + p { margin-top: 12px; }
+
     .info-card summary {
       min-height: 56px;
       display: flex;
@@ -987,8 +1012,64 @@
       object-fit: cover;
     }
 
+    .establishment-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .establishment-overview article {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #f7faf8;
+    }
+
+    .establishment-overview h3 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; }
+    .establishment-overview p { margin: 0; color: #53665c; line-height: 1.5; }
+    .establishment-access { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+
+    .landing-disclosure > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 52px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #f7faf8;
+      color: var(--primary-dark);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .landing-disclosure > summary::after { content: "+"; font-size: 1.5rem; }
+    .landing-disclosure[open] > summary::after { content: "−"; }
+    .landing-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+    .landing-disclosure > summary + * { margin-top: 16px; }
+
+    .landing :is(h1, h2, h3, h4, h5, h6, summary, .journal-preview-title) { text-align: center; }
+    .info-card summary, .landing-disclosure > summary {
+      position: relative;
+      justify-content: center;
+      padding-left: 36px;
+      padding-right: 36px;
+    }
+    .info-card summary::after, .landing-disclosure > summary::after {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
     .landing-info a {
       color: var(--primary-dark);
+    }
+
+    .landing-info a.landing-login {
+      color: #fff;
     }
 
     .landing-info .info-note {
@@ -1043,10 +1124,18 @@
     }
 
     .install-steps p { margin: 0; }
+    .install-guide .install-android-note { margin: 14px 0 0; }
 
     .landing-info.privacy-highlight {
       border-color: #b7d9c7;
       background: #f4faf6;
+    }
+
+    .landing-reassurance {
+      margin: 18px 0 0;
+      color: var(--primary-dark);
+      line-height: 1.6;
+      font-size: 0.9rem;
     }
 
     .privacy-highlight p:last-child {
@@ -1069,6 +1158,37 @@
 
     .return-home:hover {
       background: #f5f9f6;
+    }
+
+    .analytics-consent {
+      position: fixed;
+      z-index: 100;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 18px;
+      background: #fff;
+      border-top: 2px solid #156c4f;
+      box-shadow: 0 -4px 18px rgba(0, 0, 0, .15);
+      color: #20313c;
+    }
+    .analytics-consent[hidden] { display: none; }
+    .analytics-consent p { margin: 0 0 12px; }
+    .analytics-consent-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+    .analytics-consent button, .analytics-settings {
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 2px solid #156c4f;
+      border-radius: 8px;
+      background: #fff;
+      color: #156c4f;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .analytics-consent button:focus-visible, .analytics-settings:focus-visible {
+      outline: 3px solid #163b72;
+      outline-offset: 3px;
     }
 
     @media (max-width: 560px) {
@@ -1097,12 +1217,34 @@
             <span class="brand-badge" aria-hidden="true">🤝</span>
             <span>Génération Liaison</span>
           </div>
-          <p class="landing-kicker">Le lien au quotidien</p>
-          <h1 id="landing-title">Coordination et sérénité entre seniors, proches et professionnels.</h1>
-          <p class="landing-description">Pour les familles et les aidants : gardez le lien avec votre parent, retrouvez les nouvelles et les rendez-vous, et découvrez les services à domicile, même à distance.</p>
+          <p class="landing-kicker">Le lien au quotidien entre générations</p>
+          <h1 id="landing-title">Un carnet de liaison pour les proches, les intervenants et les établissements</h1>
+          <details class="landing-disclosure">
+            <summary>À qui s’adresse Génération Liaison ?</summary>
+            <p class="landing-description">Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.</p>
+            <p class="landing-reassurance">✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation</p>
+          </details>
           <a class="landing-login" href="/app-mobile.html#inscription">Créer un espace gratuitement <span aria-hidden="true">→</span></a>
-          <a class="landing-app-link" href="#exemple-carnet">Voir un exemple de carnet</a>
+          <a class="landing-app-link" href="#exemple-carnet" onclick="ouvrirRubriqueAccueil('exemple-carnet-details')">Voir un exemple de carnet</a>
+          <a class="landing-app-link" href="#entreprises" onclick="ouvrirRubriqueAccueil('entreprises-details')">Découvrir l’espace entreprises et résidences</a>
         </div>
+        <div>
+        <details class="landing-disclosure">
+        <summary>Voir les aperçus de l’interface senior</summary>
+        <figure class="landing-interface-preview">
+          <img src="/homepage-images/apercu-espace-proche.png" width="480" height="415" alt="Espace Proche de l’interface senior : boutons Notifications et messages, Contacts et Jeux gratuits." />
+          <figcaption>Capture en français de l’espace Proche de l’interface senior.</figcaption>
+        </figure>
+        <details class="landing-interface-details">
+        <summary>Voir aussi la vue simplifiée</summary>
+        <figure class="landing-interface-preview">
+          <img src="/homepage-images/apercu-accueil-senior.png" width="480" height="575" alt="Accueil senior en vue simplifiée : notifications et messages, journal, rendez-vous et contacts." />
+          <figcaption>Capture en français de la vue simplifiée activée par défaut, avec des données fictives.</figcaption>
+        </figure>
+        </details>
+        </details>
+        <details class="landing-disclosure" id="exemple-carnet-details">
+        <summary>Exemple de carnet de liaison</summary>
         <figure class="landing-preview" id="exemple-carnet">
           <div class="journal-preview" role="group" aria-label="Exemple fictif de carnet de liaison">
             <div class="journal-preview-title">Exemple de carnet de liaison</div>
@@ -1111,65 +1253,122 @@
               <p>La promenade de cet après-midi est prévue avec un proche.</p>
             </article>
             <article class="journal-preview-entry">
-              <strong>Un soignant · Aujourd’hui à 8 h 15</strong>
+              <strong>Un intervenant à domicile · Aujourd’hui à 8 h 15</strong>
               <p>Le prochain rendez-vous est confirmé.</p>
             </article>
           </div>
           <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
         </figure>
+        </details>
+        </div>
       </div>
     </section>
 
     <section class="landing-info privacy-highlight" aria-labelledby="privacy-title">
-      <h2 id="privacy-title">Confidentialité, RGPD et données de santé</h2>
+      <details class="landing-disclosure">
+      <summary id="privacy-title">Vos échanges restent privés et sécurisés</summary>
       <p>La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées.</p>
-      <p>Le senior accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Certaines transmissions professionnelles sont enregistrées dans l’espace prévu à cet effet.</p>
+      <p>La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Le partage avec les soignants de l’établissement nécessite l’accord du résident ou de son représentant légal vérifié. Le carnet sert aux nouvelles du quotidien, pas aux données de santé.</p>
+      <p>Aucun outil statistique ou publicitaire n’est installé dans les espaces connectés. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.</p>
       <p>Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la <a href="/privacy-policy.html">politique de confidentialité</a> pour connaître vos droits et les prestataires concernés.</p>
+      </details>
+      <p>Bon à savoir : Génération Liaison facilite l’organisation de la vie sociale et du quotidien. Il ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.</p>
     </section>
 
     <section class="landing-info" id="presentation" aria-labelledby="presentation-title">
-      <h2 id="presentation-title">Un lien pour mieux accompagner le quotidien</h2>
+      <h2 id="presentation-title">Un espace pour les personnes accompagnées, leurs proches et les professionnels</h2>
       <div class="info-grid">
         <details class="info-card">
-          <summary>Pour les seniors</summary>
+          <summary>Pour les personnes accompagnées</summary>
           <div class="gl-help-bubble">
-          <p>Retrouvez un espace pour échanger avec vos proches et les professionnels autorisés, consulter vos rendez-vous et accéder aux services du quotidien.</p>
+          <h3>Restez entouré en toute simplicité</h3>
+          <p>Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.</p>
+          <p>Accédez à vos messages, vos prochains rendez-vous et vos jeux gratuits depuis une interface claire. La vue simplifiée est activée par défaut ; vous pouvez afficher toutes les fonctions dans les réglages.</p>
+          <a href="/presentation-senior.html">Découvrir la présentation</a>
           </div>
         </details>
         <details class="info-card">
           <summary>Pour les proches et aidants</summary>
           <div class="gl-help-bubble">
-          <p>Gardez le lien grâce au carnet de liaison et aux informations partagées avec vous, et suivez les rendez-vous et les notifications selon vos accès.</p>
+          <h3>Gardez l’esprit léger, même à distance</h3>
+          <p>Consultez le carnet de liaison partagé, recevez des notifications utiles et organisez les visites autour de votre proche, selon vos accès.</p>
+          <a href="/presentation-proches.html">Découvrir la présentation</a>
           </div>
         </details>
         <details class="info-card">
           <summary>Pour les professionnels</summary>
           <div class="gl-help-bubble">
-          <p>Échangez avec les personnes autorisées, contribuez au suivi du quotidien et gérez les demandes et rendez-vous qui vous concernent.</p>
+          <h3>Valorisez vos interventions à domicile</h3>
+          <p>Coiffeurs, aides ménagères ou prestataires de services : confirmez vos passages, échangez avec les personnes autorisées et simplifiez la gestion de vos rendez-vous auprès des familles.</p>
+          <a href="/presentation-intervenants.html">Découvrir la présentation</a>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Pour les entreprises et résidences</summary>
+          <div class="gl-help-bubble">
+          <h3>Un espace dédié à la direction</h3>
+          <p>Retrouvez les résidents, soignants et intervenants dans des tableaux séparés, et gérez les comptes individuels des résidents et des soignants.</p>
+          <a href="/presentation-residences.html">Découvrir la présentation</a>
           </div>
         </details>
       </div>
     </section>
 
+    <section class="landing-info" id="entreprises" aria-labelledby="establishment-title">
+      <details class="landing-disclosure" id="entreprises-details">
+      <summary id="establishment-title">Entreprises et résidences : un espace pour la direction</summary>
+      <p>Organisez les accès de votre établissement et gardez le lien avec les résidents et leurs proches, dans le respect des autorisations de chacun.</p>
+      <div class="establishment-overview" aria-label="Les trois tableaux de l’espace directeur">
+        <article><h3>Résidents</h3><p>Avec leur accord, créez leurs accès individuels, même sans adresse e-mail.</p></article>
+        <article><h3>Soignants</h3><p>Créez leurs comptes et gérez leurs accès à l’établissement.</p></article>
+        <article><h3>Intervenants</h3><p>Retrouvez leurs coordonnées dans un tableau distinct.</p></article>
+      </div>
+      <p>Le résident ou son représentant légal vérifié choisit le partage du carnet de liaison avec les soignants. La direction ne consulte pas les carnets ni les messages privés. Le carnet est réservé aux nouvelles du quotidien, sans données de santé.</p>
+      <p>L’accès de l’établissement est activé manuellement par l’administration. Un abonnement est envisagé, avec une grille tarifaire et des options de tablettes indicatives ; aucun paiement en ligne n’est effectué.</p>
+      </details>
+      <div class="establishment-access">
+        <a class="landing-login" href="/app-mobile.html#inscription">Créer un compte établissement</a>
+        <span>Lors de l’inscription, choisissez « Entreprise / résidence ».</span>
+      </div>
+    </section>
+
     <section class="landing-info" aria-labelledby="features-title">
-      <h2 id="features-title">Des outils pour rester en lien</h2>
+      <h2 id="features-title">Tout le quotidien réuni dans un seul carnet</h2>
       <div class="info-grid">
         <details class="info-card">
           <summary>Carnet de liaison</summary>
           <div class="gl-help-bubble">
-          <p>Partagez des notes et des informations utiles au quotidien avec les personnes autorisées.</p>
+          <p>Notez les petits événements de la journée, les promenades prévues ou les passages à domicile. Les personnes autorisées retrouvent les informations partagées dans leur carnet.</p>
           </div>
         </details>
         <details class="info-card">
           <summary>Rendez-vous et services</summary>
           <div class="gl-help-bubble">
-          <p>Retrouvez les rendez-vous et découvrez des services pour faciliter le quotidien, indépendants du suivi médical.</p>
+          <p>Visualisez les rendez-vous à venir et découvrez des services de confort à domicile, comme la coiffure, pour faciliter la vie de tous les jours.</p>
           </div>
         </details>
         <details class="info-card">
           <summary>Notifications et assistance</summary>
           <div class="gl-help-bubble">
-          <p>Choisissez vos notifications et laissez-vous guider dans l’application par l’assistant.</p>
+          <p>Choisissez les alertes qui comptent pour vous et laissez-vous guider dans l’application grâce à l’assistant intégré.</p>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Les informations du jour</summary>
+          <div class="gl-help-bubble">
+          <p>Dans « Aujourd’hui », retrouvez les informations accessibles à votre compte, comme les rendez-vous, les tâches et les messages, présentées en bulles colorées.</p>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Tâches du quotidien</summary>
+          <div class="gl-help-bubble">
+          <p>Le senior et ses aidants associés peuvent préparer des tâches et les attribuer à un intervenant enregistré dans leur annuaire partagé. L’intervenant reçoit une notification dans l’application, ne voit que les tâches qui lui sont confiées et peut indiquer qu’elles sont terminées. L’attribution ne vaut pas accord de sa part.</p>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Liste de courses</summary>
+          <div class="gl-help-bubble">
+          <p>Le senior peut enregistrer une liste de courses privée et, s’il le souhaite, en envoyer une copie par message aux personnes choisies. Une copie envoyée ne se met pas à jour automatiquement.</p>
           </div>
         </details>
       </div>
@@ -1178,6 +1377,11 @@
 
     <section class="landing-info" aria-labelledby="daily-life-title">
       <h2 id="daily-life-title">Accompagnement et services du quotidien</h2>
+      <details class="landing-disclosure">
+      <summary>Informations sur les prestataires</summary>
+      <p>Les services disponibles dépendent des équipes associées et de leur disponibilité. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.</p>
+      <p>L’assurance et la qualité des prestations ne sont pas vérifiées par l’application. Demandez les justificatifs et un devis au prestataire avant de vous engager.</p>
+      </details>
       <div class="info-grid">
         <details class="info-card">
           <summary>Garder le lien au quotidien</summary>
@@ -1197,25 +1401,40 @@
     </section>
 
     <section class="landing-info" aria-labelledby="pricing-title">
-      <h2 id="pricing-title">Combien ça coûte ?</h2>
+      <details class="landing-disclosure">
+      <summary id="pricing-title">Profitez gratuitement de toutes les fonctionnalités</summary>
       <p>Pendant notre phase de lancement, toutes les fonctionnalités disponibles dans l’application sont gratuites. Aucun abonnement ni paiement n’est proposé.</p>
       <p>Les prestations à domicile sont indépendantes de l’application et peuvent être facturées par le prestataire.</p>
-      <p>Les tarifs futurs sont à l’étude et ne sont pas appliqués. <a href="/cgv.html">Consulter le projet de tarifs et les conditions de vente</a>.</p>
+      <p>Les tarifs futurs sont à l’étude et ne sont pas appliqués. Toute formule payante future fera l’objet d’une information claire et préalable. <a href="/cgv.html">Consulter le projet de tarifs et les conditions de vente</a>.</p>
+      </details>
+      <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
     </section>
 
     <section class="landing-info" aria-labelledby="questions-title">
-      <h2 id="questions-title">Questions fréquentes</h2>
+      <h2 id="questions-title">Vos questions, nos réponses</h2>
       <div class="info-grid">
         <details class="info-card">
-          <summary>Mon parent n’est pas à l’aise avec Internet, comment faire ?</summary>
+          <summary>Mon proche n’est pas à l’aise avec Internet, comment faire ?</summary>
           <div class="gl-help-bubble">
-          <p>Un proche peut l’aider à créer son compte et à ajouter le site à l’écran d’accueil de son téléphone. L’application fonctionne dans un navigateur et nécessite une connexion Internet.</p>
+          <p>Un proche peut l’aider à créer son compte, activer la vue simplifiée et ajouter le site à l’écran d’accueil de son téléphone ou de sa tablette. L’application fonctionne dans un navigateur et nécessite une connexion Internet.</p>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Faut-il télécharger une application sur téléphone ?</summary>
+          <div class="gl-help-bubble">
+          <p>Non, Génération Liaison fonctionne directement dans un navigateur Internet. Sur Android, une application est aussi disponible au téléchargement. Sur iPhone, utilisez « Partager » dans Safari puis « Ajouter à l’écran d’accueil ».</p>
+          </div>
+        </details>
+        <details class="info-card">
+          <summary>Comment sont sélectionnés les prestataires à domicile ?</summary>
+          <div class="gl-help-bubble">
+          <p>Avant d’activer un compte professionnel, l’administration examine la pièce d’identité et le Kbis de l’intervenant. Demandez un devis et une attestation d’assurance au professionnel avant votre premier rendez-vous.</p>
           </div>
         </details>
         <details class="info-card">
           <summary>Combien de proches peut-on associer à un carnet ?</summary>
           <div class="gl-help-bubble">
-          <p>Plusieurs proches peuvent demander l’accès : le senior doit accepter chaque demande. Il n’y a pas de plafond fixe dans l’application ; un message groupé peut être envoyé à 20 correspondants au maximum.</p>
+          <p>Plusieurs proches peuvent demander l’accès : la personne accompagnée doit accepter chaque demande. Il n’y a pas de plafond fixe dans l’application ; un message groupé peut être envoyé à 20 correspondants au maximum.</p>
           </div>
         </details>
         <details class="info-card">
@@ -1229,43 +1448,68 @@
 
     <section class="landing-card" id="connexion" aria-labelledby="connexion-title">
       <h2 id="connexion-title">Accéder à Génération Liaison</h2>
-      <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
+      <details class="landing-disclosure">
+      <summary>Comment accéder à l’application ?</summary>
+      <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
+      <p class="landing-note">Sur iPhone, utilisez le site dans Safari : aucune application iOS native n’est proposée. Vous pouvez ajouter un raccourci à l’écran d’accueil en suivant les étapes ci-dessous.</p>
       <div class="install-guide" aria-labelledby="install-guide-title">
-        <h3 id="install-guide-title">Retrouver le site sur l’écran d’accueil</h3>
-        <p>Sans télécharger de fichier, vous pouvez ajouter un raccourci sur votre téléphone. Les menus et leurs noms peuvent varier selon le navigateur.</p>
+        <h3 id="install-guide-title">Sur iPhone : ajouter le site à l’écran d’accueil</h3>
+        <p>Ce raccourci ouvre le site : il ne s’agit pas d’une application téléchargée. Les menus peuvent varier selon la version d’iOS.</p>
         <ol class="install-steps">
           <li>
             <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="11" y="3" width="26" height="42" rx="5" fill="#e2f1e7" stroke="#156c4f" stroke-width="2"/><path d="M17 16h14M17 22h14M17 28h9" fill="none" stroke="#156c4f" stroke-width="2" stroke-linecap="round"/></svg>
-            <strong>1. Ouvrez le site</strong>
-            <p>Sur votre téléphone, ouvrez Génération Liaison dans votre navigateur.</p>
+            <strong>1. Ouvrez Safari</strong>
+            <p>Sur votre iPhone, ouvrez Génération Liaison dans Safari.</p>
           </li>
           <li>
             <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="3" y="5" width="19" height="38" rx="4" fill="#e2f1e7"/><circle cx="13" cy="14" r="2" fill="#156c4f"/><circle cx="13" cy="22" r="2" fill="#156c4f"/><circle cx="13" cy="30" r="2" fill="#156c4f"/><rect x="26" y="5" width="19" height="38" rx="4" fill="#e2f1e7"/><path d="M35.5 28V13m-4 4 4-4 4 4M30 23v9h11v-9" fill="none" stroke="#156c4f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-            <strong>2. Ouvrez le menu</strong>
-            <p>Sur Android, touchez les trois points du navigateur. Sur iPhone, dans Safari, touchez le bouton Partager (carré avec une flèche).</p>
+            <strong>2. Touchez Partager</strong>
+            <p>Touchez le bouton Partager : le carré avec une flèche vers le haut.</p>
           </li>
           <li>
             <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="8" y="8" width="32" height="32" rx="7" fill="#e2f1e7" stroke="#156c4f" stroke-width="2"/><path d="M24 16v16M16 24h16" fill="none" stroke="#156c4f" stroke-width="3" stroke-linecap="round"/></svg>
             <strong>3. Ajoutez le raccourci</strong>
-            <p>Choisissez « Ajouter à l’écran d’accueil » ou « Installer l’application », puis confirmez si demandé.</p>
+            <p>Choisissez « Ajouter à l’écran d’accueil », puis touchez « Ajouter ». Faites défiler le menu si nécessaire.</p>
           </li>
         </ol>
+        <p class="install-android-note">Sur Android, vous pouvez aussi utiliser le menu à trois points de votre navigateur pour ajouter le site à l’écran d’accueil, ou télécharger l’application ci-dessous.</p>
       </div>
+      </details>
       <a class="landing-download-link" href="/app-generation-liaison.apk" download>
         Télécharger l’application Android
       </a>
       <p class="landing-note"><a href="/aide-installation-android.html">Besoin d’aide pour installer l’application Android ?</a></p>
+      <details class="landing-disclosure">
+      <summary>Aide et informations légales</summary>
+      <p class="landing-note">Une question ou besoin d’aide pour démarrer ? Écrivez-nous à <a href="mailto:mail@generation-liaison.fr">mail@generation-liaison.fr</a>.</p>
       <p class="landing-note">
         <a href="/cgu.html#mentions-legales">Mentions légales</a> ·
         <a href="/cgu.html">Conditions d’utilisation</a> ·
-        <a href="/cgv.html">Tarifs et CGV</a> ·
-        <a href="/privacy-policy.html">Confidentialité</a>
+        <a href="/cgv.html">Projet de tarifs et CGV</a> ·
+        <a href="/privacy-policy.html">Politique de confidentialité</a>
       </p>
+      </details>
+      <button type="button" class="analytics-settings" id="analytics-settings">Gestion des cookies</button>
     </section>
   </main>
 
+  <section class="analytics-consent" id="analytics-consent" aria-labelledby="analytics-consent-title" hidden>
+    <h2 id="analytics-consent-title" tabindex="-1">Mesure de fréquentation</h2>
+    <p>Avec votre accord, Google Analytics mesure les visites de cette page. Des cookies et des données techniques, dont votre adresse IP, sont transmis à Google. Aucun suivi n’est installé dans les espaces connectés. Vous pouvez refuser ou changer votre choix à tout moment. <a href="/privacy-policy.html#cookies">En savoir plus</a>.</p>
+    <div class="analytics-consent-actions">
+      <button type="button" id="analytics-accept">Accepter</button>
+      <button type="button" id="analytics-reject">Refuser</button>
+    </div>
+    <p id="analytics-status" role="status" aria-live="polite"></p>
+  </section>
+
   <script>
+    function ouvrirRubriqueAccueil(id) {
+      const rubrique = document.getElementById(id);
+      if (rubrique) rubrique.open = true;
+    }
+
     function redirectLegacyDashboard() {
       if (window.location.hash === '#dashboard') {
         window.location.replace('/app-mobile.html');

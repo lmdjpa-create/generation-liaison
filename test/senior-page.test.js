@@ -144,10 +144,12 @@ test('automatic senior narration selects only the requested categories on each s
   const screens = {
     'screen-senior': {
       'date-senior': 'Lundi',
-      'senior-weather-status': 'Soleil',
-      'senior-next-visit-text': 'Visite demain',
       'assistant-messages': 'Conversation privée',
       'wellbeing-checkin-result': 'Bilan'
+    },
+    'screen-informations-senior': {
+      'senior-weather-status': 'Soleil',
+      'senior-next-visit-text': 'Visite demain'
     },
     'screen-more': { 'senior-journal-list': 'Nouvelle du journal' },
     'screen-messages': {
@@ -185,7 +187,8 @@ test('automatic senior narration selects only the requested categories on each s
     timers.pop()();
   }
   assert.deepEqual(spoken, [
-    'Lundi. Soleil. Visite demain',
+    'Lundi',
+    'Soleil. Visite demain',
     'Nouvelle du journal',
     'Notification. Message',
     'Rendez-vous',
@@ -355,7 +358,12 @@ test('quick replies send only to the selected contact, keep the draft, and repor
   assert.equal(calls.length, 3);
 });
 
-test('simplified senior view is optional, scoped to the account and clears hidden recipients', () => {
+test('removed presentation choice cannot be restored from an old preference', () => {
+  assert.doesNotMatch(source, /Présentation douce|settings-presentation|presentation-jardin|generation-liaison-presentation-/);
+  assert.match(source, /id="settings-senior-display"/);
+});
+
+test('simplified view defaults on per account and preserves explicit choices', () => {
   const classes = new Set(), values = new Map(), selected = [{ checked: true }, { checked: true }];
   const context = {
     connectedUser: { id: 'alice', role: 'senior' },
@@ -368,19 +376,77 @@ test('simplified senior view is optional, scoped to the account and clears hidde
   };
   vm.runInNewContext(extract('    function initialiserVueSenior(user)', '    async function setAuthenticatedView(user)'), context);
   context.initialiserVueSenior(context.connectedUser);
-  assert.equal(classes.has('senior-simple'), false);
-  context.changerVueSenior(true);
   assert.equal(classes.has('senior-simple'), true);
+  assert.equal(classes.has('simple-mode'), true);
   assert.ok(selected.every(input => !input.checked));
+  context.changerVueSenior(true);
   assert.equal(values.get('generation-liaison-senior-simple-alice'), 'true');
   context.initialiserVueSenior({ id: 'bob', role: 'senior' });
-  assert.equal(classes.has('senior-simple'), false);
+  assert.equal(classes.has('senior-simple'), true);
   context.initialiserVueSenior({ id: 'alice', role: 'aidant' });
   assert.equal(classes.has('senior-simple'), false);
+  assert.equal(classes.has('simple-mode'), true);
   context.initialiserVueSenior(context.connectedUser);
   context.changerVueSenior(false);
   assert.equal(classes.has('senior-simple'), false);
+  assert.equal(classes.has('simple-mode'), false);
   assert.equal(values.get('generation-liaison-senior-simple-alice'), 'false');
+  context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('senior-simple'), false);
+  context.connectedUser = { id: 'helper', role: 'aidant' };
+  context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('simple-mode'), true);
+  context.changerVueSimplifiee(false);
+  assert.equal(classes.has('simple-mode'), false);
+  assert.equal(values.get('generation-liaison-simple-helper'), 'false');
+  context.initialiserVueSenior({ id: 'other', role: 'pro' });
+  assert.equal(classes.has('simple-mode'), true);
+  context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('simple-mode'), false);
+  context.changerVueSimplifiee(true);
+  assert.equal(classes.has('simple-mode'), true);
+  for (const role of ['pro', 'establishment', 'staff']) {
+    context.connectedUser = { id: role, role };
+    context.initialiserVueSenior(context.connectedUser);
+    assert.equal(classes.has('simple-mode'), true, `${role} defaults to simplified view`);
+    assert.equal(classes.has('senior-simple'), false);
+    context.changerVueSimplifiee(false);
+    context.initialiserVueSenior(context.connectedUser);
+    assert.equal(classes.has('simple-mode'), false, `${role} retains the choice`);
+  }
+});
+
+test('all account types can adjust the simplified display without hiding emergency controls', () => {
+  const settings = extract('<div id="screen-settings"', '<div id="screen-agenda"');
+  assert.match(settings, /id="settings-senior-display"[\s\S]*Affichage senior[\s\S]*changerVueSenior\(false\)/);
+  assert.match(settings, /id="settings-simple-display"[\s\S]*changerVueSimplifiee\(false\)/);
+  for (const [start, end] of [['screen-establishment', 'screen-staff'], ['screen-staff', 'screen-aidant']]) {
+    const section = extract(`<div id="${start}"`, `<div id="${end}"`);
+    assert.match(section, /Réglages d’affichage[\s\S]*changerVueSimplifiee\(false\)/);
+  }
+  assert.match(source, /body\.simple-mode \.screen-container \{ font-size: 1\.1rem/);
+  assert.doesNotMatch(source, /body\.simple-mode[^{]*emergency-call-card[^{]*\{[^}]*display:\s*none/);
+});
+
+test('daily journals center their entries and keep concise safety notices', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const journal = extract(`id="${role}-journal-details"`, '</details>');
+    assert.match(journal, new RegExp(`id="${role}-journal-list"`));
+    assert.doesNotMatch(journal, /Archive des nouvelles|Le nom de l’auteur|État et étapes de vos visites/);
+    assert.match(journal, /ne surveille pas|ne remplace pas un dossier médical/);
+  }
+  assert.match(source, /:is\(#senior-journal-list, #aidant-journal-list, #pro-journal-list\) \.progress-item\s*\{\s*text-align:\s*center/);
+  assert.match(extract('id="senior-journal-details"', '</details>'), /Avant d’imprimer/);
+  assert.match(extract('id="aidant-journal-details"', '</details>'), /Avant d’imprimer/);
+});
+
+test('journal buttons share centered typography and link to timed help for each role', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`<details class="senior-explanation journal-help" data-help-for="#${role}-journal-details > summary">[\\s\\S]*?<div class="gl-help-bubble">`));
+  }
+  assert.match(source, /:is\(#senior-journal-details, #aidant-journal-details, #pro-journal-details\) > summary\s*\{[^}]*align-items:\s*center;[^}]*font-size:\s*1\.125rem;/);
+  assert.match(source, /\.journal-help\[data-help-enhanced\] > summary \{ display: none; \}/);
+  assert.match(source, /@media \(hover: none\) \{\s*\.screen-container \.journal-help\[data-help-enhanced\] > summary/);
 });
 
 test('simplified journal shortcut opens the senior journal without hiding safety follow-up', () => {
@@ -550,6 +616,19 @@ test('games have named controls and are available in the senior full view', () =
   assert.match(games, /Rien n’est enregistré ni partagé/);
   assert.equal((games.match(/class="game-choice(?: riddle-choice)?"/g) || []).length, 17);
   assert.equal((games.match(/class="game-choice riddle-choice"/g) || []).length, 4);
+  const facile = games.slice(games.indexOf('<span>Niveau facile</span>'), games.indexOf('<span>Niveau intermédiaire</span>'));
+  const intermediaire = games.slice(games.indexOf('<span>Niveau intermédiaire</span>'), games.indexOf('<span>Niveau avancé</span>'));
+  const avance = games.slice(games.indexOf('<span>Niveau avancé</span>'));
+  for (const nom of ['Les couleurs', 'Petits calculs', 'Devinettes']) assert.ok(facile.includes(`<summary>${nom}</summary>`));
+  for (const nom of ['Morpion', 'Jeu des paires', 'Deviner le nombre', 'Sudoku 6 × 6']) assert.ok(intermediaire.includes(`<summary>${nom}</summary>`));
+  for (const nom of ['Sudoku 9 × 9', 'Suites logiques', 'Mots mêlés']) assert.ok(avance.includes(`<summary>${nom}</summary>`));
+  assert.ok(!avance.includes('<summary>Sudoku 6 × 6</summary>'));
+  for (const classe of ['game-level-easy', 'game-level-medium', 'game-level-hard', 'game-level-letters']) {
+    assert.match(games, new RegExp(`class="game-level ${classe}"`));
+  }
+  assert.match(games, /<span>Jeux de lettres<\/span>/);
+  assert.match(games, /<summary>Mots croisés<\/summary>/);
+  assert.doesNotMatch(games, /class="game-level-icons"/);
 });
 
 test('tic-tac-toe handles moves, wins, a draw and restarting without losing accessible labels', () => {
@@ -670,9 +749,367 @@ test('number guessing gives higher and lower hints, stops after success and rest
   assert.match(element('number-game-status').textContent, /Bravo/);
 });
 
-test('senior settings remain accessible from navigation without a dashboard shortcut', () => {
+test('sudoku generates solvable unique grids, validates entries and starts a fresh game', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', children: [],
+    replaceChildren() { this.children = []; },
+    append(child) { this.children.push(child); }
+  };
+  const context = {
+    document: {
+      getElementById: element,
+      createElement: () => ({ value: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } })
+    },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.nouveauSudoku();
+  const cells = element('sudoku-grid').children;
+  assert.equal(cells.length, 36);
+  assert.ok(cells.filter(cell => !cell.readOnly).length >= 18);
+  assert.match(cells[0].attributes['aria-label'], /Ligne 1, colonne 1/);
+  const puzzle = cells.map(cell => Number(cell.value));
+  assert.equal(context.compterSolutionsSudoku(puzzle.slice()), 1);
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /Complétez/);
+  const editable = cells.find(cell => !cell.readOnly);
+  editable.value = '7';
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /chiffre de 1 à 6/);
+
+  const solution = puzzle.slice();
+  function solve() {
+    const index = solution.indexOf(0);
+    if (index < 0) return true;
+    for (let n = 1; n <= 6; n++) {
+      const row = Math.floor(index / 6), col = index % 6;
+      const conflict = solution.some((value, i) => value === n &&
+        (Math.floor(i / 6) === row || i % 6 === col ||
+         (Math.floor(Math.floor(i / 6) / 2) === Math.floor(row / 2) && Math.floor((i % 6) / 3) === Math.floor(col / 3))));
+      if (!conflict) {
+        solution[index] = n;
+        if (solve()) return true;
+        solution[index] = 0;
+      }
+    }
+    return false;
+  }
+  assert.ok(solve());
+  cells.forEach((cell, index) => { if (!cell.readOnly) cell.value = String(solution[index]); });
+  const editableIndex = cells.indexOf(editable);
+  editable.value = String(solution[Math.floor(editableIndex / 6) * 6 + (editableIndex + 1) % 6]);
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /répétition/);
+  editable.value = String(solution[editableIndex]);
+  context.verifierSudoku();
+  assert.match(element('sudoku-status').textContent, /Bravo/);
+  context.Math.random = () => 0.9;
+  context.nouveauSudoku();
+  assert.notDeepEqual(element('sudoku-grid').children.map(cell => Number(cell.value)), puzzle);
+  assert.equal(context.compterSolutionsSudoku(element('sudoku-grid').children.map(cell => Number(cell.value))), 1);
+  assert.match(element('sudoku-status').textContent, /Complétez/);
+});
+
+test('9x9 sudoku provides a unique puzzle, validates entries and keeps both grids independent', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', children: [],
+    replaceChildren() { this.children = []; },
+    append(child) { this.children.push(child); }
+  };
+  const context = {
+    document: {
+      getElementById: element,
+      createElement: () => ({ value: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } })
+    },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.initialiserSudoku();
+  const sixCells = element('sudoku-grid').children;
+  const sixEditable = sixCells.find(cell => !cell.readOnly);
+  sixEditable.value = '4';
+  context.initialiserSudoku9();
+  const cells = element('sudoku-9-grid').children;
+  assert.equal(cells.length, 81);
+  assert.equal(cells.filter(cell => cell.readOnly).length, 30);
+  assert.match(cells[80].attributes['aria-label'], /Ligne 9, colonne 9/);
+  assert.match(cells[2].className, /block-right/);
+  assert.match(cells[18].className, /block-bottom/);
+  const puzzle = cells.map(cell => Number(cell.value));
+  assert.equal(context.compterSolutionsSudoku(puzzle.slice(), 9, 3), 1);
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /1 à 9/);
+  const editable = cells.find(cell => !cell.readOnly);
+  editable.value = '0';
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /1 à 9/);
+  context.initialiserSudoku9();
+  assert.equal(editable.value, '0');
+  const box = Array(81).fill(0);
+  box[10] = 7;
+  assert.ok(!Array.from(context.candidatsSudoku(box, 0, 9, 3)).includes(7));
+
+  const solution = puzzle.slice();
+  function solve() {
+    let best = -1, candidates = null;
+    for (let i = 0; i < 81; i++) {
+      if (solution[i]) continue;
+      const row = Math.floor(i / 9), col = i % 9;
+      const choices = [1, 2, 3, 4, 5, 6, 7, 8, 9].filter(n => !solution.some((value, j) =>
+        value === n && (Math.floor(j / 9) === row || j % 9 === col ||
+          (Math.floor(Math.floor(j / 9) / 3) === Math.floor(row / 3) && Math.floor((j % 9) / 3) === Math.floor(col / 3)))));
+      if (!choices.length) return false;
+      if (!candidates || choices.length < candidates.length) { best = i; candidates = choices; }
+    }
+    if (best === -1) return true;
+    for (const n of candidates) {
+      solution[best] = n;
+      if (solve()) return true;
+      solution[best] = 0;
+    }
+    return false;
+  }
+  assert.ok(solve());
+  cells.forEach((cell, index) => { if (!cell.readOnly) cell.value = String(solution[index]); });
+  const index = cells.indexOf(editable);
+  editable.value = String(solution[Math.floor(index / 9) * 9 + (index + 1) % 9]);
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /répétition/);
+  editable.value = String(solution[index]);
+  context.verifierSudoku9();
+  assert.match(element('sudoku-9-status').textContent, /Bravo/);
+  context.Math.random = () => 0.9;
+  context.nouveauSudoku9();
+  const next = element('sudoku-9-grid').children.map(cell => Number(cell.value));
+  assert.notDeepEqual(next, puzzle);
+  assert.equal(context.compterSolutionsSudoku(next.slice(), 9, 3), 1);
+  assert.equal(sixEditable.value, '4');
+  assert.match(element('sudoku-9-status').textContent, /Complétez/);
+});
+
+test('logical sequences accept retries, reject invalid answers and generate both kinds of puzzle', () => {
+  const elements = {};
+  const element = id => elements[id] ||= { value: '', textContent: '' };
+  const context = {
+    document: { getElementById: element },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /nombre entier/);
+  element('sequence-answer').value = '32';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /réessayer/);
+  element('sequence-answer').value = '64';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /Bravo/);
+  context.nouvelleSuite();
+  assert.equal(element('sequence-question').textContent, '1, 2, 4, 8, 16, …');
+  assert.equal(element('sequence-answer').value, '');
+  element('sequence-answer').value = '32';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /Bravo/);
+  context.Math.random = () => 0.9;
+  context.nouvelleSuite();
+  assert.equal(element('sequence-question').textContent, '8, 12, 19, 29, 42, …');
+  assert.match(element('sequence-hint').textContent, /écart/);
+  element('sequence-answer').value = '58';
+  context.verifierSuite();
+  assert.match(element('sequence-status').textContent, /Bravo/);
+});
+
+test('word search finds words in both directions, reports errors and restarts', () => {
+  const elements = {};
+  const element = id => elements[id] ||= {
+    textContent: '', children: [],
+    replaceChildren() { this.children = []; },
+    append(child) { this.children.push(child); }
+  };
+  const context = {
+    document: {
+      getElementById: element,
+      createElement: tag => ({
+        tagName: tag,
+        attributes: {}, handlers: {},
+        setAttribute(name, value) { this.attributes[name] = value; },
+        addEventListener(name, handler) { this.handlers[name] = handler; }
+      })
+    },
+    Math: { random: () => 0, floor: Math.floor, abs: Math.abs, max: Math.max, sign: Math.sign }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.initialiserMotsMeles();
+  const cells = element('word-grid').children;
+  assert.equal(cells.length, 64);
+  assert.match(cells[0].attributes['aria-label'], /Ligne 1, colonne 1/);
+  cells[0].handlers.click();
+  assert.equal(cells[0].attributes['aria-pressed'], 'true');
+  cells[10].handlers.click();
+  assert.match(element('word-status').textContent, /alignées/);
+  const words = Array.from(vm.runInNewContext('themesMotsMeles[themeMotsMeles].mots', context));
+  function findWord(word) {
+    for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const endRow = r + dr * (word.length - 1), endCol = c + dc * (word.length - 1);
+        if (endRow < 0 || endRow >= 8 || endCol < 0 || endCol >= 8) continue;
+        if ([...word].every((letter, i) => cells[(r + dr * i) * 8 + c + dc * i].textContent === letter)) {
+          return [r * 8 + c, endRow * 8 + endCol];
+        }
+      }
+    }
+    return null;
+  }
+  for (const word of words) {
+    const positions = findWord(word);
+    assert.ok(positions, `${word} must be present in the grid`);
+    cells[positions[0]].handlers.click();
+    cells[positions[1]].handlers.click();
+    const listedWord = element('word-list').children.find(child => child.textContent === word);
+    assert.equal(listedWord.tagName, 's');
+    assert.ok(element('word-list').children.some(child => child.className === 'word-found-sr' && child.textContent === ' (trouvé)'));
+    assert.match(cells[positions[0]].className, /found/);
+    if (word === words[0]) {
+      cells[positions[0]].handlers.click();
+      cells[positions[1]].handlers.click();
+      assert.match(element('word-status').textContent, /déjà été trouvé/);
+    }
+  }
+  assert.match(element('word-status').textContent, /tous les mots/);
+  context.nouveauxMotsMeles();
+  assert.equal(element('word-grid').children.length, 64);
+  assert.ok(!element('word-list').children.some(child => child.tagName === 's' || child.className === 'word-found-sr'));
+  assert.match(element('word-status').textContent, /première lettre/);
+});
+
+test('crosswords render intersecting clues, check answers and restart with a different puzzle', () => {
+  const createNode = tag => ({
+    tagName: tag, value: '', textContent: '', children: [], attributes: {}, handlers: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, handler) { this.handlers[name] = handler; },
+    append(child) { this.children.push(child); },
+    replaceChildren() { this.children = []; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= createNode('div');
+  const context = {
+    document: { getElementById: element, createElement: createNode },
+    Math: { random: () => 0, floor: Math.floor }
+  };
+  vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
+  context.initialiserMotsCroises();
+  const cells = element('crossword-grid').children;
+  assert.equal(cells.length, 169);
+  assert.match(element('crossword-theme').textContent, /ciel/);
+  assert.ok(element('crossword-clues').children.some(node => node.textContent.startsWith('7. Moment')));
+  const intersection = cells[3 * 13 + 6].children.find(node => node.tagName === 'input');
+  assert.match(intersection.attributes['aria-label'], /Horizontal 6, Vertical 7/);
+  assert.equal(cells[3 * 13 + 6].children[0].textContent, '7');
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /Complétez toutes/);
+  const solution = [
+    'G..C..COMETE.', 'AURORE...C...', 'L..N.....L...', 'A..SATELLITE.',
+    'X..T..Q..P..P', 'I..E..U..S..L', 'E..LUMIERE..A', '...L..N.....N',
+    '...ATMOSPHERE', '...T..X.....T', '...I.ZENITH.E', '...O.........',
+    '...NEBULEUSE.'
+  ].join('');
+  const puzzles = vm.runInNewContext('grillesMotsCroises', context);
+  const checkCrossings = (puzzle, expected) => {
+    const positions = new Map();
+    assert.ok(puzzle.mots.length >= 10);
+    for (const word of puzzle.mots) {
+      for (let i = 0; i < word.mot.length; i++) {
+        const row = word.ligne + (word.direction === 'vertical' ? i : 0);
+        const column = word.colonne + (word.direction === 'horizontal' ? i : 0);
+        assert.ok(row < 13 && column < 13);
+        const index = row * 13 + column;
+        assert.equal(expected[index], word.mot[i], `${word.mot} at ${row},${column}`);
+        positions.set(index, (positions.get(index) || 0) + 1);
+      }
+    }
+    for (const word of puzzle.mots) {
+      assert.ok([...word.mot].some((_, i) => {
+        const row = word.ligne + (word.direction === 'vertical' ? i : 0);
+        const column = word.colonne + (word.direction === 'horizontal' ? i : 0);
+        return positions.get(row * 13 + column) > 1;
+      }), `${word.mot} should cross another word`);
+    }
+  };
+  checkCrossings(puzzles[0], solution);
+  cells.forEach((cell, index) => {
+    const input = cell.children.find(node => node.tagName === 'input');
+    assert.equal(Boolean(input), solution[index] !== '.');
+    if (input) input.value = solution[index];
+  });
+  const first = cells[0].children.find(node => node.tagName === 'input');
+  first.value = 'é';
+  first.handlers.input();
+  assert.equal(first.value, 'E');
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /réessayer/);
+  first.value = 'G';
+  context.initialiserMotsCroises();
+  assert.equal(element('crossword-grid').children, cells);
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /Bravo/);
+  context.nouveauxMotsCroises();
+  const next = element('crossword-grid').children;
+  assert.match(element('crossword-theme').textContent, /patrimoine/);
+  assert.ok(next.every(cell => cell.children.filter(node => node.tagName === 'input').every(input => input.value === '')));
+  const nextSolution = [
+    '..........A..', '....D...H.R..', 'MEMOIRE.E.C..', '....C...R.H.A',
+    '....TRADITION', '....I...T.V.T', '.TEMOIGNAGE.I', '....N...G.S.Q',
+    'CHRONIQUE...U', '....A.......A', 'PATRIMOINE..I', '....R.......R',
+    '...GENEALOGIE'
+  ].join('');
+  checkCrossings(puzzles[1], nextSolution);
+  next.forEach((cell, index) => {
+    const input = cell.children.find(node => node.tagName === 'input');
+    assert.equal(Boolean(input), nextSolution[index] !== '.');
+    if (input) input.value = nextSolution[index];
+  });
+  context.verifierMotsCroises();
+  assert.match(element('crossword-status').textContent, /Bravo/);
+});
+
+test('birthday form submits the birth date and keeps it when saving fails', async () => {
+  let handler;
+  let resetCount = 0;
+  let refreshCount = 0;
+  let fail = false;
+  let submitted;
+  const nodes = {
+    'birthday-form': { addEventListener: (_, fn) => { handler = fn; }, reset: () => { resetCount++; } },
+    'birthday-name': { value: 'Alice' },
+    'birthday-date': { value: '1950-02-28' },
+    'birthday-message': { textContent: '' }
+  };
+  const context = {
+    document: { getElementById: id => nodes[id] },
+    planningRequest: async (url, options) => {
+      submitted = { url, options };
+      if (fail) throw new Error('Erreur de sauvegarde');
+    },
+    chargerCalendrier: () => { refreshCount++; }
+  };
+  vm.runInNewContext(extract("        document.getElementById('birthday-form').addEventListener", "        document.getElementById('planning-next-day')"), context);
+  await handler({ preventDefault() {} });
+  assert.equal(submitted.url, '/api/agenda/birthdays');
+  assert.equal(submitted.options.body.name, 'Alice');
+  assert.equal(submitted.options.body.birthDate, '1950-02-28');
+  assert.equal(resetCount, 1);
+  assert.equal(refreshCount, 1);
+  fail = true;
+  await handler({ preventDefault() {} });
+  assert.equal(nodes['birthday-message'].textContent, 'Erreur de sauvegarde');
+  assert.equal(resetCount, 1);
+});
+
+test('senior settings remain accessible from navigation and the association shortcut', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
-  assert.doesNotMatch(dashboard, /switchScreen\('settings'\)/);
+  assert.match(dashboard, /switchScreen\('settings'\); document\.getElementById\('senior-links-details'\)\.open = true/);
   assert.match(source, /<button id="nav-settings"[^>]*onclick="switchScreen\('settings'\)"/);
 });
 
@@ -722,7 +1159,7 @@ test('companionship and daily services have one control each on the senior home'
     assert.equal(dashboard.split(label).length - 1, 1, label);
   }
   assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🤝<\/span>Un peu de compagnie<\/summary>/);
-  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🏠<\/span>Services du quotidien<\/summary>/);
+  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🏠<\/span><span>Services du quotidien<\/span><\/summary>/);
   assert.match(tiles, /switchScreen\('directory'\)/);
   assert.doesNotMatch(tiles, /Mon agenda/);
   assert.doesNotMatch(dashboard, /Voir l’agenda/);
@@ -735,7 +1172,7 @@ test('senior feature sections retain their content and can open programmatically
     ['senior-assistant-details', 'assistant-chat-form'],
     ['senior-services-details', 'senior-service-area']
   ]) {
-    const start = source.indexOf(`<details class="senior-disclosure" id="${id}">`);
+    const start = source.search(new RegExp(`<details class="senior-disclosure(?: senior-tab-disclosure)?" id="${id}">`));
     const end = source.indexOf(`id="${content}"`, start);
     assert.ok(start >= 0 && end > start, `${id} must contain ${content}`);
     assert.match(source.slice(start, end), /<summary><span class="tile-icon"/);
@@ -750,7 +1187,7 @@ test('senior feature sections retain their content and can open programmatically
     `${extract('    function ouvrirSectionSenior(detailsId, targetId)', '    function switchScreen(screenName)')}\n` +
     'globalThis.openSection = ouvrirSectionSenior;', context
   );
-  assert.match(source, /<summary><span class="tile-icon"[^>]*>💬<\/span>Envoyer à l’équipe<\/summary>/);
+  assert.match(source, /<summary><span class="tile-icon"[^>]*>💬<\/span><span>Envoyer à l’équipe<\/span><\/summary>/);
   for (const [details, target] of [
     ['senior-services-details', 'senior-service-area'],
     ['senior-assistant-details', 'assistant-chat-panel']
@@ -763,7 +1200,7 @@ test('senior feature sections retain their content and can open programmatically
 
 test('companionship, wellbeing, video call, meal delivery and emergency lead the senior home', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
-  const order = ['id="senior-weather-card"', 'id="senior-next-visit"', 'id="senior-assistant-details"',
+  const order = ['id="senior-assistant-details"',
     'id="wellbeing-checkin-details"', 'onclick="declencherVisio()"', 'Livraison de repas',
     'class="form-card emergency-call-card"', 'id="senior-more-button"'].map(item => dashboard.indexOf(item));
   assert.ok(order.every((position, index) => position >= 0 && (index === 0 || order[index - 1] < position)));
@@ -778,14 +1215,73 @@ test('sharing consent management is removed from the senior home but available i
   assert.match(settings, /<details class="senior-tab-disclosure" id="senior-consents-details">[\s\S]*?id="senior-sharing-consents"/);
 });
 
+test('senior professional sections use consistent closed tabs and retain their controls', () => {
+  const professional = extract('<div id="screen-senior-pro"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  assert.doesNotMatch(professional, /<h1>Pro<\/h1>\s*<summary>/);
+  for (const [id, control] of [
+    ['senior-services-details', 'senior-service-area'],
+    ['senior-following-details', 'senior-live-following'],
+    ['senior-note-details', 'senior-person-note-form'],
+    ['senior-tasks-details', 'senior-tasks-form'],
+    ['senior-history-details', 'senior-history-list']
+  ]) {
+    const start = professional.search(new RegExp(`<details class="[^"]*senior-tab-disclosure[^"]*" id="${id}"`));
+    const end = professional.indexOf(`id="${control}"`, start);
+    assert.ok(start >= 0 && end > start, `${id} must retain ${control}`);
+    assert.match(professional.slice(start, end), /<summary><span class="tile-icon"/);
+    assert.doesNotMatch(professional.slice(start, professional.indexOf('>', start)), /\sopen(?:\s|>)/);
+  }
+  assert.match(professional, /<section class="form-card" id="senior-pro-directory-action">\s*<button[^>]*onclick="switchScreen\('directory'\)"/);
+  assert.match(source, /#senior-pro-directory-action > \.action-tile\s*\{[^}]*width:\s*100%;[^}]*padding:\s*14px 18px;/);
+  assert.match(professional, /data-help-for="#senior-services-details > summary"/);
+  assert.match(professional, /data-help-for="#senior-following-details > summary"/);
+  assert.match(source, /#screen-senior-pro \.senior-explanation\[data-help-enhanced\] > summary\s*\{\s*display:\s*none;/);
+  assert.match(source, /@media \(hover: none\) \{[\s\S]*?#screen-senior-pro \.senior-explanation\[data-help-enhanced\] > summary::before\s*\{\s*content:\s*'\?';/);
+});
+
 test('senior tabs retain controls and results', () => {
   const agenda = extract('<div id="screen-agenda"', '<div id="screen-directory"');
   const directory = extract('<div id="screen-directory"', '<div id="screen-contacts"');
   const contacts = extract('<div id="screen-contacts"', '<div id="screen-video-call"');
   assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?id="personal-event-form"/);
   assert.match(agenda, /id="calendar-grid"/);
-  assert.match(directory, /<details class="senior-tab-disclosure">[\s\S]*?id="directory-search-form"[\s\S]*?<\/details>[\s\S]*?id="directory-results"/);
-  assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?id="contacts-list"/);
+  assert.match(directory, /<details class="senior-tab-disclosure">\s*<summary>[\s\S]*?Chercher un professionnel<\/summary>[\s\S]*?id="directory-search-form"[\s\S]*?id="directory-results"[\s\S]*?<\/details>/);
+  assert.match(directory, /<details class="senior-tab-disclosure">\s*<summary>[\s\S]*?Annuaire partagé<\/summary>[\s\S]*?id="shared-directory-refresh"[\s\S]*?id="shared-directory-results"[\s\S]*?<\/details>/);
+  assert.match(directory, /<details class="senior-tab-disclosure">\s*<summary>[\s\S]*?Mes demandes de rendez-vous<\/summary>[\s\S]*?id="directory-requester-bookings"[\s\S]*?<\/details>/);
+  assert.equal((directory.match(/<details class="senior-tab-disclosure">/g) || []).length, 3);
+  assert.match(source, /#screen-directory \.senior-tab-disclosure > summary,[\s\S]*?display:\s*flex;/);
+  assert.match(contacts, /<details class="senior-tab-disclosure">[\s\S]*?id="add-app-contact-form"[\s\S]*?<\/details>[\s\S]*?<details class="senior-tab-disclosure">[\s\S]*?id="contacts-list"[\s\S]*?<\/details>/);
+  assert.match(agenda, /<details class="senior-tab-disclosure" id="agenda-calendar-details">[\s\S]*?id="calendar-selected-day"[\s\S]*?<\/details>/);
+  assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?Modifications depuis Google<\/summary>[\s\S]*?id="calendar-google-requests"[\s\S]*?<\/details>/);
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="notification-details-${role}"[^>]*>[\\s\\S]*?id="notifications-${role}"[\\s\\S]*?<\\/details>`));
+    assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="message-details-${role}">[\\s\\S]*?id="message-form-${role}"[\\s\\S]*?<\\/details>`));
+  }
+});
+
+test('professional sections and settings retain their controls in closed tabs', () => {
+  const professional = extract('<div id="screen-pro"', '<div id="screen-messages"');
+  const settings = extract('<div id="screen-settings"', '<div id="screen-agenda"');
+  for (const [label, control] of [
+    ['Demandes reçues', 'directory-professional-bookings'],
+    ['Agenda des services du quotidien', 'pro-service-planning'],
+    ['Coordination de l’équipe', 'member-form']
+  ]) {
+    assert.match(professional, new RegExp(`<details class="senior-tab-disclosure">\\s*<summary>[^<]*<span[^>]*>[^<]*<\\/span>${label}<\\/summary>[\\s\\S]*?id="${control}"`));
+  }
+  for (const [section, label, control] of [
+    ['settings-senior-display', 'Affichage senior', 'senior-simple-enable'],
+    ['notification-settings-pro', 'Mes préférences de notification', 'notification-preferences-form'],
+    ['calendar-google-settings', 'Synchronisation du planning avec Google', 'calendar-google-sync-toggle'],
+    ['directory-profile-panel', 'Annuaire national et rendez-vous', 'directory-profile-form'],
+    ['professional-location-card', 'Mon point de départ et mon rayon d’intervention', 'professional-location-form']
+  ]) {
+    const start = settings.indexOf(`id="${section}"`);
+    const end = settings.indexOf('</section>', start);
+    const card = settings.slice(start, end);
+    assert.match(card, new RegExp(`<details class="senior-tab-disclosure">\\s*<summary>[\\s\\S]*?${label}<\\/summary>`));
+    assert.ok(card.includes(control));
+  }
 });
 
 test('agenda shows the selected day and keeps explanations and Google controls available', () => {
@@ -1095,7 +1591,7 @@ test('notifications become read only when visible, keep actions, and report fail
       window: { innerWidth: 100, innerHeight: 100, handlePendingNotification() { this.opened = true; } },
       setTimeout: (callback, delay) => { assert.equal(delay, 2000); timers.set(++timerId, callback); return timerId; },
       clearTimeout: id => timers.delete(id),
-      makeTextElement: (tag, text) => ({ tag, textContent: text }),
+      makeTextElement: (tag, text) => Object.assign(node(tag), { textContent: text }),
       formatDateTime: () => 'date',
       planningRequest: async (url, options) => {
         requests.push({ url, options });
@@ -1119,6 +1615,12 @@ test('notifications become read only when visible, keep actions, and report fail
     assert.equal(badge.textContent, '2 non lues');
     assert.equal(timers.size, 0);
     const [message, invitation] = container.children;
+    assert.match(message.className, /\bnotification-bubble\b/);
+    assert.match(invitation.className, /\bnotification-bubble\b/);
+    const messageMetadata = message.children.find(child => child.tag === 'small');
+    const invitationMetadata = invitation.children.find(child => child.tag === 'small');
+    assert.equal(messageMetadata.textContent, 'date · ');
+    assert.equal(messageMetadata.children[0].textContent, 'Non lu');
     assert.equal(message.children.filter(child => child.tag === 'button').length, 0);
     assert.equal(invitation.children.find(child => child.className === 'notification-actions').children.length, 2);
     const link = message.children.find(child => child.tag === 'a');
@@ -1136,7 +1638,7 @@ test('notifications become read only when visible, keep actions, and report fail
     const first = [...timers.values()][0];
     timers.clear();
     await first();
-    assert.equal(message.children.find(child => child.textContent === 'Lu').textContent, 'Lu');
+    assert.equal(messageMetadata.children[0].textContent, 'Lu');
     assert.equal(badge.textContent, '1 non lue');
     assert.equal(requests.filter(item => item.options?.method === 'PATCH').length, 1);
 
@@ -1151,7 +1653,7 @@ test('notifications become read only when visible, keep actions, and report fail
     context.check();
     await [...timers.values()][0]();
     assert.equal(errors[0], 'Lecture impossible');
-    assert.ok(invitation.children.some(child => child.textContent === 'Non lu'));
+    assert.equal(invitationMetadata.children[0].textContent, 'Non lu');
   }
 });
 
@@ -1182,16 +1684,21 @@ test('read receipts refresh only for the open and visible conversation', () => {
 
 test('opening a conversation marks received messages read and displays the sender receipt after refresh', async () => {
   const container = { children: [], replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } };
-  const select = { value: 'contact', selectedOptions: [{ text: 'Contact' }] };
+  const select = { value: 'contact', options: [{ value: '' }, { value: 'contact' }], selectedOptions: [{ text: 'Contact' }] };
   const status = {};
   const calls = [];
   let senderRead = false;
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
     openMessageConversations: {},
+    accountPhotoObjectUrl: null, messagePhotoObjectUrl: null, messagePhotoLoadId: 0,
+    SERVER_URL: '', authHeaders: () => ({}), fetch: async () => ({ status: 404 }),
     document: {
       getElementById: id => id === 'message-contact-senior' ? select : id === 'message-list-senior' ? container : status,
-      createElement: () => ({ children: [], append(item) { this.children.push(item); } })
+      createElement: () => ({
+        children: [], style: { setProperty() {} }, setAttribute() {},
+        append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }
+      })
     },
     makeTextElement: (tag, text) => ({ tag, text }),
     formatDateTime: () => 'date',
@@ -1215,6 +1722,135 @@ test('opening a conversation marks received messages read and displays the sende
   senderRead = true;
   assert.equal(await context.open('senior'), true);
   assert.match(container.children[0].children[2].text, /· Lu/);
+});
+
+test('professional workspace heading and subtitle contrast with the dark header', () => {
+  assert.match(source, /#professional-workspace > \.header-mobile > h3,\s*#professional-workspace > \.header-mobile > span\s*\{\s*color:\s*#fff;/);
+  assert.match(source, /id="professional-workspace">[\s\S]*?<div class="header-mobile" style="background: #34495e;">/);
+});
+
+test('soft button colours are limited to aidant and pro sessions and cleared on logout', () => {
+  const login = extract('    async function setAuthenticatedView(user)', '        initialiserVueSenior(user);');
+  const logout = extract('    async function deconnecterUtilisateur(', "        activeSeniorProfileId = '';");
+  assert.match(login, /classList\.toggle\('soft-workspace', \['aidant', 'pro'\]\.includes\(user\.role\)\)/);
+  assert.match(logout, /classList\.remove\('senior-mode', 'senior-simple', 'soft-workspace', 'simple-mode'\)/);
+  assert.match(source, /body\.soft-workspace :is\(\.screen-container, #nav-bar\) button/);
+  assert.match(source, /button:is\(\[aria-pressed="true"\], \.selected, \.active\)/);
+  assert.match(source, /button:is\(\.decline, \.btn-danger, \[data-close-account\], #settings-logout\)/);
+});
+
+test('senior button colours leave emergency and game controls unchanged', () => {
+  const seniorStyles = extract('        body.senior-mode :is(.screen-container, #nav-bar) button:not(', '        @media print {');
+  assert.match(seniorStyles, /:not\(#senior-game-section button, \.emergency-call-actions button\)/);
+  assert.match(seniorStyles, /linear-gradient\(120deg, #dff3e8, #bfe3d2\)/);
+  assert.match(seniorStyles, /button:not\([^)]*\):is\(\[aria-pressed="true"\], \.selected, \.active\)/);
+});
+
+test('message bubbles use the full conversation width and stay left-aligned', () => {
+  const listStyle = extract('        [id^="message-list-"]', '        .message-bubble {');
+  const bubbleStyle = extract('        .message-bubble {', '        .message-bubble p');
+  const ownStyle = extract('        .message-bubble.mine {', '        input, select, textarea');
+  assert.match(listStyle, /align-items:\s*flex-start/);
+  assert.match(bubbleStyle, /width:\s*100%/);
+  assert.match(bubbleStyle, /box-sizing:\s*border-box/);
+  assert.doesNotMatch(ownStyle, /align-self:\s*flex-end/);
+});
+
+test('message bubbles distinguish participants and keep contact colours when options are reordered', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const container = { children: [], replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } };
+    const select = {
+      value: 'alice', options: [{ value: '' }, { value: 'alice' }, { value: 'bob' }],
+      selectedOptions: [{ text: 'Alice' }]
+    };
+    const status = {};
+    const context = {
+      connectedUser: { id: 'user', role },
+      openMessageConversations: {},
+      accountPhotoObjectUrl: null, messagePhotoObjectUrl: null, messagePhotoLoadId: 0,
+      SERVER_URL: '', authHeaders: () => ({}), fetch: async () => ({ status: 404 }),
+      document: {
+        getElementById: id => id === `message-contact-${role}` ? select : id === `message-list-${role}` ? container : status,
+        createElement: () => ({
+          children: [], style: { setProperty(name, value) { this[name] = value; } },
+          setAttribute() {}, append(...items) { this.children.push(...items); },
+          replaceChildren(...items) { this.children = items; }
+        })
+      },
+      makeTextElement: (tag, text) => ({ tag, text }),
+      formatDateTime: () => 'date',
+      seniorLinksRequest: async () => ({ messages: [
+        { id: 'sent', mine: true, body: 'Bonjour', readAt: 'today' },
+        { id: 'received', mine: false, body: 'Bonjour', readAt: 'today' }
+      ] })
+    };
+    vm.runInNewContext(
+      `${extract('    async function ouvrirConversation(role, focusId', '    function rafraichirConversationVisible()')}\n` +
+      'globalThis.open = ouvrirConversation;', context
+    );
+    assert.equal(await context.open(role), true);
+    assert.equal(container.children[0].className, 'message-bubble mine');
+    assert.equal(container.children[1].className, 'message-bubble');
+    assert.equal(container.children[0].children[0].children[0].textContent, '🧑');
+    assert.equal(container.children[1].children[0].children[0].textContent, '🧑');
+    const aliceColour = container.children[1].style['--message-background'];
+    assert.match(aliceColour, /^hsl\(/);
+    select.options.reverse();
+    assert.equal(await context.open(role), true);
+    assert.equal(container.children[1].style['--message-background'], aliceColour);
+    select.value = 'bob';
+    select.selectedOptions = [{ text: 'Bob' }];
+    assert.equal(await context.open(role), true);
+    assert.notEqual(container.children[1].style['--message-background'], aliceColour);
+  }
+});
+
+test('message avatars use only available shared contact photos and discard stale loads', async () => {
+  const revoked = [];
+  let resolvePhoto;
+  const avatar = () => ({ children: [], replaceChildren(...items) { this.children = items; } });
+  const select = { value: 'alice' };
+  const context = {
+    connectedUser: { id: 'user', role: 'aidant' },
+    messagePhotoLoadId: 0, messagePhotoObjectUrl: null,
+    SERVER_URL: '', authHeaders: () => ({ Authorization: 'Bearer test' }),
+    document: { createElement: () => ({}) },
+    URL: { createObjectURL: () => 'blob:photo', revokeObjectURL: url => revoked.push(url) },
+    fetch: async (url, options) => {
+      assert.equal(url, '/api/contacts/alice/photo');
+      assert.equal(options.cache, 'no-store');
+      assert.equal(options.headers.Authorization, 'Bearer test');
+      return { status: 200, ok: true, blob: () => new Promise(resolve => { resolvePhoto = resolve; }) };
+    },
+    console
+  };
+  vm.runInNewContext(
+    `${extract('    function reinitialiserPhotoMessages()', '    let couleurJeu')}\n` +
+    'globalThis.loadPhoto = chargerPhotoMessages; globalThis.resetPhoto = reinitialiserPhotoMessages;',
+    context
+  );
+  const first = avatar();
+  const pending = context.loadPhoto('alice', 'user', 'aidant', select, [first]);
+  await new Promise(setImmediate);
+  context.resetPhoto();
+  resolvePhoto({});
+  await pending;
+  assert.equal(first.children.length, 0);
+
+  const second = avatar();
+  const loaded = context.loadPhoto('alice', 'user', 'aidant', select, [second]);
+  await new Promise(setImmediate);
+  resolvePhoto({});
+  await loaded;
+  assert.equal(second.children[0].src, 'blob:photo');
+  assert.equal(second.children[0].alt, '');
+  context.resetPhoto();
+  assert.deepEqual(revoked, ['blob:photo']);
+
+  context.fetch = async () => ({ status: 404 });
+  const unavailable = avatar();
+  await context.loadPhoto('alice', 'user', 'aidant', select, [unavailable]);
+  assert.equal(unavailable.children.length, 0);
 });
 
 test('device notifications can be enabled directly in each account settings', () => {
@@ -1270,6 +1906,49 @@ test('notification activation is offered only when the server is configured', as
     assert.equal(button.disabled, false);
     assert.equal(button.textContent, 'Activer les notifications sur cet appareil');
   }
+});
+
+test('iOS native push is unavailable without affecting Android or existing removal', async () => {
+  const form = { querySelector: () => ({}) };
+  const button = {};
+  const status = {};
+  let platform = 'ios';
+  let token = null;
+  let permissionRequests = 0;
+  const context = {
+    connectedUser: { id: 'user-1', role: 'senior' },
+    document: { querySelector: selector => {
+      if (selector.startsWith('.notification-preferences-form')) return form;
+      if (selector.startsWith('.enable-push-button')) return button;
+      return status;
+    } },
+    window: { Capacitor: { getPlatform: () => platform }, requestNativePushPermission: async () => { permissionRequests++; } },
+    localStorage: { getItem: key => key === 'push' ? token : null, setItem() {} },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async url => url.endsWith('/preferences')
+      ? { phone: '', emailEnabled: false, smsEnabled: false }
+      : { channels: { email: false, sms: false, nativePush: true } },
+    console
+  };
+  vm.runInNewContext(
+    `${extract('    async function demanderNotificationsAutomatiquement(user)', '    async function activerNotificationsPush(button)')}\n` +
+    'globalThis.loadPreferences = chargerPreferencesNotification; globalThis.requestAutomatically = demanderNotificationsAutomatiquement;', context
+  );
+  await context.requestAutomatically(context.connectedUser);
+  assert.equal(permissionRequests, 0);
+  await context.loadPreferences();
+  assert.equal(button.disabled, true);
+  assert.match(status.textContent, /iPhone ne sont pas encore disponibles/);
+  token = 'existing';
+  await context.loadPreferences();
+  assert.equal(button.disabled, false);
+  assert.match(button.textContent, /Désactiver/);
+  assert.match(status.textContent, /ne sont pas encore disponibles/);
+  token = null;
+  platform = 'android';
+  await context.loadPreferences();
+  assert.equal(button.disabled, false);
+  assert.match(status.textContent, /prêtes à être activées/);
 });
 
 test('notification permission is requested once only when supported and configured', async () => {
@@ -1346,6 +2025,56 @@ test('automatic native permission requests respect previously refused permission
   assert.equal(requests, 1);
 });
 
+test('iOS native push registration does not request permission or register a token', async () => {
+  const client = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'push-client.js'), 'utf8');
+  const start = client.indexOf('window.registerNativePush = async');
+  const end = client.indexOf('window.unregisterNativePush = async', start);
+  assert.ok(start >= 0 && end > start);
+  let requests = 0;
+  const context = {
+    window: {
+      Capacitor: { getPlatform: () => 'ios' },
+      requestNativePushPermission: async () => { requests++; return 'granted'; }
+    }
+  };
+  vm.runInNewContext(client.slice(start, end), context);
+  await assert.rejects(context.window.registerNativePush('https://example.test', 'session'), /pas encore disponibles/);
+  assert.equal(requests, 0);
+});
+
+test('removing a legacy iOS push registration leaves activation disabled', async () => {
+  const stored = new Map([['push', JSON.stringify({ platform: 'ios', token: 'legacy-token' })]]);
+  const status = {};
+  const button = { dataset: { role: 'senior' } };
+  const calls = [];
+  const context = {
+    window: {
+      Capacitor: { getPlatform: () => 'ios', isNativePlatform: () => true },
+      unregisterNativePush: async () => calls.push('unregister')
+    },
+    document: { querySelector: () => status },
+    localStorage: {
+      getItem: key => stored.get(key) || null,
+      setItem: (key, value) => stored.set(key, value),
+      removeItem: key => stored.delete(key)
+    },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async (path, options) => calls.push({ path, method: options.method, body: options.body }),
+    chargerPreferencesNotification: async () => {},
+    showToast: () => {}
+  };
+  vm.runInNewContext(
+    `${extract('    async function desactiverNotificationsPush(button)', '    function actualiserCompteurNotifications(count)')}\n` +
+    'globalThis.disablePush = desactiverNotificationsPush;', context
+  );
+  await context.disablePush(button);
+  assert.equal(calls[0].method, 'DELETE');
+  assert.equal(calls[0].body.platform, 'ios');
+  assert.equal(calls[1], 'unregister');
+  assert.equal(stored.has('push'), false);
+  assert.equal(button.disabled, true);
+});
+
 test('emergency details are optional while numbers, confirmation and status stay accessible', () => {
   const emergency = extract('<section class="form-card emergency-call-card"', '<section class="form-card" id="notifications-panel-senior"');
   assert.match(emergency, /<details class="senior-disclosure senior-explanation" data-help-for="\[data-emergency-number\]">\s*<summary>Explications sur l’appel<\/summary>/);
@@ -1396,6 +2125,11 @@ test('emergency calls require confirmation and can be confirmed again after a co
   numbers[0].listeners.click();
   assert.equal(element('emergency-call-confirmation').hidden, false);
   assert.equal(element('emergency-call-confirm-click').disabled, false);
+});
+
+test('professional notification shortcut spans the workspace and keeps its action and badge', () => {
+  assert.match(source, /#pro-notifications-tile\s*\{\s*width:\s*100%;\s*\}/);
+  assert.match(source, /id="pro-notifications-tile"[^>]*onclick="ouvrirNotifications\(\)"[^>]*>[\s\S]*?id="home-notification-count-pro"/);
 });
 
 test('the notification shortcut opens the separate page', () => {
@@ -1456,8 +2190,55 @@ test('opening a senior message notification opens the separate page and conversa
       "        window.addEventListener('generation-notification-opened'"), context
   );
   await context.window.handlePendingNotification();
+  assert.equal(element('notification-details-senior').open, true);
+  assert.equal(element('message-details-senior').open, true);
   assert.equal(element('messages-senior').scrolled, true);
   assert.deepEqual(calls, [['messages'], ['senior', 'message']]);
+});
+
+test('a notification in a closed tab is not marked visible', () => {
+  const rect = { top: 0, bottom: 100, left: 0, right: 100, height: 100, width: 100 };
+  const card = { isConnected: true, closest: () => ({}), getBoundingClientRect: () => rect };
+  const context = {
+    connectedUser: { id: 'user', role: 'aidant' },
+    document: { hidden: false, getElementById: () => ({ classList: { contains: () => true }, getBoundingClientRect: () => rect }) },
+    window: { innerWidth: 100, innerHeight: 100 }, Math
+  };
+  vm.runInNewContext(`${extract('    function notificationVisible(entry)', '    function surveillerNotificationsVisibles()')}\nglobalThis.visible = notificationVisible;`, context);
+  const entry = { userId: 'user', role: 'aidant', card };
+  assert.equal(context.visible(entry), false);
+  card.closest = () => null;
+  assert.equal(context.visible(entry), true);
+});
+
+test('opening a professional notification expands its tab before marking it read', async () => {
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      open: false, replaceChildren() {}, scrollIntoView() {}
+    });
+    return elements.get(id);
+  };
+  const id = '0b4a1f2c-1234-4567-8123-123456789abc';
+  const requests = [];
+  const context = {
+    pendingNotificationId: id,
+    connectedUser: { role: 'pro', verificationStatus: 'approved' },
+    window: { pendingPushNotificationId: '', location: { href: `https://example.test/?notification=${id}` }, history: { replaceState() {} } },
+    document: { getElementById: element, createElement: () => ({ append() {} }) },
+    URL, switchScreen() {}, makeTextElement: () => ({}), formatDateTime: () => '',
+    seniorLinksRequest: async (path, options) => {
+      requests.push([path, options]);
+      return { type: 'other', title: 'Rappel', message: 'Information', createdAt: '2026-01-01' };
+    },
+    chargerNotifications: async () => {},
+    showToast: message => { throw new Error(message); }
+  };
+  vm.runInNewContext(extract('        window.handlePendingNotification = async () => {',
+    "        window.addEventListener('generation-notification-opened'"), context);
+  await context.window.handlePendingNotification();
+  assert.equal(element('notification-details-pro').open, true);
+  assert.equal(requests[1][1].body.read, true);
 });
 
 test('contact video calls use the selected contact and report failures without a fake call', async () => {

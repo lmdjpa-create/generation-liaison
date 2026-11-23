@@ -6,7 +6,11 @@ const delivery = require('../notification-delivery');
 const { TERMS_VERSION, createAuthService } = require('../auth');
 const { assertScheduleAvailable, lockScheduleParticipants } = require('../schedule-conflicts');
 const { randomUUID } = require('node:crypto');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
 const { createDueTaskReminder } = require('../task-reminders');
+const { createDueBirthdayReminder } = require('../birthday-reminders');
 const { createSiteMonitor } = require('../site-monitor');
 const { createSiteAlerts } = require('../site-monitor-alerts');
 
@@ -18,7 +22,11 @@ let sentCode;
 let failEmail = false;
 let emailConfigured = true;
 let failInvitation = false;
+let failRegistrationInvitation = false;
+let failAdministrativeActivation = false;
 const sentInvitations = [];
+const sentRegistrationInvitations = [];
+const sentAdministrativeActivations = [];
 
 before(async () => {
   db = new PGlite();
@@ -35,7 +43,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
@@ -46,6 +54,14 @@ before(async () => {
   delivery.sendSeniorInvitation = async (email, url) => {
     if (failInvitation) throw new Error('test invitation delivery failure');
     sentInvitations.push({ email, url });
+  };
+  delivery.sendRegistrationInvitation = async (email, url, role) => {
+    if (failRegistrationInvitation) throw new Error('test registration invitation failure');
+    sentRegistrationInvitations.push({ email, url, role });
+  };
+  delivery.sendAdministrativeActivation = async (email, url) => {
+    if (failAdministrativeActivation) throw new Error('test activation delivery failure');
+    sentAdministrativeActivations.push({ email, url });
   };
   const app = require('../server');
   server = app.listen(0);
@@ -82,6 +98,371 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('administrators provision all email account roles without accepting terms or granting private access', async () => {
+  const admin = await register('provision-admin@example.test', 'aidant');
+  const other = await register('provision-other@example.test', 'aidant');
+  const create = '/api/admin/accounts';
+  const fields = { firstName: 'Camille', lastName: 'Exemple', email: 'new-provision@example.test',
+    role: 'senior', confirmed: true };
+  assert.equal((await request(create, { user: other, admin: true, body: fields })).status, 403);
+  assert.equal((await request(create, { user: admin, body: fields })).status, 403);
+  assert.equal((await request(create, { user: admin, admin: true, body: { ...fields, confirmed: false } })).status, 400);
+  assert.equal((await request(create, { user: admin, admin: true, body: { ...fields, role: 'staff' } })).status, 400);
+  emailConfigured = false;
+  assert.equal((await request(create, { user: admin, admin: true, body: fields })).status, 503);
+  emailConfigured = true;
+
+  for (const role of ['senior', 'aidant', 'pro', 'establishment']) {
+    const email = `admin-provision-${role}@example.test`;
+    const created = await request(create, { user: admin, admin: true, body: { ...fields, email, role } });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal(created.data.activationEmailSent, true);
+    assert.equal(sentAdministrativeActivations.at(-1).email, email);
+    const token = new URL(sentAdministrativeActivations.at(-1).url).hash.slice(1);
+    const row = (await db.query('SELECT terms_accepted_at, created_by_admin, verification_status FROM app_users WHERE id = $1', [created.data.id])).rows[0];
+    assert.equal(row.terms_accepted_at, null);
+    assert.equal(row.created_by_admin, admin.user.id);
+    assert.equal(row.verification_status, role === 'pro' ? 'pending' : 'approved');
+    assert.equal((await request(create, { user: admin, admin: true, body: { ...fields, email, role } })).status, 409);
+
+    assert.equal((await request('/api/auth/login', { body: { email, password: 'mot-personnel-456' } })).status, 401);
+    const activate = '/api/auth/password-reset/confirm';
+    const body = { token, password: 'mot-personnel-456', acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION };
+    assert.equal((await request(activate, { body: { ...body, acceptedTerms: false } })).status, 400);
+    assert.equal((await request(activate, { body: { ...body, acceptedTermsVersion: 'obsolete' } })).status, 400);
+    assert.equal((await request(activate, { body })).status, 200);
+    assert.equal((await request(activate, { body })).status, 400);
+    const login = await request('/api/auth/login', { body: { email, password: body.password } });
+    assert.equal(login.status, 200);
+    assert.equal(login.data.user.passwordChangeRequired, false);
+    const accepted = (await db.query('SELECT terms_accepted_at FROM app_users WHERE id = $1', [created.data.id])).rows[0];
+    assert.ok(accepted.terms_accepted_at);
+  }
+  failAdministrativeActivation = true;
+  const failedDelivery = await request(create, { user: admin, admin: true, body: { ...fields, email: 'delivery-failure@example.test' } });
+  failAdministrativeActivation = false;
+  assert.equal(failedDelivery.status, 201);
+  assert.equal(failedDelivery.data.activationEmailSent, false);
+});
+
+test('administrators can manage accounts beyond the former 500-account limit', async () => {
+  const admin = await register('overview-admin@example.test', 'aidant');
+  const prefix = randomUUID();
+  const { rows } = await db.query(
+    `WITH profiles AS (
+       INSERT INTO senior_profiles (id, name)
+       SELECT gen_random_uuid(), $1 || '-' || number FROM generate_series(1, 501) number
+       RETURNING id, name
+     )
+     INSERT INTO app_users (id, senior_id, name, email, role, password_salt, password_hash, created_at)
+     SELECT gen_random_uuid(), profiles.id, profiles.name, profiles.name || '@example.test', 'senior',
+            admin.password_salt, admin.password_hash, CURRENT_TIMESTAMP
+     FROM profiles CROSS JOIN app_users admin WHERE admin.id = $2
+     RETURNING id, senior_id`,
+    [prefix, admin.user.id]
+  );
+  try {
+    const result = await request('/api/admin/overview', { user: admin, admin: true });
+    assert.equal(result.status, 200);
+    const listed = new Set(result.data.accounts.map(account => account.id));
+    assert.ok(rows.every(row => listed.has(row.id)));
+    assert.ok(listed.has(admin.user.id));
+  } finally {
+    await db.query('DELETE FROM app_users WHERE id = ANY($1::uuid[])', [rows.map(row => row.id)]);
+    await db.query('DELETE FROM senior_profiles WHERE id = ANY($1::uuid[])', [rows.map(row => row.senior_id)]);
+  }
+});
+
+test('administrators invite registration and initiate a traceable closure without accessing private data', async () => {
+  const admin = await register('closure-admin@example.test', 'senior');
+  const target = await register('admin-closure-target@example.test', 'senior');
+  const other = await register('admin-closure-other@example.test', 'aidant');
+  const invite = '/api/admin/account-invitations';
+  assert.equal((await request(invite, { user: other, admin: true, body: { email: 'new@example.test' } })).status, 403);
+  assert.equal((await request(invite, { user: admin, body: { email: 'new@example.test' } })).status, 403);
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'bad' } })).status, 400);
+  emailConfigured = false;
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'new@example.test' } })).status, 503);
+  emailConfigured = true;
+  failRegistrationInvitation = true;
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'new@example.test' } })).status, 500);
+  failRegistrationInvitation = false;
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'new@example.test' } })).status, 202);
+  assert.equal(sentRegistrationInvitations.at(-1).email, 'new@example.test');
+  assert.equal((await db.query("SELECT id FROM app_users WHERE email = 'new@example.test'")).rows.length, 0);
+
+  const path = `/api/admin/accounts/${target.user.id}/closure`;
+  const body = { confirmed: true, reason: 'Traitement administratif documenté' };
+  assert.equal((await request(path, { user: other, admin: true, body })).status, 403);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, confirmed: false } })).status, 400);
+  assert.equal((await request(`/api/admin/accounts/${admin.user.id}/closure`, { user: admin, admin: true, body })).status, 409);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 201);
+  assert.equal((await request('/api/auth/me', { user: target })).status, 401);
+  const row = (await db.query('SELECT initiated_by, initiation_reason FROM app_account_closure_requests WHERE user_id = $1', [target.user.id])).rows[0];
+  assert.equal(row.initiated_by, admin.user.id);
+  assert.equal(row.initiation_reason, body.reason);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 409);
+  assert.equal((await request(`/api/admin/accounts/${target.user.id}`, { user: admin, admin: true, method: 'PATCH', body: { active: true } })).status, 409);
+});
+
+test('administrators invite establishments and create new associated accounts without granting journal access', async () => {
+  const admin = await register('access-admin@example.test', 'senior');
+  const owner = await register('access-company@example.test', 'establishment');
+  const outsider = await register('access-outsider@example.test', 'aidant');
+  const invite = '/api/admin/account-invitations';
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'business@example.test', role: 'senior' } })).status, 400);
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'business@example.test', role: 'establishment' } })).status, 202);
+  assert.equal(sentRegistrationInvitations.at(-1).role, 'establishment');
+  assert.match(sentRegistrationInvitations.at(-1).url, /\/app-mobile\.html#inscription$/);
+  const path = `/api/admin/establishments/${owner.user.id}/accounts`;
+  const body = { role: 'senior', confirmed: true, firstName: 'Camille', lastName: 'Test',
+    birthDate: '1940-05-01', password: 'mot-provisoire-123' };
+  assert.equal((await request(path, { user: outsider, admin: true, body })).status, 403);
+  assert.equal((await request(path, { user: admin, body })).status, 403);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, confirmed: false } })).status, 400);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, role: 'aidant' } })).status, 400);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 403);
+  assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+    user: admin, admin: true, method: 'PATCH', body: { active: true }
+  })).status, 200);
+  const resident = await request(path, { user: admin, admin: true, body });
+  assert.equal(resident.status, 201);
+  assert.match(resident.data.identifier, /^[0-9a-f]{24}$/);
+  const staff = await request(path, { user: admin, admin: true, body: { ...body, role: 'staff' } });
+  assert.equal(staff.status, 201);
+  assert.equal((await db.query('SELECT * FROM establishment_care_consent WHERE resident_user_id = $1', [resident.data.id])).rows.length, 0);
+  assert.equal((await request('/api/establishment/residents', { user: owner })).data.residents[0].id, resident.data.id);
+  assert.equal((await request('/api/establishment/staff', { user: owner })).data.staff[0].id, staff.data.id);
+  const login = await request('/api/auth/resident-login', { body: { ...body, identifier: resident.data.identifier } });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.user.passwordChangeRequired, true);
+  assert.equal((await request('/api/care/entries', { user: login.data })).status, 403);
+});
+
+test('establishment profiles stay private and require manual subscription activation to edit', async () => {
+  const admin = await register('establishment-admin@example.test', 'senior');
+  const establishment = await register('establishment@example.test', 'establishment');
+  const other = await register('other-establishment@example.test', 'establishment');
+  const senior = await register('private-profile-senior@example.test', 'senior');
+  const profile = {
+    name: 'Résidence des Lilas', description: 'Présentation', address: '1 rue du Parc',
+    phone: '0123456789', email: 'contact@example.test', tablet_interest: 'rental', tablet_quantity: 2
+  };
+  assert.equal((await request('/api/establishment', { user: establishment })).data.active, false);
+  assert.equal((await request('/api/establishment', { user: establishment, method: 'PUT', body: profile })).status, 403);
+  const person = { category: 'resident', name: 'Personne test', phone: '0123456789', email: 'personne@example.test' };
+  assert.equal((await request('/api/establishment/contacts', { user: establishment, body: person })).status, 403);
+  assert.equal((await request('/api/admin/establishments', { user: senior, admin: true })).status, 403);
+  assert.equal((await request('/api/admin/establishments', { user: admin })).status, 403);
+  assert.equal((await request('/api/notifications', { user: establishment })).status, 403);
+  assert.equal((await request('/api/contacts', { user: senior, body: { email: 'establishment@example.test' } })).status, 404);
+  assert.equal((await request('/api/contacts', { user: senior, body: { contactUserId: establishment.user.id } })).status, 404);
+  const endpoint = `/api/admin/establishments/${establishment.user.id}`;
+  assert.equal((await request(`${endpoint}/users`, { user: admin, admin: true, method: 'PATCH', body: { count: 25 } })).status, 200);
+  assert.equal((await request(`${endpoint}/users`, { user: admin, admin: true, method: 'PATCH', body: { count: 0 } })).status, 400);
+  assert.equal((await request(`${endpoint}/subscription`, { user: admin, admin: true, method: 'PATCH', body: { active: true } })).status, 200);
+  assert.equal((await request('/api/establishment', { user: establishment, method: 'PUT', body: profile })).status, 200);
+  const created = await request('/api/establishment/contacts', { user: establishment, body: person });
+  assert.equal(created.status, 201);
+  const contactPath = `/api/establishment/contacts/${created.data.id}`;
+  assert.equal((await request(`/api/admin/establishments/${other.user.id}/subscription`, {
+    user: admin, admin: true, method: 'PATCH', body: { active: true }
+  })).status, 200);
+  assert.equal((await request('/api/establishment/contacts', { user: other })).data.contacts.length, 0);
+  assert.equal((await request('/api/establishment/contacts', { user: senior })).status, 403);
+  assert.equal((await request(contactPath, { user: other, method: 'PUT', body: person })).status, 404);
+  assert.equal((await request(contactPath, { user: establishment, method: 'PUT', body: { ...person, category: 'caregiver' } })).status, 200);
+  assert.equal((await request('/api/establishment/contacts', { user: establishment })).data.contacts[0].category, 'caregiver');
+  const worker = await request('/api/establishment/contacts', {
+    user: establishment, body: { category: 'intervenant', name: 'Visiteur', phone: '', email: '' }
+  });
+  assert.equal(worker.status, 201);
+  assert.equal((await request('/api/establishment/contacts', { user: establishment })).data.contacts.some(contact => contact.category === 'intervenant'), true);
+  assert.equal((await request('/api/establishment', { user: other })).data.profile, null);
+  assert.deepEqual((await request('/api/establishment', { user: establishment })).data.profile, profile);
+  assert.equal((await request('/api/admin/establishments', { user: admin, admin: true })).data.establishments
+    .find(item => item.id === establishment.user.id).user_count, 25);
+  assert.equal((await request(`${endpoint}/subscription`, { user: admin, admin: true, method: 'PATCH', body: { active: false } })).status, 200);
+  assert.equal((await request('/api/establishment', { user: establishment })).data.profile.name, profile.name);
+  assert.equal((await request('/api/establishment', { user: establishment, method: 'PUT', body: profile })).status, 403);
+  assert.equal((await request('/api/establishment/contacts', { user: establishment })).data.contacts.length, 2);
+  assert.equal((await request(contactPath, { user: establishment, method: 'DELETE' })).status, 404);
+  const closed = await request('/api/account/closure-request', {
+    user: establishment, body: { password: 'a-test-password-123' }
+  });
+  assert.equal(closed.status, 200);
+  assert.equal((await request('/api/establishment', { user: establishment })).status, 401);
+  assert.equal((await db.query('SELECT * FROM establishment_profiles WHERE user_id = $1', [establishment.user.id])).rows.length, 0);
+  assert.equal((await db.query('SELECT * FROM establishment_contacts WHERE user_id = $1', [establishment.user.id])).rows.length, 0);
+});
+
+test('director-created resident signs in without email and must change the temporary password', async () => {
+  const admin = await register('establishment-admin-2@example.test', 'senior');
+  const director = await register('resident-owner@example.test', 'establishment');
+  const other = await register('resident-other@example.test', 'establishment');
+  for (const owner of [director, other]) {
+    assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+      user: admin, admin: true, method: 'PATCH', body: { active: true }
+    })).status, 200);
+  }
+  const details = { firstName: 'Camille', lastName: 'Exemple', birthDate: '1940-05-01', password: 'mot-provisoire-123' };
+  const created = await request('/api/establishment/residents', { user: director, body: details });
+  assert.equal(created.status, 201);
+  assert.match(created.data.identifier, /^[0-9a-f]{24}$/);
+  assert.equal((await request('/api/establishment/residents', { user: other })).data.residents.length, 0);
+  const reset = `/api/establishment/residents/${created.data.id}/reset-password`;
+  assert.equal((await request(reset, { user: other, body: { password: 'autre-provisoire-123' } })).status, 404);
+  const credentials = { ...details, identifier: created.data.identifier };
+  assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, birthDate: '1941-05-01' } })).status, 401);
+  const login = await request('/api/auth/resident-login', { body: credentials });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.user.email, null);
+  assert.equal(login.data.user.passwordChangeRequired, true);
+  const resident = login.data;
+  assert.equal((await request('/api/logs/all', { user: resident })).status, 403);
+  assert.equal((await request('/api/auth/change-resident-password', {
+    user: resident, body: { currentPassword: details.password, newPassword: 'nouveau-mot-de-passe-123' }
+  })).status, 400);
+  const changed = await request('/api/auth/change-resident-password', {
+    user: resident, body: { currentPassword: details.password, newPassword: 'nouveau-mot-de-passe-123',
+      acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION }
+  });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.data.user.passwordChangeRequired, false);
+  assert.equal((await request('/api/auth/me', { user: resident })).status, 401);
+  assert.equal((await request('/api/auth/me', { user: changed.data })).status, 200);
+  assert.equal((await request(reset, { user: director, body: { password: 'second-provisoire-123' } })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: changed.data })).status, 401);
+  const relogin = await request('/api/auth/resident-login', { body: { ...credentials, password: 'second-provisoire-123' } });
+  assert.equal(relogin.status, 200);
+  assert.equal(relogin.data.user.passwordChangeRequired, true);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, password: 'incorrect-password' } })).status, 401);
+  }
+  assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, password: 'second-provisoire-123' } })).status, 401);
+  await db.query("UPDATE establishment_resident_accounts SET locked_until = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE resident_user_id = $1", [created.data.id]);
+  assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, password: 'second-provisoire-123' } })).status, 200);
+});
+
+test('establishment care requires consent and isolates staff, family messages and private notes', async () => {
+  const adminLogin = await register('care-admin@example.test', 'senior');
+  const owner = await register('care-owner@example.test', 'establishment');
+  const outsider = await register('care-other-owner@example.test', 'establishment');
+  for (const establishment of [owner, outsider]) {
+    assert.equal((await request(`/api/admin/establishments/${establishment.user.id}/subscription`, {
+      user: adminLogin, admin: true, method: 'PATCH', body: { active: true }
+    })).status, 200);
+  }
+  const residentDetails = { firstName: 'Resident', lastName: 'Test', birthDate: '1945-01-02', password: 'temporary-password-123' };
+  const staffDetails = { firstName: 'Staff', lastName: 'Test', birthDate: '1980-03-04', password: 'temporary-password-456' };
+  const residentCreated = await request('/api/establishment/residents', { user: owner, body: residentDetails });
+  const staffCreated = await request('/api/establishment/staff', { user: owner, body: staffDetails });
+  const otherCreated = await request('/api/establishment/staff', { user: outsider, body: staffDetails });
+  assert.equal(staffCreated.status, 201);
+  async function activate(details, created) {
+    const login = await request('/api/auth/resident-login', { body: { ...details, identifier: created.data.identifier } });
+    assert.equal(login.status, 200);
+    const changed = await request('/api/auth/change-resident-password', { user: login.data, body: {
+      currentPassword: details.password, newPassword: 'a-different-password-456', acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION
+    } });
+    assert.equal(changed.status, 200);
+    return changed.data;
+  }
+  const resident = await activate(residentDetails, residentCreated);
+  const staff = await activate(staffDetails, staffCreated);
+  const otherStaff = await activate(staffDetails, otherCreated);
+  const aidant = await register('care-family@example.test', 'aidant');
+  const guardian = await register('care-guardian@example.test', 'aidant', true);
+  await db.query("UPDATE app_users SET guardian_verification_status = 'approved' WHERE id = $1", [guardian.user.id]);
+  assert.equal((await request(`/api/admin/accounts/${guardian.user.id}/senior-links`, {
+    user: adminLogin, admin: true, body: { seniorUserId: resident.user.id }
+  })).status, 201);
+  await db.query(
+    'INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by) VALUES ($1, $2, $3)',
+    [aidant.user.id, resident.user.seniorId, resident.user.id]
+  );
+  const residentId = resident.user.id;
+  assert.equal((await request('/api/care/residents', { user: staff })).data.residents.length, 0);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: staff })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: aidant, seniorId: resident.user.seniorId, body: { consented: true } })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: resident })).data.establishment.decided, false);
+  assert.equal((await request('/api/care/consent', { user: guardian, seniorId: resident.user.seniorId, body: { consented: true } })).status, 200);
+  assert.equal((await request('/api/care/consent', { user: guardian, seniorId: resident.user.seniorId, body: { consented: false } })).status, 200);
+  assert.equal((await request('/api/care/consent', { user: resident })).data.establishment.decided, true);
+  assert.equal((await request('/api/care/consent', { user: resident, body: { consented: true } })).status, 200);
+  assert.equal((await request('/api/care/residents', { user: staff })).data.residents.length, 1);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: otherStaff })).status, 403);
+  assert.equal((await request('/api/care/entries', { user: staff, body: { residentId, kind: 'transmission', content: 'Transmission' } })).status, 400);
+  assert.equal((await request('/api/care/entries', { user: staff, body: { residentId, kind: 'transmission', content: 'Transmission', nonMedical: true } })).status, 201);
+  assert.equal((await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId, body: { kind: 'message', content: 'Message privé', nonMedical: true } })).status, 201);
+  assert.equal((await request('/api/care/entries', { user: staff, body: { residentId, kind: 'message', content: 'Réponse', nonMedical: true } })).status, 201);
+  assert.equal((await request('/api/care/entries', { user: resident, body: { kind: 'message', content: 'Interdit', nonMedical: true } })).status, 400);
+  assert.equal((await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId, body: { kind: 'transmission', content: 'Interdit', nonMedical: true } })).status, 400);
+  const residentEntries = await request('/api/care/entries', { user: resident });
+  assert.deepEqual(residentEntries.data.entries.map(entry => entry.content), ['Transmission']);
+  const familyEntries = await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId });
+  assert.equal(familyEntries.data.entries.length, 3);
+  assert.equal((await request('/api/logs/all', { user: staff })).status, 403);
+  assert.equal((await request('/api/care/entries', { user: adminLogin })).status, 403);
+  assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+    user: adminLogin, admin: true, method: 'PATCH', body: { active: false }
+  })).status, 200);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: staff })).status, 403);
+  assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+    user: adminLogin, admin: true, method: 'PATCH', body: { active: true }
+  })).status, 200);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1 AND senior_profile_id = $2',
+    [aidant.user.id, resident.user.seniorId]);
+  assert.equal((await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: resident, body: { consented: false } })).status, 200);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: staff })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: resident, body: { consented: true } })).status, 200);
+  assert.equal((await request(`/api/establishment/staff/${staff.user.id}/disable`, { user: owner, body: {} })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: staff })).status, 401);
+  assert.equal((await request('/api/account/closure-request', {
+    user: resident, body: { password: 'a-different-password-456' }
+  })).status, 200);
+  assert.equal((await db.query('SELECT id FROM establishment_care_entries WHERE resident_user_id = $1', [residentId])).rows.length, 0);
+  assert.equal((await db.query('SELECT id FROM establishment_care_audit WHERE resident_user_id = $1', [residentId])).rows.length, 0);
+});
+
+test('doctor recommendations cannot be added to liaison updates', async () => {
+  const professional = await register('liaison-pro@example.test', 'pro');
+  await db.query("UPDATE app_users SET verification_status = 'approved' WHERE id = $1", [professional.user.id]);
+  const result = await request(`/api/planning/visits/${randomUUID()}/notes`, {
+    user: professional,
+    body: { type: 'doctor_recommendation', importance: 'information', content: 'Test' }
+  });
+  assert.equal(result.status, 400);
+  assert.match(result.data.error, /nouvelles de liaison/);
+});
+
+test('iOS native push registration is rejected but existing registrations can be removed', async () => {
+  const user = await register('ios-push-test@example.test', 'senior');
+  const previous = delivery.isConfigured;
+  delivery.isConfigured = () => ({ email: true, nativePush: true, webPush: true });
+  try {
+    const ios = await request('/api/notifications/push-subscriptions', {
+      user, body: { platform: 'ios', token: 'apns-token' }
+    });
+    assert.equal(ios.status, 503);
+    assert.match(ios.data.error, /iPhone.*pas encore disponibles/);
+    const android = await request('/api/notifications/push-subscriptions', {
+      user, body: { platform: 'android', token: 'fcm-token' }
+    });
+    assert.equal(android.status, 201);
+    await db.query('INSERT INTO app_push_subscriptions (id, user_id, platform, token) VALUES ($1, $2, $3, $4)',
+      [randomUUID(), user.user.id, 'ios', 'legacy-apns-token']);
+    const removed = await request('/api/notifications/push-subscriptions', {
+      user, method: 'DELETE', body: { platform: 'ios', token: 'legacy-apns-token' }
+    });
+    assert.equal(removed.status, 200);
+    assert.equal(removed.data.registered, false);
+  } finally {
+    delivery.isConfigured = previous;
+  }
+});
 
 test('visit comments stay private from seniors and are shared with authorized colleagues only by choice', async () => {
   const senior = await register('team-progress-senior@example.test', 'senior');
@@ -439,6 +820,58 @@ test('weekly family notes exclude other records and profiles and report truncati
   assert.equal((await request('/api/logs/weekly-family', { user: aidant, seniorId })).status, 403);
 });
 
+test('journal attributes authenticated authors and pages privately through equal timestamps', async () => {
+  const senior = await register('journal-author-senior@example.test', 'senior');
+  const other = await register('journal-author-other@example.test', 'senior');
+  const aidant = await register('journal-author-aidant@example.test', 'aidant');
+  const seniorId = senior.user.seniorId;
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, seniorId]);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type, created_at)
+    SELECT $1, 2, 'Ancienne ' || n, 'family_note', '2020-01-01T10:00:00Z'::timestamptz
+    FROM generate_series(1, 101) n`, [seniorId]);
+  const foreign = await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type)
+    VALUES ($1, 1, 'Autre carnet', 'family_note') RETURNING id`, [other.user.seniorId]);
+  const created = await request('/api/logs', {
+    user: aidant, seniorId, body: { content: 'Nouvelle authentifiée', log_type: 'family_note', author_user_id: other.user.id }
+  });
+  assert.equal(created.status, 201);
+  const first = await request('/api/logs/all', { user: aidant, seniorId });
+  assert.equal(first.status, 200);
+  assert.equal(first.data.length, 100);
+  assert.equal(first.data[0].author_name, aidant.user.name);
+  assert.equal(first.data[1].author_name, null);
+  assert.equal(first.data[1].author_id, 2);
+  const next = await request(`/api/logs/all?before=${first.data[99].id}`, { user: aidant, seniorId });
+  assert.equal(next.status, 200);
+  assert.equal(next.data.length, 2);
+  assert.equal(new Set([...first.data, ...next.data].map(item => String(item.id))).size, 102);
+  assert.ok(next.data.every(item => item.author_name === null));
+  assert.equal((await request(`/api/logs/all?before=${foreign.rows[0].id}`, { user: aidant, seniorId })).status, 400);
+  for (const cursor of ['-1', '0', '1.1', '9223372036854775808', 'abc']) {
+    assert.equal((await request(`/api/logs/all?before=${cursor}`, { user: aidant, seniorId })).status, 400);
+  }
+  const weekly = await request('/api/logs/weekly-family', { user: senior });
+  assert.equal(weekly.data.notes.find(note => note.content === 'Nouvelle authentifiée').author_name, aidant.user.name);
+  const video = await request('/api/video/urgency', { user: aidant, seniorId, body: {} });
+  assert.equal(video.status, 201);
+  const videoLog = await db.query('SELECT author_user_id FROM app_logs WHERE senior_id = $1 AND content = $2',
+    [seniorId, `Demande d’appel vidéo urgent : ${video.data.url}`]);
+  assert.equal(videoLog.rows[0].author_user_id, aidant.user.id);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1 AND senior_profile_id = $2', [aidant.user.id, seniorId]);
+  assert.equal((await request(`/api/logs/all?before=${first.data[99].id}`, { user: aidant, seniorId })).status, 403);
+  assert.equal((await request('/api/account/closure-request', {
+    user: aidant, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  const stored = await db.query('SELECT author_user_id FROM app_logs WHERE id = $1', [created.data.id]);
+  assert.equal(stored.rows[0].author_user_id, null);
+  const erased = await db.query('SELECT author_user_id FROM app_logs WHERE senior_id = $1 AND content = $2',
+    [seniorId, `Demande d’appel vidéo urgent : ${video.data.url}`]);
+  assert.equal(erased.rows[0].author_user_id, null);
+  const afterClosure = await request('/api/logs/all', { user: senior });
+  assert.equal(afterClosure.data.find(note => note.content === 'Nouvelle authentifiée').author_name, null);
+});
+
 test('family photos require senior approval, active links and remain private between profiles', async () => {
   const senior = await register('album-senior@example.test', 'senior');
   const aidant = await register('album-aidant@example.test', 'aidant');
@@ -709,7 +1142,7 @@ test('shared tasks are isolated by senior and require an active association', as
   const id = created.data.id;
   assert.deepEqual((await request('/api/shared-tasks', options)).data.tasks,
     [{ id, title: 'Acheter du pain', completed: false, dueDate: null,
-      assigned: false, assignedToMe: false, assigneeName: null }]);
+      assigned: false, assignedToMe: false, assignedToProfessional: null, assigneeName: null }]);
   const aidantCreated = await request('/api/shared-tasks', { ...options, body: { title: 'Appeler le voisin' } });
   assert.equal(aidantCreated.status, 201);
   assert.equal((await request('/api/shared-tasks', { user: senior })).data.tasks.length, 2);
@@ -825,6 +1258,113 @@ test('shared task assignment only targets active associated accounts and does no
   assert.equal((await assign(aidant, aidant.user.id)).status, 409);
   task = (await request('/api/shared-tasks', opts)).data.tasks[0];
   assert.equal(task.assigned, false);
+});
+
+test('a senior shopping list remains private until a copy is sent', async () => {
+  const senior = await register('shopping-senior@example.test', 'senior');
+  const other = await register('shopping-other@example.test', 'senior');
+  const aidant = await register('shopping-aidant@example.test', 'aidant');
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request('/api/shopping-list')).status, 401);
+  assert.equal((await request('/api/shopping-list', { user: aidant, seniorId: senior.user.seniorId })).status, 403);
+  assert.equal((await request('/api/shopping-list', { user: senior, method: 'PUT', body: { content: 'x'.repeat(1801) } })).status, 400);
+  assert.equal((await request('/api/shopping-list', { user: senior, method: 'PUT', body: { content: 'Pain\nPommes' } })).status, 200);
+  assert.equal((await request('/api/shopping-list', { user: senior })).data.content, 'Pain\nPommes');
+  assert.equal((await request('/api/shopping-list', { user: other })).data.content, '');
+  const sent = await request('/api/messages/multiple', { user: senior, body: {
+    recipients: [aidant.user.id], message: 'Liste de courses :\nPain\nPommes'
+  } });
+  assert.equal(sent.status, 201);
+  assert.equal((await request('/api/shopping-list', { user: senior, method: 'PUT', body: { content: 'Lait' } })).status, 200);
+  const messages = await request(`/api/messages/${senior.user.id}`, { user: aidant });
+  assert.equal(messages.data.messages[0].body, 'Liste de courses :\nPain\nPommes');
+  assert.equal((await request('/api/account/closure-request', {
+    user: senior, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  assert.equal((await db.query('SELECT user_id FROM app_shopping_lists WHERE user_id = $1', [senior.user.id])).rows.length, 0);
+});
+
+test('only tasks explicitly assigned to an available saved professional are shared', async () => {
+  const senior = await register('professional-tasks-senior@example.test', 'senior');
+  const other = await register('professional-tasks-other@example.test', 'senior');
+  const aidant = await register('professional-tasks-aidant@example.test', 'aidant');
+  const pro = await register('professional-tasks-pro@example.test', 'pro');
+  const stranger = await register('professional-tasks-stranger@example.test', 'pro');
+  await db.query("UPDATE app_users SET verification_status = 'approved', directory_listed = TRUE WHERE id = ANY($1::uuid[])",
+    [[pro.user.id, stranger.user.id]]);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  const opts = { user: aidant, seniorId: senior.user.seniorId };
+  const task = await request('/api/shared-tasks', { ...opts, body: { title: 'Laver le sol', dueDate: '2028-03-01' } });
+  const privateTask = await request('/api/shared-tasks', { user: senior, body: { title: 'Tâche familiale privée' } });
+  const otherTask = await request('/api/shared-tasks', { user: other, body: { title: 'Autre personne' } });
+  const assignPath = `/api/shared-tasks/${task.data.id}/assign`;
+  assert.equal((await request(assignPath, { ...opts, body: { assigneeId: pro.user.id } })).status, 403);
+  const taskNotices = () => db.query(
+    `SELECT id, user_id, title, message FROM app_notifications
+     WHERE notification_type = 'task_assignment' AND entity_id = $1`, [task.data.id]);
+  assert.equal((await taskNotices()).rows.length, 0);
+  assert.equal((await request(`/api/shared-directory/${pro.user.id}`, { user: senior, method: 'POST' })).status, 200);
+  assert.ok((await request('/api/shared-tasks/assignees', opts)).data.assignees.some(person => person.id === pro.user.id));
+  assert.equal((await request(assignPath, { ...opts, body: { assigneeId: pro.user.id } })).status, 200);
+  const notices = (await taskNotices()).rows;
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].user_id, pro.user.id);
+  assert.doesNotMatch(`${notices[0].title} ${notices[0].message}`, /Laver|professional-tasks/);
+  assert.equal((await db.query('SELECT count(*)::int AS count FROM app_notification_deliveries WHERE notification_id = $1',
+    [notices[0].id])).rows[0].count, 3);
+  assert.equal((await request(assignPath, { ...opts, body: { assigneeId: pro.user.id } })).status, 409);
+  assert.equal((await taskNotices()).rows.length, 1);
+  assert.ok((await request('/api/notifications', { user: pro })).data.notifications.some(item => item.id === notices[0].id));
+  assert.ok(!(await request('/api/notifications', { user: stranger })).data.notifications.some(item => item.id === notices[0].id));
+  const sent = [];
+  const deliveryContext = {
+    require: name => name === 'twilio' ? () => ({ messages: { create: async message => sent.push(message) } }) : require(name),
+    process: { env: { TWILIO_ACCOUNT_SID: 'test', TWILIO_AUTH_TOKEN: 'test',
+      TWILIO_FROM_NUMBER: '+33123456789', PUBLIC_APP_URL: 'https://example.test' } },
+    module: { exports: {} }, URL, console
+  };
+  vm.runInNewContext(`${fs.readFileSync(path.join(__dirname, '..', 'notification-delivery.js'), 'utf8')}
+    this.checkDelivery = deliver;`, deliveryContext);
+  const checkDelivery = () => deliveryContext.checkDelivery({
+    notification_type: 'task_assignment', notification_id: notices[0].id, entity_id: task.data.id,
+    user_id: pro.user.id, channel: 'sms', sms_enabled: true, phone: '+33612345678',
+    pool: { query: (sql, params) => db.query(sql, params) }
+  });
+  assert.equal(await checkDelivery(), true);
+  assert.doesNotMatch(sent[0].body, /Laver|professional-tasks/);
+  assert.equal((await request(`/api/shared-tasks/${task.data.id}/claim`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal(await checkDelivery(), false);
+  assert.equal((await request(assignPath, { ...opts, body: { assigneeId: pro.user.id } })).status, 200);
+  assert.equal((await taskNotices()).rows.length, 2);
+  await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [pro.user.id]);
+  assert.equal(await checkDelivery(), false);
+  await db.query('UPDATE app_users SET is_active = TRUE WHERE id = $1', [pro.user.id]);
+  assert.equal((await request(`/api/shared-tasks/${privateTask.data.id}/assign`, {
+    user: senior, body: { assigneeId: aidant.user.id }
+  })).status, 200);
+  assert.equal((await db.query(`SELECT count(*)::int AS count FROM app_notifications
+    WHERE notification_type = 'task_assignment' AND entity_id = $1`, [privateTask.data.id])).rows[0].count, 0);
+  let visible = await request('/api/intervention-tasks', { user: pro });
+  assert.equal(visible.status, 200);
+  assert.deepEqual(visible.data.tasks.map(item => item.id), [task.data.id]);
+  assert.equal(visible.data.tasks[0].seniorName, senior.user.name);
+  assert.deepEqual((await request('/api/intervention-tasks', { user: stranger })).data.tasks, []);
+  assert.equal((await request('/api/shared-tasks', { user: pro })).status, 403);
+  const update = id => request(`/api/intervention-tasks/${id}`, { user: pro, method: 'PATCH', body: { completed: true } });
+  assert.equal((await update(privateTask.data.id)).status, 404);
+  assert.equal((await update(otherTask.data.id)).status, 404);
+  assert.equal((await update(task.data.id)).status, 200);
+  assert.equal(await checkDelivery(), false);
+  assert.equal((await request('/api/shared-tasks', opts)).data.tasks.find(item => item.id === task.data.id).completed, true);
+  assert.equal((await request(`/api/shared-directory/${pro.user.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.deepEqual((await request('/api/intervention-tasks', { user: pro })).data.tasks, []);
+  assert.equal((await update(task.data.id)).status, 404);
+  assert.equal((await request('/api/shared-tasks', opts)).data.tasks.find(item => item.id === task.data.id).assigned, false);
+  assert.equal((await request(`/api/shared-directory/${pro.user.id}`, { user: senior, method: 'POST' })).status, 200);
+  assert.deepEqual((await request('/api/intervention-tasks', { user: pro })).data.tasks, []);
+  assert.equal((await request('/api/intervention-tasks', { user: senior })).status, 403);
 });
 
 test('shared task dates are optional, validated, editable and ordered by urgency', async () => {
@@ -1107,6 +1647,52 @@ test('a senior sends private copies only to explicitly authorized recipients', a
   await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1', [aidant2.user.id]);
   assert.equal((await send(senior, [aidant1.user.id, aidant2.user.id], 'Refusé')).status, 403);
   assert.equal((await db.query("SELECT COUNT(*)::int AS count FROM app_private_messages WHERE body = 'Refusé'")).rows[0].count, 0);
+});
+
+test('birthdays validate dates, recur annually and remind only the owner with their age', async () => {
+  const senior = await register('birthday-senior@example.test', 'senior');
+  const other = await register('birthday-other@example.test', 'senior');
+  const create = body => request('/api/agenda/birthdays', { user: senior, body });
+  assert.equal((await create({ name: '', birthDate: '2000-02-29' })).status, 400);
+  assert.equal((await create({ name: 'Alice', birthDate: '2001-02-29' })).status, 400);
+  assert.equal((await create({ name: 'Alice', birthDate: '9999-01-01' })).status, 400);
+  assert.equal((await request('/api/agenda/birthdays', { body: { name: 'Alice', birthDate: '2000-02-29' } })).status, 401);
+  const birthday = await create({ name: 'Alice', birthDate: '2000-02-29' });
+  assert.equal(birthday.status, 201);
+  const calendar = user => request('/api/planning/calendar?start=2025-02-27&end=2025-03-02', { user });
+  const events = (await calendar(senior)).data.events;
+  assert.equal(events.length, 1);
+  assert.equal(events[0].title, 'Anniversaire de Alice');
+  assert.equal(events[0].scheduledAt, '2025-02-28T08:00:00.000Z');
+  assert.equal(events[0].conflict, false);
+  assert.equal('birth_date' in events[0], false);
+  assert.deepEqual((await calendar(other)).data.events, []);
+  const pool = new pg.Pool();
+  const sent = [];
+  const notify = async (client, userId, type, title, message, entityType, entityId) => {
+    await client.query(`INSERT INTO app_notifications
+      (id, user_id, notification_type, title, message, entity_type, entity_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [randomUUID(), userId, type, title, message, entityType, entityId]);
+    sent.push({ userId, type, title, message, entityType, entityId });
+  };
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2025-02-28T07:59:00Z')), false);
+  await assert.rejects(createDueBirthdayReminder(pool, async () => { throw new Error('insertion failed'); },
+    new Date('2025-02-28T08:00:00Z')), /insertion failed/);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2025-02-28T08:00:00Z')), true);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2025-02-28T09:00:00Z')), false);
+  assert.equal(sent[0].userId, senior.user.id);
+  assert.equal(sent[0].entityId, birthday.data.id);
+  assert.match(sent[0].message, /Alice.*25 ans/);
+  assert.match((await request('/api/notifications', { user: senior })).data.notifications[0].message, /Alice.*25 ans/);
+  assert.equal((await request('/api/notifications', { user: other })).data.notifications.length, 0);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2028-02-28T09:00:00Z')), false);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2028-02-29T08:00:00Z')), true);
+  assert.match(sent[1].message, /28 ans/);
+  assert.equal((await request(`/api/agenda/events/${birthday.data.id}`, { user: other, method: 'DELETE' })).status, 404);
+  assert.equal((await request(`/api/agenda/events/${birthday.data.id}`, { user: senior, method: 'DELETE' })).status, 200);
+  assert.equal((await request('/api/notifications', { user: senior })).data.notifications.length, 0);
+  assert.equal(await createDueBirthdayReminder(pool, notify, new Date('2029-02-28T08:00:00Z')), false);
 });
 
 test('recurring personal dates preserve Paris time, privacy and series deletion', async () => {
@@ -1555,6 +2141,65 @@ test('consent, suspension, administrator email and confirmation protect senior d
   assert.equal((await request('/api/logs/all', { user: aidant, seniorId })).status, 403);
 });
 
+test('administrator confirms only a pending request after verifying the senior agreement', async () => {
+  const senior = await register('admin-consent-senior@example.test', 'senior');
+  const aidant = await register('admin-consent-aidant@example.test', 'aidant');
+  const admin = (await request('/api/auth/login', { body: { email: 'admin@example.test', password: 'a-test-password-123' } })).data;
+  const listPath = '/api/admin/senior-link-requests';
+  const body = { confirmed: true, note: 'Accord confirmé directement par téléphone.' };
+  assert.equal((await request(listPath, { user: aidant, admin: true })).status, 403);
+  assert.equal((await request(listPath, { user: admin })).status, 403);
+  assert.equal((await request(`/api/admin/senior-link-requests/${randomUUID()}/confirm`,
+    { user: admin, admin: true, body })).status, 404);
+  await request('/api/senior-links/requests', { user: aidant, body: { email: 'admin-consent-senior@example.test' } });
+  let pending = (await request('/api/senior-links', { user: senior })).data.requests[0];
+  const path = `/api/admin/senior-link-requests/${pending.id}/confirm`;
+  assert.ok((await request(listPath, { user: admin, admin: true })).data.requests.some(row => row.id === pending.id));
+  assert.equal((await request(path, { user: aidant, admin: true, body })).status, 403);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, confirmed: false } })).status, 400);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, note: 'court' } })).status, 400);
+  assert.equal((await request('/api/logs/all', { user: aidant, seniorId: senior.user.seniorId })).status, 403);
+  for (const [column, value, restore] of [
+    ['is_active', false, true], ['admin_password_change_required', true, false]
+  ]) {
+    await db.query(`UPDATE app_users SET ${column} = $2 WHERE id = $1`, [senior.user.id, value]);
+    assert.equal((await request(path, { user: admin, admin: true, body })).status, 404);
+    assert.ok(!(await request(listPath, { user: admin, admin: true })).data.requests.some(row => row.id === pending.id));
+    await db.query(`UPDATE app_users SET ${column} = $2 WHERE id = $1`, [senior.user.id, restore]);
+  }
+  await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [aidant.user.id]);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 404);
+  await db.query('UPDATE app_users SET is_active = TRUE WHERE id = $1', [aidant.user.id]);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by, suspended_at)
+    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`, [aidant.user.id, senior.user.seniorId, senior.user.id]);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 409);
+  assert.equal((await request('/api/logs/all', { user: aidant, seniorId: senior.user.seniorId })).status, 403);
+  await db.query('DELETE FROM app_aidant_senior_links WHERE aidant_user_id = $1 AND senior_profile_id = $2',
+    [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request(`/api/senior-links/requests/${pending.id}/decision`, {
+    user: senior, body: { decision: 'decline' }
+  })).status, 200);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 404);
+  await request('/api/senior-links/requests', { user: aidant, body: { email: 'admin-consent-senior@example.test' } });
+  pending = (await request('/api/senior-links', { user: senior })).data.requests[0];
+  const confirm = `/api/admin/senior-link-requests/${pending.id}/confirm`;
+  assert.equal((await request(confirm, { user: admin, admin: true, body })).status, 200);
+  assert.equal((await request(confirm, { user: admin, admin: true, body })).status, 404);
+  const audit = (await db.query('SELECT status, confirmed_by_admin, admin_confirmation_note FROM app_aidant_link_requests WHERE id = $1', [pending.id])).rows[0];
+  assert.equal(audit.status, 'accepted');
+  assert.equal(audit.confirmed_by_admin, admin.user.id);
+  assert.equal(audit.admin_confirmation_note, body.note);
+  const notices = (await db.query(`SELECT user_id FROM app_notifications
+    WHERE entity_id = $1 AND notification_type = 'senior_link_decision'`, [pending.id])).rows;
+  assert.deepEqual(new Set(notices.map(row => row.user_id)), new Set([senior.user.id, aidant.user.id]));
+  assert.equal((await request('/api/logs/all', { user: aidant, seniorId: senior.user.seniorId })).status, 200);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type)
+    VALUES ($1, 1, 'private-admin-consent-test', 'note')`, [senior.user.seniorId]);
+  const adminLogs = await request('/api/logs/all', { user: admin, seniorId: senior.user.seniorId });
+  assert.equal(adminLogs.status, 200);
+  assert.ok(!adminLogs.data.some(log => log.content === 'private-admin-consent-test'));
+});
+
 test('association refuses an existing conflict with an unidentified legacy booking and removal releases it', async () => {
   const senior = await register('link-conflict-senior@example.test', 'senior');
   const aidant = await register('link-conflict-aidant@example.test', 'aidant');
@@ -1578,6 +2223,12 @@ test('association refuses an existing conflict with an unidentified legacy booki
   const refused = await request(decision, { user: senior, body: { decision: 'accept' } });
   assert.equal(refused.status, 409);
   assert.match(refused.data.error, /ancienne réservation/);
+  const conflictAdmin = (await request('/api/auth/login', { body: { email: 'admin@example.test', password: 'a-test-password-123' } })).data;
+  const adminRefused = await request(`/api/admin/senior-link-requests/${requestId}/confirm`, {
+    user: conflictAdmin, admin: true, body: { confirmed: true, note: 'Accord confirmé directement par téléphone.' }
+  });
+  assert.equal(adminRefused.status, 409);
+  assert.match(adminRefused.data.error, /ancienne réservation/);
   assert.equal((await db.query('SELECT count(*)::int AS n FROM app_aidant_senior_links WHERE aidant_user_id = $1',
     [aidant.user.id])).rows[0].n, 0);
   await db.query("UPDATE app_directory_bookings SET status = 'declined' WHERE id = $1", [occupiedId]);

@@ -10,9 +10,10 @@ test('Android web assets omit downloadable builds, including stale files from a 
   try {
     for (const entry of [
       'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html',
+      'presentation-senior.html', 'presentation-proches.html', 'presentation-intervenants.html', 'presentation-residences.html', 'presentation.css',
       'reset-password.html', 'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html',
       'language.js', 'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js',
-      'homepage-images', 'push-service-worker.js', 'scripts'
+      'homepage-images', 'riddle-images', 'push-service-worker.js', 'scripts'
     ]) {
       fs.cpSync(path.join(root, entry), path.join(fixture, entry), { recursive: true });
     }
@@ -26,6 +27,9 @@ test('Android web assets omit downloadable builds, including stale files from a 
     });
     const web = build([]);
     assert.equal(web.status, 0, web.stderr);
+    for (const file of ['presentation-senior.html', 'presentation-proches.html', 'presentation-intervenants.html', 'presentation-residences.html', 'presentation.css']) {
+      assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), true);
+    }
     for (const file of ['app-generation-liaison.apk', 'app-generation-liaison.aab']) {
       assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), true);
     }
@@ -35,6 +39,25 @@ test('Android web assets omit downloadable builds, including stale files from a 
       assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), false);
     }
     assert.match(fs.readFileSync(path.join(fixture, 'dist', 'app-mobile.html'), 'utf8'), /generation-liaison\.onrender\.com/);
+    const ios = build(['--ios']);
+    assert.equal(ios.status, 0, ios.stderr);
+    for (const file of ['app-generation-liaison.apk', 'app-generation-liaison.aab']) {
+      assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), false);
+    }
+    const publicPath = path.join(fixture, 'ios', 'App', 'App', 'public');
+    fs.cpSync(path.join(fixture, 'dist'), publicPath, { recursive: true });
+    const entry = spawnSync(process.execPath, [path.join(fixture, 'scripts', 'prepare-ios-entry.js')], {
+      cwd: fixture, encoding: 'utf8'
+    });
+    assert.equal(entry.status, 0, entry.stderr);
+    const iosEntry = fs.readFileSync(path.join(publicPath, 'index.html'), 'utf8');
+    assert.match(iosEntry, /const SERVER_URL = "https:\/\/generation-liaison\.onrender\.com";/);
+    assert.match(iosEntry, /id="auth-box"/);
+    const invalidIos = spawnSync(process.execPath, [path.join(fixture, 'scripts', 'build-web.js'), '--ios'], {
+      cwd: fixture, encoding: 'utf8', env: { ...process.env, CAPACITOR_API_URL: 'http://example.test' }
+    });
+    assert.notEqual(invalidIos.status, 0);
+    assert.match(invalidIos.stderr, /CAPACITOR_API_URL must be a valid HTTPS URL/);
   } finally {
     fs.rmSync(fixture, { recursive: true, force: true });
   }

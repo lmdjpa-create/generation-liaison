@@ -6,7 +6,30 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'notification-delivery.js'), 'utf8');
 
-async function deliverSms(enabled, reminderStillValid = null) {
+test('establishment invitation explains that the recipient chooses the role and creates the account', async () => {
+  const sent = [];
+  const mocks = {
+    'firebase-admin/app': {}, 'firebase-admin/messaging': {}, 'web-push': {}, twilio: {},
+    resend: { Resend: class { constructor() { this.emails = { send: async payload => { sent.push(payload); return {}; } }; } } }
+  };
+  const context = {
+    require: name => mocks[name],
+    process: { env: { RESEND_API_KEY: 'test', NOTIFICATIONS_FROM_EMAIL: 'sender@example.test' } },
+    module: { exports: {} }, URL, console
+  };
+  vm.runInNewContext(source, context);
+  await context.module.exports.sendRegistrationInvitation('company@example.test', 'https://example.test/app-mobile.html#inscription', 'establishment');
+  assert.match(sent[0].text, /Entreprise \/ résidence/);
+  assert.match(sent[0].text, /ne crée pas de compte et ne donne aucun accès/);
+  assert.match(sent[0].text, /#inscription/);
+  await context.module.exports.sendAdministrativeActivation('person@example.test', 'https://example.test/reset-password.html#token');
+  assert.equal(sent[1].to, 'person@example.test');
+  assert.match(sent[1].text, /choisissez votre mot de passe et acceptez les conditions/);
+  assert.match(sent[1].text, /15 minutes/);
+  assert.match(sent[1].text, /Mot de passe oublié/);
+});
+
+async function deliverSms(enabled, reminderStillValid = null, reminderType = 'task_reminder') {
   const sends = [];
   const updates = [];
   let tick;
@@ -20,7 +43,7 @@ async function deliverSms(enabled, reminderStillValid = null) {
     notification_phone: '+33612345678', sms_notifications_enabled: enabled
   };
   if (reminderStillValid !== null) {
-    row.notification_type = 'task_reminder';
+    row.notification_type = reminderType;
     row.entity_id = 'task';
   }
   let claimed = false;
@@ -40,6 +63,9 @@ async function deliverSms(enabled, reminderStillValid = null) {
     },
     async query(sql, params) {
       if (sql.includes('FROM app_shared_tasks task')) {
+        return { rows: reminderStillValid ? [{}] : [] };
+      }
+      if (sql.includes('FROM app_personal_events event')) {
         return { rows: reminderStillValid ? [{}] : [] };
       }
       updates.push(params);
@@ -87,6 +113,25 @@ test('queued task reminders are skipped after access or eligibility changes', as
   assert.equal(updates[0][1], 'skipped');
 });
 
+test('queued professional task notifications respect current eligibility and SMS consent', async () => {
+  const eligible = await deliverSms(true, true, 'task_assignment');
+  assert.equal(eligible.sends.length, 1);
+  assert.doesNotMatch(eligible.sends[0].body, /task|senior/i);
+  assert.equal(eligible.updates[0][1], 'sent');
+  const revoked = await deliverSms(true, false, 'task_assignment');
+  assert.equal(revoked.sends.length, 0);
+  assert.equal(revoked.updates[0][1], 'skipped');
+  const disabled = await deliverSms(false, true, 'task_assignment');
+  assert.equal(disabled.sends.length, 0);
+  assert.equal(disabled.updates[0][1], 'skipped');
+});
+
+test('queued birthday reminders are skipped after deletion', async () => {
+  const { sends, updates } = await deliverSms(true, false, 'birthday_reminder');
+  assert.equal(sends.length, 0);
+  assert.equal(updates[0][1], 'skipped');
+});
+
 test('external notifications use fixed text across channels while keeping urgent alerts identifiable', async () => {
   const sent = { native: [], web: [], sms: [], email: [] };
   const mocks = {
@@ -123,6 +168,7 @@ test('external notifications use fixed text across channels while keeping urgent
     notification_type: 'private_message',
     subscriptions: [
       { platform: 'android', token: 'native-token' },
+      { platform: 'ios', token: 'legacy-apns-token' },
       { id: 'web-id', platform: 'web', token: JSON.stringify({ endpoint: 'https://example.test' }) }
     ],
     pool: { query: async () => ({ rows: [] }) },
@@ -136,6 +182,7 @@ test('external notifications use fixed text across channels while keeping urgent
   assert.match(sent.sms[0].body, /notification=notification-id/);
   assert.match(sent.email[0].text, /notification=notification-id/);
   assert.equal(sent.native[0].data.notificationId, 'notification-id');
+  assert.deepEqual(Array.from(sent.native[0].tokens), ['native-token']);
   assert.equal(sent.web[0].data.notificationId, 'notification-id');
   assert.equal(sent.native[0].notification.title, 'Génération Liaison');
   assert.equal(sent.web[0].title, 'Génération Liaison');
@@ -144,4 +191,8 @@ test('external notifications use fixed text across channels while keeping urgent
   assert.equal(sent.web[1].title, 'Alerte d’urgence');
   await context.testDeliver({ ...delivery, channel: 'sms', notification_type: 'wellbeing_safety_check' });
   assert.match(sent.sms[1].body, /^Vérification de sécurité sans réponse/);
+  assert.equal(await context.testDeliver({ ...delivery, channel: 'push', subscriptions: [
+    { platform: 'ios', token: 'legacy-apns-token' }
+  ] }), false);
+  assert.equal(sent.native.length, 2);
 });

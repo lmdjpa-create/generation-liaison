@@ -11,6 +11,7 @@ const { isAllowedWebPushSubscription } = require('./push-subscriptions');
 const googleCalendar = require('./google-calendar');
 const { assertLegacyBookingsSafeForLink, assertScheduleAvailable, lockScheduleParticipants } = require('./schedule-conflicts');
 const { startTaskReminderWorker } = require('./task-reminders');
+const { startBirthdayReminderWorker } = require('./birthday-reminders');
 const { createPlanningGoogleSync } = require('./planning-google-sync');
 const {
   generateAdminReply,
@@ -61,6 +62,7 @@ const seniorInvitationTimes = new Map();
 const siteMonitor = createSiteMonitor();
 const weatherService = createWeatherService({ apiKey: process.env.VISUAL_CROSSING_API_KEY });
 const weatherRequestTimes = new Map();
+const residentLoginTimes = new Map();
 
 app.use(cors());
 app.use((req, res, next) => {
@@ -203,9 +205,30 @@ function requireAuth(req, res, next) {
       req.authUser = {
         ...user,
         isCoordinator: user.role === 'pro' && coordinatorEmails.has(user.email.toLowerCase()),
-        isAdmin: adminEmails.has(user.email.toLowerCase())
+        isAdmin: typeof user.email === 'string' && adminEmails.has(user.email.toLowerCase())
       };
       req.authToken = match[1];
+      if (user.passwordChangeRequired && !(
+        (req.method === 'GET' && req.path === '/api/auth/me') ||
+        (req.method === 'POST' && ['/api/auth/logout', '/api/auth/change-resident-password'].includes(req.path))
+      )) return res.status(403).json({ error: 'Changez d’abord votre mot de passe provisoire.' });
+      if (user.role === 'establishment' && !(
+        (req.method === 'GET' && req.path === '/api/auth/me') ||
+        (req.method === 'POST' && ['/api/auth/logout', '/api/account/closure-request'].includes(req.path)) ||
+        (['GET', 'PUT'].includes(req.method) && req.path === '/api/establishment') ||
+        (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/contacts') ||
+        (['PUT', 'DELETE'].includes(req.method) && /^\/api\/establishment\/contacts\/[0-9a-f-]+$/i.test(req.path)) ||
+        (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/residents') ||
+        (req.method === 'POST' && /^\/api\/establishment\/residents\/[0-9a-f-]+\/reset-password$/i.test(req.path)) ||
+        (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/staff') ||
+        (req.method === 'POST' && /^\/api\/establishment\/staff\/[0-9a-f-]+\/(reset-password|disable)$/i.test(req.path))
+      )) {
+        return res.status(403).json({ error: 'Cette fonction n’est pas disponible dans l’espace établissement.' });
+      }
+      if (user.role === 'staff' && !(
+        (req.method === 'GET' && ['/api/auth/me', '/api/care/residents', '/api/care/entries'].includes(req.path)) ||
+        (req.method === 'POST' && ['/api/auth/logout', '/api/auth/change-resident-password', '/api/care/entries'].includes(req.path))
+      )) return res.status(403).json({ error: 'Cette fonction n’est pas disponible dans l’espace soignant.' });
       if (user.role === 'aidant' && user.isLegalGuardian &&
           user.guardianVerificationStatus !== 'approved' && !canPendingLegalGuardianAccess(req)) {
         return res.status(403).json({
@@ -336,7 +359,7 @@ function addUserAccessFlags(user) {
   return {
     ...user,
     isCoordinator: user.role === 'pro' && coordinatorEmails.has(user.email.toLowerCase()),
-    isAdmin: adminEmails.has(user.email.toLowerCase())
+    isAdmin: typeof user.email === 'string' && adminEmails.has(user.email.toLowerCase())
   };
 }
 
@@ -1414,7 +1437,7 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
   }
   try {
     if (!contactUserId) {
-      const { rows } = await pool.query('SELECT id FROM app_users WHERE email = $1 AND is_active = TRUE', [email]);
+      const { rows } = await pool.query("SELECT id FROM app_users WHERE email = $1 AND is_active = TRUE AND role <> 'establishment'", [email]);
       if (!rows[0]) return res.status(404).json({ error: 'Ce contact n’existe pas ou ne peut pas être ajouté.' });
       contactUserId = rows[0].id;
     }
@@ -1425,7 +1448,7 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
       `WITH target AS (
          SELECT id, name, notification_phone, profile_photo_url, role
          FROM app_users
-         WHERE id = $1 AND is_active = TRUE
+         WHERE id = $1 AND is_active = TRUE AND role <> 'establishment'
        )
        INSERT INTO app_user_contacts (id, user_id, contact_user_id, nickname)
        SELECT $2, $3, target.id, target.name
@@ -1596,8 +1619,7 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
          JOIN senior_profiles senior ON senior.id = user_account.senior_id
          LEFT JOIN planning_org_members member ON member.user_id = user_account.id
          GROUP BY user_account.id, senior.name
-         ORDER BY user_account.created_at DESC
-         LIMIT 500`
+         ORDER BY user_account.created_at DESC`
       ),
       pool.query(
         `SELECT partner.id, partner.display_name, partner.service_type, partner.service_area,
@@ -1743,7 +1765,7 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
         premiumStatus: row.premium_status,
         premiumUntil: row.premium_until,
         premiumActive: hasActivePremium(row),
-        administrator: adminEmails.has(row.email.toLowerCase()),
+        administrator: typeof row.email === 'string' && adminEmails.has(row.email.toLowerCase()),
         profileName: row.profile_name,
         teamCount: row.team_count,
         createdAt: row.created_at
@@ -2146,6 +2168,14 @@ app.patch('/api/admin/accounts/:accountId', requireAuth, requireAdmin, async (re
   try {
     client = await pool.connect();
     await client.query('BEGIN');
+    const { rows: targetAccounts } = await client.query(
+      'SELECT email FROM app_users WHERE id = $1 FOR UPDATE',
+      [req.params.accountId]
+    );
+    if (!targetAccounts[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Compte introuvable.' });
+    }
     if (req.body.active) {
       const { rows: closureRequests } = await client.query(
         `SELECT id
@@ -2162,11 +2192,7 @@ app.patch('/api/admin/accounts/:accountId', requireAuth, requireAdmin, async (re
       }
     }
     if (!req.body.active) {
-      const { rows: targetAccounts } = await client.query(
-        `SELECT email FROM app_users WHERE id = $1 FOR UPDATE`,
-        [req.params.accountId]
-      );
-      if (targetAccounts[0] && adminEmails.has(targetAccounts[0].email.toLowerCase())) {
+      if (targetAccounts[0] && typeof targetAccounts[0].email === 'string' && adminEmails.has(targetAccounts[0].email.toLowerCase())) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Un compte administrateur ne peut pas être suspendu depuis cet écran.' });
       }
@@ -2192,6 +2218,84 @@ app.patch('/api/admin/accounts/:accountId', requireAuth, requireAdmin, async (re
     sendApiError(res, error, 'Impossible de modifier ce compte.');
   } finally {
     if (client) client.release();
+  }
+});
+
+app.post('/api/admin/accounts/:accountId/closure', requireAuth, requireAdmin, async (req, res) => {
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (!isValidUuid(req.params.accountId) || req.body?.confirmed !== true ||
+      reason.length < 20 || reason.length > 500) {
+    return res.status(400).json({ error: 'Confirmez la clôture et indiquez son motif (20 à 500 caractères).' });
+  }
+  try {
+    const result = await authService.requestAccountClosure(req.params.accountId, null, {
+      actorId: req.authUser.id, adminEmails, reason
+    });
+    res.status(201).json({ ...result, message: 'Compte désactivé et clôture à examiner. La suppression complète nécessite un traitement administratif.' });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de lancer la clôture.');
+  }
+});
+
+app.post('/api/admin/accounts', requireAuth, requireAdmin, async (req, res) => {
+  if (req.body?.confirmed !== true) {
+    return res.status(400).json({ error: 'Confirmez l’accord de la personne avant de créer son compte.' });
+  }
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (adminEmails.has(email)) {
+    return res.status(409).json({ error: 'Un compte administrateur ne peut pas être créé depuis cet écran.' });
+  }
+  if (!notificationDelivery.isConfigured().email) {
+    return res.status(503).json({ error: 'L’envoi d’e-mails doit être configuré pour créer un compte.' });
+  }
+  let appUrl;
+  try {
+    appUrl = new URL(process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com');
+    if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password) throw new Error('URL publique invalide.');
+  } catch (error) {
+    return sendApiError(res, error, 'Impossible de préparer le lien d’activation.');
+  }
+  try {
+    const account = await authService.createAdministrativeAccount(req.authUser.id, req.body);
+    try {
+      const token = await authService.createPasswordReset(email);
+      if (!token) throw new Error('Lien d’activation indisponible.');
+      const link = new URL('/reset-password.html', appUrl);
+      link.hash = token;
+      await notificationDelivery.sendAdministrativeActivation(email, link.toString());
+      res.set('Cache-Control', 'no-store').status(201).json({ ...account, activationEmailSent: true });
+    } catch (error) {
+      console.error('Échec de l’envoi du lien d’activation :', error.message);
+      res.set('Cache-Control', 'no-store').status(201).json({ ...account, activationEmailSent: false });
+    }
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer le compte.');
+  }
+});
+
+app.post('/api/admin/account-invitations', requireAuth, requireAdmin, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const role = req.body?.role;
+  if (role !== undefined && role !== 'establishment') {
+    return res.status(400).json({ error: 'Type d’invitation invalide.' });
+  }
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Saisissez une adresse e-mail valide.' });
+  }
+  if (!notificationDelivery.isConfigured().email) {
+    return res.status(503).json({ error: 'L’envoi d’e-mails n’est pas configuré.' });
+  }
+  try {
+    const appUrl = new URL(process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com');
+    if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password) {
+      throw new Error('PUBLIC_APP_URL doit être une URL HTTPS valide.');
+    }
+    const registrationUrl = new URL('/app-mobile.html', appUrl);
+    if (role === 'establishment') registrationUrl.hash = 'inscription';
+    await notificationDelivery.sendRegistrationInvitation(email, registrationUrl.toString(), role);
+    res.status(202).json({ message: 'Invitation transmise. La personne devra créer son compte elle-même.' });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’envoyer l’invitation.');
   }
 });
 
@@ -2238,6 +2342,7 @@ app.get('/api/admin/account-closure-requests', requireAuth, requireAdmin, async 
               request.requested_at + INTERVAL '30 days' AS due_at,
               request.updated_at, request.ai_reviewed_at,
               request.ai_review_summary, request.ai_review_inventory,
+              request.initiated_by, request.initiation_reason,
               account.name, account.email, account.role, account.premium_status
        FROM app_account_closure_requests request
        JOIN app_users account ON account.id = request.user_id
@@ -2255,6 +2360,8 @@ app.get('/api/admin/account-closure-requests', requireAuth, requireAdmin, async 
         aiReviewedAt: row.ai_reviewed_at,
         aiReviewSummary: row.ai_review_summary,
         aiReviewInventory: row.ai_review_inventory,
+        initiatedBy: row.initiated_by,
+        initiationReason: row.initiation_reason,
         name: row.name,
         email: row.email,
         role: row.role,
@@ -2897,6 +3004,36 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/resident-login', async (req, res) => {
+  const now = Date.now();
+  for (const [key, timestamps] of residentLoginTimes) {
+    if (timestamps[timestamps.length - 1] <= now - 60_000) residentLoginTimes.delete(key);
+  }
+  const key = req.ip;
+  const recent = (residentLoginTimes.get(key) || []).filter(time => time > now - 60_000);
+  if (recent.length >= 30) return res.status(429).json({ error: 'Trop de tentatives. Réessayez dans une minute.' });
+  recent.push(now);
+  residentLoginTimes.set(key, recent);
+  try {
+    const result = await authService.loginEstablishmentResident(req.body || {});
+    res.json({ ...result, user: addUserAccessFlags(result.user) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de se connecter.');
+  }
+});
+
+app.post('/api/auth/change-resident-password', requireAuth, async (req, res) => {
+  try {
+    const result = await authService.changeEstablishmentResidentPassword(
+      req.authUser.id, req.body?.currentPassword, req.body?.newPassword,
+      req.body?.acceptedTerms, req.body?.acceptedTermsVersion
+    );
+    res.json({ ...result, user: addUserAccessFlags(result.user) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier le mot de passe.');
+  }
+});
+
 app.post('/api/auth/password-reset/request', async (req, res) => {
   if (!notificationDelivery.isConfigured().email) {
     return res.status(503).json({ error: 'La récupération par e-mail n’est pas encore configurée.' });
@@ -2923,7 +3060,7 @@ app.post('/api/auth/password-reset/request', async (req, res) => {
 
 app.post('/api/auth/password-reset/confirm', async (req, res) => {
   try {
-    await authService.resetPassword(req.body?.token, req.body?.password);
+    await authService.resetPassword(req.body?.token, req.body?.password, req.body?.acceptedTerms, req.body?.acceptedTermsVersion);
     return res.json({ message: 'Votre mot de passe a été modifié. Vous pouvez vous connecter.' });
   } catch (error) {
     return sendApiError(res, error, 'Impossible de modifier le mot de passe.');
@@ -2932,6 +3069,521 @@ app.post('/api/auth/password-reset/confirm', async (req, res) => {
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: req.authUser });
+});
+
+app.get('/api/establishment', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.name, p.description, p.address, p.phone, p.email, p.tablet_interest, p.tablet_quantity,
+              u.establishment_subscription_active AS active,
+              u.establishment_user_count AS user_count
+       FROM app_users u LEFT JOIN establishment_profiles p ON p.user_id = u.id WHERE u.id = $1`,
+      [req.authUser.id]
+    );
+    const row = rows[0];
+    res.set('Cache-Control', 'no-store').json({
+      active: row.active,
+      userCount: row.user_count,
+      profile: row.name === null ? null : { name: row.name, description: row.description, address: row.address, phone: row.phone, email: row.email, tablet_interest: row.tablet_interest, tablet_quantity: row.tablet_quantity }
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger la fiche établissement.');
+  }
+});
+
+app.put('/api/establishment', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  const { name, description, address, phone, email, tablet_interest, tablet_quantity } = req.body || {};
+  const fields = [name, description, address, phone, email];
+  if (fields.some(value => typeof value !== 'string') || !name.trim() ||
+      name.trim().length > 120 || description.trim().length > 1000 ||
+      address.trim().length > 300 || phone.trim().length > 40 || email.trim().length > 254 ||
+      (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) ||
+      !['none', 'rental', 'purchase'].includes(tablet_interest) ||
+      (tablet_interest === 'none' ? tablet_quantity !== null :
+        !Number.isInteger(tablet_quantity) || tablet_quantity < 1 || tablet_quantity > 1000)) {
+    return res.status(400).json({ error: 'Vérifiez le nom et les coordonnées de l’établissement.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (
+         SELECT id FROM app_users WHERE id = $1 AND role = 'establishment'
+           AND is_active = TRUE AND establishment_subscription_active = TRUE FOR UPDATE
+       )
+       INSERT INTO establishment_profiles (user_id, name, description, address, phone, email, tablet_interest, tablet_quantity)
+       SELECT id, $2, $3, $4, $5, $6, $7, $8 FROM active
+       ON CONFLICT (user_id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description,
+         address = EXCLUDED.address, phone = EXCLUDED.phone, email = EXCLUDED.email,
+         tablet_interest = EXCLUDED.tablet_interest, tablet_quantity = EXCLUDED.tablet_quantity, updated_at = CURRENT_TIMESTAMP
+       RETURNING user_id`,
+      [req.authUser.id, ...fields.map(value => value.trim()), tablet_interest, tablet_quantity]
+    );
+    if (!rows.length) return res.status(403).json({ error: 'L’abonnement n’est pas actif. Contactez l’administration pour modifier la fiche.' });
+    res.json({ saved: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer la fiche établissement.');
+  }
+});
+
+app.get('/api/establishment/contacts', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, category, name, phone, email FROM establishment_contacts WHERE user_id = $1 ORDER BY name, id',
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'no-store').json({ contacts: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les coordonnées.');
+  }
+});
+
+function validateEstablishmentContact(body) {
+  if (!body || !['resident', 'caregiver', 'intervenant'].includes(body.category) ||
+      typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 120 ||
+      typeof body.phone !== 'string' || body.phone.trim().length > 40 ||
+      typeof body.email !== 'string' || body.email.trim().length > 254 ||
+      (body.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()))) return null;
+  return [body.category, body.name.trim(), body.phone.trim(), body.email.trim()];
+}
+
+app.post('/api/establishment/contacts', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  const fields = validateEstablishmentContact(req.body);
+  if (!fields) return res.status(400).json({ error: 'Vérifiez le type, le nom et les coordonnées.' });
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (SELECT id FROM app_users WHERE id = $1 AND is_active = TRUE
+        AND role = 'establishment' AND establishment_subscription_active = TRUE FOR UPDATE)
+       INSERT INTO establishment_contacts (id, user_id, category, name, phone, email)
+       SELECT $2, id, $3, $4, $5, $6 FROM active RETURNING id`,
+      [req.authUser.id, randomUUID(), ...fields]
+    );
+    if (!rows.length) return res.status(403).json({ error: 'L’abonnement doit être actif pour modifier les coordonnées.' });
+    res.status(201).json({ id: rows[0].id });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’ajouter ces coordonnées.');
+  }
+});
+
+app.put('/api/establishment/contacts/:id', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  const fields = validateEstablishmentContact(req.body);
+  if (!isValidUuid(req.params.id) || !fields) return res.status(400).json({ error: 'Vérifiez le type, le nom et les coordonnées.' });
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (SELECT id FROM app_users WHERE id = $1 AND is_active = TRUE
+        AND role = 'establishment' AND establishment_subscription_active = TRUE FOR UPDATE)
+       UPDATE establishment_contacts SET category = $3, name = $4, phone = $5, email = $6
+       WHERE user_id IN (SELECT id FROM active) AND id = $2 RETURNING id`,
+      [req.authUser.id, req.params.id, ...fields]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Coordonnées introuvables ou abonnement inactif.' });
+    res.json({ saved: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier ces coordonnées.');
+  }
+});
+
+app.delete('/api/establishment/contacts/:id', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (SELECT id FROM app_users WHERE id = $1 AND is_active = TRUE
+        AND role = 'establishment' AND establishment_subscription_active = TRUE FOR UPDATE)
+       DELETE FROM establishment_contacts WHERE user_id IN (SELECT id FROM active) AND id = $2 RETURNING id`,
+      [req.authUser.id, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Coordonnées introuvables ou abonnement inactif.' });
+    res.json({ deleted: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de supprimer ces coordonnées.');
+  }
+});
+
+app.get('/api/establishment/residents', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, account.identifier
+       FROM establishment_resident_accounts account JOIN app_users u ON u.id = account.resident_user_id
+       WHERE account.establishment_user_id = $1 AND u.is_active = TRUE AND u.role = 'senior' ORDER BY u.name, u.id`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'no-store').json({ residents: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les accès résidents.');
+  }
+});
+
+app.post('/api/establishment/residents', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const resident = await authService.createEstablishmentResident(req.authUser.id, req.body || {});
+    res.set('Cache-Control', 'no-store').status(201).json(resident);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer l’accès résident.');
+  }
+});
+
+app.post('/api/establishment/residents/:id/reset-password', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  try {
+    await authService.resetEstablishmentResidentPassword(req.authUser.id, req.params.id, req.body?.password);
+    res.json({ reset: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de réinitialiser ce mot de passe.');
+  }
+});
+
+app.get('/api/establishment/staff', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, account.identifier
+       FROM establishment_resident_accounts account JOIN app_users u ON u.id = account.resident_user_id
+       WHERE account.establishment_user_id = $1 AND u.is_active = TRUE AND u.role = 'staff'
+       ORDER BY u.name, u.id`, [req.authUser.id]
+    );
+    res.set('Cache-Control', 'no-store').json({ staff: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les comptes soignants.');
+  }
+});
+
+app.post('/api/establishment/staff', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const staff = await authService.createEstablishmentResident(req.authUser.id, req.body || {}, 'staff');
+    res.set('Cache-Control', 'no-store').status(201).json(staff);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer le compte soignant.');
+  }
+});
+
+app.post('/api/establishment/staff/:id/reset-password', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  try {
+    await authService.resetEstablishmentResidentPassword(req.authUser.id, req.params.id, req.body?.password, 'staff');
+    res.json({ reset: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de réinitialiser ce mot de passe.');
+  }
+});
+
+app.post('/api/establishment/staff/:id/disable', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT staff.id FROM establishment_resident_accounts account
+       JOIN app_users owner ON owner.id = account.establishment_user_id
+       JOIN app_users staff ON staff.id = account.resident_user_id
+       WHERE owner.id = $1 AND owner.role = 'establishment' AND owner.is_active
+         AND owner.establishment_subscription_active AND staff.id = $2 AND staff.role = 'staff' AND staff.is_active
+       FOR UPDATE OF owner, account, staff`, [req.authUser.id, req.params.id]
+    );
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Compte introuvable ou abonnement inactif.' });
+    }
+    await client.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [req.params.id]);
+    await client.query('DELETE FROM app_sessions WHERE user_id = $1', [req.params.id]);
+    await client.query('COMMIT');
+    res.json({ disabled: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de désactiver le compte.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/care/consent', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) return res.status(403).json({ error: 'Accès interdit.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT resident.id, COALESCE(profile.name, owner.name) AS establishment_name,
+              (consent.consented_at IS NOT NULL AND consent.revoked_at IS NULL) AS consented,
+              (consent.consented_at IS NOT NULL OR consent.revoked_at IS NOT NULL) AS decided
+       FROM app_users resident
+       JOIN establishment_resident_accounts account ON account.resident_user_id = resident.id
+       JOIN app_users owner ON owner.id = account.establishment_user_id AND owner.role = 'establishment'
+       LEFT JOIN establishment_profiles profile ON profile.user_id = owner.id
+       LEFT JOIN establishment_care_consent consent ON consent.resident_user_id = resident.id
+         AND consent.establishment_user_id = owner.id
+       WHERE resident.senior_id = $1 AND resident.role = 'senior' AND resident.is_active`, [req.authUser.seniorId]
+    );
+    res.set('Cache-Control', 'private, no-store').json({ establishment: rows[0] || null });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger l’accord de partage.');
+  }
+});
+
+app.post('/api/care/consent', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) return res.status(403).json({ error: 'Accès interdit.' });
+  if (typeof req.body?.consented !== 'boolean') return res.status(400).json({ error: 'Indiquez votre décision.' });
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT resident.id, owner.id AS owner_id, owner.is_active AS owner_active,
+              owner.establishment_subscription_active
+       FROM app_users resident
+       JOIN establishment_resident_accounts account ON account.resident_user_id = resident.id
+       JOIN app_users owner ON owner.id = account.establishment_user_id AND owner.role = 'establishment'
+       WHERE resident.senior_id = $1 AND resident.role = 'senior' AND resident.is_active
+       FOR UPDATE OF resident, account, owner`, [req.authUser.seniorId]
+    );
+    const target = rows[0];
+    if (!target) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Aucun établissement associé.' });
+    }
+    if (req.authUser.role === 'aidant') {
+      const guardian = await client.query(
+        `SELECT link.aidant_user_id FROM app_aidant_senior_links link
+         JOIN app_users guardian ON guardian.id = link.aidant_user_id
+         JOIN app_users verifier ON verifier.id = link.linked_by
+         WHERE link.aidant_user_id = $1 AND link.senior_profile_id = $2 AND link.suspended_at IS NULL
+           AND guardian.is_active AND guardian.is_legal_guardian AND guardian.guardian_verification_status = 'approved'
+           AND lower(verifier.email) = ANY($3::text[])
+         FOR UPDATE OF link, guardian`, [req.authUser.id, req.authUser.seniorId, Array.from(adminEmails)]
+      );
+      if (!guardian.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Seul le résident ou son représentant légal vérifié et associé par l’administration peut décider.' });
+      }
+    }
+    if (req.body.consented && (!target.owner_active || !target.establishment_subscription_active)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'L’abonnement de l’établissement est inactif.' });
+    }
+    await client.query(
+      `INSERT INTO establishment_care_consent (resident_user_id, establishment_user_id, consented_by, consented_at, revoked_at)
+       VALUES ($1, $2, CASE WHEN $4 THEN $3::uuid ELSE NULL END,
+               CASE WHEN $4 THEN CURRENT_TIMESTAMP ELSE NULL END, CASE WHEN $4 THEN NULL ELSE CURRENT_TIMESTAMP END)
+       ON CONFLICT (resident_user_id) DO UPDATE SET establishment_user_id = EXCLUDED.establishment_user_id,
+         consented_by = CASE WHEN $4 THEN $3::uuid ELSE establishment_care_consent.consented_by END,
+         consented_at = CASE WHEN $4 THEN CURRENT_TIMESTAMP ELSE establishment_care_consent.consented_at END,
+         revoked_at = CASE WHEN $4 THEN NULL ELSE CURRENT_TIMESTAMP END`,
+      [target.id, target.owner_id, req.authUser.id, req.body.consented]
+    );
+    await client.query(
+      `INSERT INTO establishment_care_audit (id, resident_user_id, user_id, action) VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), target.id, req.authUser.id, req.body.consented ? 'consent' : 'revoke']
+    );
+    await client.query('COMMIT');
+    res.json({ consented: req.body.consented });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’enregistrer l’accord.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/care/residents', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'staff') return res.status(403).json({ error: 'Accès réservé aux soignants.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT resident.id, resident.name
+       FROM establishment_resident_accounts staff_link
+       JOIN app_users staff ON staff.id = staff_link.resident_user_id AND staff.is_active AND staff.role = 'staff'
+       JOIN app_users owner ON owner.id = staff_link.establishment_user_id AND owner.is_active
+         AND owner.role = 'establishment' AND owner.establishment_subscription_active
+       JOIN establishment_resident_accounts resident_link ON resident_link.establishment_user_id = owner.id
+       JOIN app_users resident ON resident.id = resident_link.resident_user_id AND resident.is_active AND resident.role = 'senior'
+       JOIN establishment_care_consent consent ON consent.resident_user_id = resident.id
+         AND consent.establishment_user_id = owner.id AND consent.consented_at IS NOT NULL AND consent.revoked_at IS NULL
+       WHERE staff.id = $1 ORDER BY resident.name, resident.id`, [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store').json({ residents: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les résidents autorisés.');
+  }
+});
+
+async function careEntries(req, res) {
+  if (!['senior', 'aidant', 'staff'].includes(req.authUser.role)) return res.status(403).json({ error: 'Accès interdit.' });
+  const isWrite = req.method === 'POST';
+  const residentId = req.authUser.role === 'staff' ? (isWrite ? req.body?.residentId : req.query.residentId) : null;
+  const before = isWrite ? null : req.query.before;
+  const kind = isWrite ? req.body?.kind : null;
+  const content = isWrite ? req.body?.content : null;
+  if (req.authUser.role === 'staff' && !isValidUuid(residentId)) return res.status(400).json({ error: 'Résident invalide.' });
+  if (before !== undefined && before !== null && !isValidUuid(before)) return res.status(400).json({ error: 'Repère du carnet invalide.' });
+  if (isWrite && req.body?.nonMedical !== true) {
+    return res.status(400).json({ error: 'Confirmez que le texte ne contient aucune donnée de santé.' });
+  }
+  if (isWrite && (!['message', 'transmission'].includes(kind) ||
+      typeof content !== 'string' || !content.trim() || content.length > 2000 ||
+      (kind === 'message' && req.authUser.role === 'senior') ||
+      (kind === 'transmission' && req.authUser.role !== 'staff'))) {
+    return res.status(400).json({ error: 'Vérifiez le type et le contenu du message.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const targetResult = await client.query(
+      `SELECT resident.id, owner.id AS owner_id
+       FROM app_users resident
+       JOIN establishment_resident_accounts account ON account.resident_user_id = resident.id
+       JOIN app_users owner ON owner.id = account.establishment_user_id
+       JOIN establishment_care_consent consent ON consent.resident_user_id = resident.id
+         AND consent.establishment_user_id = owner.id
+       WHERE resident.role = 'senior' AND resident.is_active AND owner.role = 'establishment'
+         AND owner.is_active AND owner.establishment_subscription_active
+         AND consent.consented_at IS NOT NULL AND consent.revoked_at IS NULL
+         AND (($1::uuid IS NOT NULL AND resident.id = $1) OR ($1::uuid IS NULL AND resident.senior_id = $2))
+       FOR UPDATE OF resident, account, owner, consent`, [residentId, req.authUser.seniorId]
+    );
+    const target = targetResult.rows[0];
+    let permitted = Boolean(target);
+    if (permitted && req.authUser.role === 'staff') {
+      const staff = await client.query(
+        `SELECT staff.id FROM establishment_resident_accounts link
+         JOIN app_users staff ON staff.id = link.resident_user_id
+         WHERE staff.id = $1 AND staff.role = 'staff' AND staff.is_active AND link.establishment_user_id = $2
+         FOR UPDATE OF link, staff`, [req.authUser.id, target.owner_id]
+      );
+      permitted = Boolean(staff.rows.length);
+    }
+    if (permitted && req.authUser.role === 'aidant') {
+      const link = await client.query(
+        `SELECT link.aidant_user_id FROM app_aidant_senior_links link
+         JOIN app_users aidant ON aidant.id = link.aidant_user_id
+         WHERE aidant.id = $1 AND aidant.is_active AND link.senior_profile_id = $2 AND link.suspended_at IS NULL
+         FOR UPDATE OF link, aidant`, [req.authUser.id, req.authUser.seniorId]
+      );
+      permitted = Boolean(link.rows.length);
+    }
+    if (!permitted) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce carnet n’est pas accessible.' });
+    }
+    let result;
+    if (isWrite) {
+      result = await client.query(
+        `INSERT INTO establishment_care_entries (id, resident_user_id, establishment_user_id, author_user_id, author_name, kind, content)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, author_name, kind, content, created_at`,
+        [randomUUID(), target.id, target.owner_id, req.authUser.id, req.authUser.name, kind, content.trim()]
+      );
+    } else {
+      if (before) {
+        const cursor = await client.query(
+          `SELECT id FROM establishment_care_entries
+           WHERE id = $1 AND resident_user_id = $2 AND establishment_user_id = $3
+             AND ($4::boolean = FALSE OR kind = 'transmission')`,
+          [before, target.id, target.owner_id, req.authUser.role === 'senior']
+        );
+        if (!cursor.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Repère du carnet invalide.' });
+        }
+      }
+      result = await client.query(
+        `SELECT id, author_name, kind, content, created_at FROM establishment_care_entries
+         WHERE resident_user_id = $1 AND establishment_user_id = $2 AND ($3::boolean = FALSE OR kind = 'transmission')
+           AND ($4::uuid IS NULL OR (created_at, id) <
+             (SELECT created_at, id FROM establishment_care_entries WHERE id = $4))
+         ORDER BY created_at DESC, id DESC LIMIT 101`,
+        [target.id, target.owner_id, req.authUser.role === 'senior', before || null]
+      );
+    }
+    await client.query(
+      `INSERT INTO establishment_care_audit (id, resident_user_id, user_id, action) VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), target.id, req.authUser.id, isWrite ? `write_${kind}` : 'read']
+    );
+    await client.query('COMMIT');
+    const entries = result.rows.slice(0, 100);
+    res.set('Cache-Control', 'private, no-store').status(isWrite ? 201 : 200).json({
+      entries, nextCursor: result.rows.length > 100 ? entries[entries.length - 1].id : null
+    });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’accéder au carnet de l’établissement.');
+  } finally {
+    if (client) client.release();
+  }
+}
+
+app.get('/api/care/entries', requireAuth, requireAidantSeniorContext, careEntries);
+app.post('/api/care/entries', requireAuth, requireAidantSeniorContext, careEntries);
+
+app.get('/api/admin/establishments', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.name AS account_name, u.email AS account_email, u.is_active AS account_active,
+              u.establishment_subscription_active AS active,
+              u.establishment_user_count AS user_count,
+              p.name, p.description, p.address, p.phone, p.email, p.tablet_interest, p.tablet_quantity
+       FROM app_users u LEFT JOIN establishment_profiles p ON p.user_id = u.id
+       WHERE u.role = 'establishment' ORDER BY u.created_at DESC`
+    );
+    res.set('Cache-Control', 'no-store').json({ establishments: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les établissements.');
+  }
+});
+
+app.post('/api/admin/establishments/:id/accounts', requireAuth, requireAdmin, async (req, res) => {
+  const { role, confirmed } = req.body || {};
+  if (!isValidUuid(req.params.id) || !['senior', 'staff'].includes(role) || confirmed !== true) {
+    return res.status(400).json({ error: 'Vérifiez le type de compte et confirmez l’accord de la personne.' });
+  }
+  try {
+    const account = await authService.createEstablishmentResident(req.params.id, req.body, role);
+    res.set('Cache-Control', 'no-store').status(201).json(account);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer le compte rattaché à l’établissement.');
+  }
+});
+
+app.patch('/api/admin/establishments/:id/subscription', requireAuth, requireAdmin, async (req, res) => {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(req.params.id) || typeof req.body?.active !== 'boolean') {
+    return res.status(400).json({ error: 'Statut d’abonnement invalide.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_users SET establishment_subscription_active = $2
+       WHERE id = $1 AND role = 'establishment' AND is_active = TRUE RETURNING establishment_subscription_active`,
+      [req.params.id, req.body.active]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Établissement introuvable.' });
+    res.json({ active: rows[0].establishment_subscription_active });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier l’abonnement.');
+  }
+});
+
+app.patch('/api/admin/establishments/:id/users', requireAuth, requireAdmin, async (req, res) => {
+  if (!isValidUuid(req.params.id) || !Number.isInteger(req.body?.count) ||
+      req.body.count < 1 || req.body.count > 100000) {
+    return res.status(400).json({ error: 'Saisissez un nombre de personnes compris entre 1 et 100 000.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_users SET establishment_user_count = $2
+       WHERE id = $1 AND role = 'establishment' AND is_active = TRUE RETURNING establishment_user_count`,
+      [req.params.id, req.body.count]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Établissement introuvable.' });
+    res.json({ count: rows[0].establishment_user_count });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer le nombre de personnes.');
+  }
 });
 
 app.put('/api/account/profile', requireAuth, async (req, res) => {
@@ -4403,6 +5055,17 @@ app.post('/api/senior-links/requests', requireAuth, async (req, res) => {
   }
 });
 
+async function createSeniorAssociation(client, aidantId, seniorId, linkedBy) {
+  await lockScheduleParticipants(client, null, seniorId);
+  await assertLegacyBookingsSafeForLink(client, aidantId, seniorId);
+  const link = await client.query(
+    `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+     VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING senior_profile_id`,
+    [aidantId, seniorId, linkedBy]
+  );
+  if (!link.rowCount) throw new AuthError(409, 'Une association existe déjà ou est suspendue.');
+}
+
 app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res) => {
   if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Action réservée au senior concerné.' });
   if (!isValidUuid(req.params.id) || !['accept', 'decline'].includes(req.body?.decision)) {
@@ -4425,17 +5088,7 @@ app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res
       return res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
     }
     if (req.body.decision === 'accept') {
-      await lockScheduleParticipants(client, null, req.authUser.seniorId);
-      await assertLegacyBookingsSafeForLink(client, rows[0].aidant_user_id, req.authUser.seniorId);
-      const link = await client.query(
-        `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
-         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING senior_profile_id`,
-        [rows[0].aidant_user_id, req.authUser.seniorId, req.authUser.id]
-      );
-      if (!link.rowCount) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'Une association existe déjà ou est suspendue.' });
-      }
+      await createSeniorAssociation(client, rows[0].aidant_user_id, req.authUser.seniorId, req.authUser.id);
     }
     await client.query(
       `UPDATE app_aidant_link_requests SET status = $2, resolved_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -4449,6 +5102,72 @@ app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     sendApiError(res, error, 'Impossible de traiter la demande.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/admin/senior-link-requests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT request.id, request.created_at, senior.name AS senior_name, senior.email AS senior_email,
+              aidant.name AS aidant_name, aidant.email AS aidant_email
+       FROM app_aidant_link_requests request
+       JOIN app_users senior ON senior.id = request.senior_user_id
+       JOIN app_users aidant ON aidant.id = request.aidant_user_id
+       WHERE request.status = 'pending' AND senior.role = 'senior' AND senior.is_active = TRUE
+         AND senior.admin_password_change_required = FALSE
+         AND aidant.role = 'aidant' AND aidant.is_active = TRUE AND aidant.is_legal_guardian = FALSE
+       ORDER BY request.created_at`
+    );
+    res.set('Cache-Control', 'private, no-store').json({ requests: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les demandes d’accès.');
+  }
+});
+
+app.post('/api/admin/senior-link-requests/:id/confirm', requireAuth, requireAdmin, async (req, res) => {
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (!isValidUuid(req.params.id) || req.body?.confirmed !== true || note.length < 20 || note.length > 500) {
+    return res.status(400).json({ error: 'Confirmez l’accord du senior et indiquez comment il a été vérifié (20 à 500 caractères).' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT request.id, request.aidant_user_id, request.senior_user_id, senior.senior_id
+       FROM app_aidant_link_requests request
+       JOIN app_users senior ON senior.id = request.senior_user_id
+       JOIN app_users aidant ON aidant.id = request.aidant_user_id
+       WHERE request.id = $1 AND request.status = 'pending'
+         AND senior.role = 'senior' AND senior.is_active = TRUE AND senior.admin_password_change_required = FALSE
+         AND aidant.role = 'aidant' AND aidant.is_active = TRUE AND aidant.is_legal_guardian = FALSE
+       FOR UPDATE OF request, senior, aidant`,
+      [req.params.id]
+    );
+    const pending = rows[0];
+    if (!pending) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
+    }
+    await createSeniorAssociation(client, pending.aidant_user_id, pending.senior_id, req.authUser.id);
+    await client.query(
+      `UPDATE app_aidant_link_requests SET status = 'accepted', resolved_at = CURRENT_TIMESTAMP,
+              confirmed_by_admin = $2, admin_confirmation_note = $3 WHERE id = $1`,
+      [pending.id, req.authUser.id, note]
+    );
+    await insertAppNotification(client, pending.senior_user_id, 'senior_link_decision',
+      'Accès accordé à un aidant', 'L’administration a confirmé votre accord pour une demande d’accès. Vous pouvez suspendre cet accès dans vos réglages.',
+      'senior_link', pending.id);
+    await insertAppNotification(client, pending.aidant_user_id, 'senior_link_decision',
+      'Réponse à votre demande', 'L’administration a confirmé l’accord de la personne. Consultez votre espace.',
+      'senior_link', pending.id);
+    await client.query('COMMIT');
+    res.json({ accepted: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de confirmer la demande.');
   } finally {
     if (client) client.release();
   }
@@ -5095,6 +5814,9 @@ app.post('/api/notifications/push-subscriptions', requireAuth, async (req, res) 
   if (!['android', 'ios', 'web'].includes(platform) ||
       typeof token !== 'string' || !token.trim() || token.length > 8192) {
     return res.status(400).json({ error: 'Inscription push invalide.' });
+  }
+  if (platform === 'ios') {
+    return res.status(503).json({ error: 'Les notifications push de l’application iPhone ne sont pas encore disponibles.' });
   }
   const configuredChannels = notificationDelivery.isConfigured();
   if ((platform === 'web' && !configuredChannels.webPush) ||
@@ -6244,7 +6966,7 @@ async function loadPersonalAgenda(user, start, end, otherEvents, next = false) {
   const bounds = `$2::date::timestamp AT TIME ZONE 'Europe/Paris'`;
   const endBounds = `$3::date::timestamp AT TIME ZONE 'Europe/Paris'`;
   const { rows: own } = await pool.query(
-    personalOccurrencesQuery(`SELECT id, title, starts_at, duration_minutes, recurrence FROM app_personal_events
+    personalOccurrencesQuery(`SELECT id, title, starts_at, duration_minutes, recurrence, birth_date FROM app_personal_events
      WHERE owner_user_id = $1 AND starts_at < ${endBounds}
        AND (recurrence <> 'none' OR starts_at >= ${bounds})`),
     [user.id, start, end]
@@ -6252,7 +6974,7 @@ async function loadPersonalAgenda(user, start, end, otherEvents, next = false) {
   const partners = next ? [] : await listAgendaPartners(user);
   const partnerIds = partners.map(partner => partner.id);
   const { rows: shared } = partnerIds.length ? await pool.query(
-    personalOccurrencesQuery(`SELECT event.id, event.title, event.starts_at, event.duration_minutes, event.recurrence, owner.name AS owner_name
+    personalOccurrencesQuery(`SELECT event.id, event.title, event.starts_at, event.duration_minutes, event.recurrence, event.birth_date, owner.name AS owner_name
      FROM app_agenda_share_requests share
      JOIN app_personal_events event ON event.owner_user_id = share.owner_user_id
      JOIN app_users owner ON owner.id = share.owner_user_id
@@ -6269,8 +6991,10 @@ async function loadPersonalAgenda(user, start, end, otherEvents, next = false) {
   };
   const mine = [...otherEvents, ...own];
   const overlaps = (event, list) => {
+    if (event.birth_date) return false;
     const [from, to] = span(event);
     return list.some(item => {
+      if (item.birth_date) return false;
       const [otherFrom, otherTo] = span(item);
       return from < otherTo && otherFrom < to;
     });
@@ -6564,6 +7288,12 @@ app.delete('/api/shared-directory/:id', requireAuth, (req, res) => {
       'DELETE FROM app_shared_directory WHERE senior_id = $1 AND professional_user_id = $2 RETURNING professional_user_id',
       [seniorId, req.params.id]
     );
+    if (rows.length) {
+      await client.query(
+        'UPDATE app_shared_tasks SET assignee_user_id = NULL WHERE senior_id = $1 AND assignee_user_id = $2',
+        [seniorId, req.params.id]
+      );
+    }
     return rows.length ? { status: 200, body: { deleted: true } }
       : { status: 404, body: { error: 'Professionnel introuvable dans cet annuaire.' } };
   }, 'annuaire partagé');
@@ -6601,7 +7331,12 @@ app.get('/api/shared-tasks/assignees', requireAuth, (req, res) => withSharedTask
          AND (NOT account.is_legal_guardian OR account.guardian_verification_status = 'approved')
          AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
            WHERE link.aidant_user_id = account.id AND link.senior_profile_id = $1
-             AND link.suspended_at IS NULL)))
+             AND link.suspended_at IS NULL))
+       OR (account.role = 'pro' AND account.verification_status = 'approved'
+         AND account.directory_listed = TRUE
+         AND account.home_latitude IS NOT NULL AND account.home_longitude IS NOT NULL
+         AND EXISTS (SELECT 1 FROM app_shared_directory entry
+           WHERE entry.professional_user_id = account.id AND entry.senior_id = $1)))
      ORDER BY account.name, account.id`, [seniorId]
   );
   return { status: 200, body: { assignees: rows } };
@@ -6612,6 +7347,7 @@ app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res
     `SELECT task.id, task.title, task.completed, to_char(task.due_date, 'YYYY-MM-DD') AS "dueDate",
             (task.assignee_user_id IS NOT NULL) AS assigned,
             (task.assignee_user_id IS NOT NULL AND task.assignee_user_id = $2) AS "assignedToMe",
+            (SELECT account.role = 'pro' FROM app_users account WHERE account.id = task.assignee_user_id) AS "assignedToProfessional",
             assignee.name AS "assigneeName"
      FROM app_shared_tasks task
      LEFT JOIN app_users assignee ON assignee.id = task.assignee_user_id AND assignee.is_active = TRUE
@@ -6620,7 +7356,12 @@ app.get('/api/shared-tasks', requireAuth, (req, res) => withSharedTasks(req, res
            AND (NOT assignee.is_legal_guardian OR assignee.guardian_verification_status = 'approved')
            AND EXISTS (SELECT 1 FROM app_aidant_senior_links link
              WHERE link.aidant_user_id = assignee.id AND link.senior_profile_id = task.senior_id
-               AND link.suspended_at IS NULL)))
+               AND link.suspended_at IS NULL))
+         OR (assignee.role = 'pro' AND assignee.verification_status = 'approved'
+           AND assignee.directory_listed = TRUE
+           AND assignee.home_latitude IS NOT NULL AND assignee.home_longitude IS NOT NULL
+           AND EXISTS (SELECT 1 FROM app_shared_directory entry
+             WHERE entry.professional_user_id = assignee.id AND entry.senior_id = task.senior_id)))
      WHERE task.senior_id = $1
      ORDER BY task.completed, task.due_date NULLS LAST, task.created_at, task.id`, [seniorId, req.authUser.id]
   );
@@ -6685,7 +7426,9 @@ app.post('/api/shared-tasks/:id/assign', requireAuth, (req, res) => {
     const account = await client.query(
       `SELECT role, senior_id FROM app_users WHERE id = $1 AND is_active = TRUE
        AND (role = 'senior' OR (role = 'aidant'
-         AND (NOT is_legal_guardian OR guardian_verification_status = 'approved')))
+         AND (NOT is_legal_guardian OR guardian_verification_status = 'approved'))
+         OR (role = 'pro' AND verification_status = 'approved' AND directory_listed = TRUE
+           AND home_latitude IS NOT NULL AND home_longitude IS NOT NULL))
        FOR SHARE`, [req.body.assigneeId]
     );
     const target = account.rows[0];
@@ -6702,11 +7445,25 @@ app.post('/api/shared-tasks/:id/assign', requireAuth, (req, res) => {
         return { status: 403, body: { error: 'Cette personne ne peut pas accéder à ce profil.' } };
       }
     }
+    if (target.role === 'pro') {
+      const entry = await client.query(
+        `SELECT 1 FROM app_shared_directory WHERE senior_id = $1 AND professional_user_id = $2 FOR SHARE`,
+        [seniorId, req.body.assigneeId]
+      );
+      if (!entry.rows.length) {
+        return { status: 403, body: { error: 'Ajoutez d’abord cet intervenant à l’annuaire partagé.' } };
+      }
+    }
     const { rows } = await client.query(
       `UPDATE app_shared_tasks SET assignee_user_id = $1
        WHERE id = $2 AND senior_id = $3 AND assignee_user_id IS NULL AND completed = FALSE
        RETURNING id`, [req.body.assigneeId, req.params.id, seniorId]
     );
+    if (rows.length && target.role === 'pro') {
+      await insertAppNotification(client, req.body.assigneeId, 'task_assignment',
+        'Nouvelle tâche confiée', 'Une tâche vous a été confiée. Consultez votre espace intervenant.',
+        'shared_task', rows[0].id);
+    }
     return rows.length ? { status: 200, body: { assigned: true } }
       : { status: 409, body: { error: 'Cette tâche est introuvable, terminée ou déjà attribuée. Actualisez la liste.' } };
   });
@@ -6731,12 +7488,146 @@ app.delete('/api/shared-tasks/:id/claim', requireAuth, (req, res) => {
     const { rows } = await client.query(
       `UPDATE app_shared_tasks SET assignee_user_id = NULL
        WHERE id = $1 AND senior_id = $2 AND assignee_user_id IS NOT NULL
-         AND (assignee_user_id = $3 OR $4::boolean)
+         AND (assignee_user_id = $3 OR $4::boolean OR EXISTS (
+           SELECT 1 FROM app_users assignee WHERE assignee.id = assignee_user_id AND assignee.role = 'pro'
+         ))
        RETURNING id`, [req.params.id, seniorId, req.authUser.id, req.authUser.role === 'senior']
     );
     return rows.length ? { status: 200, body: { released: true } }
       : { status: 409, body: { error: 'Impossible de libérer cette tâche. Actualisez la liste.' } };
   });
+});
+
+app.get('/api/shopping-list', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Cette liste est privée et réservée au senior.' });
+  try {
+    const { rows } = await pool.query('SELECT content FROM app_shopping_lists WHERE user_id = $1', [req.authUser.id]);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ content: rows[0]?.content || '' });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger votre liste de courses.');
+  }
+});
+
+app.put('/api/shopping-list', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Cette liste est privée et réservée au senior.' });
+  if (typeof req.body?.content !== 'string' || req.body.content.length > 1800) {
+    return res.status(400).json({ error: 'La liste ne doit pas dépasser 1 800 caractères.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const active = await client.query("SELECT id FROM app_users WHERE id = $1 AND role = 'senior' AND is_active = TRUE FOR SHARE", [req.authUser.id]);
+    if (!active.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce compte n’est plus disponible.' });
+    }
+    if (req.body.content.trim()) {
+      await client.query(`INSERT INTO app_shopping_lists (user_id, content) VALUES ($1, $2)
+        ON CONFLICT (user_id) DO UPDATE SET content = EXCLUDED.content`, [req.authUser.id, req.body.content]);
+    } else {
+      await client.query('DELETE FROM app_shopping_lists WHERE user_id = $1', [req.authUser.id]);
+    }
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ saved: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’enregistrer votre liste de courses.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/intervention-tasks', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'pro') return res.status(403).json({ error: 'Accès réservé aux intervenants.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT task.id, task.title, task.completed, to_char(task.due_date, 'YYYY-MM-DD') AS "dueDate",
+              senior.name AS "seniorName"
+       FROM app_shared_tasks task
+       JOIN app_shared_directory entry ON entry.senior_id = task.senior_id
+         AND entry.professional_user_id = task.assignee_user_id
+       JOIN app_users senior ON senior.senior_id = task.senior_id AND senior.role = 'senior' AND senior.is_active = TRUE
+       JOIN app_users professional ON professional.id = task.assignee_user_id AND professional.role = 'pro'
+         AND professional.is_active = TRUE AND professional.verification_status = 'approved'
+         AND professional.directory_listed = TRUE
+         AND professional.home_latitude IS NOT NULL AND professional.home_longitude IS NOT NULL
+       WHERE task.assignee_user_id = $1
+       ORDER BY task.completed, task.due_date NULLS LAST, task.created_at, task.id`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ tasks: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les tâches confiées.');
+  }
+});
+
+app.patch('/api/intervention-tasks/:id', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'pro') return res.status(403).json({ error: 'Accès réservé aux intervenants.' });
+  if (!isValidUuid(req.params.id) || typeof req.body?.completed !== 'boolean') {
+    return res.status(400).json({ error: 'Tâche ou état invalide.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const access = await client.query(
+      `SELECT task.id FROM app_shared_tasks task
+       JOIN app_shared_directory entry ON entry.senior_id = task.senior_id
+         AND entry.professional_user_id = task.assignee_user_id
+       JOIN app_users senior ON senior.senior_id = task.senior_id AND senior.role = 'senior' AND senior.is_active = TRUE
+       JOIN app_users professional ON professional.id = task.assignee_user_id AND professional.role = 'pro'
+         AND professional.is_active = TRUE AND professional.verification_status = 'approved'
+         AND professional.directory_listed = TRUE
+         AND professional.home_latitude IS NOT NULL AND professional.home_longitude IS NOT NULL
+       WHERE task.id = $1 AND task.assignee_user_id = $2
+       FOR UPDATE OF task FOR SHARE OF entry, senior, professional`,
+      [req.params.id, req.authUser.id]
+    );
+    if (!access.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Tâche introuvable ou accès retiré.' });
+    }
+    await client.query('UPDATE app_shared_tasks SET completed = $1 WHERE id = $2', [req.body.completed, req.params.id]);
+    await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ updated: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de modifier la tâche confiée.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/agenda/birthdays', requireAuth, async (req, res) => {
+  if (!AGENDA_ROLES.includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Accès à l’agenda non autorisé.' });
+  }
+  const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
+  const birthDate = req.body?.birthDate;
+  const today = dateInTimeZone(new Date(), 'Europe/Paris');
+  if (!name || name.length > 100) {
+    return res.status(400).json({ error: 'Indiquez un nom de 100 caractères maximum.' });
+  }
+  if (!isValidIsoDate(birthDate) || birthDate.slice(0, 4) === '0000' || birthDate > today) {
+    return res.status(400).json({ error: 'Choisissez une date de naissance valide, pas dans le futur.' });
+  }
+  try {
+    const id = randomUUID();
+    await pool.query(
+      `INSERT INTO app_personal_events
+         (id, owner_user_id, title, starts_at, duration_minutes, recurrence, birth_date)
+       VALUES ($1, $2, $3, ($4::date + TIME '09:00') AT TIME ZONE 'Europe/Paris', 15, 'yearly', $4::date)`,
+      [id, req.authUser.id, `Anniversaire de ${name}`, birthDate]
+    );
+    res.status(201).json({ id });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer l’anniversaire.');
+  }
 });
 
 app.post('/api/agenda/events', requireAuth, async (req, res) => {
@@ -6783,7 +7674,14 @@ app.delete('/api/agenda/events/:id', requireAuth, async (req, res) => {
   }
   try {
     const { rows } = await pool.query(
-      'DELETE FROM app_personal_events WHERE id = $1 AND owner_user_id = $2 RETURNING id',
+      `WITH removed AS (
+         DELETE FROM app_personal_events WHERE id = $1 AND owner_user_id = $2 RETURNING id
+       ), deleted_notifications AS (
+         DELETE FROM app_notifications notification USING removed
+         WHERE notification.user_id = $2 AND notification.entity_type = 'birthday'
+           AND notification.entity_id = removed.id
+       )
+       SELECT id FROM removed`,
       [req.params.id, req.authUser.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Rendez-vous introuvable.' });
@@ -7217,8 +8115,8 @@ app.post('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSenior
   }
 
   const { type } = req.body || {};
-  if (!['colleague_note', 'doctor_recommendation'].includes(type)) {
-    return res.status(400).json({ error: 'Choisissez une transmission d’équipe ou une recommandation du médecin.' });
+  if (type !== 'colleague_note') {
+    return res.status(400).json({ error: 'Seules les nouvelles de liaison sont acceptées.' });
   }
   const { importance } = req.body || {};
   if (!['information', 'follow_up', 'priority'].includes(importance)) {
@@ -7226,19 +8124,8 @@ app.post('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSenior
   }
 
   let content;
-  let sourceName = null;
-  let sourceDate = null;
   try {
     content = requiredText(req.body?.content, 1500, 'transmission');
-    if (type === 'doctor_recommendation') {
-      sourceName = requiredText(req.body?.sourceName, 120, 'source médicale');
-      sourceDate = requiredText(req.body?.sourceDate, 10, 'date de la recommandation');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(sourceDate) ||
-          Number.isNaN(Date.parse(`${sourceDate}T00:00:00Z`)) ||
-          new Date(`${sourceDate}T00:00:00Z`).toISOString().slice(0, 10) !== sourceDate) {
-        throw new AuthError(400, 'Saisissez une date de recommandation valide.');
-      }
-    }
   } catch (error) {
     return sendApiError(res, error, 'Vérifiez les champs de la transmission.');
   }
@@ -7276,7 +8163,7 @@ app.post('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSenior
        SELECT $1, eligible.organization_id, eligible.recipient_id, $3, $4, $5, $6, $7, $8
        FROM eligible
        RETURNING id, organization_id, recipient_id, created_at`,
-      [randomUUID(), req.params.visitId, req.authUser.id, type, importance, sourceName, sourceDate, content]
+      [randomUUID(), req.params.visitId, req.authUser.id, type, importance, null, null, content]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
@@ -7468,11 +8355,13 @@ app.post('/api/logs', requireAuth, requireAidantSeniorContext, async (req, res) 
   try {
     await authService.ensureSchema();
     const { rows } = await pool.query(
-      `INSERT INTO app_logs (senior_id, author_id, content, log_type)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO app_logs (senior_id, author_id, author_user_id, content, log_type)
+       SELECT $1, $2, author.id, $4, $5
+       FROM (SELECT id FROM app_users WHERE id = $3 AND is_active = TRUE FOR SHARE) author
        RETURNING id, senior_id, author_id, content, log_type, created_at`,
-      [req.authUser.seniorId, authorIds[req.authUser.role], content.trim(), logType]
+      [req.authUser.seniorId, authorIds[req.authUser.role], req.authUser.id, content.trim(), logType]
     );
+    if (!rows.length) return res.status(401).json({ error: 'Cette session n’est plus active.' });
     res.status(201).json(rows[0]);
   } catch (error) {
     sendApiError(res, error, 'Erreur lors de l’enregistrement.');
@@ -7512,12 +8401,13 @@ app.get('/api/logs/weekly-family', requireAuth, requireFamilyAlbum, async (req, 
     startDate.setUTCDate(startDate.getUTCDate() - 6);
     const start = startDate.toISOString().slice(0, 10);
     const { rows } = await pool.query(
-      `SELECT author_id, content, log_type, created_at
-       FROM app_logs
-       WHERE senior_id = $1 AND log_type = 'family_note'
-         AND created_at >= ($2::date::timestamp AT TIME ZONE 'Europe/Paris')
-         AND created_at < (($3::date + 1)::timestamp AT TIME ZONE 'Europe/Paris')
-       ORDER BY created_at DESC, id DESC
+      `SELECT log.author_id, author.name AS author_name, log.content, log.log_type, log.created_at
+       FROM app_logs log
+       LEFT JOIN app_users author ON author.id = log.author_user_id AND author.is_active
+       WHERE log.senior_id = $1 AND log.log_type = 'family_note'
+         AND log.created_at >= ($2::date::timestamp AT TIME ZONE 'Europe/Paris')
+         AND log.created_at < (($3::date + 1)::timestamp AT TIME ZONE 'Europe/Paris')
+       ORDER BY log.created_at DESC, log.id DESC
        LIMIT 1001`,
       [req.authUser.seniorId, start, end]
     );
@@ -7529,16 +8419,28 @@ app.get('/api/logs/weekly-family', requireAuth, requireFamilyAlbum, async (req, 
 });
 
 app.get('/api/logs/all', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  const before = req.query.before;
+  if (before !== undefined && (typeof before !== 'string' || !/^[1-9]\d{0,18}$/.test(before) || BigInt(before) > 9223372036854775807n)) {
+    return res.status(400).json({ error: 'Le repère du carnet est invalide.' });
+  }
   try {
     await authService.ensureSchema();
+    if (before !== undefined) {
+      const cursor = await pool.query('SELECT id FROM app_logs WHERE senior_id = $1 AND id = $2', [req.authUser.seniorId, before]);
+      if (!cursor.rows.length) return res.status(400).json({ error: 'Le repère du carnet est invalide.' });
+    }
     const { rows } = await pool.query(
-      `SELECT id, senior_id, author_id, content, log_type, created_at
-       FROM app_logs
-       WHERE senior_id = $1
-       ORDER BY created_at DESC
+      `SELECT log.id, log.senior_id, log.author_id, author.name AS author_name, log.content, log.log_type, log.created_at
+       FROM app_logs log
+       LEFT JOIN app_users author ON author.id = log.author_user_id AND author.is_active
+       WHERE log.senior_id = $1
+         AND ($2::bigint IS NULL OR (log.created_at, log.id) <
+              (SELECT created_at, id FROM app_logs WHERE senior_id = $1 AND id = $2::bigint))
+       ORDER BY log.created_at DESC, log.id DESC
        LIMIT 100`,
-      [req.authUser.seniorId]
+      [req.authUser.seniorId, before || null]
     );
+    res.set('Cache-Control', 'private, no-store');
     res.json(rows);
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger le carnet.');
@@ -7551,11 +8453,14 @@ app.post('/api/video/urgency', requireAuth, requireAidantSeniorContext, async (r
 
   try {
     await authService.ensureSchema();
-    await pool.query(
-      `INSERT INTO app_logs (senior_id, author_id, content, log_type)
-       VALUES ($1, $2, $3, 'medical_report')`,
-      [req.authUser.seniorId, authorId, `Demande d’appel vidéo urgent : ${videoUrl}`]
+    const { rows } = await pool.query(
+      `INSERT INTO app_logs (senior_id, author_id, author_user_id, content, log_type)
+       SELECT $1, $2, author.id, $4, 'medical_report'
+       FROM (SELECT id FROM app_users WHERE id = $3 AND is_active = TRUE FOR SHARE) author
+       RETURNING id`,
+      [req.authUser.seniorId, authorId, req.authUser.id, `Demande d’appel vidéo urgent : ${videoUrl}`]
     );
+    if (!rows.length) return res.status(401).json({ error: 'Cette session n’est plus active.' });
     res.status(201).json({ url: videoUrl });
   } catch (error) {
     sendApiError(res, error, 'Impossible de créer l’appel vidéo.');
@@ -7674,6 +8579,7 @@ if (require.main === module) {
     .then(() => {
       notificationDelivery.startDeliveryWorker(pool);
       startTaskReminderWorker(pool, insertAppNotification);
+      startBirthdayReminderWorker(pool, insertAppNotification);
       startSiteAlertWorker(pool, siteMonitor, adminEmails, insertAppNotification);
       startDirectoryBookingCleanup();
       startPlanningGoogleSync();

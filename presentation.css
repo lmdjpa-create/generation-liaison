@@ -1,0 +1,21 @@
+:root { color-scheme: light; font-family: "Segoe UI", Arial, sans-serif; color: #203d34; background: #f1f7f3; }
+* { box-sizing: border-box; }
+body { margin: 0; line-height: 1.6; }
+.presentation-shell { max-width: 1000px; margin: auto; padding: 24px 18px 48px; }
+.presentation-header, .presentation-hero, .presentation-content { background: white; border: 1px solid #d6e8dd; border-radius: 20px; padding: 24px; margin-bottom: 16px; }
+.presentation-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.brand { color: #126346; font-weight: 800; font-size: 1.2rem; text-decoration: none; }
+.presentation-nav { display: flex; flex-wrap: wrap; gap: 8px; }
+a { color: #125f45; }
+.presentation-nav a, .presentation-button, summary { min-height: 48px; padding: 11px 15px; border-radius: 10px; font-weight: 700; }
+.presentation-nav a { display: inline-flex; align-items: center; background: #edf6ef; }
+.presentation-hero { background: linear-gradient(135deg, #e0f3e7, #f8fbf8); }
+h1 { margin: 0 0 12px; line-height: 1.2; font-size: clamp(1.7rem, 5vw, 2.5rem); }
+h2 { font-size: 1.3rem; }
+.presentation-button { display: inline-flex; align-items: center; background: #126b4d; color: white; text-decoration: none; }
+details { border: 1px solid #d6e8dd; border-radius: 12px; margin: 10px 0; padding: 0 15px; }
+summary { cursor: pointer; margin: 0 -15px; }
+details p, details ul { margin: 4px 0 16px; }
+.notice { border-left: 4px solid #c18b30; padding: 10px 16px; background: #fff9e9; }
+:focus-visible { outline: 3px solid #214e9a; outline-offset: 3px; }
+footer { display: flex; gap: 14px; flex-wrap: wrap; }

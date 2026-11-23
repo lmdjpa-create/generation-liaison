@@ -6,6 +6,60 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 
+test('caregiver profiles and senior and caregiver notification settings start collapsed', () => {
+  for (const [sectionId, detailsId, controls] of [
+    ['settings-aidant-links', 'aidant-links-details', ['aidant-senior-select', 'aidant-link-form', 'aidant-link-management']],
+    ['notification-settings-senior', 'senior-notification-preferences', ['enable-push-button', 'notification-preferences-form']],
+    ['notification-settings-aidant', 'aidant-notification-preferences', ['enable-push-button', 'notification-preferences-form', 'aidant-task-reminders']]
+  ]) {
+    const start = source.indexOf(`id="${sectionId}"`);
+    const section = source.slice(start, source.indexOf('</section>', start));
+    const match = section.match(new RegExp(`<details([^>]*)id="${detailsId}"([^>]*)>`));
+    assert.ok(match, `${detailsId} exists`);
+    assert.doesNotMatch(match[1] + match[2], /\bopen\b/);
+    for (const control of controls) assert.ok(section.indexOf(control) > match.index);
+  }
+  const shortcut = source.match(/onclick="([^"]+)">Gérer mes profils accompagnés<\/button>/);
+  assert.ok(shortcut);
+  const details = { open: false };
+  let screen;
+  vm.runInNewContext(shortcut[1], {
+    switchScreen: value => { screen = value; },
+    document: { getElementById: id => { assert.equal(id, 'aidant-links-details'); return details; } }
+  });
+  assert.equal(screen, 'settings');
+  assert.equal(details.open, true);
+});
+
+test('both home pages open their own association settings', () => {
+  assert.match(source, /<h2>Bonjour <span id="welcome-aidant-name">!<\/span><\/h2>\s*<\/div>\s*<\/div>\s*<section class="form-card" id="aidant-home-links">/);
+  for (const [sectionId, detailsId] of [['senior-home-links', 'senior-links-details'], ['aidant-home-links', 'aidant-links-details']]) {
+    const start = source.indexOf(`id="${sectionId}"`);
+    assert.ok(start !== -1);
+    const section = source.slice(start, source.indexOf('</section>', start));
+    const shortcut = section.match(/onclick="([^"]+)"/);
+    assert.ok(shortcut);
+    const details = { open: false };
+    let screen;
+    vm.runInNewContext(shortcut[1], {
+      switchScreen: value => { screen = value; },
+      document: { getElementById: id => { assert.equal(id, detailsId); return details; } }
+    });
+    assert.equal(screen, 'settings');
+    assert.equal(details.open, true);
+    const settings = source.slice(source.indexOf(`id="settings-${sectionId.startsWith('senior') ? 'senior' : 'aidant'}-links"`));
+    assert.match(settings.slice(0, settings.indexOf('</section>')), new RegExp(`<details[^>]*id="${detailsId}"`));
+  }
+});
+
+test('inclusive account label preserves the existing senior role', () => {
+  const registration = source.slice(source.indexOf('id="register-section"'), source.indexOf('id="legal-guardian-verification-panel"'));
+  assert.match(registration, /<option value="senior">🧑 Personne accompagnée<\/option>/);
+  assert.match(registration, /Nom de la personne accompagnée \(facultatif\)/);
+  assert.match(source, /<summary>Mes profils accompagnés<\/summary>/);
+  assert.match(source, /Aucune personne accompagnée associée/);
+});
+
 test('senior and caregiver can open the external flea market directory without sharing a profile', () => {
   for (const role of ['senior', 'aidant']) {
     const start = source.indexOf(`id="${role}-local-outings"`);
@@ -48,8 +102,8 @@ test('daily caregiver summary shows only current profile data and reports partia
     planningRequest: url => {
       if (context.activeSeniorProfileId === 'old') return new Promise(resolve => { firstResolvers.push(resolve); });
       if (url.startsWith('/api/planning/calendar')) return Promise.resolve({ events: [
-        { status: 'pending', title: 'En attente', scheduledAt: '2999-03-01T14:00:00Z' },
-        { status: 'scheduled', title: 'Visite prévue', scheduledAt: '2999-03-01T15:00:00Z' }
+        { status: 'pending', title: 'En attente', scheduledAt: '2028-02-29T14:00:00Z' },
+        { status: 'scheduled', title: 'Visite prévue', scheduledAt: '2028-02-29T15:00:00Z' }
       ] });
       if (url === '/api/shared-tasks') return Promise.resolve({ tasks: [
         { dueDate: '2028-02-29', completed: false, assigned: false },
@@ -69,7 +123,7 @@ test('daily caregiver summary shows only current profile data and reports partia
           { type: 'old', createdAt: '2028-02-28T11:00:00Z' }
         ] }
       ] });
-      if (url.startsWith('/api/planning/services/bookings')) return Promise.resolve({ bookings: [{ status: 'requested' }, { status: 'cancelled' }] });
+      if (url.startsWith('/api/planning/services/bookings')) return Promise.resolve({ bookings: [{ status: 'requested', scheduledAt: '2028-02-29T10:00:00Z' }, { status: 'cancelled', scheduledAt: '2028-02-29T11:00:00Z' }] });
       if (url === '/api/logs/all') return Promise.resolve([{ created_at: '2028-02-29T10:00:00Z', content: 'Repas reçu' }]);
       if (url === '/api/wellbeing/shared-check-ins') return Promise.resolve({ checkins: [{ createdAt: '2028-02-29T09:00:00Z' }] });
       throw new Error(`Unexpected request: ${url}`);
@@ -82,7 +136,7 @@ test('daily caregiver summary shows only current profile data and reports partia
   context.activeSeniorProfileId = 'new';
   await context.loadSummary();
   assert.equal(getElementById('aidant-summary-visit').textContent, 'Rendez-vous aujourd’hui : 2\nEn attente\nVisite prévue');
-  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui ou en retard : 2 · Sans volontaire : 2');
+  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1 · Sans volontaire : 2');
   assert.equal(getElementById('aidant-summary-messages').textContent, 'Impossible de charger les messages.');
   assert.equal(elements.has('aidant-summary-notifications'), false);
   assert.match(getElementById('aidant-summary-notification-details').textContent, /Nouvelle alerte\nDétail de l’alerte/);
@@ -95,7 +149,7 @@ test('daily caregiver summary shows only current profile data and reports partia
   assert.match(getElementById('aidant-summary-checkins').textContent, / : 1$/);
   firstResolvers.forEach(resolve => resolve({}));
   await first;
-  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui ou en retard : 2 · Sans volontaire : 2');
+  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1 · Sans volontaire : 2');
   assert.match(getElementById('aidant-summary-notification-details').textContent, /Nouvelle alerte/);
   const normalRequest = context.planningRequest;
   context.planningRequest = url => url === '/api/notifications' ? Promise.reject(new Error('offline')) : normalRequest(url);
@@ -121,7 +175,7 @@ test('senior summary uses the calendar and accessible updates without requesting
     Date,
     planningRequest: async url => {
       paths.push(url);
-      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Rendez-vous prévu' }] };
+      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Rendez-vous prévu', scheduledAt: '2028-02-29T10:00:00Z' }] };
       if (url === '/api/shared-tasks') return { tasks: [{ completed: false, dueDate: null }] };
       if (url === '/api/messages/unread-count') return { count: 1 };
       if (url === '/api/notifications') return { unreadCount: 0, notifications: [
@@ -138,7 +192,7 @@ test('senior summary uses the calendar and accessible updates without requesting
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadSummary = chargerSyntheseSenior;`, context);
   await context.loadSummary();
   assert.match(elements.get('senior-summary-visit').textContent, /Rendez-vous prévu/);
-  assert.equal(elements.get('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui ou en retard : 0');
+  assert.equal(elements.get('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0');
   assert.equal(elements.get('senior-summary-messages').textContent, 'Messages non lus : 1');
   assert.equal(elements.get('senior-summary-notifications').textContent, '');
   assert.equal(elements.get('senior-summary-notifications').hidden, true);
@@ -147,6 +201,184 @@ test('senior summary uses the calendar and accessible updates without requesting
   assert.ok(!elements.has('senior-summary-logs'));
   assert.ok(paths.some(path => path === '/api/planning/calendar?start=2028-02-29&end=2028-03-01'));
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
+});
+
+test('senior today summary removes past dates without deleting data and refreshes across Paris midnight', async () => {
+  const elements = new Map();
+  const getElementById = id => {
+    if (!elements.has(id)) elements.set(id, { textContent: '', hidden: false });
+    return elements.get(id);
+  };
+  let today = '2028-02-29';
+  let resolveCalendar;
+  const paths = [];
+  const tasks = [
+    { completed: false, dueDate: '2028-02-28' },
+    { completed: false, dueDate: '2028-02-29' },
+    { completed: false, dueDate: '2028-03-01' },
+    { completed: false, dueDate: null }
+  ];
+  const events = [
+    { title: 'Hier à Paris', scheduledAt: '2028-02-28T22:30:00Z' },
+    { title: 'Aujourd’hui à Paris', scheduledAt: '2028-02-28T23:30:00Z' },
+    { title: 'Demain à Paris', scheduledAt: '2028-02-29T23:30:00Z' }
+  ];
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior', seniorId: 'profile' },
+    activeSeniorProfileId: '', aidantSummaryLoadId: 0, aidantSummaryContext: '',
+    document: { getElementById }, window: { generationLiaisonTranslate: value => value },
+    dateCheckinBienEtre: () => today, calendarEventLabel: event => event.title,
+    progressArray: value => value || [], stageLabel: value => value, Date, Intl,
+    planningRequest: url => {
+      paths.push(url);
+      if (url.startsWith('/api/planning/calendar')) {
+        if (today === '2028-03-01') return new Promise(resolve => { resolveCalendar = resolve; });
+        return Promise.resolve({ events });
+      }
+      if (url === '/api/shared-tasks') return Promise.resolve({ tasks });
+      if (url === '/api/messages/unread-count') return Promise.resolve({ count: 0 });
+      if (url === '/api/notifications') return Promise.resolve({ unreadCount: 0 });
+      if (url === '/api/planning/following') return Promise.resolve({ visits: [] });
+      if (url.startsWith('/api/planning/services/bookings')) {
+        return Promise.resolve({ bookings: events.map(event => ({ scheduledAt: event.scheduledAt, status: 'requested' })) });
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    }
+  };
+  const calendarStart = source.indexOf('    function calendarEventDate(value)');
+  const calendarEnd = source.indexOf('    function calendarEventLabel(event)', calendarStart);
+  const start = source.indexOf('    function etapesIntervenant(visits)');
+  const end = source.indexOf('    function afficherProchainRendezVous()', start);
+  vm.runInNewContext(`${source.slice(calendarStart, calendarEnd)}\n${source.slice(start, end)}`, context);
+  await context.chargerSyntheseSenior();
+  assert.equal(getElementById('senior-summary-visit').textContent, 'Rendez-vous aujourd’hui : 1\nAujourd’hui à Paris');
+  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui : 1');
+  assert.match(getElementById('senior-summary-services').textContent, /Services du jour : 1/);
+  assert.equal(tasks.length, 4);
+  today = '2028-03-01';
+  const pending = context.chargerSyntheseSenior();
+  assert.equal(getElementById('senior-summary-visit').textContent, 'Chargement…');
+  today = '2028-03-02';
+  resolveCalendar({ events });
+  await pending;
+  assert.equal(getElementById('senior-summary-visit').textContent, '');
+  assert.equal(getElementById('senior-summary-services').textContent, '');
+  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0');
+  assert.ok(paths.includes('/api/planning/calendar?start=2028-03-02&end=2028-03-03'));
+  assert.equal(tasks.length, 4);
+  assert.match(source, /screen-senior-pro'\)\.classList\.contains\('active'\)\) \{\s*chargerSyntheseSenior\(\);/);
+});
+
+test('senior history shows dated appointments and tasks for the previous 30 Paris days', async () => {
+  const children = [];
+  const list = {
+    textContent: '',
+    replaceChildren() { children.length = 0; },
+    append(child) { children.push(child); }
+  };
+  const details = { open: true };
+  const paths = [];
+  let today = '2028-03-01';
+  let release;
+  const tasks = [
+    { title: 'Limite incluse', dueDate: '2028-01-31', completed: true },
+    { title: 'Trop ancienne', dueDate: '2028-01-30', completed: false },
+    { title: 'Hier', dueDate: '2028-02-29', completed: false },
+    { title: 'Ce jour', dueDate: '2028-03-01', completed: false },
+    { title: 'Sans date', dueDate: null, completed: false }
+  ];
+  const events = [
+    { title: 'À la limite', scheduledAt: '2028-01-30T23:30:00Z' },
+    { title: 'Trop ancien', scheduledAt: '2028-01-30T22:30:00Z' },
+    { title: 'Dernier rendez-vous', scheduledAt: '2028-02-28T23:30:00Z' },
+    { title: 'Ce jour', scheduledAt: '2028-02-29T23:30:00Z' }
+  ];
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior', seniorId: 'profile' },
+    historyLoadId: 0, historyContext: '',
+    document: { getElementById: id => id === 'senior-history-details' ? details : list },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
+    dateCheckinBienEtre: () => today, calendarEventLabel: event => event.title,
+    makeTextElement: (tag, text) => ({ tag, text }), Date, Intl,
+    planningRequest: async path => {
+      paths.push(path);
+      return path.startsWith('/api/planning/calendar') ? { events } : { tasks };
+    }
+  };
+  const calendarStart = source.indexOf('    function calendarEventDate(value)');
+  const calendarEnd = source.indexOf('    function calendarEventLabel(event)', calendarStart);
+  const start = source.indexOf('    async function chargerHistoriqueQuotidien(role)');
+  const end = source.indexOf('    function afficherProchainRendezVous()', start);
+  vm.runInNewContext(`${source.slice(calendarStart, calendarEnd)}\n${source.slice(start, end)}`, context);
+  await context.chargerHistoriqueQuotidien('senior');
+  assert.ok(paths.includes('/api/planning/calendar?start=2028-01-31&end=2028-03-01'));
+  assert.equal(children.length, 4);
+  assert.match(children[0].text, /Hier — À faire/);
+  assert.match(children[1].text, /Dernier rendez-vous/);
+  assert.ok(children.some(child => /Limite incluse — Terminée/.test(child.text)));
+  assert.ok(children.some(child => /À la limite/.test(child.text)));
+  assert.ok(children.every(child => !/Trop|Ce jour|Sans date/.test(child.text)));
+  assert.equal(tasks.length, 5);
+  context.planningRequest = path => path.startsWith('/api/planning/calendar')
+    ? Promise.reject(new Error('offline')) : Promise.resolve({ tasks: [] });
+  await context.chargerHistoriqueQuotidien('senior');
+  assert.equal(children[0].text, 'Impossible de charger l’historique des rendez-vous.');
+  context.planningRequest = path => path.startsWith('/api/planning/calendar')
+    ? new Promise(resolve => { release = resolve; }) : Promise.resolve({ tasks });
+  const pending = context.chargerHistoriqueQuotidien('senior');
+  details.open = false;
+  children.length = 0;
+  release({ events });
+  await pending;
+  assert.equal(children.length, 0);
+  details.open = true;
+  today = '2028-03-02';
+  context.planningRequest = async path => path.startsWith('/api/planning/calendar') ? { events: [] } : { tasks: [] };
+  await context.chargerHistoriqueQuotidien('senior');
+  assert.match(children[0].text, /Aucun rendez-vous ou tâche datée/);
+});
+
+test('caregiver and professional histories use their authorized tasks and discard old profile responses', async () => {
+  const children = [];
+  const lists = {
+    aidant: { replaceChildren() { children.length = 0; }, append(item) { children.push(item); } },
+    pro: { replaceChildren() { children.length = 0; }, append(item) { children.push(item); } }
+  };
+  const details = { open: true };
+  const paths = [];
+  let release;
+  const context = {
+    connectedUser: { id: 'user', role: 'aidant' }, activeSeniorProfileId: 'old',
+    historyLoadId: 0, historyContext: '',
+    document: { getElementById: id => id.endsWith('-details') ? details : lists[id.split('-')[0]] },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
+    dateCheckinBienEtre: () => '2028-03-01',
+    calendarEventDate: value => value.slice(0, 10), calendarEventLabel: event => event.title,
+    makeTextElement: (tag, text) => ({ tag, text }), Date, Intl,
+    planningRequest: path => {
+      paths.push(path);
+      if (path.startsWith('/api/planning/calendar')) return Promise.resolve({ events: [] });
+      if (context.activeSeniorProfileId === 'old') return new Promise(resolve => { release = resolve; });
+      return Promise.resolve({ tasks: [{ dueDate: '2028-02-29', title: 'Tâche autorisée', seniorName: 'Camille' }] });
+    }
+  };
+  const start = source.indexOf('    async function chargerHistoriqueQuotidien(role)');
+  const end = source.indexOf('    function afficherProchainRendezVous()', start);
+  vm.runInNewContext(source.slice(start, end), context);
+  const pending = context.chargerHistoriqueQuotidien('aidant');
+  context.activeSeniorProfileId = 'new';
+  await context.chargerHistoriqueQuotidien('aidant');
+  assert.match(children[0].text, /Tâche autorisée/);
+  release({ tasks: [{ dueDate: '2028-02-29', title: 'Ancien profil' }] });
+  await pending;
+  assert.doesNotMatch(children[0].text, /Ancien profil/);
+  assert.ok(paths.includes('/api/shared-tasks'));
+  paths.length = 0;
+  context.connectedUser = { id: 'professional', role: 'pro' };
+  await context.chargerHistoriqueQuotidien('pro');
+  assert.ok(paths.includes('/api/intervention-tasks'));
+  assert.ok(!paths.includes('/api/shared-tasks'));
+  assert.match(children[0].text, /Tâche autorisée — Camille/);
 });
 
 test('professional summary uses only professional-accessible data and shows pending requests', async () => {
@@ -166,13 +398,18 @@ test('professional summary uses only professional-accessible data and shows pend
     Date,
     planningRequest: async url => {
       paths.push(url);
-      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Visite prévue' }] };
+      if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Visite prévue', scheduledAt: '2028-02-29T10:00:00Z' }] };
       if (url === '/api/messages/unread-count') return { count: 1 };
       if (url === '/api/notifications') return { unreadCount: 1, notifications: [
         { createdAt: '2028-02-29T10:00:00Z', title: 'Invitation', message: 'Une visite est proposée' }
       ] };
       if (url.startsWith('/api/planning/services/bookings')) return { bookings: [] };
       if (url === '/api/directory/bookings') return { bookings: [{ status: 'pending' }, { status: 'confirmed' }] };
+      if (url === '/api/intervention-tasks') return { tasks: [
+        { completed: false, dueDate: '2028-02-28' },
+        { completed: false, dueDate: '2028-02-29' },
+        { completed: false, dueDate: null }
+      ] };
       if (url === '/api/planning/today?date=2028-02-29') return { visits: [{
         recipient: { name: 'Personne suivie' }, visitType: 'Visite',
         scheduledAt: '2028-02-29T09:00:00Z', status: 'scheduled',
@@ -193,6 +430,7 @@ test('professional summary uses only professional-accessible data and shows pend
   await context.loadSummary();
   assert.match(elements.get('pro-summary-visit').textContent, /Visite prévue/);
   assert.equal(elements.get('pro-summary-demands').textContent, 'Demandes de rendez-vous en attente : 1');
+  assert.equal(elements.get('pro-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1');
   assert.equal(elements.has('pro-summary-notifications'), false);
   assert.match(elements.get('pro-summary-notification-details').textContent, /Invitation\nUne visite est proposée/);
   assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — arrived : Ma note/);
@@ -253,26 +491,28 @@ test('daily journal sorts shared updates and reports unavailable sources', async
     makeTextElement: (tag, text) => ({ tag, text }),
     formatDateTime: value => value,
     dateCheckinBienEtre: () => '2028-01-03',
-    calendarEventDate: value => value.slice(0, 10),
     stageLabel: value => value,
     progressArray: value => value,
     planningRequest: async path => {
       requests.push(path);
       return path === '/api/logs/all' ? [
         { created_at: '2028-01-01T10:00:00Z', author_id: 2, content: 'Nouvelle familiale' },
-        { created_at: '2028-01-02T09:00:00Z', author_id: 3, content: 'Nouvelle professionnelle' }
+        { created_at: '2028-01-02T09:00:00Z', author_id: 3, content: 'Nouvelle professionnelle' },
+        { created_at: '2028-01-03T10:00:00Z', author_id: 2, content: 'Nouvelle du jour' }
       ]
       : { visits: [{ visitType: 'Visite', progress: [
         { type: 'arrived', createdAt: '2028-01-02T10:00:00Z', note: 'Présent', authorRole: 'pro' },
-        { type: 'completed', createdAt: '2028-01-03T10:00:00Z', authorRole: 'pro' },
-        { type: 'future', createdAt: '2028-01-04T10:00:00Z', authorRole: 'pro' }
+        { type: 'completed', createdAt: '2028-01-02T23:30:00Z', authorRole: 'pro' },
+        { type: 'future', createdAt: '2028-01-03T23:30:00Z', authorRole: 'pro' }
       ] }] };
     }
   };
   const helperStart = source.indexOf('    function auteurAvecRole(role, name = \'\')');
   const start = source.indexOf('    async function chargerJournalQuotidien(role)');
   const end = source.indexOf('    function configurerAlbumJournal()', start);
-  vm.runInNewContext(`${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
+  const dateStart = source.indexOf('    function calendarEventDate(value)');
+  const dateEnd = source.indexOf('    function calendarEventLabel(event)', dateStart);
+  vm.runInNewContext(`${source.slice(dateStart, dateEnd)}${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
   await context.loadJournal('aidant');
   assert.deepEqual(requests, ['/api/logs/all', '/api/planning/following']);
   assert.equal(children[0].children[2].text, '🩺 Soignant · Visite — completed');
@@ -299,6 +539,68 @@ test('daily journal sorts shared updates and reports unavailable sources', async
   context.activeSeniorProfileId = 'senior-2';
   container.replaceChildren();
   release([{ created_at: '2028-01-01T10:00:00Z', content: 'Ancien profil' }]);
+  await pending;
+  assert.equal(children.length, 0);
+});
+
+test('caregiver explanations keep a touch-accessible control without changing desktop help', () => {
+  assert.match(source, /#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary,\s*#screen-senior-pro \.senior-explanation\[data-help-enhanced\] > summary\s*\{\s*display:\s*none;/);
+  assert.match(source, /@media \(hover: none\)\s*\{\s*#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary,[\s\S]*?display:\s*inline-flex;/);
+  assert.match(source, /#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary::before,[\s\S]*?content:\s*'\?';/);
+});
+
+test('daily journal loads older updates, retries failures and discards a stale page', async () => {
+  const children = [];
+  const container = {
+    replaceChildren() { children.length = 0; },
+    append(item) { children.push(item); }
+  };
+  const page = Array.from({ length: 100 }, (_, index) => ({
+    id: 100 - index, created_at: '2020-01-01T10:00:00Z',
+    author_id: 2, author_name: 'Camille', content: `Note ${index}`
+  }));
+  let nextPage = async () => { throw new Error('offline'); };
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' }, activeSeniorProfileId: 'senior-1', familyJournalRevision: 0,
+    document: {
+      getElementById: () => container,
+      createElement: tag => ({ tag, children: [], append(...items) { this.children.push(...items); } })
+    },
+    makeTextElement: (tag, text) => ({
+      tag, text, addEventListener(event, callback) { this[event] = callback; }
+    }),
+    formatDateTime: value => value,
+    dateCheckinBienEtre: () => '2028-01-03',
+    calendarEventDate: value => value.slice(0, 10),
+    stageLabel: value => value,
+    progressArray: value => value,
+    console: { error() {} },
+    window: { generationLiaisonTranslate: value => value },
+    planningRequest: async path => path === '/api/logs/all' ? page
+      : path === '/api/planning/following' ? { visits: [] } : nextPage(path)
+  };
+  const helperStart = source.indexOf('    function auteurAvecRole(role, name = \'\')');
+  const start = source.indexOf('    async function chargerJournalQuotidien(role)');
+  const end = source.indexOf('    function configurerAlbumJournal()', start);
+  vm.runInNewContext(`${source.slice(helperStart, start)}${source.slice(start, end)}\nglobalThis.loadJournal = chargerJournalQuotidien;`, context);
+  await context.loadJournal('aidant');
+  assert.equal(children[0].children[2].text, '👨‍👩‍👧‍👦 Famille · Camille · Note 0');
+  await children[100].click();
+  assert.match(children[100].text, /Impossible de charger/);
+  nextPage = async path => {
+    assert.equal(path, '/api/logs/all?before=1');
+    return [{ id: 0, created_at: '2019-01-01T10:00:00Z', author_id: 2, content: 'Ancienne' }];
+  };
+  await children[101].click();
+  assert.equal(children.length, 101);
+  assert.equal(children[100].children[2].text, '👨‍👩‍👧‍👦 Famille · Ancienne');
+  await context.loadJournal('aidant');
+  let release;
+  nextPage = () => new Promise(resolve => { release = resolve; });
+  const pending = children[100].click();
+  context.activeSeniorProfileId = 'senior-2';
+  container.replaceChildren();
+  release([{ id: 0, created_at: '2019-01-01T10:00:00Z', content: 'Ancien profil' }]);
   await pending;
   assert.equal(children.length, 0);
 });
@@ -477,7 +779,7 @@ function createView(response) {
         if (selector === '.screen-container details') return [
           ...tabDisclosures, ...Object.values(featureDisclosures).flat(), ...weatherDisclosures, ...respite, explanation
         ];
-        if (selector === '.screen-container') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'messages'].map(name => element(`screen-${name}`));
+        if (selector === '.screen-container') return ['senior', 'aidant', 'pro', 'informations-senior', 'informations-aidant', 'informations-pro', 'settings', 'agenda', 'directory', 'contacts', 'messages'].map(name => element(`screen-${name}`));
         if (selector === '.nav-item') return ['senior', 'aidant', 'pro', 'settings', 'agenda', 'directory', 'contacts', 'notifications', 'logout'].map(name => element(`nav-${name}`));
         if (selector === '#aidant-respite > details:not(.senior-explanation)') return respite;
         const match = selector.match(/^#screen-(.+) details:not\(\.senior-explanation\)$/);
@@ -504,11 +806,13 @@ function createView(response) {
     currentUser: null,
     activeSeniorProfileId: '',
     directoryLoadId: 0,
+    establishmentOverviewLoadId: 0,
     wellbeingLoadedDate: null,
     SERVER_URL: '',
     authHeaders: () => ({}),
     afficherAccueilSenior() {},
     reinitialiserPhotosContacts() {},
+    reinitialiserPhotoMessages() {},
     reinitialiserProfil() {},
     chargerPhotoProfil() {},
     updatePlanningDateTitle() {},
@@ -524,7 +828,9 @@ function createView(response) {
       'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage', 'chargerContactsUtiles', 'chargerTachesPartagees',
       'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
       'reinitialiserMeteo', 'chargerMeteo',
-      'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'initialiserVueSenior', 'planifierLectureSenior'
+      'chargerEtablissement',
+      'chargerResidentsSoignant', 'reinitialiserCarnetEtablissement', 'fermerActionsEtablissement',
+      'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'initialiserVueSenior', 'initialiserPresentation', 'planifierLectureSenior'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
     definirVueCalendrier: view => { context.calendarView = view; calls.push('definirVueCalendrier'); },
@@ -543,6 +849,35 @@ function createView(response) {
   );
   return { context, element, calls, bodyClasses, tabDisclosures, featureDisclosures, weatherDisclosures, respite, explanation };
 }
+
+test('establishment accounts open only their dedicated workspace', async () => {
+  const { context, element, calls } = createView({ seniors: [] });
+  await context.openView({ id: 'director', role: 'establishment' });
+  assert.ok(element('screen-establishment').classList.contains('active'));
+  assert.equal(element('nav-bar').style.display, 'none');
+  assert.ok(calls.includes('chargerEtablissement'));
+  assert.ok(calls.includes('initialiserVueSenior'));
+  assert.ok(!calls.includes('chargerNotifications'));
+});
+
+test('a resident with a temporary password must change it before entering the workspace', async () => {
+  const { context, element, calls } = createView({ seniors: [] });
+  await context.openView({ id: 'resident', role: 'senior', passwordChangeRequired: true });
+  assert.ok(element('screen-resident-password').classList.contains('active'));
+  assert.equal(element('nav-bar').style.display, 'none');
+  assert.ok(calls.includes('initialiserVueSenior'));
+  assert.ok(!calls.includes('chargerNotifications'));
+});
+
+test('establishment staff open their restricted workspace', async () => {
+  const { context, element, calls } = createView({ seniors: [] });
+  await context.openView({ id: 'staff', role: 'staff' });
+  assert.ok(element('screen-staff').classList.contains('active'));
+  assert.equal(element('nav-bar').style.display, 'none');
+  assert.ok(calls.includes('chargerResidentsSoignant'));
+  assert.ok(calls.includes('initialiserVueSenior'));
+  assert.ok(!calls.includes('chargerNotifications'));
+});
 
 test('sections start closed, preserve user choices while navigating and keep settings separate', async () => {
   const { context, tabDisclosures, calls, featureDisclosures, weatherDisclosures, explanation } = createView({ seniors: [] });
@@ -742,12 +1077,29 @@ test('an aidant with a linked senior still opens the selected senior workspace',
   assert.ok(calls.includes('chargerLogs'));
 });
 
-test('daily summary appears between the followed person and notification shortcuts', () => {
+test('daily information opens from the caregiver home and has a separate screen', () => {
   const start = source.indexOf('<div id="screen-aidant"');
+  const infoScreen = source.indexOf('<div id="screen-informations-aidant"');
   const summary = source.indexOf('id="aidant-daily-summary"', start);
-  assert.ok(source.indexOf('id="senior-name-aidant"', start) < summary);
-  assert.ok(summary < source.indexOf('id="aidant-shortcuts"', start));
+  assert.ok(source.indexOf("switchScreen('informations-aidant')", start) < infoScreen);
+  assert.ok(summary > infoScreen);
   assert.match(source.slice(summary, source.indexOf('>', summary)), /\bhidden\b/);
+});
+
+test('daily information opens only for the current role and returns home', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const { context, element, calls } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
+    await context.openView({ id: role, role, verificationStatus: 'approved' });
+    calls.length = 0;
+    context.openScreen(`informations-${role}`);
+    assert.ok(element(`screen-informations-${role}`).classList.contains('active'));
+    assert.ok(calls.includes({ senior: 'chargerProchainRendezVous', aidant: 'chargerSyntheseAidant', pro: 'chargerSynthesePro' }[role]));
+    context.openScreen(`informations-${role === 'senior' ? 'pro' : 'senior'}`);
+    assert.ok(element(`screen-informations-${role}`).classList.contains('active'));
+    context.openScreen(role);
+    assert.ok(element(`screen-${role}`).classList.contains('active'));
+    assert.ok(!element(`screen-informations-${role}`).classList.contains('active'));
+  }
 });
 
 test('daily summaries are informational and add no navigation buttons', () => {
@@ -817,6 +1169,7 @@ test('pending guardian can open settings and return to verification without prof
   assert.ok(element('screen-settings').classList.contains('active'));
   assert.equal(element('settings-aidant-links').style.display, 'none');
   assert.equal(element('settings-agenda').style.display, 'none');
+  assert.equal(element('settings-simple-display').style.display, 'block');
   context.openAgenda();
   assert.equal(element('nav-agenda').classList.contains('active'), false);
   context.openScreen('messages');
@@ -833,6 +1186,7 @@ test('a pending professional can open settings without accessing the agenda', as
   context.openScreen('settings');
   assert.equal(element('settings-pro-area').style.display, 'none');
   assert.equal(element('settings-agenda').style.display, 'none');
+  assert.equal(element('settings-simple-display').style.display, 'block');
   context.openAgenda();
   assert.equal(element('nav-agenda').classList.contains('active'), false);
   context.openScreen('messages');

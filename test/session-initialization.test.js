@@ -65,6 +65,7 @@ function createApp(response) {
   };
   vm.runInNewContext([
     extract('    function basculerFormulaire(estInscription)', '    function afficherChampsInscriptionProfessionnel()'),
+    extract('    function afficherConnexionInitiale()', '    async function copierLienConnexionEtablissement()'),
     extract('    async function readResponse(response)', '    async function planningRequest'),
     extract('    function configurerFormulairesInformationsPersonne()', '    async function modifierConsentement'),
     extract('    async function initApp()', "    window.addEventListener('DOMContentLoaded', initApp);"),
@@ -127,4 +128,19 @@ test('startup removes an expired session but retains it on a temporary failure',
     assert.equal(app.element('nav-bar').style.display, 'none');
     assert.equal(app.calls.some(call => call.user), false);
   }
+});
+
+test('establishment sign-in link opens only without an active session', async () => {
+  const visitor = createApp();
+  visitor.storage.delete('generation-liaison-mobile-session');
+  visitor.context.window.location.hash = '#connexion-etablissement';
+  await visitor.context.start();
+  assert.equal(visitor.element('resident-login-section').style.display, 'block');
+  assert.equal(visitor.element('login-section').style.display, 'none');
+
+  const connected = createApp({ ok: true, json: async () => ({ user: { id: 'director', role: 'establishment' } }) });
+  connected.context.window.location.hash = '#connexion-etablissement';
+  await connected.context.start();
+  assert.notEqual(connected.element('resident-login-section').style.display, 'block');
+  assert.equal(connected.calls[1].user.id, 'director');
 });
