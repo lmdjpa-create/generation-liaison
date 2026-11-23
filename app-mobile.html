@@ -108,9 +108,21 @@
             color: #18352e;
             line-height: 1.5;
             text-align: left;
+            font-weight: 700;
         }
         :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > p:not(.helper-text):nth-of-type(3n + 2) { background: #e8f1fb; }
         :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > p:not(.helper-text):nth-of-type(3n) { background: #f8eddb; }
+        :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > button[id$="-summary-messages"] {
+            display: block; width: 100%; margin: 10px 0; padding: 12px 15px;
+            border: 0; border-radius: 18px; background: #e8f1fb; color: #18352e;
+            text-align: left; text-decoration: underline; cursor: pointer;
+        }
+        :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > button[id$="-summary-messages"][hidden] { display: none; }
+        .today-inbox-list { display: grid; gap: 8px; max-height: 22rem; overflow-y: auto; overscroll-behavior: contain; }
+        .form-card .today-inbox-item { display: grid; gap: 4px; width: 100%; padding: 14px; border: 1px solid #c8d8d1; border-radius: 14px; background: #fff; color: #18352e; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+        .form-card .today-inbox-item.unread { border-left: 5px solid #17684f; background: #edf8f2; }
+        .today-inbox-item small { color: #52665c; }
+        #senior-today-visit, #senior-today-tasks { white-space: pre-line; font-weight: 700; overflow-wrap: anywhere; }
         :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > :is(#senior-summary-notifications, #aidant-summary-notification-details, #pro-summary-notification-details) {
             border-left: 5px solid #835b9b;
             border-radius: 6px 18px 18px 6px;
@@ -971,7 +983,7 @@
             <button type="button" onclick="switchScreen('settings'); document.getElementById('senior-links-details').open = true">Voir les demandes des aidants</button>
         </section>
         <div class="senior-simple-only" id="senior-simple-actions">
-            <button type="button" onclick="ouvrirNotifications()">Notifications et messages <span id="home-notification-count-senior-simple" hidden></span></button>
+            <button type="button" onclick="ouvrirNotifications()">Messages</button>
             <button type="button" onclick="ouvrirJournalSenior()">Mon journal</button>
             <button type="button" onclick="ouvrirAgenda()">Mes rendez-vous</button>
             <button type="button" onclick="switchScreen('contacts')">Mes contacts</button>
@@ -1115,6 +1127,15 @@
         <div><p class="next-visit-label">Prochaine visite</p>
         <p class="next-visit-text" id="senior-next-visit-text" role="status" aria-live="polite">Chargement du prochain rendez-vous…</p></div>
     </section>
+    <section class="form-card">
+        <h2>Aujourd’hui</h2>
+        <p id="senior-today-visit" role="status">Chargement des rendez-vous…</p>
+        <p id="senior-today-tasks" role="status" hidden></p>
+        <h3>Messages reçus</h3>
+        <div class="today-inbox-list" id="senior-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
+        <div id="notification-opened-senior" aria-live="polite"></div>
+        <div id="notifications-senior" aria-live="polite"></div>
+    </section>
     <section class="form-card weather-widget" id="senior-weather-card" aria-labelledby="senior-weather-title">
         <h2 id="senior-weather-title">Météo</h2>
         <div class="weather-hero" id="senior-weather-hero" hidden><span class="weather-icon" id="senior-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="senior-weather-temp"></span></div>
@@ -1129,7 +1150,7 @@
         <button type="button" id="senior-more-back" onclick="switchScreen('senior')">&larr; Retour &agrave; l&rsquo;accueil</button>
         <h1>Proche</h1>
         <div class="action-tiles" id="senior-more-actions">
-            <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-senior" hidden></span></button>
+            <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">💬</span>Messages</button>
             <button type="button" class="action-tile" onclick="switchScreen('contacts')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#128101;</span>Contacts</button>
         </div>
         <section class="form-card" id="senior-game-section" style="text-align:left;">
@@ -1410,7 +1431,7 @@
             <h2 id="senior-daily-summary-title">Aujourd’hui</h2>
             <p id="senior-summary-visit" role="status">Chargement des rendez-vous…</p>
             <p id="senior-summary-tasks" role="status">Chargement des tâches…</p>
-            <p id="senior-summary-messages" role="status">Chargement des messages…</p>
+            <button type="button" id="senior-summary-messages" onclick="ouvrirNotifications()">Chargement des messages…</button>
             <p id="senior-summary-notifications" role="status">Chargement des notifications…</p>
             <p id="senior-summary-following" role="status">Chargement du suivi des interventions…</p>
             <p id="senior-summary-services" role="status">Chargement des services…</p>
@@ -1654,7 +1675,7 @@
     </div>
     <button type="button" class="action-tile" onclick="switchScreen('informations-aidant')">Informations du jour</button>
     <div id="aidant-shortcuts" class="action-tiles">
-        <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
+        <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">💬</span>Messages</button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
     </div>
     <section class="form-card" id="aidant-respite">
@@ -1822,20 +1843,19 @@
 <div id="screen-informations-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
     <button type="button" class="register-button" onclick="switchScreen('aidant')">← Retour à l’accueil</button>
     <h1>Informations du jour</h1>
-    <section class="form-card" id="aidant-daily-summary" aria-labelledby="aidant-daily-summary-title" hidden>
+    <section class="form-card" aria-labelledby="aidant-daily-summary-title">
         <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
+        <div id="aidant-daily-summary" hidden>
         <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
         <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
-        <p id="aidant-summary-messages" role="status">Chargement des messages…</p>
-        <p id="aidant-summary-notification-details" aria-live="polite" hidden></p>
         <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
         <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
         <p id="aidant-summary-services" role="status">Chargement des services…</p>
-        <details id="aidant-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('aidant')">
-            <summary>Historique des 30 derniers jours</summary>
-            <p class="helper-text">Rendez-vous et tâches datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
-            <div id="aidant-history-list" aria-live="polite"></div>
-        </details>
+        </div>
+        <h3>Messages reçus</h3>
+        <div class="today-inbox-list" id="aidant-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
+        <div id="notification-opened-aidant" aria-live="polite"></div>
+        <div id="notifications-aidant" aria-live="polite"></div>
     </section>
     <section class="form-card weather-widget" id="aidant-weather-card" aria-labelledby="aidant-weather-title">
         <h2 id="aidant-weather-title">Météo</h2>
@@ -1870,7 +1890,7 @@
         <p>Les proches ne voient que les étapes et notes pratiques lorsque leur compte est autorisé pour le profil ; les coordonnées ne leur sont pas transmises dans ce suivi.</p>
     </details>
     <button type="button" class="action-tile" onclick="switchScreen('informations-pro')">Informations du jour</button>
-    <button type="button" id="pro-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
+    <button type="button" id="pro-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">💬</span>Messages</button>
     <section class="form-card">
         <details class="senior-disclosure" id="pro-intervention-tasks-details">
             <summary>Tâches confiées par les personnes accompagnées</summary>
@@ -1997,28 +2017,18 @@
         <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
         <p id="pro-summary-services" role="status">Chargement des services…</p>
         <p id="pro-summary-tasks" role="status">Chargement des tâches…</p>
-        <p id="pro-summary-messages" role="status">Chargement des messages…</p>
-        <p id="pro-summary-notification-details" aria-live="polite" hidden></p>
+        <h3>Messages reçus</h3>
+        <div class="today-inbox-list" id="pro-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
+        <div id="notification-opened-pro" aria-live="polite"></div>
+        <div id="notifications-pro" aria-live="polite"></div>
         <p id="pro-summary-following" role="status">Chargement des étapes d’intervention…</p>
         <p class="helper-text">Suivi de l’équipe limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées.</p>
-        <details id="pro-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('pro')">
-            <summary>Historique des 30 derniers jours</summary>
-            <p class="helper-text">Rendez-vous autorisés et tâches qui vous sont confiées, datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
-            <div id="pro-history-list" aria-live="polite"></div>
-        </details>
     </section>
 </div>
 <div id="screen-messages" class="screen-container">
     <button type="button" class="register-button" onclick="switchScreen(connectedUser.role)">← Retour à l’accueil</button>
-    <h1>Notifications et messages</h1>
+    <h1>Messages</h1>
     <section class="form-card" id="notifications-panel-senior" style="display:none;">
-      <details class="senior-tab-disclosure" id="notification-details-senior" ontoggle="surveillerNotificationsVisibles()">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications</summary>
-        <div id="notifications-list-senior">
-            <div id="notification-opened-senior" aria-live="polite"></div>
-            <div id="notifications-senior" aria-live="polite">Chargement des notifications…</div>
-        </div>
-      </details>
       <details class="senior-tab-disclosure" id="message-details-senior">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
         <div id="messages-senior">
@@ -2065,10 +2075,10 @@
       </details>
     </section>
     <section class="form-card" id="notifications-panel-aidant" style="display:none;">
-      <details class="senior-tab-disclosure" id="notification-details-aidant" ontoggle="surveillerNotificationsVisibles()">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications</summary>
-        <div id="notification-opened-aidant" aria-live="polite"></div>
-        <div id="notifications-aidant" aria-live="polite">Chargement des notifications…</div>
+      <details class="senior-tab-disclosure" id="safety-messages-details">
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fff1f0;">⚠️</span>Messages automatiques de sécurité</summary>
+        <p class="helper-text">Ces messages sont générés par l’application, pas rédigés par la personne accompagnée. Ils ne garantissent pas la réception d’une alerte ni l’intervention des secours.</p>
+        <div id="safety-messages-aidant" aria-live="polite"></div>
       </details>
       <details class="senior-tab-disclosure" id="message-details-aidant">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
@@ -2092,11 +2102,6 @@
       </details>
     </section>
     <section class="form-card" id="notifications-panel-pro" style="display:none;">
-      <details class="senior-tab-disclosure" id="notification-details-pro" ontoggle="surveillerNotificationsVisibles()">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et demandes à traiter</summary>
-        <div id="notification-opened-pro" aria-live="polite"></div>
-        <div id="notifications-pro" aria-live="polite">Chargement des notifications…</div>
-      </details>
       <details class="senior-tab-disclosure" id="message-details-pro">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
         <div id="messages-pro">
@@ -2251,7 +2256,7 @@
         <button type="button" class="enable-push-button" data-role="senior" disabled>Activer les notifications sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
         <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
-        <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
+        <p class="helper-text">Les notifications et nouveaux messages peuvent être envoyés en notification push, même lorsque l’application est fermée. Activez-les sur chaque appareil et autorisez-les dans ses réglages. La réception dépend de l’appareil, du navigateur et du service ; elle n’est pas garantie. La déconnexion les désactive sur cet appareil.</p>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="senior">
             <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
@@ -2268,7 +2273,7 @@
         <button type="button" class="enable-push-button" data-role="aidant" disabled>Activer les notifications sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
         <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
-        <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
+        <p class="helper-text">Les notifications et nouveaux messages peuvent être envoyés en notification push, même lorsque l’application est fermée. Activez-les sur chaque appareil et autorisez-les dans ses réglages. La réception dépend de l’appareil, du navigateur et du service ; elle n’est pas garantie. La déconnexion les désactive sur cet appareil.</p>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="aidant">
             <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
@@ -2294,7 +2299,7 @@
         <button type="button" class="enable-push-button" data-role="pro" disabled>Activer les notifications sur cet appareil</button>
         <p class="helper-text push-status" aria-live="polite">Vérification des notifications…</p>
         <p class="helper-text">Les nouvelles notifications n’affichent ni nom ni contenu personnel sur l’écran verrouillé. Une alerte d’urgence ou de sécurité peut toutefois être identifiée ; vous pouvez masquer les aperçus dans les réglages de l’appareil.</p>
-        <p class="helper-text">Activez les notifications sur chaque appareil et autorisez-les dans ses réglages pour pouvoir les recevoir lorsque l’application est fermée. Leur réception dépend de l’appareil et du navigateur. La déconnexion les désactive sur cet appareil.</p>
+        <p class="helper-text">Les notifications et nouveaux messages peuvent être envoyés en notification push, même lorsque l’application est fermée. Activez-les sur chaque appareil et autorisez-les dans ses réglages. La réception dépend de l’appareil, du navigateur et du service ; elle n’est pas garantie. La déconnexion les désactive sur cet appareil.</p>
         <p class="helper-text">Les SMS et e-mails sont facultatifs. Les messages ne contiennent pas le détail du rendez-vous. Le numéro doit être au format international (+33…).</p>
         <form class="notification-preferences-form form-grid" data-role="pro">
             <label class="notification-choice"><input type="checkbox" data-email-enabled> Recevoir les notifications à mon adresse e-mail de connexion</label>
@@ -2611,7 +2616,7 @@
         <span class="nav-icon" aria-hidden="true">🗓️</span><span>Agenda</span>
     </button>
     <button id="nav-notifications" class="nav-item" onclick="ouvrirNotifications()" style="display:none;">
-        <span class="nav-icon" aria-hidden="true">🔔</span><span>Notifications et messages</span><span id="notification-unread-count" hidden></span>
+        <span class="nav-icon" aria-hidden="true">💬</span><span>Messages</span>
     </button>
     <button id="nav-settings" class="nav-item" onclick="switchScreen('settings')" style="display:none;">
         <span class="nav-icon" aria-hidden="true">☰</span><span>Plus</span>
@@ -2654,6 +2659,7 @@
     let planningState = { members: [], recipients: [], servicePartners: [] };
     let planningRefreshTimer = null;
     let notificationLoadId = 0;
+    let inboxLoadId = 0;
     let notificationReadEntries = [];
     let openMessageConversations = {};
     let planningLoadId = 0;
@@ -3073,24 +3079,26 @@
         chargerNotifications();
         if (informationAllowed) {
             document.getElementById(`screen-${screenName}`).scrollTop = 0;
-            if (connectedUser.role === 'senior') chargerProchainRendezVous();
+            chargerBoiteReception(connectedUser.role);
+            if (connectedUser.role === 'senior') {
+                chargerProchainRendezVous();
+                chargerSyntheseSenior();
+            }
             if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
                 chargerSyntheseAidant();
-                if (document.getElementById('aidant-history-details').open) chargerHistoriqueQuotidien('aidant');
             }
             if (connectedUser.role === 'pro') {
                 chargerSynthesePro();
-                if (document.getElementById('pro-history-details').open) chargerHistoriqueQuotidien('pro');
             }
             return;
         }
         if (screenName === 'messages') {
             document.getElementById('screen-messages').scrollTop = 0;
             chargerCorrespondants(connectedUser.role);
+            if (connectedUser.role === 'aidant') chargerMessagesSecurite();
         }
         if (screenName === 'aidant' && activeSeniorProfileId) {
             chargerSyntheseAidant();
-            if (document.getElementById('aidant-history-details').open) chargerHistoriqueQuotidien('aidant');
             chargerLogs();
             if (document.getElementById('aidant-album-details').open) chargerAlbumFamilial('aidant');
             if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
@@ -3122,7 +3130,6 @@
             chargerAssistantConversation();
         } else if (screenName === 'pro') {
             chargerSynthesePro();
-            if (document.getElementById('pro-history-details').open) chargerHistoriqueQuotidien('pro');
             chargerPlanningPro();
             chargerPlanningServices();
             chargerDirectoryProfile();
@@ -3145,6 +3152,7 @@
     function ouvrirNotifications() {
         if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
         switchScreen('messages');
+        document.getElementById(`message-details-${connectedUser.role}`).open = true;
     }
 
     function ouvrirAgenda() {
@@ -3821,6 +3829,10 @@
         planningRefreshTimer = setInterval(() => {
             if (!connectedUser) return;
             actualiserMeteoSiNecessaire();
+            if (['senior', 'aidant', 'pro'].includes(connectedUser.role) &&
+                document.getElementById(`screen-informations-${connectedUser.role}`).classList.contains('active')) {
+                chargerBoiteReception(connectedUser.role);
+            }
             if (connectedUser.role === 'pro') {
                 chargerPlanningPro();
                 chargerPlanningServices();
@@ -3828,7 +3840,6 @@
                 if (document.getElementById('screen-pro').classList.contains('active') ||
                     document.getElementById('screen-informations-pro').classList.contains('active')) {
                     chargerSynthesePro();
-                    if (document.getElementById('pro-history-details').open) chargerHistoriqueQuotidien('pro');
                 }
             }
             if (connectedUser.role === 'senior' || (connectedUser.role === 'aidant' && activeSeniorProfileId)) {
@@ -3840,7 +3851,6 @@
                 if (document.getElementById('screen-aidant').classList.contains('active') ||
                     document.getElementById('screen-informations-aidant').classList.contains('active')) {
                     chargerSyntheseAidant();
-                    if (document.getElementById('aidant-history-details').open) chargerHistoriqueQuotidien('aidant');
                     if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
                 }
             }
@@ -5917,9 +5927,10 @@
     }
 
     function actualiserCompteurNotifications(count) {
-        ['notification-unread-count', 'home-notification-count-senior-simple', ...['senior', 'aidant', 'pro'].map(role => `home-notification-count-${role}`)]
+        ['senior', 'aidant', 'pro'].map(role => `home-notification-count-${role}`)
             .forEach(id => {
                 const badge = document.getElementById(id);
+                if (!badge) return;
                 badge.hidden = count === 0;
                 badge.textContent = count ? `${count} non lue${count > 1 ? 's' : ''}` : '';
             });
@@ -5928,7 +5939,7 @@
     function notificationVisible(entry) {
         if (document.hidden || connectedUser?.id !== entry.userId || connectedUser?.role !== entry.role || !entry.card.isConnected) return false;
         if (entry.card.closest?.('details:not([open])')) return false;
-        const screen = document.getElementById('screen-messages');
+        const screen = document.getElementById(`screen-informations-${entry.role}`);
         if (!screen.classList.contains('active')) return false;
         const rect = entry.card.getBoundingClientRect();
         const viewport = screen.getBoundingClientRect();
@@ -5987,11 +5998,12 @@
             notificationReadEntries = [];
             container.replaceChildren();
             actualiserCompteurNotifications(result.unreadCount);
-            if (!result.notifications.length) {
-                container.append(makeTextElement('p', 'Aucune notification pour le moment.', 'helper-text'));
-                return result;
-            }
             result.notifications.forEach(notification => {
+                const careInvitationPending = notification.type === 'care_visit_invite' &&
+                    notification.entityStatus === 'pending';
+                const serviceInvitationPending = notification.type === 'service_booking_invite' &&
+                    notification.entityStatus === 'requested';
+                if (!careInvitationPending && !serviceInvitationPending) return;
                 const card = document.createElement('article');
                 card.className = `notification-card notification-bubble${notification.read ? '' : ' unread'}`;
                 card.append(makeTextElement('strong', notification.title));
@@ -6003,37 +6015,19 @@
                 if (!notification.read) {
                     notificationReadEntries.push({ id: notification.id, userId, role, card, status: readStatus });
                 }
-                if (notification.type === 'private_message' && notification.senderUserId) {
-                    const link = document.createElement('a');
-                    link.href = `#messages-${role}`;
-                    link.textContent = 'Lire le message';
-                    link.addEventListener('click', event => {
-                        event.preventDefault();
-                        window.pendingPushNotificationId = notification.id;
-                        window.handlePendingNotification();
-                    });
-                    card.append(link);
-                }
-
-                const careInvitationPending = notification.type === 'care_visit_invite' &&
-                    notification.entityStatus === 'pending';
-                const serviceInvitationPending = notification.type === 'service_booking_invite' &&
-                    notification.entityStatus === 'requested';
-                if (careInvitationPending || serviceInvitationPending) {
-                    const actions = document.createElement('div');
-                    actions.className = 'notification-actions';
-                    const accept = document.createElement('button');
-                    accept.type = 'button';
-                    accept.textContent = 'Accepter le rendez-vous';
-                    accept.addEventListener('click', () => repondreInvitation(notification, 'accepted', accept));
-                    const decline = document.createElement('button');
-                    decline.type = 'button';
-                    decline.className = 'decline';
-                    decline.textContent = 'Refuser';
-                    decline.addEventListener('click', () => repondreInvitation(notification, 'declined', decline));
-                    actions.append(accept, decline);
-                    card.append(actions);
-                }
+                const actions = document.createElement('div');
+                actions.className = 'notification-actions';
+                const accept = document.createElement('button');
+                accept.type = 'button';
+                accept.textContent = 'Accepter le rendez-vous';
+                accept.addEventListener('click', () => repondreInvitation(notification, 'accepted', accept));
+                const decline = document.createElement('button');
+                decline.type = 'button';
+                decline.className = 'decline';
+                decline.textContent = 'Refuser';
+                decline.addEventListener('click', () => repondreInvitation(notification, 'declined', decline));
+                actions.append(accept, decline);
+                card.append(actions);
                 container.append(card);
             });
             surveillerNotificationsVisibles();
@@ -6045,6 +6039,103 @@
                 error.message || 'Impossible de charger les notifications.',
                 'helper-text'
             ));
+        }
+    }
+
+    async function chargerMessagesSecurite() {
+        if (connectedUser?.role !== 'aidant') return;
+        const userId = connectedUser.id;
+        const container = document.getElementById('safety-messages-aidant');
+        container.replaceChildren(makeTextElement('p', 'Chargement des messages de sécurité…', 'helper-text'));
+        try {
+            const result = await planningRequest('/api/messages/safety-alerts');
+            if (connectedUser?.id !== userId || connectedUser?.role !== 'aidant') return;
+            container.replaceChildren();
+            if (!result.messages.length) {
+                container.append(makeTextElement('p', 'Aucun message de sécurité pour le moment.', 'helper-text'));
+                return;
+            }
+            result.messages.forEach(message => {
+                const card = document.createElement('article');
+                card.className = 'notification-card notification-bubble';
+                card.append(makeTextElement('strong', `Message automatique pour ${message.seniorName}`));
+                card.append(makeTextElement('p', message.body));
+                card.append(makeTextElement('small', formatDateTime(message.createdAt), 'helper-text'));
+                container.append(card);
+            });
+        } catch (error) {
+            if (connectedUser?.id === userId && connectedUser?.role === 'aidant') {
+                container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les messages de sécurité.', 'helper-text'));
+            }
+        }
+    }
+
+    async function ouvrirMessageDepuisBoite(role, message) {
+        if (connectedUser?.role !== role) return;
+        const userId = connectedUser.id;
+        ouvrirNotifications();
+        if (message.safety) {
+            const details = document.getElementById('safety-messages-details');
+            details.open = true;
+            details.scrollIntoView({ behavior: 'smooth' });
+            return;
+        }
+        if (!await chargerCorrespondants(role) || connectedUser?.id !== userId || connectedUser?.role !== role) return;
+        const select = document.getElementById(`message-contact-${role}`);
+        select.value = message.senderUserId;
+        if (!select.value) {
+            showToast('Ce correspondant n’est plus associé à votre compte.', false);
+            return;
+        }
+        if (role === 'senior') {
+            annulerDicteeMessage();
+            annulerPropositionMessage();
+        }
+        if (await ouvrirConversation(role, message.id)) {
+            document.getElementById(`messages-${role}`).scrollIntoView({ behavior: 'smooth' });
+        }
+    }
+
+    async function chargerBoiteReception(role) {
+        if (connectedUser?.role !== role) return;
+        const userId = connectedUser.id;
+        const loadId = ++inboxLoadId;
+        const container = document.getElementById(`${role}-today-inbox`);
+        if (!container.children.length) container.textContent = 'Chargement des messages…';
+        try {
+            const [inbox, safety] = await Promise.allSettled([
+                planningRequest('/api/messages/inbox'),
+                ...(role === 'aidant' ? [planningRequest('/api/messages/safety-alerts')] : [])
+            ]);
+            if (connectedUser?.id !== userId || connectedUser?.role !== role || loadId !== inboxLoadId) return;
+            container.replaceChildren();
+            const messages = inbox.status === 'fulfilled' ? inbox.value.messages : [];
+            if (safety?.status === 'fulfilled') {
+                messages.push(...safety.value.messages.map(message => ({ ...message, safety: true })));
+            }
+            messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            if (!messages.length && inbox.status === 'fulfilled' && (!safety || safety.status === 'fulfilled')) {
+                container.append(makeTextElement('p', 'Aucun message reçu pour le moment.', 'helper-text'));
+                return;
+            }
+            messages.slice(0, 20).forEach(message => {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = `today-inbox-item${!message.safety && !message.read ? ' unread' : ''}`;
+                button.append(makeTextElement('strong', message.safety ? `Message automatique pour ${message.seniorName}` : message.senderName));
+                button.append(makeTextElement('span', message.body));
+                button.append(makeTextElement('small', formatDateTime(message.createdAt) +
+                    (message.safety ? '' : ` · ${message.read ? 'Lu' : 'Non lu'}`)));
+                button.addEventListener('click', () => ouvrirMessageDepuisBoite(role, message));
+                container.append(button);
+            });
+            if (inbox.status === 'rejected' || safety?.status === 'rejected') {
+                container.append(makeTextElement('p', 'Certains messages n’ont pas pu être chargés.', 'helper-text'));
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId && connectedUser?.role === role && loadId === inboxLoadId) {
+                container.textContent = error.message || 'Impossible de charger la boîte de réception.';
+            }
         }
     }
 
@@ -7357,30 +7448,25 @@
         const userId = connectedUser.id;
         const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
         const fieldKeys = role === 'pro'
-            ? ['visit', 'demands', 'services', 'messages', 'following', 'tasks']
-            : ['visit', 'tasks', 'messages', 'following', 'services']
-                .concat(role === 'aidant' ? ['checkins'] : ['notifications']);
+            ? ['visit', 'demands', 'services', 'following', 'tasks']
+            : ['visit', 'tasks', 'following', 'services']
+                .concat(role === 'aidant' ? ['checkins'] : ['messages', 'notifications']);
         const fields = Object.fromEntries(fieldKeys.map(key => [key, document.getElementById(`${role}-summary-${key}`)]));
-        const notificationDetails = role === 'senior' ? null : document.getElementById(`${role}-summary-notification-details`);
         const today = dateCheckinBienEtre();
         const context = `${role}:${userId}:${seniorId}:${today}`;
         const t = value => window.generationLiaisonTranslate(value);
         if (aidantSummaryContext !== context) {
             aidantSummaryContext = context;
             Object.values(fields).forEach(field => { field.textContent = t('Chargement…'); });
-            if (notificationDetails) {
-                notificationDetails.textContent = '';
-                notificationDetails.hidden = true;
-            }
         }
         const tomorrow = new Date(`${today}T00:00:00Z`);
         tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
         const requests = {
             visit: `/api/planning/calendar?start=${today}&end=${tomorrow.toISOString().slice(0, 10)}`,
-            messages: '/api/messages/unread-count',
             notifications: '/api/notifications',
             services: `/api/planning/services/bookings?date=${today}`
         };
+        if (role === 'senior') requests.messages = '/api/messages/unread-count';
         if (role === 'pro') {
             requests.demands = '/api/directory/bookings';
             requests.following = `/api/planning/today?date=${today}`;
@@ -7400,40 +7486,46 @@
         const todayDate = value => value && Number.isFinite(new Date(value).getTime()) && calendarEventDate(value) === today;
         if (results.visit.status === 'fulfilled') {
             const events = results.visit.value.events.filter(event => todayDate(event.scheduledAt));
-            const labels = events.slice(0, 3).map(event => calendarEventLabel(event));
-            const extra = events.length > 3 ? `\n${t('Autres rendez-vous')} : ${events.length - 3}` : '';
+            const labels = events.map(event => calendarEventLabel(event));
             fields.visit.textContent = events.length
-                ? `${t('Rendez-vous aujourd’hui')} : ${events.length}${labels.length ? `\n${labels.join('\n')}` : ''}${extra}`
-                : '';
+                ? `${t('Rendez-vous')} :\n${labels.join('\n')}`
+                : `${t('Rendez-vous')} : ${t('Aucun aujourd’hui.')}`;
         } else {
             fields.visit.textContent = t('Impossible de charger les rendez-vous.');
         }
+        if (role === 'senior') document.getElementById('senior-today-visit').textContent = fields.visit.textContent;
         if (results.tasks.status === 'fulfilled') {
             const open = results.tasks.value.tasks.filter(task => !task.completed && (!task.dueDate || task.dueDate >= today));
             const due = open.filter(task => task.dueDate === today);
+            const labels = open.map(task => {
+                const date = task.dueDate ? new Date(`${task.dueDate}T00:00:00Z`).toLocaleDateString(
+                    window.generationLiaisonLocale(), { timeZone: 'UTC' }
+                ) : '';
+                return `• ${task.title}${role === 'pro' && task.seniorName ? ` — ${task.seniorName}` : ''}` +
+                    (date ? ` · ${t('Date prévue')} : ${date}` : '') +
+                    (role === 'aidant' && task.assigneeName ? ` · ${task.assigneeName}` : '');
+            });
             fields.tasks.textContent = !open.length ? '' :
                 `${t('Tâches à faire')} : ${open.length} · ${t('Pour aujourd’hui')} : ${due.length}` +
-                (role === 'aidant' ? ` · ${t('Sans volontaire')} : ${open.filter(task => !task.assigned).length}` : '');
+                (role === 'aidant' ? ` · ${t('Sans volontaire')} : ${open.filter(task => !task.assigned).length}` : '') +
+                `\n${labels.join('\n')}`;
         } else {
             fields.tasks.textContent = t('Impossible de charger les tâches.');
         }
-        fields.messages.textContent = results.messages.status === 'fulfilled'
-            ? (results.messages.value.count ? `${t('Messages non lus')} : ${results.messages.value.count}` : '')
-            : t('Impossible de charger les messages.');
+        if (role === 'senior') {
+            const todayTasks = document.getElementById('senior-today-tasks');
+            todayTasks.textContent = fields.tasks.textContent;
+            todayTasks.hidden = !todayTasks.textContent;
+        }
+        if (role === 'senior') {
+            fields.messages.textContent = results.messages.status === 'fulfilled'
+                ? (results.messages.value.count ? `${t('Messages non lus')} : ${results.messages.value.count}` : '')
+                : t('Impossible de charger les messages.');
+        }
         if (role === 'senior') {
             fields.notifications.textContent = results.notifications.status === 'fulfilled'
                 ? (results.notifications.value.unreadCount ? `${t('Notifications non lues parmi les 50 dernières')} : ${results.notifications.value.unreadCount}` : '')
                 : t('Impossible de charger les notifications.');
-        }
-        if (notificationDetails) {
-            const notifications = results.notifications.status === 'fulfilled' ? results.notifications.value.notifications : [];
-            notificationDetails.textContent = results.notifications.status === 'rejected'
-                ? t('Impossible de charger les notifications.')
-                : notifications.length
-                    ? `${t('50 dernières notifications — pour répondre, ouvrez Notifications et messages')} :\n` +
-                        notifications.map(item => `${formatDateTime(item.createdAt)} · ${item.title}\n${item.message}`).join('\n\n')
-                    : '';
-            notificationDetails.hidden = !notificationDetails.textContent;
         }
         if (role !== 'pro' && results.following.status === 'fulfilled') {
             const visits = results.following.value.visits.filter(item => todayDate(item.scheduledAt) ||
@@ -8901,8 +8993,6 @@
             reinitialiserCarnetEtablissement();
             historyLoadId++;
             historyContext = '';
-            document.getElementById('aidant-history-list').replaceChildren();
-            document.getElementById('aidant-history-details').open = false;
             reinitialiserAlbumJournal();
             reinitialiserTachesPartagees();
             reinitialiserAnnuairePartage();
@@ -9907,10 +9997,10 @@
         aidantSummaryContext = '';
         historyLoadId++;
         historyContext = '';
-        ['senior', 'aidant', 'pro'].forEach(role => {
-            document.getElementById(`${role}-history-list`).replaceChildren();
-            document.getElementById(`${role}-history-details`).open = false;
-        });
+        document.getElementById('senior-history-list').replaceChildren();
+        document.getElementById('senior-history-details').open = false;
+        document.getElementById('senior-today-tasks').textContent = '';
+        document.getElementById('senior-today-tasks').hidden = true;
         ['aidant', 'pro'].forEach(role => {
             const notificationDetails = document.getElementById(`${role}-summary-notification-details`);
             notificationDetails.textContent = '';
@@ -9945,8 +10035,12 @@
             document.getElementById(`notifications-panel-${role}`).style.display = 'none';
             document.getElementById(`notification-settings-${role}`).style.display = 'none';
             document.getElementById(`notification-opened-${role}`).replaceChildren();
+            document.getElementById(`notifications-${role}`).replaceChildren();
+            document.getElementById(`${role}-today-inbox`).replaceChildren();
         });
+        document.getElementById('safety-messages-aidant').replaceChildren();
         notificationLoadId++;
+        inboxLoadId++;
         notificationReadEntries.forEach(entry => clearTimeout(entry.timer));
         notificationReadEntries = [];
         actualiserCompteurNotifications(0);
@@ -10716,22 +10810,19 @@
                  connectedUser.guardianVerificationStatus !== 'approved')) return;
             pendingNotificationId = id;
             window.pendingPushNotificationId = '';
-            switchScreen('messages');
             try {
                 const notification = await seniorLinksRequest(`/api/notifications/open/${encodeURIComponent(id)}`);
-                const panel = document.getElementById(`notifications-panel-${connectedUser.role}`);
                 const opened = document.getElementById(`notification-opened-${connectedUser.role}`);
                 const card = document.createElement('article');
                 card.className = 'notification-card';
                 card.append(makeTextElement('strong', notification.title));
                 card.append(makeTextElement('p', notification.message));
                 card.append(makeTextElement('small', formatDateTime(notification.createdAt), 'helper-text'));
-                opened.replaceChildren(card);
-                document.getElementById(`notification-details-${connectedUser.role}`).open = true;
-                panel.scrollIntoView({ behavior: 'smooth' });
+                opened.replaceChildren();
                 if (notification.type === 'private_message' && notification.senderUserId &&
                     ['senior', 'aidant', 'pro'].includes(connectedUser.role)) {
                     const role = connectedUser.role;
+                    switchScreen('messages');
                     if (!await chargerCorrespondants(role)) return;
                     const select = document.getElementById(`message-contact-${role}`);
                     if (role === 'senior') {
@@ -10746,7 +10837,18 @@
                     if (!await ouvrirConversation(role, notification.entityId)) return;
                     document.getElementById(`message-details-${role}`).open = true;
                     document.getElementById(`messages-${role}`).scrollIntoView({ behavior: 'smooth' });
+                } else if (connectedUser.role === 'aidant' && notification.safetyMessageId) {
+                    switchScreen('messages');
+                    document.getElementById('safety-messages-details').open = true;
+                    document.getElementById('safety-messages-details').scrollIntoView({ behavior: 'smooth' });
+                    await seniorLinksRequest(`/api/notifications/${encodeURIComponent(id)}`, {
+                        method: 'PATCH', body: { read: true }
+                    });
+                    await chargerNotifications();
                 } else {
+                    opened.replaceChildren(card);
+                    switchScreen(`informations-${connectedUser.role}`);
+                    opened.scrollIntoView({ behavior: 'smooth' });
                     await seniorLinksRequest(`/api/notifications/${encodeURIComponent(id)}`, {
                         method: 'PATCH', body: { read: true }
                     });

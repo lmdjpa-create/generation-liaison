@@ -422,15 +422,17 @@ app.post('/api/emergency-alert', requireAuth, async (req, res) => {
     const seniorName = (req.authUser.name || req.authUser.seniorName || 'Le senior')
       .trim().split(/\s+/)[0];
     for (const aidant of aidants) {
-      await insertAppNotification(
+      const message = `${seniorName} a confirmé une demande d’appel au ${number} à ${time}. L’application ne peut pas vérifier que l’appel a été passé ou abouti.`;
+      const notificationId = await insertAppNotification(
         client,
         aidant.contact_user_id,
         'emergency_alert',
         `Alerte d’urgence : appel au ${number} demandé`,
-        `${seniorName} a confirmé une demande d’appel au ${number} à ${time}. L’application ne peut pas vérifier que l’appel a été passé ou abouti.`,
+        message,
         'emergency_alert',
         alertId
       );
+      await insertSafetyMessage(client, req.authUser.id, aidant.contact_user_id, notificationId, message);
     }
     await client.query('COMMIT');
     res.set('Cache-Control', 'private, no-store');
@@ -1294,6 +1296,7 @@ async function insertAppNotification(client, userId, type, title, message, entit
       [randomUUID(), notificationId, userId, channel]
     );
   }
+  return notificationId;
 }
 
 async function notifyEmergencyAidants(client, senior, { type, title, message, checkinId }) {
@@ -1308,7 +1311,7 @@ async function notifyEmergencyAidants(client, senior, { type, title, message, ch
     [senior.id]
   );
   for (const aidant of rows) {
-    await insertAppNotification(
+    const notificationId = await insertAppNotification(
       client,
       aidant.contact_user_id,
       type,
@@ -1317,8 +1320,17 @@ async function notifyEmergencyAidants(client, senior, { type, title, message, ch
       checkinId ? 'wellbeing_checkin' : 'emergency_alert',
       checkinId || randomUUID()
     );
+    await insertSafetyMessage(client, senior.id, aidant.contact_user_id, notificationId, message);
   }
   return rows.length;
+}
+
+async function insertSafetyMessage(client, seniorId, recipientId, notificationId, message) {
+  await client.query(
+    `INSERT INTO app_safety_messages (id, senior_user_id, recipient_id, notification_id, body)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [randomUUID(), seniorId, recipientId, notificationId, message]
+  );
 }
 
 app.get('/api/contacts', requireAuth, async (req, res) => {
@@ -2368,7 +2380,9 @@ app.post('/api/admin/account-closure-requests/:requestId/ai-review', requireAuth
          (SELECT count(*) FROM app_notifications item
           WHERE item.user_id = target.user_id) AS notifications,
          (SELECT count(*) FROM app_private_messages item
-          WHERE item.sender_id = target.user_id OR item.recipient_id = target.user_id) AS private_messages,
+          WHERE item.sender_id = target.user_id OR item.recipient_id = target.user_id)
+         + (SELECT count(*) FROM app_safety_messages item
+          WHERE item.senior_user_id = target.user_id OR item.recipient_id = target.user_id) AS private_messages,
          (SELECT count(*) FROM app_notification_deliveries item
           WHERE item.user_id = target.user_id) AS notification_deliveries,
          (SELECT count(*) FROM app_push_subscriptions item
@@ -5241,13 +5255,10 @@ app.post('/api/senior-links/removals/:id/confirm', requireAuth, async (req, res)
   }
 });
 
-app.get('/api/messages/unread-count', requireAuth, async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT count(*)::integer AS count
+const accessibleIncomingMessages = `
        FROM app_private_messages message
        JOIN app_users sender ON sender.id = message.sender_id AND sender.is_active = TRUE
-       WHERE message.recipient_id = $1 AND message.read_at IS NULL
+       WHERE message.recipient_id = $1
          AND (
            (EXISTS (SELECT 1 FROM app_user_contacts contact
              WHERE contact.user_id = $1 AND contact.contact_user_id = sender.id)
@@ -5264,13 +5275,37 @@ app.get('/api/messages/unread-count', requireAuth, async (req, res) => {
                ((senior.id = $1 AND aidant.id = sender.id) OR
                 (senior.id = sender.id AND aidant.id = $1))
            )
-         )`,
+         )`;
+
+app.get('/api/messages/unread-count', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT count(*)::integer AS count ${accessibleIncomingMessages} AND message.read_at IS NULL`,
       [req.authUser.id]
     );
     res.set('Cache-Control', 'private, no-store');
     res.json({ count: rows[0].count });
   } catch (error) {
     sendApiError(res, error, 'Impossible de compter les messages non lus.');
+  }
+});
+
+app.get('/api/messages/inbox', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT message.id, message.body, message.created_at, message.read_at,
+              sender.id AS sender_id, sender.name AS sender_name
+       ${accessibleIncomingMessages}
+       ORDER BY message.created_at DESC, message.id DESC LIMIT 20`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ messages: rows.map(row => ({
+      id: row.id, body: row.body, createdAt: row.created_at, read: Boolean(row.read_at),
+      senderUserId: row.sender_id, senderName: row.sender_name
+    })) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger la boîte de réception.');
   }
 });
 
@@ -5392,6 +5427,26 @@ app.post('/api/messages/multiple', requireAuth, async (req, res) => {
   }
 });
 
+app.get('/api/messages/safety-alerts', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT message.id, message.body, message.created_at, senior.name
+       FROM app_safety_messages message
+       JOIN app_users senior ON senior.id = message.senior_user_id AND senior.is_active = TRUE
+       WHERE message.recipient_id = $1 AND message.created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
+       ORDER BY message.created_at DESC, message.id DESC LIMIT 50`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ messages: rows.map(row => ({
+      id: row.id, body: row.body, createdAt: row.created_at,
+      seniorName: row.name.trim().split(/\s+/)[0]
+    })) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les messages de sécurité.');
+  }
+});
+
 app.get('/api/messages/:contactId', requireAuth, async (req, res) => {
   if (!isValidUuid(req.params.contactId)) return res.status(400).json({ error: 'Correspondant invalide.' });
   if (req.query.focus !== undefined && !isValidUuid(req.query.focus)) {
@@ -5501,6 +5556,11 @@ app.get('/api/notifications', requireAuth, async (req, res) => {
                 SELECT message.sender_id FROM app_private_messages message
                 WHERE message.id = notification.entity_id AND message.recipient_id = notification.user_id
               ) ELSE NULL END AS sender_user_id,
+              (SELECT message.id FROM app_safety_messages message
+               JOIN app_users senior ON senior.id = message.senior_user_id AND senior.is_active = TRUE
+               WHERE message.notification_id = notification.id AND message.recipient_id = notification.user_id
+                 AND message.created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
+               LIMIT 1) AS safety_message_id,
               CASE
                 WHEN notification.entity_type = 'care_visit' THEN (
                   SELECT visit.acceptance_status
@@ -5531,6 +5591,7 @@ app.get('/api/notifications', requireAuth, async (req, res) => {
         entityId: row.entity_id,
         entityStatus: row.entity_status,
         senderUserId: row.sender_user_id,
+        safetyMessageId: row.safety_message_id,
         read: Boolean(row.read_at),
         createdAt: row.created_at
       }))
@@ -5546,7 +5607,12 @@ app.get('/api/notifications/open/:notificationId', requireAuth, async (req, res)
     const { rows } = await pool.query(
       `SELECT notification.id, notification.notification_type, notification.entity_id,
               notification.title, notification.message, notification.created_at,
-              message.sender_id
+              message.sender_id,
+              (SELECT safety.id FROM app_safety_messages safety
+               JOIN app_users senior ON senior.id = safety.senior_user_id AND senior.is_active = TRUE
+               WHERE safety.notification_id = notification.id AND safety.recipient_id = notification.user_id
+                 AND safety.created_at > CURRENT_TIMESTAMP - INTERVAL '30 days'
+               LIMIT 1) AS safety_message_id
        FROM app_notifications notification
        LEFT JOIN app_private_messages message ON notification.entity_type = 'private_message'
          AND message.id = notification.entity_id AND message.recipient_id = notification.user_id
@@ -5558,7 +5624,7 @@ app.get('/api/notifications/open/:notificationId', requireAuth, async (req, res)
     res.json({
       id: rows[0].id, type: rows[0].notification_type,
       title: rows[0].title, message: rows[0].message, createdAt: rows[0].created_at,
-      entityId: rows[0].entity_id, senderUserId: rows[0].sender_id
+      entityId: rows[0].entity_id, senderUserId: rows[0].sender_id, safetyMessageId: rows[0].safety_message_id
     });
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger cette notification.');
@@ -8482,6 +8548,9 @@ function startWellbeingCheckinCleanup() {
       );
       await pool.query(
         `DELETE FROM app_wellbeing_checkins WHERE expires_at <= CURRENT_TIMESTAMP`
+      );
+      await pool.query(
+        `DELETE FROM app_safety_messages WHERE created_at <= CURRENT_TIMESTAMP - INTERVAL '30 days'`
       );
     } catch (error) {
       console.error('Nettoyage des check-ins de bien-être expirés impossible :', error);

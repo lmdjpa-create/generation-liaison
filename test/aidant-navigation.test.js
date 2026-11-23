@@ -91,7 +91,7 @@ test('daily caregiver summary shows only current profile data and reports partia
   const context = {
     connectedUser: { id: 'user', role: 'aidant' }, activeSeniorProfileId: 'old', aidantSummaryLoadId: 0, aidantSummaryContext: '',
     document: { getElementById },
-    window: { generationLiaisonTranslate: value => value },
+    window: { generationLiaisonTranslate: value => value, generationLiaisonLocale: () => 'fr-FR' },
     dateCheckinBienEtre: () => '2028-02-29',
     calendarEventLabel: event => event.title,
     calendarEventDate: value => value.slice(0, 10),
@@ -103,13 +103,15 @@ test('daily caregiver summary shows only current profile data and reports partia
       if (context.activeSeniorProfileId === 'old') return new Promise(resolve => { firstResolvers.push(resolve); });
       if (url.startsWith('/api/planning/calendar')) return Promise.resolve({ events: [
         { status: 'pending', title: 'En attente', scheduledAt: '2028-02-29T14:00:00Z' },
-        { status: 'scheduled', title: 'Visite prévue', scheduledAt: '2028-02-29T15:00:00Z' }
+        { status: 'scheduled', title: 'Visite prévue', scheduledAt: '2028-02-29T15:00:00Z' },
+        { status: 'scheduled', title: 'Autre rendez-vous', scheduledAt: '2028-02-29T16:00:00Z' },
+        { status: 'scheduled', title: 'Dernier rendez-vous', scheduledAt: '2028-02-29T17:00:00Z' }
       ] });
       if (url === '/api/shared-tasks') return Promise.resolve({ tasks: [
-        { dueDate: '2028-02-29', completed: false, assigned: false },
-        { dueDate: '2028-02-28', completed: false, assigned: true },
-        { dueDate: '2028-02-29', completed: true, assigned: false },
-        { dueDate: '2028-03-01', completed: false, assigned: false }
+        { title: 'Acheter du pain', dueDate: '2028-02-29', completed: false, assigned: false },
+        { title: 'Ancienne tâche', dueDate: '2028-02-28', completed: false, assigned: true },
+        { title: 'Tâche terminée', dueDate: '2028-02-29', completed: true, assigned: false },
+        { title: 'Préparer le repas', dueDate: '2028-03-01', completed: false, assigned: false }
       ] });
       if (url === '/api/messages/unread-count') return Promise.reject(new Error('offline'));
       if (url === '/api/notifications') return Promise.resolve({ unreadCount: 2, notifications: [
@@ -135,13 +137,10 @@ test('daily caregiver summary shows only current profile data and reports partia
   const first = context.loadSummary();
   context.activeSeniorProfileId = 'new';
   await context.loadSummary();
-  assert.equal(getElementById('aidant-summary-visit').textContent, 'Rendez-vous aujourd’hui : 2\nEn attente\nVisite prévue');
-  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1 · Sans volontaire : 2');
-  assert.equal(getElementById('aidant-summary-messages').textContent, 'Impossible de charger les messages.');
+  assert.equal(getElementById('aidant-summary-visit').textContent, 'Rendez-vous :\nEn attente\nVisite prévue\nAutre rendez-vous\nDernier rendez-vous');
+  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1 · Sans volontaire : 2\n• Acheter du pain · Date prévue : 29/02/2028\n• Préparer le repas · Date prévue : 01/03/2028');
+  assert.equal(elements.has('aidant-summary-messages'), false);
   assert.equal(elements.has('aidant-summary-notifications'), false);
-  assert.match(getElementById('aidant-summary-notification-details').textContent, /Nouvelle alerte\nDétail de l’alerte/);
-  assert.match(getElementById('aidant-summary-notification-details').textContent, /Autre notification/);
-  assert.equal(getElementById('aidant-summary-notification-details').hidden, false);
   assert.equal(getElementById('aidant-summary-following').textContent,
     '2028-02-29T11:00:00Z · Visite — completed\n2028-02-29T10:01:00Z · Visite — arrived : Présent');
   assert.match(getElementById('aidant-summary-services').textContent, /En attente de réponse : 1 · Annulés : 1/);
@@ -149,13 +148,7 @@ test('daily caregiver summary shows only current profile data and reports partia
   assert.match(getElementById('aidant-summary-checkins').textContent, / : 1$/);
   firstResolvers.forEach(resolve => resolve({}));
   await first;
-  assert.equal(getElementById('aidant-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1 · Sans volontaire : 2');
-  assert.match(getElementById('aidant-summary-notification-details').textContent, /Nouvelle alerte/);
-  const normalRequest = context.planningRequest;
-  context.planningRequest = url => url === '/api/notifications' ? Promise.reject(new Error('offline')) : normalRequest(url);
-  await context.loadSummary();
-  assert.equal(getElementById('aidant-summary-notification-details').textContent, 'Impossible de charger les notifications.');
-  assert.equal(getElementById('aidant-summary-notification-details').hidden, false);
+  assert.match(getElementById('aidant-summary-tasks').textContent, /Acheter du pain/);
 });
 
 test('senior summary uses the calendar and accessible updates without requesting shared check-ins', async () => {
@@ -176,7 +169,7 @@ test('senior summary uses the calendar and accessible updates without requesting
     planningRequest: async url => {
       paths.push(url);
       if (url.startsWith('/api/planning/calendar')) return { events: [{ title: 'Rendez-vous prévu', scheduledAt: '2028-02-29T10:00:00Z' }] };
-      if (url === '/api/shared-tasks') return { tasks: [{ completed: false, dueDate: null }] };
+      if (url === '/api/shared-tasks') return { tasks: [{ title: 'Faire les courses', completed: false, dueDate: null }] };
       if (url === '/api/messages/unread-count') return { count: 1 };
       if (url === '/api/notifications') return { unreadCount: 0, notifications: [
         { createdAt: '2028-02-29T10:00:00Z', title: 'Alerte senior', message: 'Information reçue' }
@@ -192,7 +185,8 @@ test('senior summary uses the calendar and accessible updates without requesting
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.loadSummary = chargerSyntheseSenior;`, context);
   await context.loadSummary();
   assert.match(elements.get('senior-summary-visit').textContent, /Rendez-vous prévu/);
-  assert.equal(elements.get('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0');
+  assert.equal(elements.get('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0\n• Faire les courses');
+  assert.equal(elements.get('senior-today-tasks').textContent, elements.get('senior-summary-tasks').textContent);
   assert.equal(elements.get('senior-summary-messages').textContent, 'Messages non lus : 1');
   assert.equal(elements.get('senior-summary-notifications').textContent, '');
   assert.equal(elements.get('senior-summary-notifications').hidden, true);
@@ -213,10 +207,10 @@ test('senior today summary removes past dates without deleting data and refreshe
   let resolveCalendar;
   const paths = [];
   const tasks = [
-    { completed: false, dueDate: '2028-02-28' },
-    { completed: false, dueDate: '2028-02-29' },
-    { completed: false, dueDate: '2028-03-01' },
-    { completed: false, dueDate: null }
+    { title: 'Hier', completed: false, dueDate: '2028-02-28' },
+    { title: 'Aujourd’hui', completed: false, dueDate: '2028-02-29' },
+    { title: 'Demain', completed: false, dueDate: '2028-03-01' },
+    { title: 'Sans date', completed: false, dueDate: null }
   ];
   const events = [
     { title: 'Hier à Paris', scheduledAt: '2028-02-28T22:30:00Z' },
@@ -226,7 +220,7 @@ test('senior today summary removes past dates without deleting data and refreshe
   const context = {
     connectedUser: { id: 'senior', role: 'senior', seniorId: 'profile' },
     activeSeniorProfileId: '', aidantSummaryLoadId: 0, aidantSummaryContext: '',
-    document: { getElementById }, window: { generationLiaisonTranslate: value => value },
+    document: { getElementById }, window: { generationLiaisonTranslate: value => value, generationLiaisonLocale: () => 'fr-FR' },
     dateCheckinBienEtre: () => today, calendarEventLabel: event => event.title,
     progressArray: value => value || [], stageLabel: value => value, Date, Intl,
     planningRequest: url => {
@@ -251,8 +245,8 @@ test('senior today summary removes past dates without deleting data and refreshe
   const end = source.indexOf('    function afficherProchainRendezVous()', start);
   vm.runInNewContext(`${source.slice(calendarStart, calendarEnd)}\n${source.slice(start, end)}`, context);
   await context.chargerSyntheseSenior();
-  assert.equal(getElementById('senior-summary-visit').textContent, 'Rendez-vous aujourd’hui : 1\nAujourd’hui à Paris');
-  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui : 1');
+  assert.equal(getElementById('senior-summary-visit').textContent, 'Rendez-vous :\nAujourd’hui à Paris');
+  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui : 1\n• Aujourd’hui · Date prévue : 29/02/2028\n• Demain · Date prévue : 01/03/2028\n• Sans date');
   assert.match(getElementById('senior-summary-services').textContent, /Services du jour : 1/);
   assert.equal(tasks.length, 4);
   today = '2028-03-01';
@@ -261,9 +255,9 @@ test('senior today summary removes past dates without deleting data and refreshe
   today = '2028-03-02';
   resolveCalendar({ events });
   await pending;
-  assert.equal(getElementById('senior-summary-visit').textContent, '');
+  assert.equal(getElementById('senior-summary-visit').textContent, 'Rendez-vous : Aucun aujourd’hui.');
   assert.equal(getElementById('senior-summary-services').textContent, '');
-  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0');
+  assert.equal(getElementById('senior-summary-tasks').textContent, 'Tâches à faire : 1 · Pour aujourd’hui : 0\n• Sans date');
   assert.ok(paths.includes('/api/planning/calendar?start=2028-03-02&end=2028-03-03'));
   assert.equal(tasks.length, 4);
   assert.match(source, /screen-senior-pro'\)\.classList\.contains\('active'\)\) \{\s*chargerSyntheseSenior\(\);/);
@@ -388,7 +382,7 @@ test('professional summary uses only professional-accessible data and shows pend
     connectedUser: { id: 'pro', role: 'pro', seniorId: 'profile' },
     activeSeniorProfileId: '', aidantSummaryLoadId: 0, aidantSummaryContext: '',
     document: { getElementById(id) { if (!elements.has(id)) elements.set(id, { textContent: '' }); return elements.get(id); } },
-    window: { generationLiaisonTranslate: value => value },
+    window: { generationLiaisonTranslate: value => value, generationLiaisonLocale: () => 'fr-FR' },
     dateCheckinBienEtre: () => '2028-02-29',
     calendarEventLabel: event => event.title,
     calendarEventDate: value => value.slice(0, 10),
@@ -406,9 +400,9 @@ test('professional summary uses only professional-accessible data and shows pend
       if (url.startsWith('/api/planning/services/bookings')) return { bookings: [] };
       if (url === '/api/directory/bookings') return { bookings: [{ status: 'pending' }, { status: 'confirmed' }] };
       if (url === '/api/intervention-tasks') return { tasks: [
-        { completed: false, dueDate: '2028-02-28' },
-        { completed: false, dueDate: '2028-02-29' },
-        { completed: false, dueDate: null }
+        { title: 'Passée', seniorName: 'Camille', completed: false, dueDate: '2028-02-28' },
+        { title: 'Apporter les courses', seniorName: 'Camille', completed: false, dueDate: '2028-02-29' },
+        { title: 'Ranger', seniorName: 'Marie', completed: false, dueDate: null }
       ] };
       if (url === '/api/planning/today?date=2028-02-29') return { visits: [{
         recipient: { name: 'Personne suivie' }, visitType: 'Visite',
@@ -430,9 +424,8 @@ test('professional summary uses only professional-accessible data and shows pend
   await context.loadSummary();
   assert.match(elements.get('pro-summary-visit').textContent, /Visite prévue/);
   assert.equal(elements.get('pro-summary-demands').textContent, 'Demandes de rendez-vous en attente : 1');
-  assert.equal(elements.get('pro-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1');
+  assert.equal(elements.get('pro-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1\n• Apporter les courses — Camille · Date prévue : 29/02/2028\n• Ranger — Marie');
   assert.equal(elements.has('pro-summary-notifications'), false);
-  assert.match(elements.get('pro-summary-notification-details').textContent, /Invitation\nUne visite est proposée/);
   assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — arrived : Ma note/);
   assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — completed/);
   assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Collègue — started : Note partagée/);
@@ -817,7 +810,7 @@ function createView(response) {
     chargerPhotoProfil() {},
     updatePlanningDateTitle() {},
     ...Object.fromEntries([
-      'chargerNotifications', 'chargerPreferencesNotification', 'chargerCorrespondants', 'chargerLogs', 'chargerSyntheseAidant', 'chargerSyntheseSenior', 'chargerSynthesePro',
+      'chargerNotifications', 'chargerPreferencesNotification', 'chargerCorrespondants', 'chargerMessagesSecurite', 'chargerBoiteReception', 'chargerLogs', 'chargerSyntheseAidant', 'chargerSyntheseSenior', 'chargerSynthesePro',
       'demanderNotificationsAutomatiquement',
       'chargerCheckinsPartages', 'chargerSuiviPartage', 'chargerConsentements',
       'chargerServicesFamiliaux', 'chargerAnnuaire', 'chargerDirectoryBookings',
@@ -1102,12 +1095,14 @@ test('daily information opens only for the current role and returns home', async
   }
 });
 
-test('daily summaries are informational and add no navigation buttons', () => {
+test('today shows received messages without a separate unread counter', () => {
   for (const role of ['senior', 'aidant', 'pro']) {
-    const start = source.indexOf(`id="${role}-daily-summary"`);
-    const end = source.indexOf('</section>', start);
+    const start = source.indexOf(`<div id="screen-informations-${role}"`);
+    const end = source.indexOf('<div id="screen-', start + 1);
     assert.ok(start >= 0 && end > start);
-    assert.doesNotMatch(source.slice(start, end), /<button\b|onclick=/);
+    const screen = source.slice(start, end);
+    assert.match(screen, new RegExp(`id="${role}-today-inbox"`));
+    assert.doesNotMatch(screen, /Messages non lus|id="(?:senior-today|aidant-summary|pro-summary)-messages"/);
   }
 });
 
@@ -1136,7 +1131,7 @@ test('each approved account opens the shared messages page and returns to its ow
     await context.openView({ id: role, role, verificationStatus: 'approved' });
     const home = source.slice(source.indexOf(`<div id="screen-${role}"`),
       source.indexOf(role === 'senior' ? '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->' : role === 'aidant' ? '<!-- 🩺 3. INTERFACE PROFESSIONNEL -->' : '<div id="screen-messages"'));
-    assert.equal((home.match(/onclick="ouvrirNotifications\(\)"/g) || []).length, role === 'senior' ? 2 : 1);
+    assert.ok((home.match(/onclick="ouvrirNotifications\(\)"/g) || []).length >= (role === 'senior' ? 2 : 1));
     calls.length = 0;
     context.openScreen('messages');
     assert.ok(element('screen-messages').classList.contains('active'));

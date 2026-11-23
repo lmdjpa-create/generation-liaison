@@ -466,17 +466,17 @@ test('simplified journal shortcut opens the senior journal without hiding safety
   assert.equal(calls.length, 2);
 });
 
-test('simplified view displays the same unread notification count as other views', () => {
+test('today shortcuts display unread notification counts', () => {
   const badges = {};
   const context = {
     document: { getElementById: id => badges[id] || (badges[id] = {}) }
   };
   vm.runInNewContext(extract('    function actualiserCompteurNotifications(count)', '    function notificationVisible(entry)'), context);
   context.actualiserCompteurNotifications(2);
-  assert.equal(badges['home-notification-count-senior-simple'].textContent, '2 non lues');
-  assert.equal(badges['home-notification-count-senior-simple'].hidden, false);
+  assert.equal(badges['home-notification-count-senior'].textContent, '2 non lues');
+  assert.equal(badges['home-notification-count-senior'].hidden, false);
   context.actualiserCompteurNotifications(0);
-  assert.equal(badges['home-notification-count-senior-simple'].hidden, true);
+  assert.equal(badges['home-notification-count-senior'].hidden, true);
 });
 
 test('sharing settings discard responses for a previous accompanied person', async () => {
@@ -1254,7 +1254,8 @@ test('senior tabs retain controls and results', () => {
   assert.match(agenda, /<details class="senior-tab-disclosure" id="agenda-calendar-details">[\s\S]*?id="calendar-selected-day"[\s\S]*?<\/details>/);
   assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?Modifications depuis Google<\/summary>[\s\S]*?id="calendar-google-requests"[\s\S]*?<\/details>/);
   for (const role of ['senior', 'aidant', 'pro']) {
-    assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="notification-details-${role}"[^>]*>[\\s\\S]*?id="notifications-${role}"[\\s\\S]*?<\\/details>`));
+    const today = extract(`<div id="screen-informations-${role}"`, role === 'senior' ? '<div id="screen-more"' : role === 'aidant' ? '<div id="screen-pro"' : '<div id="screen-messages"');
+    assert.match(today, new RegExp(`id="notifications-${role}"`));
     assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="message-details-${role}">[\\s\\S]*?id="message-form-${role}"[\\s\\S]*?<\\/details>`));
   }
 });
@@ -1544,24 +1545,24 @@ test('safety actions remain visible outside the closed check-in and retain the r
   assert.equal(elements['wellbeing-safety-result'].children.length, 0);
 });
 
-test('senior shortcuts in both views open the separate messages and notifications page', () => {
+test('senior shortcuts open the messages page', () => {
   const more = source.indexOf('id="screen-more"');
   const shortcut = source.indexOf('onclick="ouvrirNotifications()"', more);
   const tiles = extract('<div id="screen-more"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   assert.ok(shortcut > more);
   assert.match(tiles, /<button type="button" class="action-tile" onclick="ouvrirNotifications\(\)"/);
-  assert.match(tiles, /id="home-notification-count-senior"/);
-  const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
+  assert.doesNotMatch(source, /id="home-notification-count-senior"/);
+  const dashboard = extract('<div id="main-app-senior"', '<div id="screen-informations-senior"');
   assert.doesNotMatch(dashboard, /id="notifications-senior"|id="message-form-senior"/);
   const page = extract('<div id="screen-messages"', '<div id="screen-settings"');
   assert.match(page, /onclick="switchScreen\(connectedUser\.role\)"/);
   for (const role of ['senior', 'aidant', 'pro']) {
-    assert.match(page, new RegExp(`id="notifications-${role}"`));
+    assert.doesNotMatch(page, new RegExp(`id="notifications-${role}"`));
     assert.match(page, new RegExp(`id="message-form-${role}"`));
   }
 });
 
-test('notifications become read only when visible, keep actions, and report failures', async () => {
+test('only pending invitations appear in today, retain actions and are read when visible', async () => {
   for (const role of ['senior', 'aidant', 'pro']) {
     const timers = new Map();
     let timerId = 0;
@@ -1585,7 +1586,7 @@ test('notifications become read only when visible, keep actions, and report fail
       document: {
         hidden: true,
         getElementById: id => id === 'notification-unread-count' || id.startsWith('home-notification-count-')
-          ? badge : id === 'screen-messages' ? screen : container,
+          ? badge : id === `screen-informations-${role}` ? screen : container,
         createElement: node,
         querySelectorAll: () => container.children.filter(card => card.className?.includes('unread') && !card.classList.removed)
       },
@@ -1600,6 +1601,8 @@ test('notifications become read only when visible, keep actions, and report fail
           unreadCount: 2,
           notifications: [
             { id: 'message', type: 'private_message', senderUserId: 'other', title: 'Message', message: 'Bonjour', read: false },
+            { id: 'first', type: 'service_booking_invite', entityStatus: 'requested', title: 'Demande', message: 'Service', read: false },
+            { id: 'old', type: 'care_visit_invite', entityStatus: 'accepted', title: 'Invitation', message: 'Rendez-vous', read: false },
             { id: 'invite', type: 'care_visit_invite', entityStatus: 'pending', title: 'Invitation', message: 'Rendez-vous', read: false }
           ]
         };
@@ -1615,19 +1618,16 @@ test('notifications become read only when visible, keep actions, and report fail
     await context.load();
     assert.equal(badge.textContent, '2 non lues');
     assert.equal(timers.size, 0);
-    const [message, invitation] = container.children;
-    assert.match(message.className, /\bnotification-bubble\b/);
+    assert.equal(container.children.length, 2);
+    const [firstInvitation, invitation] = container.children;
+    assert.match(firstInvitation.className, /\bnotification-bubble\b/);
     assert.match(invitation.className, /\bnotification-bubble\b/);
-    const messageMetadata = message.children.find(child => child.tag === 'small');
+    const firstMetadata = firstInvitation.children.find(child => child.tag === 'small');
     const invitationMetadata = invitation.children.find(child => child.tag === 'small');
-    assert.equal(messageMetadata.textContent, 'date · ');
-    assert.equal(messageMetadata.children[0].textContent, 'Non lu');
-    assert.equal(message.children.filter(child => child.tag === 'button').length, 0);
+    assert.equal(firstMetadata.textContent, 'date · ');
+    assert.equal(firstMetadata.children[0].textContent, 'Non lu');
+    assert.equal(firstInvitation.children.find(child => child.className === 'notification-actions').children.length, 2);
     assert.equal(invitation.children.find(child => child.className === 'notification-actions').children.length, 2);
-    const link = message.children.find(child => child.tag === 'a');
-    link.listeners.click({ preventDefault() {} });
-    assert.equal(context.window.pendingPushNotificationId, 'message');
-    assert.equal(context.window.opened, true);
 
     invitation.rect = { ...rect, top: 150, bottom: 250 };
     context.document.hidden = false;
@@ -1639,7 +1639,7 @@ test('notifications become read only when visible, keep actions, and report fail
     const first = [...timers.values()][0];
     timers.clear();
     await first();
-    assert.equal(messageMetadata.children[0].textContent, 'Lu');
+    assert.equal(firstMetadata.children[0].textContent, 'Lu');
     assert.equal(badge.textContent, '1 non lue');
     assert.equal(requests.filter(item => item.options?.method === 'PATCH').length, 1);
 
@@ -2128,16 +2128,18 @@ test('emergency calls require confirmation and can be confirmed again after a co
   assert.equal(element('emergency-call-confirm-click').disabled, false);
 });
 
-test('professional notification shortcut spans the workspace and keeps its action and badge', () => {
+test('professional messages shortcut stays separate from today', () => {
   assert.match(source, /#pro-notifications-tile\s*\{\s*width:\s*100%;\s*\}/);
-  assert.match(source, /id="pro-notifications-tile"[^>]*onclick="ouvrirNotifications\(\)"[^>]*>[\s\S]*?id="home-notification-count-pro"/);
+  assert.match(source, /informations-pro[^>]*>Informations du jour<\/button>/);
+  assert.doesNotMatch(source, /id="home-notification-count-pro"/);
 });
 
 test('the notification shortcut opens the separate page', () => {
   const calls = [];
   const context = {
     connectedUser: { role: 'senior' },
-    switchScreen: screen => calls.push(screen)
+    switchScreen: screen => calls.push(screen),
+    document: { getElementById: () => ({ open: false }) }
   };
   vm.runInNewContext(
     `${extract('    function ouvrirNotifications()', '    function ouvrirAgenda()')}\n` +
@@ -2191,7 +2193,6 @@ test('opening a senior message notification opens the separate page and conversa
       "        window.addEventListener('generation-notification-opened'"), context
   );
   await context.window.handlePendingNotification();
-  assert.equal(element('notification-details-senior').open, true);
   assert.equal(element('message-details-senior').open, true);
   assert.equal(element('messages-senior').scrolled, true);
   assert.deepEqual(calls, [['messages'], ['senior', 'message']]);
@@ -2212,11 +2213,11 @@ test('a notification in a closed tab is not marked visible', () => {
   assert.equal(context.visible(entry), true);
 });
 
-test('opening a professional notification expands its tab before marking it read', async () => {
+test('opening a professional notification shows it in today and marks it read', async () => {
   const elements = new Map();
   const element = id => {
     if (!elements.has(id)) elements.set(id, {
-      open: false, replaceChildren() {}, scrollIntoView() {}
+      open: false, replaceChildren() {}, scrollIntoView() { this.scrolled = true; }
     });
     return elements.get(id);
   };
@@ -2238,8 +2239,112 @@ test('opening a professional notification expands its tab before marking it read
   vm.runInNewContext(extract('        window.handlePendingNotification = async () => {',
     "        window.addEventListener('generation-notification-opened'"), context);
   await context.window.handlePendingNotification();
-  assert.equal(element('notification-details-pro').open, true);
+  assert.equal(element('notification-opened-pro').scrolled, true);
   assert.equal(requests[1][1].body.read, true);
+});
+
+test('opening a safety message notification goes to the automatic messages inbox', async () => {
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, {
+      open: false, replaceChildren() {}, scrollIntoView() { this.scrolled = true; }
+    });
+    return elements.get(id);
+  };
+  const id = '0b4a1f2c-1234-4567-8123-123456789abc';
+  const screens = [];
+  const context = {
+    pendingNotificationId: id,
+    connectedUser: { role: 'aidant' },
+    window: { pendingPushNotificationId: '', location: { href: `https://example.test/?notification=${id}` }, history: { replaceState() {} } },
+    document: { getElementById: element, createElement: () => ({ append() {} }) },
+    URL, switchScreen: screen => screens.push(screen), makeTextElement: () => ({}), formatDateTime: () => '',
+    seniorLinksRequest: async () => ({ type: 'wellbeing_safety_check', safetyMessageId: 'message', title: 'Alerte', message: 'Alerte', createdAt: '2026-01-01' }),
+    chargerNotifications: async () => {},
+    showToast: message => { throw new Error(message); }
+  };
+  vm.runInNewContext(extract('        window.handlePendingNotification = async () => {',
+    "        window.addEventListener('generation-notification-opened'"), context);
+  await context.window.handlePendingNotification();
+  assert.deepEqual(screens, ['messages']);
+  assert.equal(element('safety-messages-details').open, true);
+  assert.equal(element('safety-messages-details').scrolled, true);
+});
+
+test('today inbox shows received messages and opens the selected conversation', async () => {
+  const elements = new Map();
+  const node = () => ({
+    children: [], textContent: '', value: '', listeners: {},
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+    addEventListener(name, callback) { this.listeners[name] = callback; },
+    scrollIntoView() { this.scrolled = true; }
+  });
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, node());
+    return elements.get(id);
+  };
+  const opened = [];
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' }, inboxLoadId: 0,
+    document: { getElementById: element, createElement: node },
+    planningRequest: async path => path.endsWith('safety-alerts')
+      ? { messages: [{ id: 'safety', seniorName: 'Marie', body: 'Alerte', createdAt: '2026-01-02' }] }
+      : { messages: [{ id: 'message', senderUserId: 'contact',
+        senderName: 'Camille', body: 'Bonjour', read: false, createdAt: '2026-01-01' }] },
+    makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    formatDateTime: () => 'date',
+    ouvrirNotifications: () => opened.push('messages'),
+    chargerCorrespondants: async () => true,
+    ouvrirConversation: async (role, id) => { opened.push([role, id]); return true; },
+    showToast: message => { throw new Error(message); }
+  };
+  vm.runInNewContext(extract('    async function ouvrirMessageDepuisBoite(role, message)', '    async function chargerCorrespondants(role)'), context);
+  await context.chargerBoiteReception('aidant');
+  const [safety, card] = element('aidant-today-inbox').children;
+  assert.equal(safety.children[0].textContent, 'Message automatique pour Marie');
+  await safety.listeners.click();
+  assert.equal(element('safety-messages-details').open, true);
+  assert.equal(element('safety-messages-details').scrolled, true);
+  opened.length = 0;
+  assert.equal(card.children[0].textContent, 'Camille');
+  assert.equal(card.children[1].textContent, 'Bonjour');
+  assert.match(card.className, /unread/);
+  await card.listeners.click();
+  assert.deepEqual(opened, ['messages', ['aidant', 'message']]);
+  const load = context.planningRequest;
+  context.planningRequest = path => path.endsWith('safety-alerts')
+    ? Promise.reject(new Error('Indisponible')) : load(path);
+  await context.chargerBoiteReception('aidant');
+  assert.equal(element('aidant-today-inbox').children[0].children[0].textContent, 'Camille');
+  assert.match(element('aidant-today-inbox').children[1].textContent, /pas pu être chargés/);
+});
+
+test('messages are inside today without a notifications section for each role', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const start = source.indexOf(`<div id="screen-informations-${role}"`);
+    const end = source.indexOf('<div id="screen-', start + 1);
+    const screen = source.slice(start, end);
+    const inbox = screen.indexOf(`id="${role}-today-inbox"`);
+    const section = screen.lastIndexOf('<section', inbox);
+    assert.ok(section >= 0 && inbox > section);
+    assert.match(screen.slice(section, inbox), /Aujourd’hui/);
+    assert.doesNotMatch(screen, /<h[23]>[^<]*notifications/i);
+    if (role === 'aidant') {
+      assert.match(screen, /<\/div>\s*<h3>Messages reçus<\/h3>/);
+    }
+  }
+});
+
+test('today messages scroll without an on-screen history', () => {
+  assert.match(source, /\.today-inbox-list\s*\{[^}]*max-height:\s*22rem;[^}]*overflow-y:\s*auto;/);
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const start = source.indexOf(`<div id="screen-informations-${role}"`);
+    const end = source.indexOf('<div id="screen-', start + 1);
+    const screen = source.slice(start, end);
+    assert.doesNotMatch(screen, /Historique des 30 derniers jours/);
+    assert.match(screen, new RegExp(`id="${role}-today-inbox"[^>]*role="region"[^>]*tabindex="0"`));
+  }
 });
 
 test('contact video calls use the selected contact and report failures without a fake call', async () => {

@@ -832,7 +832,7 @@ test('requires acceptance before adding care and service appointments to agendas
   const serverSource = fs.readFileSync(path.join(projectRoot, 'server.js'), 'utf8');
   const authSource = fs.readFileSync(path.join(projectRoot, 'auth.js'), 'utf8');
 
-  assert.match(appSource, /Notifications et demandes à traiter/);
+  assert.match(appSource, /id="notifications-pro"/);
   assert.match(appSource, /Accepter le rendez-vous/);
   assert.match(appSource, /Refuser/);
   assert.match(appSource, /\/api\/notifications/);

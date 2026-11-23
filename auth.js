@@ -321,6 +321,20 @@ function createAuthService(pool) {
         );
         CREATE INDEX IF NOT EXISTS app_private_messages_participants_date_idx
           ON app_private_messages (sender_id, recipient_id, created_at);
+        CREATE TABLE IF NOT EXISTS app_safety_messages (
+          id UUID PRIMARY KEY,
+          senior_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          recipient_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          notification_id UUID REFERENCES app_notifications(id) ON DELETE SET NULL,
+          body VARCHAR(2000) NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        ALTER TABLE app_safety_messages
+          ADD COLUMN IF NOT EXISTS notification_id UUID REFERENCES app_notifications(id) ON DELETE SET NULL;
+        CREATE INDEX IF NOT EXISTS app_safety_messages_recipient_date_idx
+          ON app_safety_messages (recipient_id, created_at DESC);
+        CREATE INDEX IF NOT EXISTS app_safety_messages_notification_idx
+          ON app_safety_messages (notification_id);
         CREATE TABLE IF NOT EXISTS app_shopping_lists (
           user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
           content VARCHAR(1800) NOT NULL

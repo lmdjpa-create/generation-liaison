@@ -129,6 +129,56 @@ test('senior AI chat stays disabled while human handoff and existing messages re
   assert.deepEqual(retained.data.messages, after.data.messages);
 });
 
+test('security alerts create private automatic messages only for active caregiver contacts', async () => {
+  const senior = await register('safety-senior@example.test', 'senior');
+  const recipient = await register('safety-recipient@example.test', 'aidant');
+  const inactive = await register('safety-inactive@example.test', 'aidant');
+  const outsider = await register('safety-outsider@example.test', 'aidant');
+  for (const contact of [recipient, inactive]) {
+    await db.query('INSERT INTO app_user_contacts (id, user_id, contact_user_id) VALUES ($1, $2, $3)',
+      [randomUUID(), senior.user.id, contact.user.id]);
+  }
+  await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [inactive.user.id]);
+  const id = randomUUID();
+  await db.query(
+    `INSERT INTO app_wellbeing_checkins (id, user_id, checkin_date, response, assistant_reply, safety_concern, safety_check_status)
+     VALUES ($1, $2, CURRENT_DATE, 'Texte privé', 'Réponse privée', TRUE, 'awaiting_response')`,
+    [id, senior.user.id]
+  );
+  const response = await request(`/api/wellbeing/check-in/${id}/safety-response`, {
+    user: senior, body: { response: 'no_response' }
+  });
+  assert.equal(response.status, 200);
+  assert.equal(response.data.notifiedAidants, 1);
+  assert.equal((await request(`/api/wellbeing/check-in/${id}/safety-response`, {
+    user: senior, body: { response: 'no_response' }
+  })).status, 409);
+  const messages = await request('/api/messages/safety-alerts', { user: recipient });
+  assert.equal(messages.status, 200);
+  assert.equal(messages.data.messages.length, 1);
+  assert.match(messages.data.messages[0].body, /n’a pas répondu/);
+  assert.doesNotMatch(messages.data.messages[0].body, /Texte privé|Réponse privée/);
+  const notifications = await request('/api/notifications', { user: recipient });
+  const alert = notifications.data.notifications.find(item => item.type === 'wellbeing_safety_check');
+  assert.equal(alert.safetyMessageId, messages.data.messages[0].id);
+  const delivery = await db.query(
+    "SELECT channel FROM app_notification_deliveries WHERE notification_id = $1 AND channel = 'push'", [alert.id]
+  );
+  assert.equal(delivery.rows.length, 1);
+  const opened = await request(`/api/notifications/open/${alert.id}`, { user: recipient });
+  assert.equal(opened.data.safetyMessageId, messages.data.messages[0].id);
+  assert.equal((await request(`/api/notifications/open/${alert.id}`, { user: outsider })).status, 404);
+  assert.deepEqual((await request('/api/messages/safety-alerts', { user: outsider })).data.messages, []);
+  assert.equal((await request(`/api/messages/${senior.user.id}`, { user: recipient })).status, 403);
+  assert.equal((await request('/api/emergency-alert', {
+    user: senior, body: { number: '112', confirmationMethod: 'click', confirmed: true }
+  })).status, 201);
+  assert.equal((await request('/api/messages/safety-alerts', { user: recipient })).data.messages.length, 2);
+  await db.query(`UPDATE app_safety_messages SET created_at = CURRENT_TIMESTAMP - INTERVAL '31 days'
+                  WHERE recipient_id = $1`, [recipient.user.id]);
+  assert.deepEqual((await request('/api/messages/safety-alerts', { user: recipient })).data.messages, []);
+});
+
 test('administrators provision all email account roles without accepting terms or granting private access', async () => {
   const admin = await register('provision-admin@example.test', 'aidant');
   const other = await register('provision-other@example.test', 'aidant');
@@ -1105,9 +1155,28 @@ test('unread message counts exclude inaccessible contacts and other accounts', a
   assert.equal((await request(path)).status, 401);
   assert.equal((await request(path, { user: aidant })).data.count, 1);
   assert.equal((await request(path, { user: senior })).data.count, 0);
+  const inbox = await request('/api/messages/inbox', { user: aidant });
+  assert.equal(inbox.status, 200);
+  assert.deepEqual(inbox.data.messages.map(message => message.body), ['test']);
+  assert.equal(inbox.data.messages[0].senderUserId, senior.user.id);
+  assert.equal(inbox.data.messages[0].read, false);
+  assert.equal((await request('/api/messages/inbox')).status, 401);
+  assert.deepEqual((await request('/api/messages/inbox', { user: other })).data.messages, []);
+  await db.query('UPDATE app_private_messages SET read_at = CURRENT_TIMESTAMP WHERE id = $1', [inbox.data.messages[0].id]);
+  assert.equal((await request('/api/messages/inbox', { user: aidant })).data.messages[0].read, true);
+  for (let index = 0; index < 21; index++) {
+    await db.query(`INSERT INTO app_private_messages (id, sender_id, recipient_id, body, created_at)
+                    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + $5::integer * INTERVAL '1 second')`,
+      [randomUUID(), senior.user.id, aidant.user.id, `Message ${index}`, index]);
+  }
+  const recent = (await request('/api/messages/inbox', { user: aidant })).data.messages;
+  assert.equal(recent.length, 20);
+  assert.equal(recent[0].body, 'Message 20');
+  assert.equal(recent[19].body, 'Message 1');
   await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
     WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [aidant.user.id, senior.user.seniorId]);
   assert.equal((await request(path, { user: aidant })).data.count, 0);
+  assert.deepEqual((await request('/api/messages/inbox', { user: aidant })).data.messages, []);
 });
 
 test('key contacts are private to the senior and active caregivers, validated and removed on senior closure', async () => {
