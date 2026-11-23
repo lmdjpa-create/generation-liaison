@@ -1,6 +1,17 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Réglages d’affichage': 'Display settings',
+    'Utiliser l’affichage standard': 'Use standard display',
+    'La vue simplifiée est activée par défaut sur cet appareil et pour ce compte.': 'Simplified view is enabled by default on this device for this account.',
+    'La vue simplifiée est activée par défaut sur cet appareil et pour ce compte. Vous pouvez afficher toutes les fonctions à tout moment.':
+      'Simplified view is enabled by default on this device for this account. You can show all features at any time.',
+    'La vue simplifiée est activée par défaut sur cet appareil et pour ce compte. Elle agrandit les éléments sans retirer de fonctions.':
+      'Simplified view is enabled by default on this device for this account. It enlarges elements without removing features.',
+    'Capture en français de la vue simplifiée activée par défaut, avec des données fictives.':
+      'French screenshot of the simplified view enabled by default, using fictional data.',
+    'Accédez à vos messages, vos prochains rendez-vous et vos jeux gratuits depuis une interface claire. La vue simplifiée est activée par défaut ; vous pouvez afficher toutes les fonctions dans les réglages.':
+      'Access messages, upcoming appointments and free games in a clear interface. Simplified view is enabled by default; you can show all features in settings.',
     'À qui s’adresse Génération Liaison ?': 'Who is Génération Liaison for?',
     'Voir les aperçus de l’interface senior': 'View the senior interface previews',
     'Informations sur les prestataires': 'Information about service providers',

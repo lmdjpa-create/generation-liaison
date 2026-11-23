@@ -684,6 +684,12 @@
         #senior-game-section .crossword-cell input { box-sizing: border-box; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 9px 2px 2px; border: 1px solid #783e3e; border-radius: 0; background: #fff; color: #292020; text-align: center; text-transform: uppercase; font-size: 1.25rem; }
         #senior-game-section .crossword-cell input:focus-visible { outline: 3px solid #163b72; outline-offset: -3px; }
         #senior-game-section .crossword-number { position: absolute; top: 2px; left: 3px; z-index: 1; pointer-events: none; font-size: .65rem; line-height: 1; font-weight: 700; color: #481e1e; }
+        body.simple-mode .screen-container { font-size: 1.1rem; line-height: 1.5; }
+        body.simple-mode .screen-container :is(button, summary):not(#senior-game-section *) { min-height: 48px; }
+        body.simple-mode .screen-container :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea):not(#senior-game-section *) { font-size: 1rem; }
+        .simple-view-disable { display: none; }
+        body.simple-mode .simple-view-enable { display: none; }
+        body.simple-mode .simple-view-disable { display: inline-block; }
         .senior-simple-only { display: none; }
         body.senior-simple .senior-simple-only { display: block; }
         body.senior-simple .senior-full-only,
@@ -1484,6 +1490,12 @@
         <button type="button" data-establishment-panel="establishment-closure-panel" aria-expanded="false" aria-controls="establishment-closure-panel" onclick="ouvrirActionEtablissement(this)">Clôturer mon compte</button>
         <button type="button" onclick="deconnecterUtilisateur()">Déconnexion</button>
         </div>
+        <details class="senior-disclosure">
+            <summary>Réglages d’affichage</summary>
+            <p>La vue simplifiée est activée par défaut sur cet appareil et pour ce compte.</p>
+            <button type="button" class="simple-view-enable" onclick="changerVueSimplifiee(true)">Activer la vue simplifiée</button>
+            <button type="button" class="simple-view-disable" onclick="changerVueSimplifiee(false)">Utiliser l’affichage standard</button>
+        </details>
     </section>
     <section class="form-card establishment-overview">
         <h3>Tableaux des résidents, soignants et intervenants</h3>
@@ -1608,6 +1620,12 @@
             <button type="submit">Envoyer</button>
         </form>
         <button type="button" onclick="deconnecterUtilisateur()">Déconnexion</button>
+        <details class="senior-disclosure">
+            <summary>Réglages d’affichage</summary>
+            <p>La vue simplifiée est activée par défaut sur cet appareil et pour ce compte.</p>
+            <button type="button" class="simple-view-enable" onclick="changerVueSimplifiee(true)">Activer la vue simplifiée</button>
+            <button type="button" class="simple-view-disable" onclick="changerVueSimplifiee(false)">Utiliser l’affichage standard</button>
+        </details>
     </section>
 </div>
 <div id="screen-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
@@ -2098,8 +2116,17 @@
     <section class="form-card" id="settings-senior-display" style="display:none;">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👁️</span>Affichage senior</summary>
+        <p>La vue simplifiée est activée par défaut sur cet appareil et pour ce compte. Vous pouvez afficher toutes les fonctions à tout moment.</p>
         <button type="button" class="senior-full-only" id="senior-simple-enable" onclick="changerVueSenior(true)">Activer la vue simplifiée</button>
         <button type="button" class="senior-simple-only" id="senior-simple-disable" onclick="changerVueSenior(false)">Afficher toutes les fonctions</button>
+      </details>
+    </section>
+    <section class="form-card" id="settings-simple-display" style="display:none;">
+      <details class="senior-tab-disclosure">
+        <summary>Réglages d’affichage</summary>
+        <p>La vue simplifiée est activée par défaut sur cet appareil et pour ce compte. Elle agrandit les éléments sans retirer de fonctions.</p>
+        <button type="button" class="simple-view-enable" onclick="changerVueSimplifiee(true)">Activer la vue simplifiée</button>
+        <button type="button" class="simple-view-disable" onclick="changerVueSimplifiee(false)">Utiliser l’affichage standard</button>
       </details>
     </section>
     <section class="form-card" id="settings-weather" style="display:none;">
@@ -3569,12 +3596,25 @@
     }
 
     function initialiserVueSenior(user) {
-        const enabled = user.role === 'senior' &&
-            localStorage.getItem(`generation-liaison-senior-simple-${user.id}`) === 'true';
-        document.body.classList.toggle('senior-simple', enabled);
-        if (enabled) {
+        const key = user.role === 'senior'
+            ? `generation-liaison-senior-simple-${user.id}`
+            : `generation-liaison-simple-${user.id}`;
+        const enabled = localStorage.getItem(key) !== 'false';
+        document.body.classList.toggle('simple-mode', enabled);
+        document.body.classList.toggle('senior-simple', user.role === 'senior' && enabled);
+        if (user.role === 'senior' && enabled) {
             document.querySelectorAll('#message-multiple-contacts input:checked').forEach(input => { input.checked = false; });
         }
+    }
+
+    function changerVueSimplifiee(enabled) {
+        if (!connectedUser) return;
+        if (connectedUser.role === 'senior') {
+            changerVueSenior(enabled);
+            return;
+        }
+        localStorage.setItem(`generation-liaison-simple-${connectedUser.id}`, String(enabled));
+        initialiserVueSenior(connectedUser);
     }
 
     function changerVueSenior(enabled) {
@@ -3616,6 +3656,9 @@
         }
         connectedUser = user;
         currentUser = user;
+        document.body.classList.toggle('senior-mode', user.role === 'senior');
+        document.body.classList.toggle('soft-workspace', ['aidant', 'pro'].includes(user.role));
+        initialiserVueSenior(user);
         if (user.passwordChangeRequired) {
             document.getElementById('auth-box').style.display = 'none';
             document.getElementById('nav-bar').style.display = 'none';
@@ -3648,9 +3691,6 @@
         reinitialiserPhotoMessages();
         reinitialiserProfil();
         if (user.hasAccountPhoto) void chargerPhotoProfil();
-        document.body.classList.toggle('senior-mode', user.role === 'senior');
-        document.body.classList.toggle('soft-workspace', ['aidant', 'pro'].includes(user.role));
-        initialiserVueSenior(user);
         document.querySelectorAll('.screen-container details').forEach(details => {
             details.open = false;
         });
@@ -3679,6 +3719,8 @@
             ['senior', 'aidant'].includes(user.role) && !pendingAccess ? 'block' : 'none';
         document.getElementById('settings-senior-display').style.display =
             user.role === 'senior' && !pendingAccess ? 'block' : 'none';
+        document.getElementById('settings-simple-display').style.display =
+            ['aidant', 'pro'].includes(user.role) ? 'block' : 'none';
         document.getElementById('settings-senior-links').style.display = user.role === 'senior' ? 'block' : 'none';
         document.getElementById('settings-aidant-links').style.display =
             user.role === 'aidant' && !pendingAccess ? 'block' : 'none';
@@ -9888,7 +9930,7 @@
         reinitialiserAnnuairePartage();
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
-        document.body.classList.remove('senior-mode', 'senior-simple', 'soft-workspace');
+        document.body.classList.remove('senior-mode', 'senior-simple', 'soft-workspace', 'simple-mode');
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');
         directoryLocation = null;

@@ -835,6 +835,7 @@ test('establishment accounts open only their dedicated workspace', async () => {
   assert.ok(element('screen-establishment').classList.contains('active'));
   assert.equal(element('nav-bar').style.display, 'none');
   assert.ok(calls.includes('chargerEtablissement'));
+  assert.ok(calls.includes('initialiserVueSenior'));
   assert.ok(!calls.includes('chargerNotifications'));
 });
 
@@ -843,6 +844,7 @@ test('a resident with a temporary password must change it before entering the wo
   await context.openView({ id: 'resident', role: 'senior', passwordChangeRequired: true });
   assert.ok(element('screen-resident-password').classList.contains('active'));
   assert.equal(element('nav-bar').style.display, 'none');
+  assert.ok(calls.includes('initialiserVueSenior'));
   assert.ok(!calls.includes('chargerNotifications'));
 });
 
@@ -852,6 +854,7 @@ test('establishment staff open their restricted workspace', async () => {
   assert.ok(element('screen-staff').classList.contains('active'));
   assert.equal(element('nav-bar').style.display, 'none');
   assert.ok(calls.includes('chargerResidentsSoignant'));
+  assert.ok(calls.includes('initialiserVueSenior'));
   assert.ok(!calls.includes('chargerNotifications'));
 });
 
@@ -1145,6 +1148,7 @@ test('pending guardian can open settings and return to verification without prof
   assert.ok(element('screen-settings').classList.contains('active'));
   assert.equal(element('settings-aidant-links').style.display, 'none');
   assert.equal(element('settings-agenda').style.display, 'none');
+  assert.equal(element('settings-simple-display').style.display, 'block');
   context.openAgenda();
   assert.equal(element('nav-agenda').classList.contains('active'), false);
   context.openScreen('messages');
@@ -1161,6 +1165,7 @@ test('a pending professional can open settings without accessing the agenda', as
   context.openScreen('settings');
   assert.equal(element('settings-pro-area').style.display, 'none');
   assert.equal(element('settings-agenda').style.display, 'none');
+  assert.equal(element('settings-simple-display').style.display, 'block');
   context.openAgenda();
   assert.equal(element('nav-agenda').classList.contains('active'), false);
   context.openScreen('messages');

@@ -170,7 +170,7 @@ test('homepage shows the actual optional senior view and explains its fictional 
   const preview = source.slice(source.lastIndexOf('<figure class="landing-interface-preview">', image), source.indexOf('</figure>', image));
   assert.match(preview, /src="\/homepage-images\/apercu-accueil-senior\.png"/);
   assert.match(preview, /alt="Accueil senior en vue simplifiée/);
-  assert.match(preview, /vue simplifiée facultative, avec des données fictives/);
+  assert.match(preview, /vue simplifiée activée par défaut, avec des données fictives/);
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'homepage-images', 'apercu-accueil-senior.png')));
 });
 

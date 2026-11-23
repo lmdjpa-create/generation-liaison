@@ -363,7 +363,7 @@ test('removed presentation choice cannot be restored from an old preference', ()
   assert.match(source, /id="settings-senior-display"/);
 });
 
-test('simplified senior view is optional, scoped to the account and clears hidden recipients', () => {
+test('simplified view defaults on per account and preserves explicit choices', () => {
   const classes = new Set(), values = new Map(), selected = [{ checked: true }, { checked: true }];
   const context = {
     connectedUser: { id: 'alice', role: 'senior' },
@@ -376,19 +376,56 @@ test('simplified senior view is optional, scoped to the account and clears hidde
   };
   vm.runInNewContext(extract('    function initialiserVueSenior(user)', '    async function setAuthenticatedView(user)'), context);
   context.initialiserVueSenior(context.connectedUser);
-  assert.equal(classes.has('senior-simple'), false);
-  context.changerVueSenior(true);
   assert.equal(classes.has('senior-simple'), true);
+  assert.equal(classes.has('simple-mode'), true);
   assert.ok(selected.every(input => !input.checked));
+  context.changerVueSenior(true);
   assert.equal(values.get('generation-liaison-senior-simple-alice'), 'true');
   context.initialiserVueSenior({ id: 'bob', role: 'senior' });
-  assert.equal(classes.has('senior-simple'), false);
+  assert.equal(classes.has('senior-simple'), true);
   context.initialiserVueSenior({ id: 'alice', role: 'aidant' });
   assert.equal(classes.has('senior-simple'), false);
+  assert.equal(classes.has('simple-mode'), true);
   context.initialiserVueSenior(context.connectedUser);
   context.changerVueSenior(false);
   assert.equal(classes.has('senior-simple'), false);
+  assert.equal(classes.has('simple-mode'), false);
   assert.equal(values.get('generation-liaison-senior-simple-alice'), 'false');
+  context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('senior-simple'), false);
+  context.connectedUser = { id: 'helper', role: 'aidant' };
+  context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('simple-mode'), true);
+  context.changerVueSimplifiee(false);
+  assert.equal(classes.has('simple-mode'), false);
+  assert.equal(values.get('generation-liaison-simple-helper'), 'false');
+  context.initialiserVueSenior({ id: 'other', role: 'pro' });
+  assert.equal(classes.has('simple-mode'), true);
+  context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('simple-mode'), false);
+  context.changerVueSimplifiee(true);
+  assert.equal(classes.has('simple-mode'), true);
+  for (const role of ['pro', 'establishment', 'staff']) {
+    context.connectedUser = { id: role, role };
+    context.initialiserVueSenior(context.connectedUser);
+    assert.equal(classes.has('simple-mode'), true, `${role} defaults to simplified view`);
+    assert.equal(classes.has('senior-simple'), false);
+    context.changerVueSimplifiee(false);
+    context.initialiserVueSenior(context.connectedUser);
+    assert.equal(classes.has('simple-mode'), false, `${role} retains the choice`);
+  }
+});
+
+test('all account types can adjust the simplified display without hiding emergency controls', () => {
+  const settings = extract('<div id="screen-settings"', '<div id="screen-agenda"');
+  assert.match(settings, /id="settings-senior-display"[\s\S]*Affichage senior[\s\S]*changerVueSenior\(false\)/);
+  assert.match(settings, /id="settings-simple-display"[\s\S]*changerVueSimplifiee\(false\)/);
+  for (const [start, end] of [['screen-establishment', 'screen-staff'], ['screen-staff', 'screen-aidant']]) {
+    const section = extract(`<div id="${start}"`, `<div id="${end}"`);
+    assert.match(section, /Réglages d’affichage[\s\S]*changerVueSimplifiee\(false\)/);
+  }
+  assert.match(source, /body\.simple-mode \.screen-container \{ font-size: 1\.1rem/);
+  assert.doesNotMatch(source, /body\.simple-mode[^{]*emergency-call-card[^{]*\{[^}]*display:\s*none/);
 });
 
 test('daily journals center their entries and keep concise safety notices', () => {
@@ -1696,7 +1733,7 @@ test('soft button colours are limited to aidant and pro sessions and cleared on 
   const login = extract('    async function setAuthenticatedView(user)', '        initialiserVueSenior(user);');
   const logout = extract('    async function deconnecterUtilisateur(', "        activeSeniorProfileId = '';");
   assert.match(login, /classList\.toggle\('soft-workspace', \['aidant', 'pro'\]\.includes\(user\.role\)\)/);
-  assert.match(logout, /classList\.remove\('senior-mode', 'senior-simple', 'soft-workspace'\)/);
+  assert.match(logout, /classList\.remove\('senior-mode', 'senior-simple', 'soft-workspace', 'simple-mode'\)/);
   assert.match(source, /body\.soft-workspace :is\(\.screen-container, #nav-bar\) button/);
   assert.match(source, /button:is\(\[aria-pressed="true"\], \.selected, \.active\)/);
   assert.match(source, /button:is\(\.decline, \.btn-danger, \[data-close-account\], #settings-logout\)/);
