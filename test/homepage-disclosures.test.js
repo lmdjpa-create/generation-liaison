@@ -105,9 +105,10 @@ test('homepage speaks to families and uses practical family FAQs', () => {
   assert.doesNotMatch(faq, /réponses de l’assistant|demande de service doit être acceptée/);
 });
 
-test('assistant accuracy warning is shown beside the chat input, not in the homepage FAQ', () => {
-  const form = mobileSource.slice(mobileSource.indexOf('id="assistant-chat-form"'), mobileSource.indexOf('</form>', mobileSource.indexOf('id="assistant-chat-form"')));
-  assert.match(form, /id="assistant-message"[\s\S]*Les réponses de l’assistant peuvent être imprécises ou incomplètes/);
+test('senior AI chat is disabled while contact with the team remains available', () => {
+  assert.doesNotMatch(mobileSource, /id="assistant-chat-form"|id="assistant-message"/);
+  assert.match(mobileSource, /La conversation avec l’assistant IA est désactivée/);
+  assert.match(mobileSource, /id="assistant-handoff-button"/);
   const faq = source.slice(source.indexOf('aria-labelledby="questions-title"'), source.indexOf('id="connexion"'));
   assert.doesNotMatch(faq, /Les réponses de l’assistant/);
 });

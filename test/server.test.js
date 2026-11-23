@@ -265,7 +265,7 @@ test('privacy notice documents wellbeing check-ins, sharing, dictation, and 30-d
   assert.match(policy, /Seul le texte de votre réponse leur est alors accessible après connexion/);
   assert.match(policy, /notification neutre qui ne contient pas votre réponse/);
   assert.match(policy, /dictée et la confirmation vocale d’urgence peuvent traiter l’audio en dehors de Génération Liaison/);
-  assert.match(policy, /check-in, la réponse IA et ses partages expirent 30 jours/);
+  assert.match(policy, /vérification de bien-être, la réponse IA et ses partages expirent 30 jours/);
   assert.match(policy, /double confirmation du senior/);
   assert.match(policy, /ne contacte pas elle-même les secours/);
   assert.match(policy, /indication automatisée signalant éventuellement des propos préoccupants/);

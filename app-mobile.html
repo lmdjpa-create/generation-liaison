@@ -978,27 +978,20 @@
         </div>
         <section class="form-card" id="assistant-chat-panel">
           <details class="senior-disclosure" id="senior-assistant-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🤝</span>Un peu de compagnie</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🤝</span>Contacter l’équipe</summary>
             <div class="assistant-chat">
-            <p class="helper-text" style="margin:0;">Je suis l’assistant IA de Génération Liaison. Je peux vous aider à utiliser l’application et vous orienter vers les services et rendez-vous. Je ne peux pas réserver un rendez-vous à votre place. Vos messages et votre prénom sont transmis à OpenAI pour préparer mes réponses. Dans Génération Liaison, la conversation est supprimée après 30 jours d’inactivité. Une personne autorisée de l’équipe pourra la lire si vous demandez son aide.</p>
+            <p class="helper-text" style="margin:0;">La conversation avec l’assistant IA est désactivée. Vous pouvez demander à l’équipe de vous répondre ici. Les conversations existantes sont supprimées après 30 jours d’inactivité.</p>
             <div id="assistant-status" class="helper-text" role="status" aria-live="polite">Chargement de la conversation…</div>
             <div id="assistant-messages" class="assistant-messages" aria-live="polite"></div>
-            <form id="assistant-chat-form" class="assistant-chat-form">
-                <label for="assistant-message">Votre message</label>
-                <textarea id="assistant-message" maxlength="1200" required></textarea>
-                <p class="helper-text" style="margin:0;">Les réponses de l’assistant peuvent être imprécises ou incomplètes ; elles ne remplacent pas un avis professionnel.</p>
-                <div class="assistant-chat-actions">
-                    <button id="assistant-send-button" type="submit">Envoyer</button>
-                    <button id="assistant-handoff-button" type="button">Parler à l’équipe</button>
-                    <button id="assistant-services-button" type="button">Voir les services et rendez-vous</button>
-                </div>
-            </form>
+            <div class="assistant-chat-actions">
+                <button id="assistant-handoff-button" type="button">Parler à l’équipe</button>
+            </div>
             </div>
           </details>
         </section>
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
           <details class="senior-disclosure" id="wellbeing-checkin-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Comment allez-vous aujourd’hui ?</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Vérification de bien-être</summary>
             <details class="senior-disclosure senior-explanation" data-help-for="#wellbeing-question-speak">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
@@ -1771,7 +1764,7 @@
     </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-checkins-details">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Check-ins de bien-être partagés</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Vérifications de bien-être partagées</summary>
         <p class="helper-text">Vous ne voyez ici que les réponses que la personne a choisi de vous transmettre. Ce partage n’est pas un service d’urgence ni une surveillance automatique.</p>
         <div id="aidant-wellbeing-shared" aria-live="polite">Chargement des messages partagés…</div>
       </details>
@@ -4861,15 +4854,15 @@
         if (wellbeingLoadedDate === today) return;
         const status = document.getElementById('wellbeing-checkin-status');
         const contacts = document.getElementById('wellbeing-aidant-contacts');
-        status.textContent = 'Chargement de votre check-in…';
+        status.textContent = 'Chargement de votre vérification de bien-être…';
         try {
             const result = await planningRequest('/api/wellbeing/check-in');
             wellbeingLoadedDate = today;
             afficherCheckinBienEtre(result.checkin);
-            status.textContent = result.checkin ? 'Votre check-in du jour est déjà enregistré.' : '';
+            status.textContent = result.checkin ? 'Votre vérification de bien-être du jour est déjà enregistrée.' : '';
             if (result.checkin) return;
         } catch (error) {
-            status.textContent = error.message || 'Impossible de charger votre check-in.';
+            status.textContent = error.message || 'Impossible de charger votre vérification de bien-être.';
             return;
         }
 
@@ -4913,7 +4906,7 @@
             if (!result.checkins.length) {
                 container.append(makeTextElement(
                     'p',
-                    'Aucun check-in ne vous a été partagé pour le moment.',
+                    'Aucune vérification de bien-être ne vous a été partagée pour le moment.',
                     'helper-text'
                 ));
                 return;
@@ -4929,7 +4922,7 @@
         } catch (error) {
             container.replaceChildren(makeTextElement(
                 'p',
-                error.message || 'Impossible de charger les check-ins partagés.',
+                error.message || 'Impossible de charger les vérifications de bien-être partagées.',
                 'helper-text'
             ));
         }
@@ -5021,7 +5014,7 @@
                 ? `Votre réponse a été enregistrée et partagée avec ${result.sharedWithCount} aidant(s).`
                 : 'Votre réponse a été enregistrée. Elle n’a pas été partagée.';
         } catch (error) {
-            status.textContent = error.message || 'Impossible d’enregistrer votre check-in.';
+            status.textContent = error.message || 'Impossible d’enregistrer votre vérification de bien-être.';
             button.disabled = false;
         }
     });
@@ -5030,7 +5023,6 @@
         if (!connectedUser || connectedUser.role !== 'senior') return;
         const status = document.getElementById('assistant-status');
         const messages = document.getElementById('assistant-messages');
-        const sendButton = document.getElementById('assistant-send-button');
         const handoffButton = document.getElementById('assistant-handoff-button');
         try {
             const result = await planningRequest('/api/assistant/conversation');
@@ -5046,40 +5038,15 @@
             });
             if (result.status === 'human_requested') {
                 status.textContent = 'Votre demande a été transmise. L’équipe vous répondra ici.';
-            } else if (!result.assistantEnabled) {
-                status.textContent = 'L’assistant IA est désactivé par l’équipe.';
-            } else if (!result.assistantConfigured) {
-                status.textContent = 'L’assistant IA n’est pas encore configuré. Vous pouvez demander l’aide de l’équipe.';
             } else {
-                status.textContent = 'Vous pouvez écrire à l’assistant. En cas d’urgence, appelez le 112 ou le 15.';
+                status.textContent = 'Vous pouvez demander l’aide de l’équipe. En cas d’urgence, appelez le 112 ou le 15.';
             }
-            sendButton.disabled = !result.assistantEnabled || !result.assistantConfigured || result.status === 'human_requested';
             handoffButton.disabled = result.status === 'human_requested';
         } catch (error) {
             status.textContent = error.message || 'Impossible de charger la conversation.';
-            sendButton.disabled = true;
             handoffButton.disabled = true;
         }
     }
-
-    document.getElementById('assistant-chat-form').addEventListener('submit', async event => {
-        event.preventDefault();
-        const input = document.getElementById('assistant-message');
-        const button = document.getElementById('assistant-send-button');
-        const status = document.getElementById('assistant-status');
-        const message = input.value.trim();
-        if (!message) return;
-        button.disabled = true;
-        status.textContent = 'L’assistant prépare sa réponse…';
-        try {
-            await planningRequest('/api/assistant/message', { method: 'POST', body: { message } });
-            input.value = '';
-            await chargerAssistantConversation();
-        } catch (error) {
-            status.textContent = error.message || 'Impossible d’envoyer votre message.';
-            button.disabled = false;
-        }
-    });
 
     document.getElementById('assistant-handoff-button').addEventListener('click', async event => {
         const button = event.currentTarget;
@@ -5092,10 +5059,6 @@
             status.textContent = error.message || 'Impossible de transmettre votre demande.';
             button.disabled = false;
         }
-    });
-
-    document.getElementById('assistant-services-button').addEventListener('click', () => {
-        ouvrirSectionSenior('senior-services-details', 'senior-service-area');
     });
 
     const directoryWeekdays = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];

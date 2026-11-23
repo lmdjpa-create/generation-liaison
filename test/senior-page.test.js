@@ -1155,10 +1155,10 @@ test('companionship and daily services have one control each on the senior home'
   const tiles = extract('<div id="screen-more"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
   assert.doesNotMatch(tiles, /ouvrirSectionSenior/);
-  for (const label of ['Un peu de compagnie', 'Services du quotidien']) {
+  for (const label of ['Contacter l’équipe', 'Services du quotidien']) {
     assert.equal(dashboard.split(label).length - 1, 1, label);
   }
-  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🤝<\/span>Un peu de compagnie<\/summary>/);
+  assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🤝<\/span>Contacter l’équipe<\/summary>/);
   assert.match(dashboard, /<summary><span class="tile-icon"[^>]*>🏠<\/span><span>Services du quotidien<\/span><\/summary>/);
   assert.match(tiles, /switchScreen\('directory'\)/);
   assert.doesNotMatch(tiles, /Mon agenda/);
@@ -1169,7 +1169,7 @@ test('senior feature sections retain their content and can open programmatically
   for (const [id, content] of [
     ['senior-following-details', 'senior-live-following'],
     ['senior-note-details', 'senior-person-note-form'],
-    ['senior-assistant-details', 'assistant-chat-form'],
+    ['senior-assistant-details', 'assistant-handoff-button'],
     ['senior-services-details', 'senior-service-area']
   ]) {
     const start = source.search(new RegExp(`<details class="senior-disclosure(?: senior-tab-disclosure)?" id="${id}">`));
@@ -1476,6 +1476,7 @@ test('check-in is collapsed while safety follow-up remains outside the collapsed
   const checkin = extract('        <section class="form-card" id="wellbeing-checkin-panel"',
     '        <section class="form-card emergency-call-card"');
   assert.match(checkin, /<details class="senior-disclosure" id="wellbeing-checkin-details">/);
+  assert.match(checkin, /Vérification de bien-être/);
   assert.match(checkin, /<\/details>\s*<div id="wellbeing-safety-result"/);
 });
 

@@ -43,7 +43,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,chat-admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
@@ -98,6 +98,36 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('senior AI chat stays disabled while human handoff and existing messages remain available', async () => {
+  const senior = await register('disabled-chat-senior@example.test', 'senior');
+  const aidant = await register('disabled-chat-aidant@example.test', 'aidant');
+  const admin = await register('chat-admin@example.test', 'aidant');
+  await db.query('UPDATE app_ai_settings SET enabled = TRUE WHERE id = 1');
+  assert.equal((await request('/api/assistant/message', { body: { message: 'Bonjour' } })).status, 401);
+  assert.equal((await request('/api/assistant/message', { user: aidant, body: { message: 'Bonjour' } })).status, 403);
+  const disabled = await request('/api/assistant/message', { user: senior, body: { message: 'Bonjour' } });
+  assert.equal(disabled.status, 503);
+  const before = await request('/api/assistant/conversation', { user: senior });
+  assert.equal(before.data.assistantEnabled, false);
+  assert.deepEqual(before.data.messages, []);
+  const rows = await db.query('SELECT id FROM app_ai_conversations WHERE user_id = $1', [senior.user.id]);
+  assert.equal(rows.rows.length, 0);
+
+  assert.equal((await request('/api/assistant/handoff', { user: senior, body: {} })).status, 200);
+  const handoffs = await request('/api/admin/assistant/handoffs', { user: admin, admin: true });
+  const handoff = handoffs.data.handoffs.find(item => item.seniorName === senior.user.name);
+  assert.ok(handoff);
+  assert.equal((await request(`/api/admin/assistant/handoffs/${handoff.id}/reply`, {
+    user: admin, admin: true, body: { message: 'Nous sommes là.' }
+  })).status, 200);
+  const after = await request('/api/assistant/conversation', { user: senior });
+  assert.equal(after.data.assistantEnabled, false);
+  assert.ok(after.data.messages.some(message => message.role === 'team' && message.content === 'Nous sommes là.'));
+  assert.equal((await request('/api/assistant/message', { user: senior, body: { message: 'Encore' } })).status, 503);
+  const retained = await request('/api/assistant/conversation', { user: senior });
+  assert.deepEqual(retained.data.messages, after.data.messages);
+});
 
 test('administrators provision all email account roles without accepting terms or granting private access', async () => {
   const admin = await register('provision-admin@example.test', 'aidant');

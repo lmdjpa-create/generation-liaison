@@ -813,6 +813,21 @@
     'Annuler': 'Cancel',
     'Ouvrir le composeur': 'Open the dialer',
     'Comment allez-vous aujourd’hui ?': 'How are you feeling today?',
+    'Vérification de bien-être': 'Wellbeing check-in',
+    'Vérifications de bien-être partagées': 'Shared wellbeing check-ins',
+    'Chargement de votre vérification de bien-être…': 'Loading your wellbeing check-in…',
+    'Votre vérification de bien-être du jour est déjà enregistrée.': 'Your wellbeing check-in for today is already saved.',
+    'Impossible de charger votre vérification de bien-être.': 'Unable to load your wellbeing check-in.',
+    'Impossible d’enregistrer votre vérification de bien-être.': 'Unable to save your wellbeing check-in.',
+    'Aucune vérification de bien-être ne vous a été partagée pour le moment.': 'No wellbeing check-ins have been shared with you yet.',
+    'Impossible de charger les vérifications de bien-être partagées.': 'Unable to load shared wellbeing check-ins.',
+    'La conversation IA avec les seniors est désactivée. Le réglage d’activation concerne encore la vérification de bien-être et l’aide à la rédaction. Seuls les administrateurs autorisés voient les demandes de contact humain.':
+      'AI chat with seniors is disabled. The setting still applies to wellbeing check-ins and writing assistance. Only authorized administrators can view requests to speak with a person.',
+    'Contacter l’équipe': 'Contact the team',
+    'La conversation avec l’assistant IA est désactivée. Vous pouvez demander à l’équipe de vous répondre ici. Les conversations existantes sont supprimées après 30 jours d’inactivité.':
+      'The AI chat is disabled. You can ask the team to reply here. Existing conversations are deleted after 30 days of inactivity.',
+    'Choisissez les alertes qui comptent pour vous et contactez l’équipe si vous avez besoin d’aide.':
+      'Choose the alerts that matter to you and contact the team if you need help.',
     'Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit ; vous pourrez aussi écouter sa réponse.':
       'You can type or dictate your answer. The AI assistant will reply in writing, and you can also listen to its response.',
     '🔊 Écouter la question': '🔊 Listen to the question',

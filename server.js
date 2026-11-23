@@ -15,7 +15,6 @@ const { startBirthdayReminderWorker } = require('./birthday-reminders');
 const { createPlanningGoogleSync } = require('./planning-google-sync');
 const {
   generateAdminReply,
-  generateReply,
   generateWellbeingAssessment,
   suggestMessageRewrite,
   reviewSiteMetrics
@@ -446,7 +445,7 @@ app.post('/api/emergency-alert', requireAuth, async (req, res) => {
 
 app.get('/api/wellbeing/check-in', requireAuth, async (req, res) => {
   if (req.authUser.role !== 'senior') {
-    return res.status(403).json({ error: 'Le check-in de bien-être est réservé au compte senior.' });
+    return res.status(403).json({ error: 'La vérification de bien-être est réservée au compte senior.' });
   }
   try {
     const today = dateInTimeZone(new Date(), 'Europe/Paris');
@@ -473,13 +472,13 @@ app.get('/api/wellbeing/check-in', requireAuth, async (req, res) => {
       } : null
     });
   } catch (error) {
-    sendApiError(res, error, 'Impossible de charger votre check-in de bien-être.');
+    sendApiError(res, error, 'Impossible de charger votre vérification de bien-être.');
   }
 });
 
 app.post('/api/wellbeing/check-in', requireAuth, async (req, res) => {
   if (req.authUser.role !== 'senior') {
-    return res.status(403).json({ error: 'Le check-in de bien-être est réservé au compte senior.' });
+    return res.status(403).json({ error: 'La vérification de bien-être est réservée au compte senior.' });
   }
   const response = validateAssistantMessage(req.body?.message);
   if (!response) {
@@ -509,7 +508,7 @@ app.post('/api/wellbeing/check-in', requireAuth, async (req, res) => {
       [req.authUser.id, checkinDate]
     );
     if (existing[0]) {
-      return res.status(409).json({ error: 'Votre check-in du jour est déjà enregistré.' });
+      return res.status(409).json({ error: 'Votre vérification de bien-être du jour est déjà enregistrée.' });
     }
 
     if (recipientUserIds.length) {
@@ -580,7 +579,7 @@ app.post('/api/wellbeing/check-in', requireAuth, async (req, res) => {
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
-      return res.status(409).json({ error: 'Votre check-in du jour est déjà enregistré.' });
+      return res.status(409).json({ error: 'Votre vérification de bien-être du jour est déjà enregistrée.' });
     }
 
     if (recipientUserIds.length) {
@@ -606,7 +605,7 @@ app.post('/api/wellbeing/check-in', requireAuth, async (req, res) => {
           client,
           share.recipient_user_id,
           'wellbeing_checkin',
-          'Nouveau check-in de bien-être',
+          'Nouvelle vérification de bien-être',
           'Un nouveau message est disponible dans l’application.',
           'wellbeing_checkin',
           checkinId
@@ -633,7 +632,7 @@ app.post('/api/wellbeing/check-in', requireAuth, async (req, res) => {
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     if (error.status) return res.status(error.status).json({ error: error.message });
-    sendApiError(res, error, 'Impossible d’enregistrer votre check-in de bien-être.');
+    sendApiError(res, error, 'Impossible d’enregistrer votre vérification de bien-être.');
   } finally {
     client?.release();
   }
@@ -676,7 +675,7 @@ app.post('/api/wellbeing/check-in/:checkinId/safety-response', requireAuth, asyn
       notifiedAidants = await notifyEmergencyAidants(client, req.authUser, {
         type: 'wellbeing_safety_check',
         title: 'Vérification de sécurité sans réponse',
-        message: 'Le senior n’a pas répondu à la question de sécurité après son check-in. Veuillez essayer de le joindre. L’application n’a pas appelé les secours et ne peut pas vérifier son état.',
+        message: 'Le senior n’a pas répondu à la question de sécurité après sa vérification de bien-être. Veuillez essayer de le joindre. L’application n’a pas appelé les secours et ne peut pas vérifier son état.',
         checkinId: checkin.id
       });
     }
@@ -765,7 +764,7 @@ app.post('/api/wellbeing/check-in/:checkinId/emergency-alert', requireAuth, asyn
 
 app.get('/api/wellbeing/shared-check-ins', requireAuth, requireAidantSeniorContext, async (req, res) => {
   if (req.authUser.role !== 'aidant') {
-    return res.status(403).json({ error: 'Ces check-ins partagés sont réservés au compte aidant.' });
+    return res.status(403).json({ error: 'Ces vérifications de bien-être partagées sont réservées au compte aidant.' });
   }
   try {
     const { rows } = await pool.query(
@@ -810,7 +809,7 @@ app.get('/api/wellbeing/shared-check-ins', requireAuth, requireAidantSeniorConte
       }))
     });
   } catch (error) {
-    sendApiError(res, error, 'Impossible de charger les check-ins partagés.');
+    sendApiError(res, error, 'Impossible de charger les vérifications de bien-être partagées.');
   }
 });
 
@@ -863,8 +862,7 @@ app.get('/api/assistant/conversation', requireAuth, async (req, res) => {
   }
   try {
     await pool.query(`DELETE FROM app_ai_conversations WHERE expires_at <= CURRENT_TIMESTAMP`);
-    const [{ rows }, settings] = await Promise.all([
-      pool.query(
+    const { rows } = await pool.query(
         `SELECT conversation.id, conversation.status, conversation.expires_at,
                 message.role, message.content, message.created_at
          FROM app_ai_conversations conversation
@@ -878,12 +876,10 @@ app.get('/api/assistant/conversation', requireAuth, async (req, res) => {
          WHERE conversation.user_id = $1 AND conversation.expires_at > CURRENT_TIMESTAMP
          ORDER BY message.created_at ASC`,
         [req.authUser.id]
-      ),
-      pool.query(`SELECT enabled FROM app_ai_settings WHERE id = 1`)
-    ]);
+      );
     const conversation = rows[0];
     res.json({
-      assistantEnabled: settings.rows[0]?.enabled === true,
+      assistantEnabled: false,
       assistantConfigured: Boolean(process.env.OPENAI_API_KEY),
       status: conversation?.status || null,
       expiresAt: conversation?.expires_at || null,
@@ -898,84 +894,11 @@ app.get('/api/assistant/conversation', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/assistant/message', requireAuth, async (req, res) => {
+app.post('/api/assistant/message', requireAuth, (req, res) => {
   if (req.authUser.role !== 'senior') {
     return res.status(403).json({ error: 'Cette conversation est réservée au compte senior.' });
   }
-  const content = validateAssistantMessage(req.body?.message);
-  if (!content) {
-    return res.status(400).json({ error: 'Écrivez un message de 1 à 1 200 caractères.' });
-  }
-  if (!limitAssistantMessages(req.authUser.id)) {
-    return res.status(429).json({ error: 'Vous avez envoyé plusieurs messages. Réessayez dans une minute.' });
-  }
-
-  let client;
-  try {
-    const { rows: settings } = await pool.query(`SELECT enabled, custom_instructions FROM app_ai_settings WHERE id = 1`);
-    if (settings[0]?.enabled !== true) {
-      return res.status(503).json({ error: 'L’assistant IA est actuellement désactivé par l’équipe.' });
-    }
-    client = await pool.connect();
-    await client.query('BEGIN');
-    await client.query(`DELETE FROM app_ai_conversations WHERE expires_at <= CURRENT_TIMESTAMP`);
-    await client.query(
-      `INSERT INTO app_ai_conversations (id, user_id, expires_at)
-       VALUES ($1, $2, CURRENT_TIMESTAMP + INTERVAL '30 days')
-       ON CONFLICT (user_id) DO NOTHING`,
-      [randomUUID(), req.authUser.id]
-    );
-    const { rows } = await client.query(
-      `SELECT id, status FROM app_ai_conversations WHERE user_id = $1 FOR UPDATE`,
-      [req.authUser.id]
-    );
-    const conversation = rows[0];
-    if (conversation.status === 'human_requested') {
-      await client.query('ROLLBACK');
-      return res.status(409).json({ error: 'Votre demande a été transmise à l’équipe. Vous pouvez lui répondre dans cette conversation.' });
-    }
-
-    const historyResult = await client.query(
-      `SELECT role, content FROM app_ai_messages
-       WHERE conversation_id = $1
-       ORDER BY created_at DESC LIMIT 10`,
-      [conversation.id]
-    );
-    const messages = historyResult.rows.reverse().map(row => ({
-      role: row.role === 'user' ? 'user' : 'assistant',
-      content: row.content
-    }));
-    messages.push({ role: 'user', content });
-
-    const reply = await generateReply({
-      name: (req.authUser.seniorName || req.authUser.name).trim().split(/\s+/)[0],
-      messages,
-      apiKey: process.env.OPENAI_API_KEY,
-      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
-      customInstructions: settings[0]?.custom_instructions || ''
-    });
-
-    await client.query(
-      `INSERT INTO app_ai_messages (conversation_id, role, content)
-       VALUES ($1, 'user', $2), ($1, 'assistant', $3)`,
-      [conversation.id, content, reply]
-    );
-    await client.query(
-      `UPDATE app_ai_conversations
-       SET expires_at = CURRENT_TIMESTAMP + INTERVAL '30 days',
-           updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1`,
-      [conversation.id]
-    );
-    await client.query('COMMIT');
-    res.json({ reply, expiresInDays: 30 });
-  } catch (error) {
-    if (client) await client.query('ROLLBACK');
-    if (error.status) return res.status(error.status).json({ error: error.message });
-    sendApiError(res, error, 'Impossible d’envoyer votre message.');
-  } finally {
-    client?.release();
-  }
+  return res.status(503).json({ error: 'La conversation avec l’assistant IA est désactivée. Vous pouvez contacter l’équipe.' });
 });
 
 app.post('/api/assistant/handoff', requireAuth, async (req, res) => {

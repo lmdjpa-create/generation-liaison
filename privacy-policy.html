@@ -142,7 +142,7 @@
           <li>Justificatifs professionnels transmis pour vérification ;</li>
           <li>Pour les tuteurs légaux, pièce d’identité et justificatif officiel de tutelle, statut de vérification et associations de profils seniors effectuées par l’administration ;</li>
           <li>Demandes d’association et de retrait d’accès aux profils seniors, décisions, dates et code de confirmation conservé sous forme hachée jusqu’à son utilisation ;</li>
-          <li>Messages adressés à l’assistant IA ou à l’équipe, si vous utilisez ces fonctions ;</li>
+          <li>Messages adressés à l’équipe et anciennes conversations avec l’assistant IA, dont la conversation avec le senior est désormais désactivée ;</li>
           <li>Messages échangés avec les contacts enregistrés mutuellement ou les seniors et aidants associés, avec leurs dates et leur état de lecture ;</li>
           <li>Photos et dates d’envoi de l’album familial, leur auteur et leur statut d’acceptation. Les fichiers peuvent contenir des métadonnées, notamment de localisation ;</li>
           <li>Intitulés, état, éventuelle échéance et personne à qui une tâche est attribuée dans les tâches partagées avec les aidants associés au profil senior ou confiées à un intervenant, ainsi que leur date de création ;</li>
@@ -150,7 +150,7 @@
           <li>Noms, rôles et numéros de téléphone des contacts utiles enregistrés sur le profil senior ;</li>
           <li>Noms et dates de naissance saisis pour les rappels d’anniversaire, ainsi que l’année du dernier rappel ;</li>
           <li>Professionnels vérifiés enregistrés dans l’annuaire partagé du profil senior et date de leur ajout ;</li>
-          <li>Réponse quotidienne de bien-être, réponse de l’assistant IA, résultat indicatif de détection d’un risque, réponse du senior à la vérification et choix des aidants destinataires, si vous utilisez le check-in ;</li>
+          <li>Réponse quotidienne de bien-être, réponse de l’assistant IA, résultat indicatif de détection d’un risque, réponse du senior à la vérification et choix des aidants destinataires, si vous utilisez la vérification de bien-être ;</li>
           <li>Notifications d’urgence adressées aux aidants actifs enregistrés par le senior, si celui-ci confirme une demande d’appel au 15 ou au 112 ;</li>
           <li>Préférences et coordonnées de notification, ainsi que les identifiants techniques nécessaires aux notifications push ;</li>
           <li>Informations techniques de connexion et de sécurité, notamment les identifiants de session ;</li>
@@ -182,9 +182,9 @@
           <li>Vérifier manuellement les justificatifs d’identité et de tutelle, puis permettre à l’administration d’associer des profils seniors aux aidants autorisés ;</li>
           <li>Envoyer les notifications demandées et, selon les fonctions activées, synchroniser les disponibilités et rendez-vous avec Google Calendar ;</li>
           <li>Permettre les visioconférences demandées ;</li>
-          <li>Répondre aux questions d’utilisation avec l’assistant IA, si vous choisissez de l’utiliser ;</li>
-          <li>Proposer un check-in quotidien de bien-être et une réponse empathique de l’assistant IA, si vous choisissez cette fonction ;</li>
-          <li>Signaler certains propos pouvant évoquer un danger immédiat dans le check-in, inviter le senior à répondre s’il est en sécurité et, selon sa réponse, préparer une alerte aux aidants ou un appel qu’il confirme ;</li>
+          <li>Permettre au senior de demander l’aide de l’équipe et consulter les anciennes conversations ; la conversation avec l’assistant IA est désactivée ;</li>
+          <li>Proposer une vérification de bien-être quotidienne et une réponse empathique de l’assistant IA, si vous choisissez cette fonction ;</li>
+          <li>Signaler certains propos pouvant évoquer un danger immédiat dans la vérification de bien-être, inviter le senior à répondre s’il est en sécurité et, selon sa réponse, préparer une alerte aux aidants ou un appel qu’il confirme ;</li>
           <li>Préparer, après double confirmation du senior, des notifications à ses aidants actifs lorsqu’il demande à ouvrir le composeur du 15, du 18 ou du 112 ;</li>
           <li>Permettre à l’administration de lancer une clôture motivée et confirmée, distincte d’une demande du titulaire, puis préparer l’examen des clôtures au moyen d’un pré-jugement IA fondé sur des décomptes minimisés ;</li>
           <li>Sécuriser l’application, prévenir les abus et respecter les obligations applicables.</li>
@@ -205,7 +205,7 @@
         <ul>
           <li><strong>Render :</strong> hébergement de l’application ;</li>
           <li><strong>Supabase :</strong> hébergement de la base de données de production ;</li>
-          <li><strong>OpenAI :</strong> prénom et messages transmis à l’assistant IA pour générer une réponse ; texte du check-in transmis pour préparer une réponse de bien-être ; pour le pré-examen des clôtures, rôle, catégorie de formule et décomptes par type de dossier uniquement ;</li>
+          <li><strong>OpenAI :</strong> texte de la vérification de bien-être transmis pour préparer une réponse ; pour le pré-examen des clôtures, rôle, catégorie de formule et décomptes par type de dossier uniquement ;</li>
           <li><strong>Google :</strong> connexion et échanges nécessaires à Google Calendar. Si l’intervenant active la synchronisation du planning, les dates et durées des prochaines visites et prestations confirmées sont copiées dans son agenda avec un titre générique, sans nom ni détail de soin, ainsi qu’un identifiant technique. Les modifications Google de ces événements nécessitent l’accord de l’intervenant et de la personne accompagnée ou de son aidant avant modification du planning partagé. La synchronisation de l’annuaire transmet séparément les données nécessaires aux réservations confirmées ;</li>
           <li><strong>Service public geo.api.gouv.fr :</strong> ville ou code postal saisi pour trouver le centre d’une commune française lors d’une recherche, de l’inscription d’un professionnel ou du choix de la commune météo ; position GPS recherchée pour identifier la commune correspondante dans l’annuaire ;</li>
           <li><strong>Visual Crossing :</strong> coordonnées arrondies du centre de la commune choisie, transmises par notre serveur pour obtenir les prévisions, sans nom ni identifiant de compte ;</li>
@@ -238,15 +238,15 @@
           Les demandes et décisions sont conservées ; leur durée de conservation reste à préciser.
         </p>
         <p>
-          Pour le check-in de bien-être, le texte de votre réponse est transmis à OpenAI afin de générer une
+          Pour la vérification de bien-être, le texte de votre réponse est transmis à OpenAI afin de générer une
           réponse empathique et une indication automatisée signalant éventuellement des propos préoccupants
           (avec le paramètre de non-stockage de l’API). Cette indication peut être erronée ou ne pas détecter une
           situation. Votre réponse, la réponse IA, l’indication, le statut de la vérification et vos
           choix de partage sont conservés dans l’application pendant 30 jours au maximum. Vous pouvez choisir,
-          pour chaque check-in, un ou plusieurs de vos contacts actifs ayant le rôle d’aidant. Seul le texte de
+          pour chaque vérification de bien-être, un ou plusieurs de vos contacts actifs ayant le rôle d’aidant. Seul le texte de
           votre réponse leur est alors accessible après connexion ; la réponse IA ne leur est pas transmise.
-          Un tuteur légal vérifié peut également consulter les check-ins du profil senior qui lui est associé.
-          Les destinataires des partages reçoivent une notification neutre qui ne contient pas votre réponse. Ce check-in n’est ni un service
+          Un tuteur légal vérifié peut également consulter les vérifications de bien-être du profil senior qui lui est associé.
+          Les destinataires des partages reçoivent une notification neutre qui ne contient pas votre réponse. Cette vérification de bien-être n’est ni un service
           d’urgence ni un dispositif de surveillance ou d’alerte automatique.
         </p>
         <p>
@@ -255,7 +255,7 @@
           en dehors de Génération Liaison. L’application ne conserve pas l’audio et ne l’envoie pas à OpenAI.
           Si vous demandez une reformulation dans la messagerie et confirmez, votre seul brouillon est envoyé à
           OpenAI avec le paramètre de non-stockage de l’API ; la proposition n’est pas enregistrée ni envoyée à votre
-          contact sans votre action. Pour le check-in, le texte soumis est transmis pour préparer la réponse IA.
+          contact sans votre action. Pour la vérification de bien-être, le texte soumis est transmis pour préparer la réponse IA.
           La lecture vocale utilise les voix disponibles sur votre appareil ou navigateur ; elle peut être entendue
           par votre entourage et peut être désactivée dans les réglages.
         </p>
@@ -266,7 +266,7 @@
           avant cette seconde confirmation. Si le senior ne répond pas pendant 60 secondes alors que l’application
           est ouverte, une alerte est préparée pour les aidants, sans appel automatique. Les SMS et e-mails sont
           envoyés selon leurs préférences activées et la disponibilité des canaux ; l’alerte ne contient pas le
-          texte du check-in. L’application ouvre le composeur du téléphone, mais ne contacte pas elle-même les
+          texte de la vérification de bien-être. L’application ouvre le composeur du téléphone, mais ne contacte pas elle-même les
           secours et ne peut pas vérifier l’aboutissement de l’appel ni la réception de l’alerte.
         </p>
         <p>
@@ -310,7 +310,7 @@
           30 jours. Les demandes de réservation en attente expirent à la fin de leur délai de réservation.
         </p>
         <p>
-          Chaque compte senior peut enregistrer un check-in par jour. Le texte du check-in, la réponse IA et ses
+          Chaque compte senior peut enregistrer une vérification de bien-être par jour. Le texte de la vérification de bien-être, la réponse IA et ses
           partages expirent 30 jours après leur création et sont supprimés lors du nettoyage automatique régulier
           de l’application. Les notifications associées sont également supprimées à cette échéance.
         </p>
