@@ -590,10 +590,11 @@ test('daily journal sorts shared updates and reports unavailable sources', async
   assert.equal(children.length, 0);
 });
 
-test('caregiver explanations keep a touch-accessible control without changing desktop help', () => {
+test('caregiver explanations use hover on desktop and a labelled touch control', () => {
   assert.match(source, /#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary,\s*#screen-senior-pro \.senior-explanation\[data-help-enhanced\] > summary\s*\{\s*display:\s*none;/);
-  assert.match(source, /@media \(hover: none\)\s*\{\s*#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary,[\s\S]*?display:\s*inline-flex;/);
-  assert.match(source, /#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary::before,[\s\S]*?content:\s*'\?';/);
+  assert.match(source, /@media \(hover: none\)\s*\{\s*#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary\s*\{[^}]*display:\s*inline-flex;[^}]*font-size:\s*1rem;/);
+  assert.doesNotMatch(source, /#aidant-senior-content \.senior-explanation\[data-help-enhanced\] > summary::before/);
+  assert.match(source, /\.screen-container:not\(#screen-aidant\) \.journal-help\[data-help-enhanced\] > summary::before/);
 });
 
 test('daily journal loads older updates, retries failures and discards a stale page', async () => {
@@ -953,6 +954,7 @@ test('sections start closed, preserve user choices while navigating and keep set
 test('an aidant without a linked senior can use account navigation without loading senior data', async () => {
   const { context, element, calls } = createView({ seniors: [] });
   await context.openView({ id: 'aidant', role: 'aidant' });
+  assert.equal(element('aidant-home-links').hidden, false);
   assert.equal(element('aidant-no-senior-panel').style.display, 'block');
   assert.equal(element('aidant-senior-content').style.display, 'none');
   assert.equal(element('notification-settings-aidant').style.display, 'block');
@@ -1112,12 +1114,14 @@ test('a failed senior-profile request is not presented as an empty association l
   assert.equal(element('aidant-no-senior-panel').style.display, 'block');
   assert.equal(element('aidant-senior-content').style.display, 'none');
   assert.equal(element('aidant-daily-summary').hidden, true);
+  assert.equal(element('aidant-home-links').hidden, true);
   assert.match(element('aidant-senior-status').textContent, /Impossible de charger/);
 });
 
 test('an aidant with a linked senior still opens the selected senior workspace', async () => {
   const { context, element, calls } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
   await context.openView({ id: 'aidant', role: 'aidant', seniorName: 'Ancien profil' });
+  assert.equal(element('aidant-home-links').hidden, true);
   assert.equal(element('aidant-no-senior-panel').style.display, 'none');
   assert.equal(element('aidant-senior-content').style.display, 'grid');
   assert.equal(element('aidant-daily-summary').hidden, false);
@@ -1254,4 +1258,13 @@ test('a pending professional can open settings without accessing the agenda', as
   assert.equal(calls.includes('chargerPlanningPro'), false);
   context.openScreen('pro');
   assert.ok(element('screen-pro').classList.contains('active'));
+});
+
+test('professional verification panel disappears after approval', async () => {
+  const { context, element } = createView({ seniors: [] });
+  await context.openView({ id: 'pro', role: 'pro', verificationStatus: 'pending' });
+  assert.equal(element('professional-verification-panel').style.display, 'block');
+  await context.openView({ id: 'pro', role: 'pro', verificationStatus: 'approved' });
+  assert.equal(element('professional-verification-panel').style.display, 'none');
+  assert.equal(element('professional-workspace').style.display, 'block');
 });

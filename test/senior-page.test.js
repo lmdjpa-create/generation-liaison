@@ -443,7 +443,7 @@ test('journal buttons share centered typography and link to timed help for each 
   }
   assert.match(source, /:is\(#senior-journal-details, #aidant-journal-details, #pro-journal-details\) > summary\s*\{[^}]*align-items:\s*center;[^}]*font-size:\s*1\.125rem;/);
   assert.match(source, /\.journal-help\[data-help-enhanced\] > summary \{ display: none; \}/);
-  assert.match(source, /@media \(hover: none\) \{\s*\.screen-container \.journal-help\[data-help-enhanced\] > summary/);
+  assert.match(source, /@media \(hover: none\) \{\s*\.screen-container:not\(#screen-aidant\) \.journal-help\[data-help-enhanced\] > summary/);
 });
 
 test('simplified journal shortcut opens the senior journal without hiding safety follow-up', () => {
@@ -1195,10 +1195,10 @@ test('senior feature sections retain their content and can open programmatically
   }
 });
 
-test('companionship, wellbeing, video call, meal delivery and emergency lead the senior home', () => {
+test('wellbeing, video call, companionship, meal delivery and emergency lead the senior home', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
-  const order = ['id="senior-assistant-details"',
-    'id="wellbeing-checkin-details"', 'onclick="declencherVisio()"', 'Livraison de repas',
+  const order = ['id="wellbeing-checkin-details"', 'onclick="declencherVisio()"',
+    'id="senior-assistant-details"', 'Livraison de repas',
     'class="form-card emergency-call-card"', 'id="senior-more-button"'].map(item => dashboard.indexOf(item));
   assert.ok(order.every((position, index) => position >= 0 && (index === 0 || order[index - 1] < position)));
   assert.equal(dashboard.split('id="senior-assistant-details"').length - 1, 1);

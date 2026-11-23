@@ -414,7 +414,13 @@
         #aidant-senior-content .senior-explanation[data-help-enhanced] > summary,
         #screen-senior-pro .senior-explanation[data-help-enhanced] > summary { display: none; }
         @media (hover: none) {
-            #aidant-senior-content .senior-explanation[data-help-enhanced] > summary,
+            #aidant-senior-content .senior-explanation[data-help-enhanced] > summary {
+                display: inline-flex;
+                width: auto;
+                min-height: 44px;
+                padding: 10px 14px;
+                font-size: 1rem;
+            }
             #screen-senior-pro .senior-explanation[data-help-enhanced] > summary {
                 display: inline-flex;
                 align-items: center;
@@ -424,7 +430,6 @@
                 padding: 0;
                 font-size: 0;
             }
-            #aidant-senior-content .senior-explanation[data-help-enhanced] > summary::before,
             #screen-senior-pro .senior-explanation[data-help-enhanced] > summary::before {
                 content: '?';
                 font-size: 1.125rem;
@@ -511,7 +516,7 @@
         }
         .journal-help[data-help-enhanced] > summary { display: none; }
         @media (hover: none) {
-            .screen-container .journal-help[data-help-enhanced] > summary {
+            .screen-container:not(#screen-aidant) .journal-help[data-help-enhanced] > summary {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
@@ -520,7 +525,7 @@
                 padding: 0;
                 font-size: 0;
             }
-            .screen-container .journal-help[data-help-enhanced] > summary::before { content: '?'; font-size: 1.125rem; }
+            .screen-container:not(#screen-aidant) .journal-help[data-help-enhanced] > summary::before { content: '?'; font-size: 1.125rem; }
         }
         #main-app-senior .senior-action-tile { width: 100%; margin: 14px 0; }
         #senior-pro-directory-action > .action-tile {
@@ -1013,19 +1018,6 @@
             <button type="button" onclick="ouvrirAgenda()">Mes rendez-vous</button>
             <button type="button" onclick="switchScreen('contacts')">Mes contacts</button>
         </div>
-        <section class="form-card" id="assistant-chat-panel">
-          <details class="senior-disclosure" id="senior-assistant-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🤝</span>Contacter l’équipe</summary>
-            <div class="assistant-chat">
-            <p class="helper-text" style="margin:0;">La conversation avec l’assistant IA est désactivée. Vous pouvez demander à l’équipe de vous répondre ici. Les conversations existantes sont supprimées après 30 jours d’inactivité.</p>
-            <div id="assistant-status" class="helper-text" role="status" aria-live="polite">Chargement de la conversation…</div>
-            <div id="assistant-messages" class="assistant-messages" aria-live="polite"></div>
-            <div class="assistant-chat-actions">
-                <button id="assistant-handoff-button" type="button">Parler à l’équipe</button>
-            </div>
-            </div>
-          </details>
-        </section>
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
           <details class="senior-disclosure" id="wellbeing-checkin-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Vérification de bien-être</summary>
@@ -1056,6 +1048,19 @@
           <div id="wellbeing-safety-result" aria-live="polite"></div>
         </section>
         <button type="button" class="action-tile senior-action-tile senior-full-only" onclick="declencherVisio()"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">📞</span>Appeler en vidéo</button>
+        <section class="form-card" id="assistant-chat-panel">
+          <details class="senior-disclosure" id="senior-assistant-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🤝</span>Contacter l’équipe</summary>
+            <div class="assistant-chat">
+            <p class="helper-text" style="margin:0;">La conversation avec l’assistant IA est désactivée. Vous pouvez demander à l’équipe de vous répondre ici. Les conversations existantes sont supprimées après 30 jours d’inactivité.</p>
+            <div id="assistant-status" class="helper-text" role="status" aria-live="polite">Chargement de la conversation…</div>
+            <div id="assistant-messages" class="assistant-messages" aria-live="polite"></div>
+            <div class="assistant-chat-actions">
+                <button id="assistant-handoff-button" type="button">Parler à l’équipe</button>
+            </div>
+            </div>
+          </details>
+        </section>
         <section class="form-card meal-delivery-card" aria-labelledby="meal-delivery-heading">
             <h2 id="meal-delivery-heading" style="margin-top:0; text-align:center;">Livraison de repas</h2>
             <p style="font-size: 1.4rem; font-weight: bold; color: #34495e; margin-bottom: 5px; text-align:center;">Avez-vous reçu votre repas ?</p>
@@ -1132,8 +1137,8 @@
             <p id="senior-shopping-status" role="status" aria-live="polite"></p>
           </details>
         </section>
-        <button type="button" id="senior-more-button" class="action-tile senior-action-tile" onclick="switchScreen('more')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#10133;</span>Proche : messages, jeu, photos, contacts, journal</button>
-        <button type="button" id="senior-pro-button" class="action-tile senior-action-tile" onclick="switchScreen('senior-pro')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">&#129658;</span>Pro : services, intervenants, &eacute;quipe</button>
+        <button type="button" id="senior-more-button" class="action-tile senior-action-tile" onclick="switchScreen('more')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#10133;</span>Proche : messages, contacts, jeux, album et journal</button>
+        <button type="button" id="senior-pro-button" class="action-tile senior-action-tile" onclick="switchScreen('senior-pro')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">&#129658;</span>Pro : services, interventions, équipe, historique et tâches</button>
         <section class="form-card" id="senior-local-outings">
           <details class="senior-disclosure">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
@@ -1686,7 +1691,7 @@
             <div id="notifications-aidant" aria-live="polite"></div>
         </section>
     </div>
-    <section class="form-card" id="aidant-home-links">
+    <section class="form-card" id="aidant-home-links" hidden>
         <h2>Lier mon compte à une personne accompagnée</h2>
         <p>Si vous n’êtes pas tuteur légal, demandez l’accès avec son adresse e-mail. Votre demande marque votre accord ; la personne doit ensuite l’accepter pour lier vos comptes. Les tuteurs légaux doivent contacter l’administration.</p>
         <button type="button" onclick="switchScreen('settings'); document.getElementById('aidant-links-details').open = true">Gérer mes profils accompagnés</button>
@@ -3633,6 +3638,7 @@
         associationLoadId++;
         document.getElementById('senior-home-links').hidden = true;
         document.getElementById('senior-home-links-status').textContent = '';
+        document.getElementById('aidant-home-links').hidden = true;
         reinitialiserCarnetEtablissement();
         fermerActionsEtablissement();
         establishmentOverviewLoadId++;
@@ -3783,6 +3789,8 @@
                 loadError = error;
                 console.error('Chargement des profils seniors impossible :', error);
             }
+            if (connectedUser?.id !== user.id || connectedUser?.role !== 'aidant') return;
+            document.getElementById('aidant-home-links').hidden = !!loadError || hasSenior;
             document.getElementById('aidant-senior-selector').style.display = hasSenior ? 'block' : 'none';
             document.getElementById('aidant-daily-summary').hidden = !hasSenior;
             document.getElementById('aidant-no-senior-panel').style.display = hasSenior ? 'none' : 'block';
@@ -9988,6 +9996,7 @@
         associationLoadId++;
         document.getElementById('senior-home-links').hidden = true;
         document.getElementById('senior-home-links-status').textContent = '';
+        document.getElementById('aidant-home-links').hidden = true;
         connectedUser = null;
         reinitialiserCarnetEtablissement();
         fermerActionsEtablissement();
