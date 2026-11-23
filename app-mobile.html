@@ -849,7 +849,6 @@
             <button class="btn-submit" type="submit">Se connecter</button>
             <p class="helper-text">Après connexion, votre navigateur peut proposer d’enregistrer vos identifiants. Le site ne conserve pas votre mot de passe.</p>
             <p><a href="/reset-password.html">Mot de passe oublié ?</a></p>
-            <button type="button" class="register-button" onclick="document.getElementById('login-section').style.display='none'; document.getElementById('resident-login-section').style.display='block'">Résident ou soignant sans e-mail : se connecter</button>
         </form>
 
         <form id="resident-login-section" class="form-grid" style="display:none;">
@@ -1487,6 +1486,7 @@
         <button type="button" data-establishment-panel="establishment-contacts-panel" aria-expanded="false" aria-controls="establishment-contacts-panel" onclick="ouvrirActionEtablissement(this)">Gérer les coordonnées</button>
         <button type="button" data-establishment-panel="establishment-residents-panel" aria-expanded="false" aria-controls="establishment-residents-panel" onclick="ouvrirActionEtablissement(this)">Gérer les accès résidents</button>
         <button type="button" data-establishment-panel="establishment-staff-panel" aria-expanded="false" aria-controls="establishment-staff-panel" onclick="ouvrirActionEtablissement(this)">Gérer les comptes soignants</button>
+        <button type="button" data-establishment-panel="establishment-login-panel" aria-expanded="false" aria-controls="establishment-login-panel" onclick="ouvrirActionEtablissement(this)">Connexion résident ou soignant sans e-mail</button>
         <button type="button" data-establishment-panel="establishment-closure-panel" aria-expanded="false" aria-controls="establishment-closure-panel" onclick="ouvrirActionEtablissement(this)">Clôturer mon compte</button>
         <button type="button" onclick="deconnecterUtilisateur()">Déconnexion</button>
         </div>
@@ -1496,6 +1496,14 @@
             <button type="button" class="simple-view-enable" onclick="changerVueSimplifiee(true)">Activer la vue simplifiée</button>
             <button type="button" class="simple-view-disable" onclick="changerVueSimplifiee(false)">Utiliser l’affichage standard</button>
         </details>
+    </section>
+    <section class="form-card" id="establishment-login-panel" hidden>
+        <h3>Connexion résident ou soignant sans e-mail</h3>
+        <p>Copiez ce lien et transmettez-le à la personne concernée. Elle pourra l’ouvrir sur son appareil et se connecter avec ses propres identifiants. Sur un appareil partagé, déconnectez d’abord le compte directeur.</p>
+        <label for="establishment-login-link">Lien de connexion</label>
+        <input id="establishment-login-link" type="text" readonly>
+        <button type="button" onclick="copierLienConnexionEtablissement()">Copier le lien de connexion</button>
+        <p id="establishment-login-link-status" role="status" aria-live="polite"></p>
     </section>
     <section class="form-card establishment-overview">
         <h3>Tableaux des résidents, soignants et intervenants</h3>
@@ -9836,6 +9844,30 @@
         }
     });
 
+    function afficherConnexionInitiale() {
+        if (window.location.hash === '#inscription') {
+            basculerFormulaire(true);
+        } else if (window.location.hash === '#connexion-etablissement') {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('resident-login-section').style.display = 'block';
+        }
+    }
+
+    async function copierLienConnexionEtablissement() {
+        if (connectedUser?.role !== 'establishment') return;
+        const link = document.getElementById('establishment-login-link');
+        const status = document.getElementById('establishment-login-link-status');
+        link.value = new URL('/app-mobile.html#connexion-etablissement', SERVER_URL).toString();
+        try {
+            await navigator.clipboard.writeText(link.value);
+            status.textContent = 'Lien copié. Transmettez-le à la personne concernée.';
+        } catch (error) {
+            link.focus();
+            link.select();
+            status.textContent = 'Copie automatique impossible : copiez le lien sélectionné.';
+        }
+    }
+
     async function requestSession(path, credentials) {
         const response = await fetch(`${SERVER_URL}${path}`, {
             method: 'POST',
@@ -10884,7 +10916,7 @@
             localStorage.removeItem(USER_KEY);
             if (!token) {
                 document.getElementById('auth-box').style.display = 'block';
-                if (window.location.hash === '#inscription') basculerFormulaire(true);
+                afficherConnexionInitiale();
                 return;
             }
 
@@ -10899,7 +10931,7 @@
             document.getElementById('auth-box').style.display = 'block';
             if (error.message.includes('session a expiré')) {
                 localStorage.removeItem(SESSION_KEY);
-                if (window.location.hash === '#inscription') basculerFormulaire(true);
+                afficherConnexionInitiale();
             }
             showToast(error.message || 'Serveur inaccessible. Réessayez.', false);
         }

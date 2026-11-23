@@ -121,6 +121,56 @@ test('home explanations for director and staff start closed without hiding actio
   assert.match(staff, /id="care-staff-nonmedical"[^>]*required/);
 });
 
+test('only the director workspace offers the shareable sign-in link', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const login = source.slice(source.indexOf('<form id="login-section"'), source.indexOf('<form id="resident-login-section"'));
+  const director = source.slice(source.indexOf('<div id="screen-establishment"'), source.indexOf('<div id="screen-staff"'));
+  assert.doesNotMatch(login, /resident-login-section|connexion-etablissement/);
+  assert.match(director, /data-establishment-panel="establishment-login-panel"/);
+  assert.match(director, /id="establishment-login-panel" hidden/);
+
+  const start = source.indexOf('    function afficherConnexionInitiale()');
+  const end = source.indexOf('    async function requestSession(', start);
+  assert.ok(start >= 0 && end > start);
+  const link = { value: '', focus() { this.focused = true; }, select() { this.selected = true; } };
+  const status = { textContent: '' };
+  const loginSection = { style: {} };
+  const residentSection = { style: {} };
+  const elements = {
+    'establishment-login-link': link, 'establishment-login-link-status': status,
+    'login-section': loginSection, 'resident-login-section': residentSection
+  };
+  let copied;
+  let registrationOpened = false;
+  const context = {
+    URL, SERVER_URL: 'https://example.test', connectedUser: { role: 'establishment' },
+    document: { getElementById: id => elements[id] },
+    navigator: { clipboard: { writeText: async value => { copied = value; } } },
+    window: { location: { hash: '#connexion-etablissement' } },
+    basculerFormulaire: value => { registrationOpened = value; }
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  await context.copierLienConnexionEtablissement();
+  assert.equal(copied, 'https://example.test/app-mobile.html#connexion-etablissement');
+  context.afficherConnexionInitiale();
+  assert.equal(loginSection.style.display, 'none');
+  assert.equal(residentSection.style.display, 'block');
+  context.window.location.hash = '#inscription';
+  context.afficherConnexionInitiale();
+  assert.equal(registrationOpened, true);
+  context.navigator.clipboard = undefined;
+  await context.copierLienConnexionEtablissement();
+  assert.equal(link.focused, true);
+  assert.equal(link.selected, true);
+  assert.match(status.textContent, /copiez le lien sélectionné/);
+  context.connectedUser = { role: 'staff' };
+  copied = undefined;
+  context.navigator.clipboard = { writeText: async value => { copied = value; } };
+  await context.copierLienConnexionEtablissement();
+  assert.equal(copied, undefined);
+  assert.match(source, /if \(!token\) \{[\s\S]*?afficherConnexionInitiale\(\);[\s\S]*?return;/);
+});
+
 test('director actions open only the requested panel and can close it', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const start = source.indexOf('    function fermerActionsEtablissement()');

@@ -1,6 +1,12 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Connexion résident ou soignant sans e-mail': 'Resident or care worker sign-in without email',
+    'Copiez ce lien et transmettez-le à la personne concernée. Elle pourra l’ouvrir sur son appareil et se connecter avec ses propres identifiants. Sur un appareil partagé, déconnectez d’abord le compte directeur.': 'Copy this link and send it to the person concerned. They can open it on their device and sign in with their own credentials. On a shared device, first sign out of the director account.',
+    'Lien de connexion': 'Sign-in link',
+    'Copier le lien de connexion': 'Copy sign-in link',
+    'Lien copié. Transmettez-le à la personne concernée.': 'Link copied. Send it to the person concerned.',
+    'Copie automatique impossible : copiez le lien sélectionné.': 'Automatic copying failed: copy the selected link.',
     'Réglages d’affichage': 'Display settings',
     'Utiliser l’affichage standard': 'Use standard display',
     'La vue simplifiée est activée par défaut sur cet appareil et pour ce compte.': 'Simplified view is enabled by default on this device for this account.',
