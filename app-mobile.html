@@ -977,6 +977,30 @@
     <div id="main-app-senior" style="display: none; text-align: center;">
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Personne accompagnée</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
+        <div id="home-informations-senior" style="text-align:left;">
+            <section class="form-card weather-widget" id="senior-weather-card" aria-labelledby="senior-weather-title">
+                <h2 id="senior-weather-title">Météo</h2>
+                <div class="weather-hero" id="senior-weather-hero" hidden><span class="weather-icon" id="senior-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="senior-weather-temp"></span></div>
+                <p id="senior-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
+                <button type="button" onclick="chargerMeteo('senior')">Actualiser</button>
+                <details id="senior-weather-week" hidden><summary>Voir les prévisions de la semaine</summary><ul id="senior-weather-days"></ul></details>
+                <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
+            </section>
+            <h2>Mes informations du jour</h2>
+            <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
+                <div><p class="next-visit-label">Prochaine visite</p>
+                <p class="next-visit-text" id="senior-next-visit-text" role="status" aria-live="polite">Chargement du prochain rendez-vous…</p></div>
+            </section>
+            <section class="form-card">
+                <h2>Aujourd’hui</h2>
+                <p id="senior-today-visit" role="status">Chargement des rendez-vous…</p>
+                <p id="senior-today-tasks" role="status" hidden></p>
+                <h3>Messages reçus</h3>
+                <div class="today-inbox-list" id="senior-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
+                <div id="notification-opened-senior" aria-live="polite"></div>
+                <div id="notifications-senior" aria-live="polite"></div>
+            </section>
+        </div>
         <section class="form-card" id="senior-home-links">
             <h2>Lier mon compte à un aidant</h2>
             <p>Un aidant peut demander à vous rejoindre. Vérifiez son identité, puis acceptez ou refusez sa demande.</p>
@@ -1074,7 +1098,6 @@
                 </div>
             </div>
         </section>
-        <button type="button" class="action-tile senior-action-tile" onclick="switchScreen('informations-senior')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📋</span>Mes informations du jour</button>
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure" id="senior-key-contacts-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🧑‍⚕️</span><span>Contacts utiles</span></summary>
@@ -1120,31 +1143,6 @@
     </div>
 </div>
 
-<div id="screen-informations-senior" class="screen-container" style="background-color: var(--senior-bg);">
-    <button type="button" class="register-button" onclick="switchScreen('senior')">← Retour à l’accueil</button>
-    <h1>Mes informations du jour</h1>
-    <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
-        <div><p class="next-visit-label">Prochaine visite</p>
-        <p class="next-visit-text" id="senior-next-visit-text" role="status" aria-live="polite">Chargement du prochain rendez-vous…</p></div>
-    </section>
-    <section class="form-card">
-        <h2>Aujourd’hui</h2>
-        <p id="senior-today-visit" role="status">Chargement des rendez-vous…</p>
-        <p id="senior-today-tasks" role="status" hidden></p>
-        <h3>Messages reçus</h3>
-        <div class="today-inbox-list" id="senior-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
-        <div id="notification-opened-senior" aria-live="polite"></div>
-        <div id="notifications-senior" aria-live="polite"></div>
-    </section>
-    <section class="form-card weather-widget" id="senior-weather-card" aria-labelledby="senior-weather-title">
-        <h2 id="senior-weather-title">Météo</h2>
-        <div class="weather-hero" id="senior-weather-hero" hidden><span class="weather-icon" id="senior-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="senior-weather-temp"></span></div>
-        <p id="senior-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
-        <button type="button" onclick="chargerMeteo('senior')">Actualiser</button>
-        <details id="senior-weather-week" hidden><summary>Voir les prévisions de la semaine</summary><ul id="senior-weather-days"></ul></details>
-        <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
-    </section>
-</div>
 <div id="screen-more" class="screen-container" style="background-color: var(--senior-bg);">
     <div id="main-app-senior-more" style="text-align: center;">
         <button type="button" id="senior-more-back" onclick="switchScreen('senior')">&larr; Retour &agrave; l&rsquo;accueil</button>
@@ -1662,6 +1660,31 @@
             <h2>Bonjour <span id="welcome-aidant-name">!</span></h2>
         </div>
     </div>
+    <div id="home-informations-aidant">
+        <section class="form-card weather-widget" id="aidant-weather-card" aria-labelledby="aidant-weather-title">
+            <h2 id="aidant-weather-title">Météo</h2>
+            <div class="weather-hero" id="aidant-weather-hero" hidden><span class="weather-icon" id="aidant-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="aidant-weather-temp"></span></div>
+            <p id="aidant-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
+            <button type="button" onclick="chargerMeteo('aidant')">Actualiser</button>
+            <details id="aidant-weather-week" hidden><summary>Voir les prévisions de la semaine</summary><ul id="aidant-weather-days"></ul></details>
+            <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
+        </section>
+        <h2>Informations du jour</h2>
+        <section class="form-card" aria-labelledby="aidant-daily-summary-title">
+            <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
+            <div id="aidant-daily-summary" hidden>
+            <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
+            <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
+            <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
+            <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
+            <p id="aidant-summary-services" role="status">Chargement des services…</p>
+            </div>
+            <h3>Messages reçus</h3>
+            <div class="today-inbox-list" id="aidant-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
+            <div id="notification-opened-aidant" aria-live="polite"></div>
+            <div id="notifications-aidant" aria-live="polite"></div>
+        </section>
+    </div>
     <section class="form-card" id="aidant-home-links">
         <h2>Lier mon compte à une personne accompagnée</h2>
         <p>Si vous n’êtes pas tuteur légal, demandez l’accès avec son adresse e-mail. Votre demande marque votre accord ; la personne doit ensuite l’accepter pour lier vos comptes. Les tuteurs légaux doivent contacter l’administration.</p>
@@ -1673,7 +1696,6 @@
             <p class="next-visit-text">Espace Proches 👨‍👩‍👧‍👦</p>
         </div>
     </div>
-    <button type="button" class="action-tile" onclick="switchScreen('informations-aidant')">Informations du jour</button>
     <div id="aidant-shortcuts" class="action-tiles">
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">💬</span>Messages</button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
@@ -1840,32 +1862,6 @@
     </div>
 </div>
 
-<div id="screen-informations-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
-    <button type="button" class="register-button" onclick="switchScreen('aidant')">← Retour à l’accueil</button>
-    <h1>Informations du jour</h1>
-    <section class="form-card" aria-labelledby="aidant-daily-summary-title">
-        <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
-        <div id="aidant-daily-summary" hidden>
-        <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
-        <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
-        <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
-        <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
-        <p id="aidant-summary-services" role="status">Chargement des services…</p>
-        </div>
-        <h3>Messages reçus</h3>
-        <div class="today-inbox-list" id="aidant-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
-        <div id="notification-opened-aidant" aria-live="polite"></div>
-        <div id="notifications-aidant" aria-live="polite"></div>
-    </section>
-    <section class="form-card weather-widget" id="aidant-weather-card" aria-labelledby="aidant-weather-title">
-        <h2 id="aidant-weather-title">Météo</h2>
-        <div class="weather-hero" id="aidant-weather-hero" hidden><span class="weather-icon" id="aidant-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="aidant-weather-temp"></span></div>
-        <p id="aidant-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
-        <button type="button" onclick="chargerMeteo('aidant')">Actualiser</button>
-        <details id="aidant-weather-week" hidden><summary>Voir les prévisions de la semaine</summary><ul id="aidant-weather-days"></ul></details>
-        <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
-    </section>
-</div>
 <!-- 🩺 3. INTERFACE PROFESSIONNEL -->
 <div id="screen-pro" class="screen-container" style="background-color: var(--pro-bg);">
     <section class="form-card" id="professional-verification-panel" style="display:none;">
@@ -1884,12 +1880,28 @@
     <div class="header-mobile" style="background: #34495e;">
         <h3 style="margin:0;">Espace intervenants <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h3>
     </div>
+    <div id="home-informations-pro">
+        <h2>Informations du jour</h2>
+        <section class="form-card" id="pro-daily-summary" aria-labelledby="pro-daily-summary-title">
+            <h3 id="pro-daily-summary-title">Aujourd’hui</h3>
+            <p class="helper-text">Aperçu des informations accessibles à votre compte.</p>
+            <p id="pro-summary-visit" role="status">Chargement des rendez-vous…</p>
+            <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
+            <p id="pro-summary-services" role="status">Chargement des services…</p>
+            <p id="pro-summary-tasks" role="status">Chargement des tâches…</p>
+            <h3>Messages reçus</h3>
+            <div class="today-inbox-list" id="pro-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
+            <div id="notification-opened-pro" aria-live="polite"></div>
+            <div id="notifications-pro" aria-live="polite"></div>
+            <p id="pro-summary-following" role="status">Chargement des étapes d’intervention…</p>
+            <p class="helper-text">Suivi de l’équipe limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées.</p>
+        </section>
+    </div>
     <details class="senior-disclosure" data-close-on-mouse-leave>
         <summary>Informations sur les espaces</summary>
         <p>Espaces séparés : soins et services du quotidien.</p>
         <p>Les proches ne voient que les étapes et notes pratiques lorsque leur compte est autorisé pour le profil ; les coordonnées ne leur sont pas transmises dans ce suivi.</p>
     </details>
-    <button type="button" class="action-tile" onclick="switchScreen('informations-pro')">Informations du jour</button>
     <button type="button" id="pro-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">💬</span>Messages</button>
     <section class="form-card">
         <details class="senior-disclosure" id="pro-intervention-tasks-details">
@@ -2007,24 +2019,6 @@
 </div>
 
 
-<div id="screen-informations-pro" class="screen-container" style="background-color: var(--pro-bg);">
-    <button type="button" class="register-button" onclick="switchScreen('pro')">← Retour à l’accueil</button>
-    <h1>Informations du jour</h1>
-    <section class="form-card" id="pro-daily-summary" aria-labelledby="pro-daily-summary-title">
-        <h3 id="pro-daily-summary-title">Aujourd’hui</h3>
-        <p class="helper-text">Aperçu des informations accessibles à votre compte.</p>
-        <p id="pro-summary-visit" role="status">Chargement des rendez-vous…</p>
-        <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
-        <p id="pro-summary-services" role="status">Chargement des services…</p>
-        <p id="pro-summary-tasks" role="status">Chargement des tâches…</p>
-        <h3>Messages reçus</h3>
-        <div class="today-inbox-list" id="pro-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
-        <div id="notification-opened-pro" aria-live="polite"></div>
-        <div id="notifications-pro" aria-live="polite"></div>
-        <p id="pro-summary-following" role="status">Chargement des étapes d’intervention…</p>
-        <p class="helper-text">Suivi de l’équipe limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées.</p>
-    </section>
-</div>
 <div id="screen-messages" class="screen-container">
     <button type="button" class="register-button" onclick="switchScreen(connectedUser.role)">← Retour à l’accueil</button>
     <h1>Messages</h1>
@@ -3014,6 +3008,10 @@
     }
 
     function switchScreen(screenName) {
+        if (connectedUser && screenName === `informations-${connectedUser.role}` &&
+            ['senior', 'aidant', 'pro'].includes(connectedUser.role)) {
+            screenName = connectedUser.role;
+        }
         const pendingProfessional = connectedUser?.role === 'pro' && connectedUser.verificationStatus !== 'approved';
         const pendingGuardian = connectedUser?.role === 'aidant' && connectedUser.isLegalGuardian &&
             connectedUser.guardianVerificationStatus !== 'approved';
@@ -3028,10 +3026,8 @@
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
         const messagesAllowed = screenName === 'messages' &&
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
-        const informationAllowed = ['senior', 'aidant', 'pro'].includes(connectedUser?.role) &&
-            screenName === `informations-${connectedUser.role}`;
         const moreAllowed = ['more', 'senior-pro'].includes(screenName) && connectedUser?.role === 'senior';
-        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed && !agendaAllowed && !messagesAllowed && !informationAllowed && !moreAllowed) ||
+        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed && !agendaAllowed && !messagesAllowed && !moreAllowed) ||
             (pendingAccess && screenName !== connectedUser.role && !settingsAllowed)) {
             return;
         }
@@ -3077,20 +3073,8 @@
         }
         if (pendingAccess) return;
         chargerNotifications();
-        if (informationAllowed) {
-            document.getElementById(`screen-${screenName}`).scrollTop = 0;
+        if (screenName === connectedUser.role && ['senior', 'aidant', 'pro'].includes(screenName)) {
             chargerBoiteReception(connectedUser.role);
-            if (connectedUser.role === 'senior') {
-                chargerProchainRendezVous();
-                chargerSyntheseSenior();
-            }
-            if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
-                chargerSyntheseAidant();
-            }
-            if (connectedUser.role === 'pro') {
-                chargerSynthesePro();
-            }
-            return;
         }
         if (screenName === 'messages') {
             document.getElementById('screen-messages').scrollTop = 0;
@@ -3830,15 +3814,14 @@
             if (!connectedUser) return;
             actualiserMeteoSiNecessaire();
             if (['senior', 'aidant', 'pro'].includes(connectedUser.role) &&
-                document.getElementById(`screen-informations-${connectedUser.role}`).classList.contains('active')) {
+                document.getElementById(`screen-${connectedUser.role}`).classList.contains('active')) {
                 chargerBoiteReception(connectedUser.role);
             }
             if (connectedUser.role === 'pro') {
                 chargerPlanningPro();
                 chargerPlanningServices();
                 chargerDirectoryBookings(true);
-                if (document.getElementById('screen-pro').classList.contains('active') ||
-                    document.getElementById('screen-informations-pro').classList.contains('active')) {
+                if (document.getElementById('screen-pro').classList.contains('active')) {
                     chargerSynthesePro();
                 }
             }
@@ -3848,16 +3831,14 @@
             }
             if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
                 chargerCheckinsPartages();
-                if (document.getElementById('screen-aidant').classList.contains('active') ||
-                    document.getElementById('screen-informations-aidant').classList.contains('active')) {
+                if (document.getElementById('screen-aidant').classList.contains('active')) {
                     chargerSyntheseAidant();
                     if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
                 }
             }
             if (connectedUser.role === 'senior') {
                 chargerAssistantConversation();
-                if (document.getElementById('screen-senior').classList.contains('active') ||
-                    document.getElementById('screen-informations-senior').classList.contains('active')) {
+                if (document.getElementById('screen-senior').classList.contains('active')) {
                     chargerProchainRendezVous();
                     chargerSyntheseSenior();
                 } else if (document.getElementById('screen-senior-pro').classList.contains('active')) {
@@ -5939,7 +5920,7 @@
     function notificationVisible(entry) {
         if (document.hidden || connectedUser?.id !== entry.userId || connectedUser?.role !== entry.role || !entry.card.isConnected) return false;
         if (entry.card.closest?.('details:not([open])')) return false;
-        const screen = document.getElementById(`screen-informations-${entry.role}`);
+        const screen = document.getElementById(entry.screen || `screen-${entry.role}`);
         if (!screen.classList.contains('active')) return false;
         const rect = entry.card.getBoundingClientRect();
         const viewport = screen.getBoundingClientRect();
@@ -6982,8 +6963,7 @@
             const screen = document.querySelector('.screen-container.active');
             if (!screen) return;
             const allowed = {
-                'screen-senior': '#date-senior',
-                'screen-informations-senior': '#senior-weather-temp, #senior-weather-status, #senior-weather-days, #senior-next-visit-text',
+                'screen-senior': '#date-senior, #senior-weather-temp, #senior-weather-status, #senior-weather-days, #senior-next-visit-text',
                 'screen-more': '#senior-journal-list',
                 'screen-senior-pro': '#senior-summary-visit, #senior-summary-messages, #senior-summary-notifications',
                 'screen-messages': '#notification-opened-senior, #notifications-senior, #message-list-senior',
@@ -7202,7 +7182,7 @@
         const select = document.getElementById(`message-contact-${role}`);
         const container = document.getElementById(`message-list-${role}`);
         if (select.value !== openMessageConversations[role] ||
-            !notificationVisible({ userId: connectedUser.id, role, card: container })) return;
+            !notificationVisible({ userId: connectedUser.id, role, card: container, screen: 'screen-messages' })) return;
         ouvrirConversation(role);
     }
 

@@ -144,12 +144,10 @@ test('automatic senior narration selects only the requested categories on each s
   const screens = {
     'screen-senior': {
       'date-senior': 'Lundi',
+      'senior-weather-status': 'Soleil',
+      'senior-next-visit-text': 'Visite demain',
       'assistant-messages': 'Conversation privée',
       'wellbeing-checkin-result': 'Bilan'
-    },
-    'screen-informations-senior': {
-      'senior-weather-status': 'Soleil',
-      'senior-next-visit-text': 'Visite demain'
     },
     'screen-more': { 'senior-journal-list': 'Nouvelle du journal' },
     'screen-messages': {
@@ -187,8 +185,7 @@ test('automatic senior narration selects only the requested categories on each s
     timers.pop()();
   }
   assert.deepEqual(spoken, [
-    'Lundi',
-    'Soleil. Visite demain',
+    'Lundi. Soleil. Visite demain',
     'Nouvelle du journal',
     'Notification. Message',
     'Rendez-vous',
@@ -1254,7 +1251,7 @@ test('senior tabs retain controls and results', () => {
   assert.match(agenda, /<details class="senior-tab-disclosure" id="agenda-calendar-details">[\s\S]*?id="calendar-selected-day"[\s\S]*?<\/details>/);
   assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?Modifications depuis Google<\/summary>[\s\S]*?id="calendar-google-requests"[\s\S]*?<\/details>/);
   for (const role of ['senior', 'aidant', 'pro']) {
-    const today = extract(`<div id="screen-informations-${role}"`, role === 'senior' ? '<div id="screen-more"' : role === 'aidant' ? '<div id="screen-pro"' : '<div id="screen-messages"');
+    const today = extract(`<div id="home-informations-${role}"`, role === 'senior' ? '<section class="form-card" id="senior-home-links"' : role === 'aidant' ? '<section class="form-card" id="aidant-home-links"' : '<details class="senior-disclosure" data-close-on-mouse-leave>');
     assert.match(today, new RegExp(`id="notifications-${role}"`));
     assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="message-details-${role}">[\\s\\S]*?id="message-form-${role}"[\\s\\S]*?<\\/details>`));
   }
@@ -1552,8 +1549,9 @@ test('senior shortcuts open the messages page', () => {
   assert.ok(shortcut > more);
   assert.match(tiles, /<button type="button" class="action-tile" onclick="ouvrirNotifications\(\)"/);
   assert.doesNotMatch(source, /id="home-notification-count-senior"/);
-  const dashboard = extract('<div id="main-app-senior"', '<div id="screen-informations-senior"');
-  assert.doesNotMatch(dashboard, /id="notifications-senior"|id="message-form-senior"/);
+  const dashboard = extract('<div id="main-app-senior"', '<div id="screen-more"');
+  assert.match(dashboard, /id="notifications-senior"/);
+  assert.doesNotMatch(dashboard, /id="message-form-senior"/);
   const page = extract('<div id="screen-messages"', '<div id="screen-settings"');
   assert.match(page, /onclick="switchScreen\(connectedUser\.role\)"/);
   for (const role of ['senior', 'aidant', 'pro']) {
@@ -1586,7 +1584,7 @@ test('only pending invitations appear in today, retain actions and are read when
       document: {
         hidden: true,
         getElementById: id => id === 'notification-unread-count' || id.startsWith('home-notification-count-')
-          ? badge : id === `screen-informations-${role}` ? screen : container,
+          ? badge : id === `screen-${role}` ? screen : container,
         createElement: node,
         querySelectorAll: () => container.children.filter(card => card.className?.includes('unread') && !card.classList.removed)
       },
@@ -2130,7 +2128,7 @@ test('emergency calls require confirmation and can be confirmed again after a co
 
 test('professional messages shortcut stays separate from today', () => {
   assert.match(source, /#pro-notifications-tile\s*\{\s*width:\s*100%;\s*\}/);
-  assert.match(source, /informations-pro[^>]*>Informations du jour<\/button>/);
+  assert.match(source, /id="home-informations-pro"/);
   assert.doesNotMatch(source, /id="home-notification-count-pro"/);
 });
 
@@ -2322,8 +2320,9 @@ test('today inbox shows received messages and opens the selected conversation', 
 
 test('messages are inside today without a notifications section for each role', () => {
   for (const role of ['senior', 'aidant', 'pro']) {
-    const start = source.indexOf(`<div id="screen-informations-${role}"`);
-    const end = source.indexOf('<div id="screen-', start + 1);
+    const start = source.indexOf(`<div id="home-informations-${role}"`);
+    const end = source.indexOf(role === 'senior' ? '<section class="form-card" id="senior-home-links"' : role === 'aidant'
+      ? '<section class="form-card" id="aidant-home-links"' : '<details class="senior-disclosure" data-close-on-mouse-leave>', start);
     const screen = source.slice(start, end);
     const inbox = screen.indexOf(`id="${role}-today-inbox"`);
     const section = screen.lastIndexOf('<section', inbox);
@@ -2339,8 +2338,9 @@ test('messages are inside today without a notifications section for each role', 
 test('today messages scroll without an on-screen history', () => {
   assert.match(source, /\.today-inbox-list\s*\{[^}]*max-height:\s*22rem;[^}]*overflow-y:\s*auto;/);
   for (const role of ['senior', 'aidant', 'pro']) {
-    const start = source.indexOf(`<div id="screen-informations-${role}"`);
-    const end = source.indexOf('<div id="screen-', start + 1);
+    const start = source.indexOf(`<div id="home-informations-${role}"`);
+    const end = source.indexOf(role === 'senior' ? '<section class="form-card" id="senior-home-links"' : role === 'aidant'
+      ? '<section class="form-card" id="aidant-home-links"' : '<details class="senior-disclosure" data-close-on-mouse-leave>', start);
     const screen = source.slice(start, end);
     assert.doesNotMatch(screen, /Historique des 30 derniers jours/);
     assert.match(screen, new RegExp(`id="${role}-today-inbox"[^>]*role="region"[^>]*tabindex="0"`));

@@ -32,7 +32,7 @@ test('caregiver profiles and senior and caregiver notification settings start co
 });
 
 test('both home pages open their own association settings', () => {
-  assert.match(source, /<h2>Bonjour <span id="welcome-aidant-name">!<\/span><\/h2>\s*<\/div>\s*<\/div>\s*<section class="form-card" id="aidant-home-links">/);
+  assert.match(source, /<h2>Bonjour <span id="welcome-aidant-name">!<\/span><\/h2>\s*<\/div>\s*<\/div>\s*<div id="home-informations-aidant">/);
   for (const [sectionId, detailsId] of [['senior-home-links', 'senior-links-details'], ['aidant-home-links', 'aidant-links-details']]) {
     const start = source.indexOf(`id="${sectionId}"`);
     assert.ok(start !== -1);
@@ -1070,35 +1070,43 @@ test('an aidant with a linked senior still opens the selected senior workspace',
   assert.ok(calls.includes('chargerLogs'));
 });
 
-test('daily information opens from the caregiver home and has a separate screen', () => {
+test('daily information and weather are open at the start of each home', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const home = source.indexOf(`<div id="screen-${role}"`);
+    const info = source.indexOf(`id="home-informations-${role}"`, home);
+    const inbox = source.indexOf(`id="${role}-today-inbox"`, info);
+    assert.ok(home >= 0 && info > home && inbox > info);
+    assert.doesNotMatch(source, new RegExp(`onclick="switchScreen\\('informations-${role}'\\)"`));
+    if (role !== 'pro') {
+      const weather = source.indexOf(`id="${role}-weather-card"`, info);
+      assert.ok(weather > info && weather < inbox);
+    }
+  }
   const start = source.indexOf('<div id="screen-aidant"');
-  const infoScreen = source.indexOf('<div id="screen-informations-aidant"');
   const summary = source.indexOf('id="aidant-daily-summary"', start);
-  assert.ok(source.indexOf("switchScreen('informations-aidant')", start) < infoScreen);
-  assert.ok(summary > infoScreen);
   assert.match(source.slice(summary, source.indexOf('>', summary)), /\bhidden\b/);
 });
 
-test('daily information opens only for the current role and returns home', async () => {
+test('legacy daily information links open only the current role home', async () => {
   for (const role of ['senior', 'aidant', 'pro']) {
     const { context, element, calls } = createView({ seniors: [{ id: 'senior-1', name: 'Profil lié' }] });
     await context.openView({ id: role, role, verificationStatus: 'approved' });
     calls.length = 0;
     context.openScreen(`informations-${role}`);
-    assert.ok(element(`screen-informations-${role}`).classList.contains('active'));
+    assert.ok(element(`screen-${role}`).classList.contains('active'));
     assert.ok(calls.includes({ senior: 'chargerProchainRendezVous', aidant: 'chargerSyntheseAidant', pro: 'chargerSynthesePro' }[role]));
     context.openScreen(`informations-${role === 'senior' ? 'pro' : 'senior'}`);
-    assert.ok(element(`screen-informations-${role}`).classList.contains('active'));
+    assert.ok(element(`screen-${role}`).classList.contains('active'));
     context.openScreen(role);
     assert.ok(element(`screen-${role}`).classList.contains('active'));
-    assert.ok(!element(`screen-informations-${role}`).classList.contains('active'));
   }
 });
 
 test('today shows received messages without a separate unread counter', () => {
   for (const role of ['senior', 'aidant', 'pro']) {
-    const start = source.indexOf(`<div id="screen-informations-${role}"`);
-    const end = source.indexOf('<div id="screen-', start + 1);
+    const start = source.indexOf(`<div id="home-informations-${role}"`);
+    const end = source.indexOf(role === 'senior' ? '<section class="form-card" id="senior-home-links"' : role === 'aidant'
+      ? '<section class="form-card" id="aidant-home-links"' : '<details class="senior-disclosure" data-close-on-mouse-leave>', start);
     assert.ok(start >= 0 && end > start);
     const screen = source.slice(start, end);
     assert.match(screen, new RegExp(`id="${role}-today-inbox"`));
