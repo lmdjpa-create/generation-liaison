@@ -1012,6 +1012,24 @@
       object-fit: cover;
     }
 
+    .establishment-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+
+    .establishment-overview article {
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #f7faf8;
+    }
+
+    .establishment-overview h3 { margin: 0 0 8px; color: var(--primary-dark); font-size: 1rem; }
+    .establishment-overview p { margin: 0; color: #53665c; line-height: 1.5; }
+    .establishment-access { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+
     .landing-info a {
       color: var(--primary-dark);
     }
@@ -1166,10 +1184,11 @@
             <span>Génération Liaison</span>
           </div>
           <p class="landing-kicker">Le lien au quotidien entre générations</p>
-          <h1 id="landing-title">Le carnet de liaison simple pour les personnes accompagnées et leurs proches</h1>
-          <p class="landing-description">Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : coordonnez les visites, partagez les nouvelles et retrouvez les services à domicile, même à distance.</p>
+          <h1 id="landing-title">Un carnet de liaison pour les proches, les intervenants et les établissements</h1>
+          <p class="landing-description">Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.</p>
           <a class="landing-login" href="/app-mobile.html#inscription">Créer un espace gratuitement <span aria-hidden="true">→</span></a>
           <a class="landing-app-link" href="#exemple-carnet">Voir un exemple de carnet</a>
+          <a class="landing-app-link" href="#entreprises">Découvrir l’espace entreprises et résidences</a>
           <p class="landing-reassurance">✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation</p>
         </div>
         <div>
@@ -1205,14 +1224,14 @@
     <section class="landing-info privacy-highlight" aria-labelledby="privacy-title">
       <h2 id="privacy-title">Vos échanges restent privés et sécurisés</h2>
       <p>La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées.</p>
-      <p>La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Génération Liaison facilite l’organisation du quotidien et ne remplace pas un dossier médical. Certaines transmissions professionnelles sont enregistrées dans l’espace prévu à cet effet.</p>
+      <p>La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Le partage avec les soignants de l’établissement nécessite l’accord du résident ou de son représentant légal vérifié. Le carnet sert aux nouvelles du quotidien, pas aux données de santé.</p>
       <p>Aucun outil statistique ou publicitaire n’est installé dans les espaces connectés. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.</p>
       <p>Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la <a href="/privacy-policy.html">politique de confidentialité</a> pour connaître vos droits et les prestataires concernés.</p>
       <p>Bon à savoir : Génération Liaison facilite l’organisation de la vie sociale et du quotidien. Il ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.</p>
     </section>
 
     <section class="landing-info" id="presentation" aria-labelledby="presentation-title">
-      <h2 id="presentation-title">Un espace pensé pour toute la famille et les intervenants du quotidien</h2>
+      <h2 id="presentation-title">Un espace pour les personnes accompagnées, leurs proches et les professionnels</h2>
       <div class="info-grid">
         <details class="info-card">
           <summary>Pour les personnes accompagnées</summary>
@@ -1236,6 +1255,29 @@
           <p>Coiffeurs, aides ménagères ou prestataires de services : confirmez vos passages, échangez avec les personnes autorisées et simplifiez la gestion de vos rendez-vous auprès des familles.</p>
           </div>
         </details>
+        <details class="info-card">
+          <summary>Pour les entreprises et résidences</summary>
+          <div class="gl-help-bubble">
+          <h3>Un espace dédié à la direction</h3>
+          <p>Retrouvez les résidents, soignants et intervenants dans des tableaux séparés, et gérez les comptes individuels des résidents et des soignants.</p>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <section class="landing-info" id="entreprises" aria-labelledby="establishment-title">
+      <h2 id="establishment-title">Entreprises et résidences : un espace pour la direction</h2>
+      <p>Organisez les accès de votre établissement et gardez le lien avec les résidents et leurs proches, dans le respect des autorisations de chacun.</p>
+      <div class="establishment-overview" aria-label="Les trois tableaux de l’espace directeur">
+        <article><h3>Résidents</h3><p>Avec leur accord, créez leurs accès individuels, même sans adresse e-mail.</p></article>
+        <article><h3>Soignants</h3><p>Créez leurs comptes et gérez leurs accès à l’établissement.</p></article>
+        <article><h3>Intervenants</h3><p>Retrouvez leurs coordonnées dans un tableau distinct.</p></article>
+      </div>
+      <p>Le résident ou son représentant légal vérifié choisit le partage du carnet de liaison avec les soignants. La direction ne consulte pas les carnets ni les messages privés. Le carnet est réservé aux nouvelles du quotidien, sans données de santé.</p>
+      <p>L’accès de l’établissement est activé manuellement par l’administration. Un abonnement est envisagé, avec une grille tarifaire et des options de tablettes indicatives ; aucun paiement en ligne n’est effectué.</p>
+      <div class="establishment-access">
+        <a class="landing-login" href="/app-mobile.html#inscription">Créer un compte établissement</a>
+        <span>Lors de l’inscription, choisissez « Entreprise / résidence ».</span>
       </div>
     </section>
 

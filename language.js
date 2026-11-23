@@ -1,6 +1,33 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Un carnet de liaison pour les proches, les intervenants et les établissements': 'A shared journal for families, professionals and organizations',
+    'Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.':
+      'For older adults and anyone who needs daily support, including people with disabilities: share updates and organize visits with authorized people, at home or in a residence.',
+    'Découvrir l’espace entreprises et résidences': 'Explore the business and residence workspace',
+    'La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Le partage avec les soignants de l’établissement nécessite l’accord du résident ou de son représentant légal vérifié. Le carnet sert aux nouvelles du quotidien, pas aux données de santé.':
+      'The person receiving support accepts caregivers’ requests; a verified legal guardian is linked by the administration. Sharing with the organization’s care staff requires consent from the resident or their verified legal representative. The journal is for daily updates, not health data.',
+    'Un espace pour les personnes accompagnées, leurs proches et les professionnels': 'A workspace for people receiving support, their families and professionals',
+    'Pour les entreprises et résidences': 'For businesses and residences',
+    'Un espace dédié à la direction': 'A dedicated manager workspace',
+    'Retrouvez les résidents, soignants et intervenants dans des tableaux séparés, et gérez les comptes individuels des résidents et des soignants.':
+      'Find residents, care staff and service providers in separate tables and manage individual resident and staff accounts.',
+    'Entreprises et résidences : un espace pour la direction': 'Businesses and residences: a workspace for managers',
+    'Organisez les accès de votre établissement et gardez le lien avec les résidents et leurs proches, dans le respect des autorisations de chacun.':
+      'Organize your organization’s access and stay in touch with residents and their families while respecting everyone’s permissions.',
+    'Les trois tableaux de l’espace directeur': 'The three tables in the manager workspace',
+    'Résidents': 'Residents',
+    'Soignants': 'Care staff',
+    'Intervenants': 'Service providers',
+    'Avec leur accord, créez leurs accès individuels, même sans adresse e-mail.': 'With their consent, create individual access even without an email address.',
+    'Créez leurs comptes et gérez leurs accès à l’établissement.': 'Create their accounts and manage their organization access.',
+    'Retrouvez leurs coordonnées dans un tableau distinct.': 'Find their contact details in a separate table.',
+    'Le résident ou son représentant légal vérifié choisit le partage du carnet de liaison avec les soignants. La direction ne consulte pas les carnets ni les messages privés. Le carnet est réservé aux nouvelles du quotidien, sans données de santé.':
+      'The resident or their verified legal representative decides whether to share the journal with care staff. Management cannot view journals or private messages. The journal is for daily updates, not health data.',
+    'L’accès de l’établissement est activé manuellement par l’administration. Un abonnement est envisagé, avec une grille tarifaire et des options de tablettes indicatives ; aucun paiement en ligne n’est effectué.':
+      'Organization access is activated manually by the administration. A subscription is being considered, with indicative prices and tablet options; no online payment is taken.',
+    'Créer un compte établissement': 'Create an organization account',
+    'Lors de l’inscription, choisissez « Entreprise / résidence ».': 'When registering, choose “Business / residence”.',
     '🏢 Entreprise / résidence': '🏢 Business / residence',
     'Entreprise / résidence': 'Business / residence',
     'Espace Directeur · Entreprise / Résidence': 'Manager workspace · business / residence',

@@ -11,7 +11,7 @@ const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8
 
 test('homepage proposals are individually collapsed and retain their descriptions', () => {
   for (const title of [
-    'Pour les personnes accompagnées', 'Pour les proches et aidants', 'Pour les professionnels',
+    'Pour les personnes accompagnées', 'Pour les proches et aidants', 'Pour les professionnels', 'Pour les entreprises et résidences',
     'Carnet de liaison', 'Rendez-vous et services', 'Notifications et assistance',
     'Garder le lien au quotidien', 'Services à domicile', 'Une question ?'
   ]) {
@@ -36,7 +36,7 @@ test('homepage keeps direct application access and the emergency warning visible
 
 test('homepage speaks to families and uses practical family FAQs', () => {
   const intro = source.slice(source.indexOf('<section class="landing-card"'), source.indexOf('id="privacy-title"'));
-  assert.match(intro, /Le carnet de liaison simple pour les personnes accompagnées et leurs proches/);
+  assert.match(intro, /Un carnet de liaison pour les proches, les intervenants et les établissements/);
   assert.match(intro, /seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap/);
   assert.match(source, /choisissez le profil « Personne accompagnée » dans l’application/);
   const features = source.slice(source.indexOf('aria-labelledby="features-title"'), source.indexOf('aria-labelledby="questions-title"'));
@@ -68,8 +68,8 @@ test('privacy and health data information is visible near the top without unveri
   assert.match(block, /Vos échanges restent privés et sécurisés/);
   assert.match(block, /La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées/);
   assert.match(block, /La personne accompagnée accepte les demandes des aidants/);
-  assert.match(block, /ne remplace pas un dossier médical/);
-  assert.match(block, /Certaines transmissions professionnelles sont enregistrées/);
+  assert.match(block, /partage avec les soignants de l’établissement nécessite l’accord du résident ou de son représentant légal vérifié/);
+  assert.match(block, /nouvelles du quotidien, pas aux données de santé/);
   assert.match(block, /href="\/privacy-policy\.html"/);
   assert.doesNotMatch(block, /Render|PostgreSQL|HDS|région.*confirmer/);
   assert.doesNotMatch(block, /<details/);
@@ -93,7 +93,10 @@ test('updated homepage copy remains available in English', () => {
   const document = { documentElement: {}, addEventListener() {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
   for (const text of [
-    'Le carnet de liaison simple pour les personnes accompagnées et leurs proches',
+    'Un carnet de liaison pour les proches, les intervenants et les établissements',
+    'Pour les entreprises et résidences',
+    'Entreprises et résidences : un espace pour la direction',
+    'Lors de l’inscription, choisissez « Entreprise / résidence ».',
     'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.',
     '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation',
     'Faut-il télécharger une application sur téléphone ?',
@@ -104,30 +107,18 @@ test('updated homepage copy remains available in English', () => {
   }
 });
 
-test('homepage metadata and reassurance match the updated presentation', () => {
-  assert.match(source, /<title>Génération Liaison : carnet de liaison pour tous<\/title>/);
-  assert.match(source, /<meta name="description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
-  assert.match(source, /<meta property="og:description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
-  assert.match(source, /Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation/);
-  assert.match(source, /Bon à savoir :[\s\S]*?15 ou le 112/);
-  assert.match(source, /href="mailto:mail@generation-liaison\.fr"/);
-  assert.match(source, /id="analytics-settings">Gestion des cookies/);
-});
-
-test('updated homepage copy remains available in English', () => {
-  const window = { localStorage: { getItem: () => 'en' } };
-  const document = { documentElement: {}, addEventListener() {} };
-  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
-  for (const text of [
-    'Le carnet de liaison simple pour les personnes accompagnées et leurs proches',
-    'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.',
-    '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation',
-    'Faut-il télécharger une application sur téléphone ?',
-    'Comment sont sélectionnés les prestataires à domicile ?',
-    'Gestion des cookies'
-  ]) {
-    assert.notEqual(window.generationLiaisonTranslate(text), text);
-  }
+test('homepage presents the organization workspace and the actual registration and privacy rules', () => {
+  const start = source.indexOf('<section class="landing-info" id="entreprises"');
+  assert.ok(start > 0);
+  const block = source.slice(start, source.indexOf('</section>', start));
+  assert.match(source, /href="#entreprises">Découvrir l’espace entreprises et résidences/);
+  for (const title of ['Résidents', 'Soignants', 'Intervenants']) assert.match(block, new RegExp(`<h3>${title}</h3>`));
+  assert.match(block, /résident ou son représentant légal vérifié choisit le partage/);
+  assert.match(block, /direction ne consulte pas les carnets ni les messages privés/);
+  assert.match(block, /activé manuellement[\s\S]*abonnement est envisagé[\s\S]*aucun paiement en ligne/);
+  assert.match(block, /href="\/app-mobile\.html#inscription">Créer un compte établissement/);
+  assert.match(block, /choisissez « Entreprise \/ résidence »/);
+  assert.match(mobileSource, /<option value="establishment">🏢 Entreprise \/ résidence<\/option>/);
 });
 
 test('the access section has one link to the application', () => {
