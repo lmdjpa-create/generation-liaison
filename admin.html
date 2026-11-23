@@ -61,6 +61,7 @@
     th { color: var(--muted); font-size: .76rem; letter-spacing: .04em; text-transform: uppercase; }
     td { min-width: 110px; }
     td small { display: block; color: var(--muted); }
+    .email-link { color: #0e5c43; text-decoration: underline; overflow-wrap: anywhere; }
     .table-empty { padding: 18px 12px; color: var(--muted); }
     .badge { display: inline-block; padding: 3px 9px; border-radius: 999px; background: var(--mint); color: var(--green); font-size: .8rem; font-weight: 700; }
     .badge.off { background: #f1f2f2; color: #68716d; }
@@ -552,6 +553,30 @@
       return cell;
     }
 
+    function emailNode(value) {
+      const email = typeof value === 'string' ? value.trim() : '';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || /[\uD800-\uDFFF]/u.test(email)) {
+        return document.createTextNode(email || '—');
+      }
+      const link = document.createElement('a');
+      link.className = 'email-link';
+      link.href = `mailto:${encodeURIComponent(email)}`;
+      link.textContent = email;
+      return link;
+    }
+
+    function addContactCell(row, value, email, prefix = '') {
+      const cell = addCell(row, value);
+      if (prefix || email) {
+        const detail = document.createElement('small');
+        if (prefix) detail.append(document.createTextNode(prefix));
+        if (prefix && email) detail.append(document.createTextNode(' · '));
+        if (email) detail.append(emailNode(email));
+        cell.append(detail);
+      }
+      return cell;
+    }
+
     function renderEmpty(tbody, columns, message) {
       const row = document.createElement('tr');
       const cell = document.createElement('td');
@@ -760,7 +785,7 @@
       tbody.replaceChildren();
       partners.forEach(partner => {
         const row = document.createElement('tr');
-        addCell(row, partner.displayName, `${partner.accountName} · ${partner.email}`);
+        addContactCell(row, partner.displayName, partner.email, partner.accountName);
         addCell(row, serviceLabels[partner.serviceType] || 'Service');
         addCell(row, partner.organizationName);
         addCell(row, partner.serviceArea);
@@ -1207,7 +1232,9 @@
       regularAccounts.forEach(account => {
         const row = document.createElement('tr');
         addCell(row, account.name);
-        addCell(row, account.email);
+        const emailCell = document.createElement('td');
+        emailCell.append(emailNode(account.email));
+        row.append(emailCell);
         addCell(row, `${roleLabels[account.role] || account.role}${account.administrator ? ' · Admin' : ''}`);
         addCell(row, account.profileName);
         addCell(row, String(account.teamCount));
@@ -1491,7 +1518,7 @@
         addCell(row, formatDate(request.requestedAt));
         const overdue = new Date(request.dueAt).getTime() < Date.now();
         addCell(row, formatDate(request.dueAt), overdue ? 'Délai dépassé' : '');
-        addCell(row, request.name, request.email);
+        addContactCell(row, request.name, request.email);
         const accountTier = ['active', 'trial'].includes(request.premiumStatus)
           ? 'Premium ou essai'
           : 'Gratuit ou formule inactive';
@@ -1630,7 +1657,11 @@
           const item = document.createElement('div');
           item.className = 'assistant-handoff';
           const description = document.createElement('p');
-          description.textContent = `${request.aidant_name} (${request.aidant_email}) → ${request.senior_name} (${request.senior_email})`;
+          description.append(
+            document.createTextNode(`${request.aidant_name} (`), emailNode(request.aidant_email),
+            document.createTextNode(`) → ${request.senior_name} (`), emailNode(request.senior_email),
+            document.createTextNode(')')
+          );
           const form = document.createElement('form');
           form.className = 'assistant-settings';
           const noteLabel = document.createElement('label');
@@ -1841,11 +1872,11 @@
       if (!establishments.length) return renderEmpty(body, 9, 'Aucun établissement.');
       body.replaceChildren(...establishments.map(item => {
         const row = document.createElement('tr');
-        addCell(row, item.account_name, item.account_email);
+        addContactCell(row, item.account_name, item.account_email);
         addCell(row, item.name);
         addCell(row, item.description);
         addCell(row, item.address);
-        addCell(row, item.phone, item.email);
+        addContactCell(row, item.phone, item.email);
         addCell(row, item.tablet_interest === 'rental' ? `Location : ${item.tablet_quantity}` :
           item.tablet_interest === 'purchase' ? `Achat : ${item.tablet_quantity}` : 'Aucune demande');
         const pricing = document.createElement('td');
@@ -1940,7 +1971,7 @@
         const row = document.createElement('tr');
         addCell(row, pro.name);
         addCell(row, pro.activity);
-        addCell(row, pro.phone, pro.email);
+        addContactCell(row, pro.phone, pro.email);
         addCell(row, [pro.postalCode, pro.city].filter(Boolean).join(' '), pro.address);
         const cell = document.createElement('td');
         const button = document.createElement('button');

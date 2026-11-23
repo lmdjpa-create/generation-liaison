@@ -8,7 +8,10 @@ test('administrator confirms a pending request and refreshes without losing an u
   const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
   const start = source.indexOf('    async function loadSeniorLinkRequests()');
   const end = source.indexOf('    async function loadSeniorLinkRemovals()', start);
+  const emailStart = source.indexOf('    function emailNode(');
+  const emailEnd = source.indexOf('    function addContactCell(', emailStart);
   assert.ok(start !== -1 && end > start);
+  assert.ok(emailStart !== -1 && emailEnd > emailStart);
   class Element {
     constructor(tag) { this.tag = tag; this.children = []; this.value = ''; this.checked = false; this.handlers = {}; }
     append(...children) { for (const child of children) { this.children.push(child); if (typeof child === 'object') child.parent = this; } }
@@ -48,10 +51,12 @@ test('administrator confirms a pending request and refreshes without losing an u
     setStatus: () => {},
     encodeURIComponent
   };
-  vm.runInNewContext(`${source.slice(start, end)}\nthis.load = loadSeniorLinkRequests;`, context);
+  vm.runInNewContext(`${source.slice(emailStart, emailEnd)}\n${source.slice(start, end)}\nthis.load = loadSeniorLinkRequests;`, context);
   await context.load();
   const item = container.children[0];
-  assert.match(item.children[0].textContent, /<test>/);
+  assert.match(item.children[0].children[0], /<test>/);
+  assert.equal(item.children[0].children[1].href, 'mailto:aidant%40example.test');
+  assert.equal(item.children[0].children[3].href, 'mailto:senior%40example.test');
   const form = item.children[1];
   const note = form.querySelectorAll('textarea')[0];
   const checkbox = form.querySelectorAll('input')[0];
