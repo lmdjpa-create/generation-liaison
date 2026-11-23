@@ -52,6 +52,60 @@ test('both home pages open their own association settings', () => {
   }
 });
 
+test('the senior link prompt reflects active associations and stays current after acceptance', async () => {
+  const nodes = new Map();
+  const makeNode = () => ({
+    children: [], textContent: '', hidden: false,
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+    addEventListener(name, callback) { this[name] = callback; }
+  });
+  const element = id => {
+    if (!nodes.has(id)) nodes.set(id, makeNode());
+    return nodes.get(id);
+  };
+  let result = { links: [], requests: [{ id: 'request', aidant_name: 'Aidant', aidant_email: 'a@example.test' }] };
+  const context = {
+    connectedUser: { id: 'senior-1', role: 'senior' },
+    associationLoadId: 0,
+    document: { getElementById: element, createElement: makeNode },
+    window: { generationLiaisonTranslate: text => text },
+    makeTextElement: (tag, text) => Object.assign(makeNode(), { tag, textContent: text }),
+    seniorLinksRequest: async (url, options) => {
+      if (options?.body?.decision === 'accept') result = { links: [{ aidant_name: 'Aidant', suspended_at: null }], requests: [] };
+      return result;
+    },
+    showToast() {}
+  };
+  const start = source.indexOf('    async function chargerGestionAssociations()');
+  const end = source.indexOf('    let emergencyNumberSelected', start);
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.load = chargerGestionAssociations;`, context);
+  await context.load();
+  assert.equal(element('senior-home-links').hidden, false);
+  const request = element('senior-link-management').children[0];
+  await request.children.find(child => child.textContent === 'Accepter').click();
+  assert.equal(element('senior-home-links').hidden, true);
+  result = { links: [{ aidant_name: 'Aidant', suspended_at: '2026-01-01' }], requests: [] };
+  await context.load();
+  assert.equal(element('senior-home-links').hidden, false);
+  result = { links: [], requests: [] };
+  await context.load();
+  assert.equal(element('senior-home-links').hidden, false);
+  context.seniorLinksRequest = async () => { throw new Error('Connexion impossible'); };
+  await context.load();
+  assert.match(element('senior-home-links-status').textContent, /Impossible de vérifier/);
+  const pending = [];
+  context.seniorLinksRequest = () => new Promise(resolve => pending.push(resolve));
+  const previous = context.load();
+  context.connectedUser = { id: 'senior-2', role: 'senior' };
+  const current = context.load();
+  pending[1]({ links: [], requests: [] });
+  await current;
+  pending[0]({ links: [{ aidant_name: 'Ancien aidant', suspended_at: null }], requests: [] });
+  await previous;
+  assert.equal(element('senior-home-links').hidden, false);
+});
+
 test('inclusive account label preserves the existing senior role', () => {
   const registration = source.slice(source.indexOf('id="register-section"'), source.indexOf('id="legal-guardian-verification-panel"'));
   assert.match(registration, /<option value="senior">🧑 Personne accompagnée<\/option>/);
@@ -799,6 +853,7 @@ function createView(response) {
     currentUser: null,
     activeSeniorProfileId: '',
     directoryLoadId: 0,
+    associationLoadId: 0,
     establishmentOverviewLoadId: 0,
     wellbeingLoadedDate: null,
     SERVER_URL: '',
@@ -1076,6 +1131,8 @@ test('daily information and weather are open at the start of each home', () => {
     const info = source.indexOf(`id="home-informations-${role}"`, home);
     const inbox = source.indexOf(`id="${role}-today-inbox"`, info);
     assert.ok(home >= 0 && info > home && inbox > info);
+    assert.match(source.slice(info, inbox), /<h2>Mes informations du jour<\/h2>/);
+    assert.doesNotMatch(source.slice(info, inbox), /Réglages|Se déconnecter/);
     assert.doesNotMatch(source, new RegExp(`onclick="switchScreen\\('informations-${role}'\\)"`));
     if (role !== 'pro') {
       const weather = source.indexOf(`id="${role}-weather-card"`, info);

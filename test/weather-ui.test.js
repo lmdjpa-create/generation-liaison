@@ -56,6 +56,7 @@ test('home screens show weather before the daily information', () => {
   const aidantInfo = source.slice(source.indexOf('id="home-informations-aidant"'), source.indexOf('id="aidant-home-links"'));
   assert.match(seniorInfo, /id="senior-weather-title"/);
   assert.match(seniorInfo, /id="senior-next-visit"/);
+  assert.match(seniorInfo, /<section class="form-card" id="senior-today-card">[\s\S]*<h2>Aujourd’hui<\/h2>[\s\S]*id="senior-today-inbox"[\s\S]*<\/section>\s*<h2>Prochaine visite<\/h2>\s*<section class="form-card" id="senior-next-visit"/);
   assert.match(aidantInfo, /id="aidant-weather-title"/);
   assert.match(aidantInfo, /id="aidant-daily-summary"/);
   assert.ok(seniorInfo.indexOf('id="senior-weather-title"') < seniorInfo.indexOf('id="senior-next-visit"'));

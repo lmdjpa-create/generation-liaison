@@ -123,6 +123,7 @@
         .form-card .today-inbox-item.unread { border-left: 5px solid #17684f; background: #edf8f2; }
         .today-inbox-item small { color: #52665c; }
         #senior-today-visit, #senior-today-tasks { white-space: pre-line; font-weight: 700; overflow-wrap: anywhere; }
+        #senior-today-card, #senior-next-visit { border: 2px solid var(--brand); }
         :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > :is(#senior-summary-notifications, #aidant-summary-notification-details, #pro-summary-notification-details) {
             border-left: 5px solid #835b9b;
             border-radius: 6px 18px 18px 6px;
@@ -372,8 +373,7 @@
         .next-visit-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; margin: 0 0 16px; padding: 18px; border-radius: 20px; color: white; background: linear-gradient(135deg, #34b087, var(--brand-dark)); box-shadow: 0 8px 20px rgba(31, 127, 97, 0.25); }
         #aidant-followed-person { justify-content: center; text-align: center; }
         #aidant-daily-summary-title { text-align: center; }
-        #senior-next-visit { flex-direction: column; text-align: center; }
-        #senior-next-visit .next-visit-text { margin: 8px 0 0; padding: 10px 14px; border-radius: 12px; background: #fff3cc; color: #19384a; font-weight: 700; overflow-wrap: anywhere; }
+        #senior-next-visit .next-visit-text { margin: 0; font-weight: 700; overflow-wrap: anywhere; }
         .next-visit-label { margin: 0 0 4px; font-size: 1.1rem; font-weight: 800; }
         .next-visit-text { margin: 0; font-size: 0.9rem; opacity: 0.95; }
         .next-visit-card button { flex: 0 0 auto; border: 0; border-radius: 12px; padding: 10px 14px; background: white; color: var(--brand-dark); font-weight: 700; cursor: pointer; }
@@ -987,11 +987,7 @@
                 <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
             </section>
             <h2>Mes informations du jour</h2>
-            <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
-                <div><p class="next-visit-label">Prochaine visite</p>
-                <p class="next-visit-text" id="senior-next-visit-text" role="status" aria-live="polite">Chargement du prochain rendez-vous…</p></div>
-            </section>
-            <section class="form-card">
+            <section class="form-card" id="senior-today-card">
                 <h2>Aujourd’hui</h2>
                 <p id="senior-today-visit" role="status">Chargement des rendez-vous…</p>
                 <p id="senior-today-tasks" role="status" hidden></p>
@@ -1000,12 +996,17 @@
                 <div id="notification-opened-senior" aria-live="polite"></div>
                 <div id="notifications-senior" aria-live="polite"></div>
             </section>
+            <h2>Prochaine visite</h2>
+            <section class="form-card" id="senior-next-visit" aria-label="Prochaine visite">
+                <p class="next-visit-text" id="senior-next-visit-text" role="status" aria-live="polite">Chargement du prochain rendez-vous…</p>
+            </section>
         </div>
-        <section class="form-card" id="senior-home-links">
+        <section class="form-card" id="senior-home-links" hidden>
             <h2>Lier mon compte à un aidant</h2>
             <p>Un aidant peut demander à vous rejoindre. Vérifiez son identité, puis acceptez ou refusez sa demande.</p>
             <button type="button" onclick="switchScreen('settings'); document.getElementById('senior-links-details').open = true">Voir les demandes des aidants</button>
         </section>
+        <p id="senior-home-links-status" role="status" aria-live="polite"></p>
         <div class="senior-simple-only" id="senior-simple-actions">
             <button type="button" onclick="ouvrirNotifications()">Messages</button>
             <button type="button" onclick="ouvrirJournalSenior()">Mon journal</button>
@@ -1669,7 +1670,7 @@
             <details id="aidant-weather-week" hidden><summary>Voir les prévisions de la semaine</summary><ul id="aidant-weather-days"></ul></details>
             <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
         </section>
-        <h2>Informations du jour</h2>
+        <h2>Mes informations du jour</h2>
         <section class="form-card" aria-labelledby="aidant-daily-summary-title">
             <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
             <div id="aidant-daily-summary" hidden>
@@ -1881,7 +1882,7 @@
         <h3 style="margin:0;">Espace intervenants <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h3>
     </div>
     <div id="home-informations-pro">
-        <h2>Informations du jour</h2>
+        <h2>Mes informations du jour</h2>
         <section class="form-card" id="pro-daily-summary" aria-labelledby="pro-daily-summary-title">
             <h3 id="pro-daily-summary-title">Aujourd’hui</h3>
             <p class="helper-text">Aperçu des informations accessibles à votre compte.</p>
@@ -2654,6 +2655,7 @@
     let planningRefreshTimer = null;
     let notificationLoadId = 0;
     let inboxLoadId = 0;
+    let associationLoadId = 0;
     let notificationReadEntries = [];
     let openMessageConversations = {};
     let planningLoadId = 0;
@@ -3102,6 +3104,7 @@
             chargerSuiviPartage('senior');
             chargerServicesFamiliaux('senior');
         } else if (screenName === 'senior') {
+            chargerGestionAssociations();
             chargerProchainRendezVous();
             chargerSyntheseSenior();
             if (document.getElementById('senior-key-contacts-details').open) chargerContactsUtiles('senior');
@@ -3627,6 +3630,9 @@
     }
 
     async function setAuthenticatedView(user) {
+        associationLoadId++;
+        document.getElementById('senior-home-links').hidden = true;
+        document.getElementById('senior-home-links-status').textContent = '';
         reinitialiserCarnetEtablissement();
         fermerActionsEtablissement();
         establishmentOverviewLoadId++;
@@ -4438,10 +4444,17 @@
     async function chargerGestionAssociations() {
         if (!connectedUser || !['senior', 'aidant'].includes(connectedUser.role)) return;
         const role = connectedUser.role;
+        const userId = connectedUser.id;
+        const loadId = ++associationLoadId;
         const container = document.getElementById(`${role}-link-management`);
         container.textContent = window.generationLiaisonTranslate('Chargement des profils…');
         try {
             const result = await seniorLinksRequest('/api/senior-links');
+            if (loadId !== associationLoadId || connectedUser?.id !== userId || connectedUser?.role !== role) return;
+            if (role === 'senior') {
+                document.getElementById('senior-home-links').hidden = result.links.some(link => !link.suspended_at);
+                document.getElementById('senior-home-links-status').textContent = '';
+            }
             container.replaceChildren();
             if (!result.links.length && !result.requests.length) {
                 container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune association ou demande en cours.')));
@@ -4533,7 +4546,12 @@
                 container.append(item);
             }
         } catch (error) {
+            if (loadId !== associationLoadId || connectedUser?.id !== userId || connectedUser?.role !== role) return;
             container.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger les associations.');
+            if (role === 'senior') {
+                document.getElementById('senior-home-links-status').textContent =
+                    window.generationLiaisonTranslate('Impossible de vérifier les associations. Consultez les réglages pour réessayer.');
+            }
         }
     }
 
@@ -9967,6 +9985,9 @@
         localStorage.removeItem(USER_KEY);
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
+        associationLoadId++;
+        document.getElementById('senior-home-links').hidden = true;
+        document.getElementById('senior-home-links-status').textContent = '';
         connectedUser = null;
         reinitialiserCarnetEtablissement();
         fermerActionsEtablissement();
