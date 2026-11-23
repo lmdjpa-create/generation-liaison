@@ -6,6 +6,24 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'notification-delivery.js'), 'utf8');
 
+test('establishment invitation explains that the recipient chooses the role and creates the account', async () => {
+  const sent = [];
+  const mocks = {
+    'firebase-admin/app': {}, 'firebase-admin/messaging': {}, 'web-push': {}, twilio: {},
+    resend: { Resend: class { constructor() { this.emails = { send: async payload => { sent.push(payload); return {}; } }; } } }
+  };
+  const context = {
+    require: name => mocks[name],
+    process: { env: { RESEND_API_KEY: 'test', NOTIFICATIONS_FROM_EMAIL: 'sender@example.test' } },
+    module: { exports: {} }, URL, console
+  };
+  vm.runInNewContext(source, context);
+  await context.module.exports.sendRegistrationInvitation('company@example.test', 'https://example.test/app-mobile.html#inscription', 'establishment');
+  assert.match(sent[0].text, /Entreprise \/ résidence/);
+  assert.match(sent[0].text, /ne crée pas de compte et ne donne aucun accès/);
+  assert.match(sent[0].text, /#inscription/);
+});
+
 async function deliverSms(enabled, reminderStillValid = null, reminderType = 'task_reminder') {
   const sends = [];
   const updates = [];

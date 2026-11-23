@@ -4,6 +4,69 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { test } = require('node:test');
 
+test('administrator creates associated accounts only through the explicit form', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const start = source.indexOf('    function createEstablishmentAccountForm(item)');
+  const end = source.indexOf('    function establishmentTariff(count)', start);
+  assert.ok(start >= 0 && end > start);
+  function element(tag) {
+    return {
+      tag, children: [], value: '', checked: false, textContent: '', disabled: false,
+      append(...children) { this.children.push(...children); },
+      setAttribute() {},
+      addEventListener(name, callback) { this[name] = callback; },
+      reset() { this.resetCalled = true; }
+    };
+  }
+  const requests = [];
+  const context = {
+    document: { createElement: element },
+    adminRequest: async (...args) => { requests.push(args); return { identifier: 'abc123' }; }
+  };
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.create = createEstablishmentAccountForm;`, context);
+  const inactive = context.create({ id: 'one', active: false, account_active: true });
+  assert.equal(inactive.children[2].children[6].disabled, true);
+  const details = context.create({ id: 'one', active: true, account_active: true });
+  const form = details.children[2];
+  const inputs = form.children.slice(0, 6).map(label => label.children[0]);
+  [inputs[0].value, inputs[1].value, inputs[2].value, inputs[3].value, inputs[4].value] =
+    ['senior', 'Camille', 'Exemple', '1940-05-01', 'mot-provisoire-123'];
+  inputs[5].checked = true;
+  await form.submit({ preventDefault() {} });
+  assert.equal(requests[0][0], '/api/admin/establishments/one/accounts');
+  assert.equal(requests[0][1].body.confirmed, true);
+  assert.equal(requests[0][1].body.role, 'senior');
+  assert.equal(form.resetCalled, true);
+  assert.match(form.children[7].textContent, /abc123/);
+  assert.doesNotMatch(form.children[7].textContent, /mot-provisoire/);
+  assert.match(source, /id="establishment-invitation-form"/);
+  assert.match(source, /href="\/app-mobile\.html#inscription"/);
+});
+
+test('the establishment registration link can be copied or selected when clipboard access fails', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const start = source.indexOf("    const establishmentInvitationLink = document.getElementById('establishment-invitation-link')");
+  const end = source.indexOf("    document.getElementById('establishment-invitation-form')", start);
+  assert.ok(start >= 0 && end > start);
+  let handler;
+  let copied;
+  let message;
+  const link = { focus() { this.focused = true; }, select() { this.selected = true; } };
+  const context = {
+    URL, window: { location: { origin: 'https://example.test' } },
+    document: { getElementById: id => id === 'establishment-invitation-link' ? link : { addEventListener: (_, fn) => { handler = fn; } } },
+    navigator: { clipboard: { writeText: async value => { copied = value; } } },
+    setStatus: text => { message = text; }
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  await handler();
+  assert.equal(copied, 'https://example.test/app-mobile.html#inscription');
+  context.navigator.clipboard = undefined;
+  await handler();
+  assert.equal(link.selected, true);
+  assert.match(message, /copiez le lien sélectionné/);
+});
+
 test('the indicative monthly price follows each approved tier', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
   const start = source.indexOf('    function establishmentTariff(count)');

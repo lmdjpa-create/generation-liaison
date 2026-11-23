@@ -76,13 +76,14 @@ async function sendSeniorInvitation(email, appUrl) {
   if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
 }
 
-async function sendRegistrationInvitation(email, appUrl) {
+async function sendRegistrationInvitation(email, appUrl, role) {
   const result = await getResendClient().emails.send({
     from: process.env.NOTIFICATIONS_FROM_EMAIL,
     to: email,
     subject: 'Invitation à créer votre compte Génération Liaison',
     text: `L’administration vous invite à créer votre compte Génération Liaison :\n\n${appUrl}\n\n` +
-      `Choisissez votre type de compte et votre mot de passe, puis acceptez les conditions si vous souhaitez vous inscrire. ` +
+      `${role === 'establishment' ? 'Choisissez « Entreprise / résidence » comme type de compte.' : 'Choisissez votre type de compte.'} ` +
+      `Choisissez votre mot de passe, puis acceptez les conditions si vous souhaitez vous inscrire. ` +
       `Cette invitation ne crée pas de compte et ne donne aucun accès à un dossier. Si vous ne souhaitez pas vous inscrire, ignorez ce message.`
   });
   if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);

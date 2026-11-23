@@ -38,7 +38,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
@@ -50,9 +50,9 @@ before(async () => {
     if (failInvitation) throw new Error('test invitation delivery failure');
     sentInvitations.push({ email, url });
   };
-  delivery.sendRegistrationInvitation = async (email, url) => {
+  delivery.sendRegistrationInvitation = async (email, url, role) => {
     if (failRegistrationInvitation) throw new Error('test registration invitation failure');
-    sentRegistrationInvitations.push({ email, url });
+    sentRegistrationInvitations.push({ email, url, role });
   };
   const app = require('../server');
   server = app.listen(0);
@@ -120,6 +120,40 @@ test('administrators invite registration and initiate a traceable closure withou
   assert.equal(row.initiation_reason, body.reason);
   assert.equal((await request(path, { user: admin, admin: true, body })).status, 409);
   assert.equal((await request(`/api/admin/accounts/${target.user.id}`, { user: admin, admin: true, method: 'PATCH', body: { active: true } })).status, 409);
+});
+
+test('administrators invite establishments and create new associated accounts without granting journal access', async () => {
+  const admin = await register('access-admin@example.test', 'senior');
+  const owner = await register('access-company@example.test', 'establishment');
+  const outsider = await register('access-outsider@example.test', 'aidant');
+  const invite = '/api/admin/account-invitations';
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'business@example.test', role: 'senior' } })).status, 400);
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'business@example.test', role: 'establishment' } })).status, 202);
+  assert.equal(sentRegistrationInvitations.at(-1).role, 'establishment');
+  assert.match(sentRegistrationInvitations.at(-1).url, /\/app-mobile\.html#inscription$/);
+  const path = `/api/admin/establishments/${owner.user.id}/accounts`;
+  const body = { role: 'senior', confirmed: true, firstName: 'Camille', lastName: 'Test',
+    birthDate: '1940-05-01', password: 'mot-provisoire-123' };
+  assert.equal((await request(path, { user: outsider, admin: true, body })).status, 403);
+  assert.equal((await request(path, { user: admin, body })).status, 403);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, confirmed: false } })).status, 400);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, role: 'aidant' } })).status, 400);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 403);
+  assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+    user: admin, admin: true, method: 'PATCH', body: { active: true }
+  })).status, 200);
+  const resident = await request(path, { user: admin, admin: true, body });
+  assert.equal(resident.status, 201);
+  assert.match(resident.data.identifier, /^[0-9a-f]{24}$/);
+  const staff = await request(path, { user: admin, admin: true, body: { ...body, role: 'staff' } });
+  assert.equal(staff.status, 201);
+  assert.equal((await db.query('SELECT * FROM establishment_care_consent WHERE resident_user_id = $1', [resident.data.id])).rows.length, 0);
+  assert.equal((await request('/api/establishment/residents', { user: owner })).data.residents[0].id, resident.data.id);
+  assert.equal((await request('/api/establishment/staff', { user: owner })).data.staff[0].id, staff.data.id);
+  const login = await request('/api/auth/resident-login', { body: { ...body, identifier: resident.data.identifier } });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.user.passwordChangeRequired, true);
+  assert.equal((await request('/api/care/entries', { user: login.data })).status, 403);
 });
 
 test('establishment profiles stay private and require manual subscription activation to edit', async () => {

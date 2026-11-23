@@ -66,6 +66,9 @@
     .badge.off { background: #f1f2f2; color: #68716d; }
 
     .control-group { display: flex; align-items: center; gap: 8px; }
+    .establishment-account-form { display: grid; gap: 8px; min-width: 220px; margin-top: 12px; }
+    .establishment-account-form label { display: grid; gap: 4px; }
+    .establishment-account-form input:not([type="checkbox"]), .establishment-account-form select { width: 100%; }
     .admin-form { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin: 0 0 16px; }
     .admin-form input, .admin-form select { width: 100%; }
     .assistant-handoff { margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
@@ -217,6 +220,20 @@
       <div class="layout">
         <section class="panel" data-section="establishments">
           <div class="panel-head"><div><h2>Entreprises / résidences</h2><p>Fiches privées renseignées par les établissements. Leur identité et leurs coordonnées ne sont pas vérifiées automatiquement. L’abonnement est géré manuellement : aucun paiement en ligne ni échéance automatique.</p><p>Nombre de personnes renseigné par l’administration, non compté automatiquement. Grille mensuelle indicative HT : 1–10 : 29 € ; 11–25 : 49 € ; 26–50 : 79 € ; 51–100 : 129 € ; au-delà : devis.</p></div></div>
+          <h3>Inviter une entreprise à créer son accès</h3>
+          <p>Le lien est commun : l’entreprise choisit « Entreprise / résidence » et son propre mot de passe. Il ne crée pas de compte et ne donne accès à aucun carnet.</p>
+          <div class="control-group">
+            <label for="establishment-invitation-link">Lien d’inscription à partager</label>
+            <input id="establishment-invitation-link" type="url" readonly>
+            <button type="button" class="button secondary" id="establishment-invitation-copy">Copier le lien</button>
+            <a href="/app-mobile.html#inscription" target="_blank" rel="noopener">Ouvrir</a>
+          </div>
+          <form id="establishment-invitation-form" class="control-group">
+            <label for="establishment-invitation-email">Adresse e-mail de l’entreprise</label>
+            <input id="establishment-invitation-email" type="email" maxlength="254" required>
+            <button type="submit" class="button secondary">Envoyer le lien par e-mail</button>
+          </form>
+          <p class="hint">Après inscription, indiquez le nombre de personnes et activez manuellement l’abonnement dans le tableau. Aucun paiement n’est effectué ici.</p>
           <div class="table-wrap"><table>
             <thead><tr><th>Compte</th><th>Établissement</th><th>Présentation</th><th>Adresse</th><th>Coordonnées</th><th>Tablettes envisagées</th><th>Personnes et tarif</th><th>Abonnement</th><th>Accès au compte</th></tr></thead>
             <tbody id="establishments-body"></tbody>
@@ -874,6 +891,37 @@
       try {
         const result = await adminRequest('/api/admin/account-invitations', {
           method: 'POST', body: { email: document.getElementById('account-invitation-email').value.trim() }
+        });
+
+        const establishmentInvitationLink = document.getElementById('establishment-invitation-link');
+        establishmentInvitationLink.value = new URL('/app-mobile.html#inscription', window.location.origin).toString();
+        document.getElementById('establishment-invitation-copy').addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(establishmentInvitationLink.value);
+            setStatus('Lien d’inscription copié.');
+          } catch (error) {
+            establishmentInvitationLink.focus();
+            establishmentInvitationLink.select();
+            setStatus('La copie automatique est indisponible : copiez le lien sélectionné.', true);
+          }
+        });
+
+        document.getElementById('establishment-invitation-form').addEventListener('submit', async event => {
+          event.preventDefault();
+          const form = event.currentTarget;
+          const button = form.querySelector('button');
+          button.disabled = true;
+          try {
+            const result = await adminRequest('/api/admin/account-invitations', {
+              method: 'POST', body: { email: document.getElementById('establishment-invitation-email').value.trim(), role: 'establishment' }
+            });
+            form.reset();
+            setStatus(result.message);
+          } catch (error) {
+            setStatus(error.message || 'Impossible d’envoyer l’invitation.', true);
+          } finally {
+            button.disabled = false;
+          }
         });
         form.reset();
         setStatus(result.message);
@@ -1559,6 +1607,77 @@
       }
     }
 
+    function createEstablishmentAccountForm(item) {
+      const details = document.createElement('details');
+      const summary = document.createElement('summary');
+      summary.textContent = 'Créer un compte rattaché';
+      details.append(summary);
+      const help = document.createElement('p');
+      help.textContent = 'Avec l’accord de la personne, créez un nouveau compte résident ou soignant. Remettez l’identifiant et le mot de passe provisoire en privé. Toute personne connaissant ce mot de passe peut activer le compte. Le partage du carnet nécessite un accord distinct du résident ou de son représentant légal vérifié.';
+      details.append(help);
+      const form = document.createElement('form');
+      form.className = 'establishment-account-form';
+      function field(labelText, input) {
+        const label = document.createElement('label');
+        label.textContent = labelText;
+        label.append(input);
+        form.append(label);
+        return input;
+      }
+      const role = document.createElement('select');
+      for (const [value, text] of [['senior', 'Résident'], ['staff', 'Soignant']]) {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = text;
+        role.append(option);
+      }
+      field('Type de compte ', role);
+      function input(label, type) {
+        const element = document.createElement('input');
+        element.type = type;
+        element.required = true;
+        return field(label, element);
+      }
+      const firstName = input('Prénom ', 'text');
+      const lastName = input('Nom ', 'text');
+      firstName.maxLength = lastName.maxLength = 120;
+      const birthDate = input('Date de naissance ', 'date');
+      const password = input('Mot de passe provisoire (12 caractères minimum) ', 'password');
+      password.minLength = 12;
+      password.maxLength = 256;
+      password.autocomplete = 'new-password';
+      const confirmed = input('J’ai obtenu l’accord de la personne pour créer ce compte ', 'checkbox');
+      const submit = document.createElement('button');
+      submit.type = 'submit';
+      submit.textContent = 'Créer et rattacher le compte';
+      submit.disabled = !item.account_active || !item.active;
+      const status = document.createElement('p');
+      status.setAttribute('role', 'status');
+      status.setAttribute('aria-live', 'polite');
+      if (submit.disabled) status.textContent = 'Le compte entreprise et son abonnement doivent être actifs.';
+      form.append(submit, status);
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        submit.disabled = true;
+        status.textContent = '';
+        try {
+          const account = await adminRequest(`/api/admin/establishments/${encodeURIComponent(item.id)}/accounts`, {
+            method: 'POST',
+            body: { role: role.value, firstName: firstName.value.trim(), lastName: lastName.value.trim(),
+              birthDate: birthDate.value, password: password.value, confirmed: confirmed.checked }
+          });
+          form.reset();
+          status.textContent = `Compte créé. Identifiant à remettre en privé : ${account.identifier}. Transmettez aussi le mot de passe provisoire séparément.`;
+        } catch (error) {
+          status.textContent = error.message || 'Impossible de créer le compte.';
+        } finally {
+          submit.disabled = false;
+        }
+      });
+      details.append(form);
+      return details;
+    }
+
     function establishmentTariff(count) {
       if (count === null) return 'Nombre non renseigné';
       if (count > 100) return 'Sur devis';
@@ -1649,6 +1768,7 @@
           }
         });
         accountCell.append(accountButton);
+        accountCell.append(createEstablishmentAccountForm(item));
         const close = document.createElement('button');
         close.type = 'button';
         close.textContent = 'Lancer la clôture';

@@ -2240,6 +2240,10 @@ app.post('/api/admin/accounts/:accountId/closure', requireAuth, requireAdmin, as
 
 app.post('/api/admin/account-invitations', requireAuth, requireAdmin, async (req, res) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  const role = req.body?.role;
+  if (role !== undefined && role !== 'establishment') {
+    return res.status(400).json({ error: 'Type d’invitation invalide.' });
+  }
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Saisissez une adresse e-mail valide.' });
   }
@@ -2251,7 +2255,9 @@ app.post('/api/admin/account-invitations', requireAuth, requireAdmin, async (req
     if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password) {
       throw new Error('PUBLIC_APP_URL doit être une URL HTTPS valide.');
     }
-    await notificationDelivery.sendRegistrationInvitation(email, new URL('/app-mobile.html', appUrl).toString());
+    const registrationUrl = new URL('/app-mobile.html', appUrl);
+    if (role === 'establishment') registrationUrl.hash = 'inscription';
+    await notificationDelivery.sendRegistrationInvitation(email, registrationUrl.toString(), role);
     res.status(202).json({ message: 'Invitation transmise. La personne devra créer son compte elle-même.' });
   } catch (error) {
     sendApiError(res, error, 'Impossible d’envoyer l’invitation.');
@@ -3493,6 +3499,19 @@ app.get('/api/admin/establishments', requireAuth, requireAdmin, async (req, res)
     res.set('Cache-Control', 'no-store').json({ establishments: rows });
   } catch (error) {
     sendApiError(res, error, 'Impossible de charger les établissements.');
+  }
+});
+
+app.post('/api/admin/establishments/:id/accounts', requireAuth, requireAdmin, async (req, res) => {
+  const { role, confirmed } = req.body || {};
+  if (!isValidUuid(req.params.id) || !['senior', 'staff'].includes(role) || confirmed !== true) {
+    return res.status(400).json({ error: 'Vérifiez le type de compte et confirmez l’accord de la personne.' });
+  }
+  try {
+    const account = await authService.createEstablishmentResident(req.params.id, req.body, role);
+    res.set('Cache-Control', 'no-store').status(201).json(account);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer le compte rattaché à l’établissement.');
   }
 });
 
