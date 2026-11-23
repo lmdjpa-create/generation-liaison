@@ -390,6 +390,7 @@
         .aidant-greeting p { margin: 2px 0 0; color: #3f6a5c; font-size: 0.9rem; }
         #aidant-senior-content {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-auto-flow: row dense;
             align-items: start;
             gap: 12px;
         }
@@ -438,17 +439,14 @@
         #aidant-senior-content summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #screen-aidant #aidant-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 14px; }
         #screen-aidant #aidant-shortcuts .action-tile { min-height: 132px; justify-content: center; flex-direction: column; text-align: center; }
-        #aidant-senior-content > #aidant-local-outings { grid-column: 2; }
-        #aidant-senior-content > #aidant-local-outings.aidant-tile-open { grid-column: 1 / -1; }
-        #senior-local-outings { box-sizing: border-box; width: calc((100% - 12px) / 2); margin-left: auto; }
-        #senior-local-outings:has(details[open]) { width: 100%; }
+        .daily-recipe-box { margin-top: 14px; padding: 16px; border: 2px solid #d5a548; border-radius: 14px; background: #fff5df; color: #253842; text-align: left; }
+        .daily-recipe-box h3 { margin-top: 0; }
+        .daily-recipe-content { white-space: pre-line; }
         #aidant-respite, #aidant-respite > details > summary { text-align: center; }
         #aidant-respite > details > summary { list-style-position: inside; }
         @media (max-width: 300px) {
             #aidant-senior-content { grid-template-columns: 1fr; }
-            #aidant-senior-content > #aidant-local-outings { grid-column: 1; }
             #screen-aidant #aidant-shortcuts { grid-template-columns: 1fr; }
-            #senior-local-outings { width: 100%; }
         }
         #main-app-senior button, #main-app-senior .senior-disclosure > summary, #screen-aidant .senior-disclosure > summary,
         #main-app-senior .emergency-call-actions a {
@@ -602,11 +600,6 @@
         }
         #weekly-print-root { display: none; }
         .weekly-preview img { display: block; max-width: 100%; max-height: 260px; object-fit: contain; }
-        .local-outings-link {
-            display: inline-block; padding: 14px 18px; border: 2px solid #123a5a; border-radius: 12px;
-            background: #123a5a; color: #fff; font-size: 1.1rem; font-weight: 700; text-decoration: none;
-        }
-        .local-outings-link:focus-visible { outline: 3px solid #e29b1f; outline-offset: 3px; }
         #senior-game-section .game-choice {
             min-height: 56px; padding: 14px 18px; font-size: 1.125rem;
         }
@@ -1137,15 +1130,18 @@
             <p id="senior-shopping-status" role="status" aria-live="polite"></p>
           </details>
         </section>
-        <button type="button" id="senior-more-button" class="action-tile senior-action-tile" onclick="switchScreen('more')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#10133;</span>Proche : messages, contacts, jeux, album et journal</button>
-        <button type="button" id="senior-pro-button" class="action-tile senior-action-tile" onclick="switchScreen('senior-pro')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">&#129658;</span>Pro : services, interventions, équipe, historique et tâches</button>
-        <section class="form-card" id="senior-local-outings">
+        <section class="form-card" id="senior-daily-recipe">
           <details class="senior-disclosure">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
-            <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
-            <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🍲</span>Recette du jour</summary>
+            <div class="daily-recipe-box">
+            <h3 id="senior-recipe-title">Chargement de la recette…</h3>
+            <p class="daily-recipe-content" id="senior-recipe-content"></p>
+            <p class="helper-text">Sept idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+            </div>
           </details>
         </section>
+        <button type="button" id="senior-more-button" class="action-tile senior-action-tile" onclick="switchScreen('more')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">&#10133;</span>Proche : messages, contacts, jeux, album et journal</button>
+        <button type="button" id="senior-pro-button" class="action-tile senior-action-tile" onclick="switchScreen('senior-pro')"><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">&#129658;</span>Pro : services, interventions, équipe, historique et tâches</button>
     </div>
 </div>
 
@@ -1719,10 +1715,13 @@
         <h3>Aucune personne accompagnée associée</h3>
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à une personne accompagnée ou contactez l’administration si vous êtes tuteur légal.</p>
         <button type="button" id="aidant-refresh-seniors">Actualiser les profils</button>
-        <details class="senior-disclosure" id="aidant-local-outings-no-senior">
-          <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
-          <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
-          <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+        <details class="senior-disclosure" id="aidant-daily-recipe-no-senior">
+          <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🍲</span>Recette du jour</summary>
+          <div class="daily-recipe-box">
+          <h3 id="aidant-no-senior-recipe-title">Chargement de la recette…</h3>
+          <p class="daily-recipe-content" id="aidant-no-senior-recipe-content"></p>
+          <p class="helper-text">Sept idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+          </div>
         </details>
     </section>
     <div id="aidant-senior-content" style="display:none;">
@@ -1858,11 +1857,14 @@
         <div id="aidant-service-area" aria-live="polite">Chargement des services…</div>
       </details>
     </section>
-    <section class="form-card" id="aidant-local-outings">
+    <section class="form-card" id="aidant-daily-recipe">
       <details class="senior-disclosure">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
-        <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
-        <a class="local-outings-link" href="https://vide-greniers.org/" target="_blank" rel="noopener noreferrer">Ouvrir Vide-greniers.org (site externe)</a>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🍲</span>Recette du jour</summary>
+        <div class="daily-recipe-box">
+        <h3 id="aidant-recipe-title">Chargement de la recette…</h3>
+        <p class="daily-recipe-content" id="aidant-recipe-content"></p>
+        <p class="helper-text">Sept idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+        </div>
       </details>
     </section>
     </div>
@@ -3777,6 +3779,7 @@
             return;
         }
 
+        if (['senior', 'aidant'].includes(user.role)) actualiserRecetteDuJour();
         if (user.role === 'aidant') {
             document.getElementById('aidant-link-form').style.display = user.isLegalGuardian ? 'none' : 'grid';
             document.getElementById('aidant-link-help').style.display = user.isLegalGuardian ? 'none' : 'block';
@@ -3827,6 +3830,7 @@
         planningRefreshTimer = setInterval(() => {
             if (!connectedUser) return;
             actualiserMeteoSiNecessaire();
+            if (['senior', 'aidant'].includes(connectedUser.role)) actualiserRecetteDuJour();
             if (['senior', 'aidant', 'pro'].includes(connectedUser.role) &&
                 document.getElementById(`screen-${connectedUser.role}`).classList.contains('active')) {
                 chargerBoiteReception(connectedUser.role);
@@ -3942,6 +3946,28 @@
             .filter(part => part.type !== 'literal')
             .map(part => [part.type, part.value]));
         return `${parts.year}-${parts.month}-${parts.day}`;
+    }
+
+    let dateRecetteAffichee = '';
+    function actualiserRecetteDuJour() {
+        const date = dateCheckinBienEtre();
+        if (date === dateRecetteAffichee) return;
+        const recettes = [
+            ['Omelette aux courgettes', 'Pour 2 personnes : 3 œufs, 1 courgette, 1 cuillère à café d’huile.\nCoupez la courgette en dés et faites-la revenir 8 minutes. Battez les œufs, versez-les dans la poêle et laissez cuire jusqu’à ce que l’omelette soit bien prise.'],
+            ['Soupe de carottes et pommes de terre', 'Pour 2 personnes : 3 carottes, 1 pomme de terre, 500 ml d’eau.\nÉpluchez et coupez les légumes. Faites-les cuire dans l’eau environ 20 minutes, jusqu’à ce qu’ils soient tendres, puis mixez.'],
+            ['Pâtes aux tomates et au basilic', 'Pour 2 personnes : 150 g de pâtes, 2 tomates, un peu de basilic et d’huile d’olive.\nFaites cuire les pâtes selon le paquet. Faites revenir les tomates coupées 10 minutes avec l’huile, puis mélangez aux pâtes et ajoutez le basilic.'],
+            ['Compote pomme-poire', 'Pour 2 personnes : 2 pommes, 1 poire, 2 cuillères à soupe d’eau.\nÉpluchez et coupez les fruits. Faites-les cuire à couvert avec l’eau 15 minutes à feu doux, puis écrasez-les à la fourchette.'],
+            ['Riz aux petits pois et carottes', 'Pour 2 personnes : 120 g de riz, 1 carotte, 100 g de petits pois surgelés.\nFaites cuire le riz selon le paquet. Coupez la carotte en petits dés et faites-la cuire avec les petits pois dans l’eau bouillante environ 10 minutes. Égouttez et mélangez.'],
+            ['Pommes de terre au fromage blanc', 'Pour 2 personnes : 2 pommes de terre, 100 g de fromage blanc, ciboulette.\nFaites cuire les pommes de terre dans l’eau 25 à 30 minutes, jusqu’à ce qu’elles soient tendres. Mélangez le fromage blanc avec la ciboulette et servez avec les pommes de terre.'],
+            ['Poêlée de haricots blancs à la tomate', 'Pour 2 personnes : 250 g de haricots blancs en conserve égouttés, 2 tomates, 1 cuillère à café d’huile.\nRincez les haricots. Faites cuire les tomates coupées dans l’huile 10 minutes, ajoutez les haricots et réchauffez 5 minutes.']
+        ];
+        const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000);
+        const recette = recettes[((day % recettes.length) + recettes.length) % recettes.length];
+        ['senior', 'aidant', 'aidant-no-senior'].forEach(role => {
+            document.getElementById(`${role}-recipe-title`).textContent = recette[0];
+            document.getElementById(`${role}-recipe-content`).textContent = recette[1];
+        });
+        dateRecetteAffichee = date;
     }
 
     function authHeaders(includeSenior = true) {

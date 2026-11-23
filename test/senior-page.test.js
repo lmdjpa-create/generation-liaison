@@ -6,6 +6,10 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 
+test('daily recipe follows the senior shopping list', () => {
+  assert.match(source, /id="senior-shopping-status"[\s\S]*?<\/details>\s*<\/section>\s*<section class="form-card" id="senior-daily-recipe">/);
+});
+
 function extract(start, end) {
   const first = source.indexOf(start);
   const last = source.indexOf(end, first);

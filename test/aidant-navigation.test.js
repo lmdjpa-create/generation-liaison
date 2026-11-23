@@ -114,25 +114,47 @@ test('inclusive account label preserves the existing senior role', () => {
   assert.match(source, /Aucune personne accompagnée associée/);
 });
 
-test('senior and caregiver can open the external flea market directory without sharing a profile', () => {
+test('daily recipe is available to seniors and caregivers with or without a linked person', () => {
   for (const role of ['senior', 'aidant']) {
-    const start = source.indexOf(`id="${role}-local-outings"`);
+    const start = source.indexOf(`id="${role}-daily-recipe"`);
     const end = source.indexOf('</section>', start);
     assert.ok(start >= 0 && end > start);
     const section = source.slice(start, end);
-    assert.match(section, /Brocantes et vide-greniers/);
+    assert.match(section, /Recette du jour/);
     assert.match(section, /<details(?:\s[^>]*)?>\s*<summary/);
-    assert.match(section, /href="https:\/\/vide-greniers\.org\/" target="_blank" rel="noopener noreferrer"/);
-    assert.match(section, /site externe/);
+    assert.match(section, new RegExp(`id="${role}-recipe-content"`));
     assert.doesNotMatch(section, /senior-full-only/);
   }
-  assert.ok(source.indexOf('id="senior-local-outings"') > source.indexOf('id="senior-pro-button"'));
-  assert.ok(source.indexOf('id="aidant-local-outings"') > source.indexOf('id="aidant-services-details"'));
-  assert.match(source, /#aidant-senior-content > #aidant-local-outings \{ grid-column: 2; \}/);
-  assert.match(source, /#senior-local-outings \{[^}]*margin-left: auto;/);
   const noSenior = source.slice(source.indexOf('id="aidant-no-senior-panel"'), source.indexOf('id="aidant-senior-content"'));
-  assert.match(noSenior, /id="aidant-local-outings-no-senior"/);
-  assert.match(noSenior, /href="https:\/\/vide-greniers\.org\/" target="_blank" rel="noopener noreferrer"/);
+  assert.match(noSenior, /id="aidant-no-senior-recipe-content"/);
+  assert.doesNotMatch(source, /vide-greniers\.org|Brocantes et vide-greniers/);
+});
+
+test('the recipe changes each day and is identical across profiles', () => {
+  const nodes = new Map();
+  const element = id => {
+    if (!nodes.has(id)) nodes.set(id, { textContent: '' });
+    return nodes.get(id);
+  };
+  let date = '2026-03-28';
+  const context = { document: { getElementById: element }, dateCheckinBienEtre: () => date, Date, Math };
+  const start = source.indexOf("    let dateRecetteAffichee = '';");
+  const end = source.indexOf('    function authHeaders(', start);
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.refresh = actualiserRecetteDuJour;`, context);
+  const titles = [];
+  for (let day = 0; day < 8; day++) {
+    context.refresh();
+    const title = element('senior-recipe-title').textContent;
+    titles.push(title);
+    for (const role of ['aidant', 'aidant-no-senior']) {
+      assert.equal(element(`${role}-recipe-title`).textContent, title);
+      assert.equal(element(`${role}-recipe-content`).textContent, element('senior-recipe-content').textContent);
+    }
+    assert.match(element('senior-recipe-content').textContent, /Pour 2 personnes/);
+    date = new Date(Date.parse(`${date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+  }
+  assert.equal(new Set(titles.slice(0, 7)).size, 7);
+  assert.equal(titles[7], titles[0]);
 });
 
 test('daily caregiver summary shows only current profile data and reports partial failures', async () => {
@@ -876,7 +898,7 @@ function createView(response) {
       'chargerAssistantConversation', 'chargerProchainRendezVous', 'afficherProchainRendezVous', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
       'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage', 'chargerContactsUtiles', 'chargerTachesPartagees',
       'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
-      'reinitialiserMeteo', 'chargerMeteo',
+      'reinitialiserMeteo', 'chargerMeteo', 'actualiserRecetteDuJour',
       'chargerEtablissement',
       'chargerResidentsSoignant', 'reinitialiserCarnetEtablissement', 'fermerActionsEtablissement',
       'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'initialiserVueSenior', 'initialiserPresentation', 'planifierLectureSenior'
