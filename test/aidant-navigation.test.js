@@ -454,6 +454,12 @@ test('caregiver and professional histories use their authorized tasks and discar
 test('professional summary uses only professional-accessible data and shows pending requests', async () => {
   const elements = new Map();
   const paths = [];
+  let tasks = [
+    { title: 'Passée', seniorName: 'Camille', completed: false, dueDate: '2028-02-28' },
+    { title: 'Apporter les courses', seniorName: 'Camille', completed: false, dueDate: '2028-02-29' },
+    { title: 'Ranger', seniorName: 'Marie', completed: false, dueDate: null },
+    { title: 'Terminée', seniorName: 'Marie', completed: true, dueDate: '2028-02-28' }
+  ];
   const context = {
     connectedUser: { id: 'pro', role: 'pro', seniorId: 'profile' },
     activeSeniorProfileId: '', aidantSummaryLoadId: 0, aidantSummaryContext: '',
@@ -475,11 +481,10 @@ test('professional summary uses only professional-accessible data and shows pend
       ] };
       if (url.startsWith('/api/planning/services/bookings')) return { bookings: [] };
       if (url === '/api/directory/bookings') return { bookings: [{ status: 'pending' }, { status: 'confirmed' }] };
-      if (url === '/api/intervention-tasks') return { tasks: [
-        { title: 'Passée', seniorName: 'Camille', completed: false, dueDate: '2028-02-28' },
-        { title: 'Apporter les courses', seniorName: 'Camille', completed: false, dueDate: '2028-02-29' },
-        { title: 'Ranger', seniorName: 'Marie', completed: false, dueDate: null }
-      ] };
+      if (url === '/api/intervention-tasks') {
+        if (tasks === null) throw new Error('Unavailable');
+        return { tasks };
+      }
       if (url === '/api/planning/today?date=2028-02-29') return { visits: [{
         recipient: { name: 'Personne suivie' }, visitType: 'Visite',
         scheduledAt: '2028-02-29T09:00:00Z', status: 'scheduled',
@@ -500,7 +505,7 @@ test('professional summary uses only professional-accessible data and shows pend
   await context.loadSummary();
   assert.match(elements.get('pro-summary-visit').textContent, /Visite prévue/);
   assert.equal(elements.get('pro-summary-demands').textContent, 'Demandes de rendez-vous en attente : 1');
-  assert.equal(elements.get('pro-summary-tasks').textContent, 'Tâches à faire : 2 · Pour aujourd’hui : 1\n• Apporter les courses — Camille · Date prévue : 29/02/2028\n• Ranger — Marie');
+  assert.equal(elements.get('pro-summary-tasks').textContent, 'Tâches à faire : 3 · Pour aujourd’hui : 1 · En retard : 1\n• Passée — Camille · Date prévue : 28/02/2028 (En retard)\n• Apporter les courses — Camille · Date prévue : 29/02/2028\n• Ranger — Marie');
   assert.equal(elements.has('pro-summary-notifications'), false);
   assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — arrived : Ma note/);
   assert.match(elements.get('pro-summary-following').textContent, /Visite 1 · Moi — completed/);
@@ -511,6 +516,13 @@ test('professional summary uses only professional-accessible data and shows pend
   assert.ok(!paths.includes('/api/shared-tasks'));
   assert.ok(!paths.includes('/api/wellbeing/shared-check-ins'));
   assert.ok(!paths.includes('/api/planning/following'));
+  tasks = [];
+  await context.loadSummary();
+  assert.equal(elements.get('pro-summary-tasks').textContent, 'Aucune tâche pour le moment.');
+  assert.equal(elements.get('pro-summary-tasks').hidden, false);
+  tasks = null;
+  await context.loadSummary();
+  assert.equal(elements.get('pro-summary-tasks').textContent, 'Impossible de charger les tâches.');
 });
 
 test('professional journal shows only the supplied assigned visits and their steps', () => {
@@ -1189,7 +1201,7 @@ test('today shows received messages without a separate unread counter', () => {
   for (const role of ['senior', 'aidant', 'pro']) {
     const start = source.indexOf(`<div id="home-informations-${role}"`);
     const end = source.indexOf(role === 'senior' ? '<section class="form-card" id="senior-home-links"' : role === 'aidant'
-      ? '<section class="form-card" id="aidant-home-links"' : '<details class="senior-disclosure" data-close-on-mouse-leave>', start);
+      ? '<section class="form-card" id="aidant-home-links"' : '<section class="form-card" id="pro-workspace-information"', start);
     assert.ok(start >= 0 && end > start);
     const screen = source.slice(start, end);
     assert.match(screen, new RegExp(`id="${role}-today-inbox"`));

@@ -99,6 +99,11 @@
     'Informations sur le carnet et les messages': 'About the journal and messages',
     'Informations sur les espaces': 'About the workspaces',
     'Espaces séparés : soins et services du quotidien.': 'Separate workspaces: care and daily services.',
+    'Comprendre les espaces': 'Understanding the workspaces',
+    'Les soins et les services du quotidien disposent d’espaces séparés.': 'Care and daily services have separate workspaces.',
+    'Les proches autorisés à accéder au profil peuvent voir les étapes et les notes pratiques. Les coordonnées ne leur sont pas transmises dans ce suivi.': 'Family members authorized to access the profile can see visit steps and practical notes. Contact details are not shared with them in these updates.',
+    'Mes tâches confiées': 'Tasks assigned to me',
+    'Retrouvez ici les tâches qui vous ont été attribuées et indiquez quand elles sont terminées. Leur attribution ne remplace pas votre accord sur la prestation.': 'Find tasks assigned to you here and mark them when completed. Assignment does not replace your agreement to provide the service.',
     'Un carnet de liaison pour les proches, les intervenants et les établissements': 'A shared journal for families, professionals and organizations',
     'Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.':
       'For older adults and anyone who needs daily support, including people with disabilities: share updates and organize visits with authorized people, at home or in a residence.',

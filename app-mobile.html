@@ -100,6 +100,12 @@
         .establishment-actions-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
         .establishment-actions-buttons button { flex: 1 1 170px; text-align: left; }
         #aidant-daily-summary p, #senior-daily-summary p, #pro-daily-summary p { white-space: pre-line; overflow-wrap: anywhere; }
+        #pro-daily-summary > p[role="status"] { margin: 10px 0; padding: 12px; border-left: 4px solid #78a7c7; border-radius: 8px; background: #f0f7fc; color: #173c55; }
+        #pro-daily-summary > #pro-summary-tasks { border-color: #b58b37; background: #fff7e6; color: #503a12; }
+        #pro-daily-summary > #pro-summary-following { border-color: #8c79b6; background: #f6f1fc; color: #3e3155; }
+        #pro-daily-summary > p[hidden] { display: none; }
+        #pro-intervention-tasks-list .card { margin-top: 12px; padding: 16px; border: 1px solid #d5e4dc; background: #f8fcf9; text-align: left; }
+        #pro-intervention-tasks-list .card p { margin: 8px 0; }
         :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > p:not(.helper-text) {
             margin: 10px 0;
             padding: 12px 15px;
@@ -1905,16 +1911,18 @@
             <p class="helper-text">Suivi de l’équipe limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées.</p>
         </section>
     </div>
-    <details class="senior-disclosure" data-close-on-mouse-leave>
-        <summary>Informations sur les espaces</summary>
-        <p>Espaces séparés : soins et services du quotidien.</p>
-        <p>Les proches ne voient que les étapes et notes pratiques lorsque leur compte est autorisé pour le profil ; les coordonnées ne leur sont pas transmises dans ce suivi.</p>
-    </details>
+    <section class="form-card" id="pro-workspace-information">
+      <details class="senior-disclosure senior-tab-disclosure" data-close-on-mouse-leave>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">ℹ️</span>Comprendre les espaces</summary>
+        <p>Les soins et les services du quotidien disposent d’espaces séparés.</p>
+        <p>Les proches autorisés à accéder au profil peuvent voir les étapes et les notes pratiques. Les coordonnées ne leur sont pas transmises dans ce suivi.</p>
+      </details>
+    </section>
     <button type="button" id="pro-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">💬</span>Messages</button>
     <section class="form-card">
-        <details class="senior-disclosure" id="pro-intervention-tasks-details">
-            <summary>Tâches confiées par les personnes accompagnées</summary>
-            <p class="helper-text">Seules les tâches qui vous ont été attribuées apparaissent ici. Leur attribution ne remplace pas votre accord sur la prestation.</p>
+        <details class="senior-disclosure senior-tab-disclosure" id="pro-intervention-tasks-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fff1d8;">✅</span>Mes tâches confiées</summary>
+            <p class="helper-text">Retrouvez ici les tâches qui vous ont été attribuées et indiquez quand elles sont terminées. Leur attribution ne remplace pas votre accord sur la prestation.</p>
             <button type="button" id="pro-intervention-tasks-refresh">Actualiser les tâches</button>
             <p id="pro-intervention-tasks-status" role="status" aria-live="polite"></p>
             <div id="pro-intervention-tasks-list"></div>
@@ -7527,18 +7535,20 @@
         }
         if (role === 'senior') document.getElementById('senior-today-visit').textContent = fields.visit.textContent;
         if (results.tasks.status === 'fulfilled') {
-            const open = results.tasks.value.tasks.filter(task => !task.completed && (!task.dueDate || task.dueDate >= today));
+            const open = results.tasks.value.tasks.filter(task => !task.completed && (role === 'pro' || !task.dueDate || task.dueDate >= today));
             const due = open.filter(task => task.dueDate === today);
+            const overdue = open.filter(task => task.dueDate && task.dueDate < today);
             const labels = open.map(task => {
                 const date = task.dueDate ? new Date(`${task.dueDate}T00:00:00Z`).toLocaleDateString(
                     window.generationLiaisonLocale(), { timeZone: 'UTC' }
                 ) : '';
                 return `• ${task.title}${role === 'pro' && task.seniorName ? ` — ${task.seniorName}` : ''}` +
-                    (date ? ` · ${t('Date prévue')} : ${date}` : '') +
+                    (date ? ` · ${t('Date prévue')} : ${date}${role === 'pro' && task.dueDate < today ? ` (${t('En retard')})` : ''}` : '') +
                     (role === 'aidant' && task.assigneeName ? ` · ${task.assigneeName}` : '');
             });
-            fields.tasks.textContent = !open.length ? '' :
+            fields.tasks.textContent = !open.length ? (role === 'pro' ? t('Aucune tâche pour le moment.') : '') :
                 `${t('Tâches à faire')} : ${open.length} · ${t('Pour aujourd’hui')} : ${due.length}` +
+                (role === 'pro' ? ` · ${t('En retard')} : ${overdue.length}` : '') +
                 (role === 'aidant' ? ` · ${t('Sans volontaire')} : ${open.filter(task => !task.assigned).length}` : '') +
                 `\n${labels.join('\n')}`;
         } else {

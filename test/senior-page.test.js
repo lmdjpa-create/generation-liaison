@@ -10,6 +10,12 @@ test('daily recipe follows the senior shopping list', () => {
   assert.match(source, /id="senior-shopping-status"[\s\S]*?<\/details>\s*<\/section>\s*<section class="form-card" id="senior-daily-recipe">/);
 });
 
+test('professional workspace explains its areas and assigned tasks in separate tabs', () => {
+  const pro = source.slice(source.indexOf('id="screen-pro"'), source.indexOf('id="screen-settings"'));
+  assert.match(pro, /<details class="senior-disclosure senior-tab-disclosure" data-close-on-mouse-leave>[\s\S]*?Comprendre les espaces[\s\S]*?proches autorisés[\s\S]*?coordonnées ne leur sont pas transmises/);
+  assert.match(pro, /<details class="senior-disclosure senior-tab-disclosure" id="pro-intervention-tasks-details">[\s\S]*?Mes tâches confiées[\s\S]*?ne remplace pas votre accord[\s\S]*?id="pro-intervention-tasks-list"/);
+});
+
 function extract(start, end) {
   const first = source.indexOf(start);
   const last = source.indexOf(end, first);
@@ -1255,7 +1261,7 @@ test('senior tabs retain controls and results', () => {
   assert.match(agenda, /<details class="senior-tab-disclosure" id="agenda-calendar-details">[\s\S]*?id="calendar-selected-day"[\s\S]*?<\/details>/);
   assert.match(agenda, /<details class="senior-tab-disclosure">[\s\S]*?Modifications depuis Google<\/summary>[\s\S]*?id="calendar-google-requests"[\s\S]*?<\/details>/);
   for (const role of ['senior', 'aidant', 'pro']) {
-    const today = extract(`<div id="home-informations-${role}"`, role === 'senior' ? '<section class="form-card" id="senior-home-links"' : role === 'aidant' ? '<section class="form-card" id="aidant-home-links"' : '<details class="senior-disclosure" data-close-on-mouse-leave>');
+    const today = extract(`<div id="home-informations-${role}"`, role === 'senior' ? '<section class="form-card" id="senior-home-links"' : role === 'aidant' ? '<section class="form-card" id="aidant-home-links"' : '<section class="form-card" id="pro-workspace-information"');
     assert.match(today, new RegExp(`id="notifications-${role}"`));
     assert.match(source, new RegExp(`<details class="senior-tab-disclosure" id="message-details-${role}">[\\s\\S]*?id="message-form-${role}"[\\s\\S]*?<\\/details>`));
   }
