@@ -77,3 +77,54 @@ test('administrator confirms a pending request and refreshes without losing an u
   assert.equal(calls[2].options.body.note, note.value);
   assert.equal(container.children.length, 0);
 });
+
+test('account access and subscription controls are collapsed without changing their actions', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const start = source.indexOf('    function renderAccounts(accounts, limits)');
+  const end = source.indexOf('    async function ', start);
+  assert.ok(start >= 0 && end > start);
+  const node = tag => ({
+    tag, children: [], style: {}, handlers: {}, open: false, value: '',
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    setAttribute() {},
+    addEventListener(event, callback) { this.handlers[event] = callback; }
+  });
+  const tbody = node('tbody');
+  const limit = node('p');
+  const calls = [];
+  const context = {
+    document: {
+      createElement: node,
+      getElementById: id => id === 'accounts-body' ? tbody : limit
+    },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
+    roleLabels: {}, addCell: row => row.append(node('td')),
+    emailNode: () => node('a'),
+    updateAccount: account => calls.push(['account', account.id]),
+    initiateAccountClosure: account => calls.push(['closure', account.id]),
+    updatePremium: (account, value) => calls.push(['premium', account.id, value]),
+    Date
+  };
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.render = renderAccounts;`, context);
+  const account = { id: 'one', role: 'senior', active: true, premiumActive: false,
+    teamCount: 0, createdAt: '2026-01-01' };
+  context.render([account], {});
+  const action = tbody.children[0].children[7];
+  assert.equal(action.children[0].textContent, 'Actif');
+  const access = action.children[1];
+  const subscription = action.children[3];
+  assert.equal(access.open, false);
+  assert.equal(access.children[0].textContent, 'Gérer l’accès au compte');
+  assert.equal(subscription.open, false);
+  assert.equal(subscription.children[0].textContent, 'Gérer l’abonnement');
+  access.children[1].handlers.click();
+  access.children[2].handlers.click();
+  const controls = subscription.children[1].children;
+  controls[0].value = 'month';
+  controls[1].handlers.click();
+  assert.deepEqual(calls, [['account', 'one'], ['closure', 'one'], ['premium', 'one', 'month']]);
+  context.render([{ ...account, administrator: true }], {});
+  assert.equal(tbody.children[0].children[7].children.some(child =>
+    child.tag === 'details' && child.children[0].textContent === 'Gérer l’accès au compte'), false);
+});

@@ -71,7 +71,7 @@
     .establishment-account-form label { display: grid; gap: 4px; }
     .establishment-account-form input:not([type="checkbox"]), .establishment-account-form select { width: 100%; }
     .establishment-access { min-width: 250px; }
-    .establishment-access > button, .establishment-access > details > summary {
+    .establishment-access > button, .establishment-access > details > button, .establishment-access > details > summary {
       display: block;
       width: 100%;
       min-height: 42px;
@@ -90,9 +90,9 @@
     .establishment-access > details > summary::after { content: " +"; }
     .establishment-access > details[open] > summary::after { content: " −"; }
     .establishment-access > button.establishment-close { border-color: #dfb9b9; color: var(--danger); }
-    .establishment-access > button:hover, .establishment-access > details > summary:hover { filter: brightness(.96); }
-    .establishment-access > button:focus-visible, .establishment-access > details > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 2px; }
-    .establishment-access > button:disabled { opacity: .6; cursor: wait; }
+    .establishment-access > button:hover, .establishment-access > details > button:hover, .establishment-access > details > summary:hover { filter: brightness(.96); }
+    .establishment-access > button:focus-visible, .establishment-access > details > button:focus-visible, .establishment-access > details > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 2px; }
+    .establishment-access > button:disabled, .establishment-access > details > button:disabled { opacity: .6; cursor: wait; }
     .admin-form { display: grid; grid-template-columns: repeat(5, minmax(140px, 1fr)); gap: 10px; margin: 0 0 16px; }
     .admin-form input, .admin-form select { width: 100%; }
     .assistant-handoff { margin: 12px 0; padding: 14px; border: 1px solid var(--line); border-radius: 12px; }
@@ -1385,26 +1385,27 @@
         }
         row.append(verification);
         const action = document.createElement('td');
+        action.className = 'establishment-access';
         const state = document.createElement('span');
         state.className = `badge${account.active ? '' : ' off'}`;
         state.textContent = account.active ? 'Actif' : 'Suspendu';
-        const stateLine = document.createElement('div');
-        stateLine.className = 'account-line';
-        stateLine.append(state);
-        action.append(stateLine);
+        action.append(state);
         if (!account.administrator) {
+          const accessDetails = document.createElement('details');
+          const accessSummary = document.createElement('summary');
+          accessSummary.textContent = 'Gérer l’accès au compte';
           const button = document.createElement('button');
           button.className = 'button secondary';
           button.type = 'button';
           button.textContent = account.active ? 'Suspendre' : 'Réactiver';
           button.addEventListener('click', () => updateAccount(account, button));
-          stateLine.append(button);
           const close = document.createElement('button');
           close.className = 'button secondary';
           close.type = 'button';
           close.textContent = 'Lancer la clôture';
           close.addEventListener('click', () => initiateAccountClosure(account, close));
-          stateLine.append(close);
+          accessDetails.append(accessSummary, button, close);
+          action.append(accessDetails);
         }
         if (account.role !== 'establishment' && account.role !== 'staff') {
           const premium = document.createElement('div');
@@ -1414,6 +1415,11 @@
           premiumBadge.textContent = account.premiumActive
             ? `${account.premiumStatus === 'trial' ? 'Essai' : 'Premium'}${account.premiumUntil ? ` jusqu’au ${new Date(account.premiumUntil).toLocaleDateString('fr-FR')}` : ''}`
             : 'Sans abonnement';
+          const premiumDetails = document.createElement('details');
+          const premiumSummary = document.createElement('summary');
+          premiumSummary.textContent = 'Gérer l’abonnement';
+          const premiumControls = document.createElement('div');
+          premiumControls.className = 'establishment-account-form';
           const premiumChoice = document.createElement('select');
           premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
           [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
@@ -1429,8 +1435,10 @@
           premiumButton.type = 'button';
           premiumButton.textContent = 'Appliquer';
           premiumButton.addEventListener('click', () => updatePremium(account, premiumChoice.value, premiumButton));
-          premium.append(premiumBadge, premiumChoice, premiumButton);
-          action.append(premium);
+          premiumControls.append(premiumChoice, premiumButton);
+          premiumDetails.append(premiumSummary, premiumControls);
+          premium.append(premiumBadge);
+          action.append(premium, premiumDetails);
         } else if (account.role === 'establishment') {
           const hint = document.createElement('p');
           hint.className = 'hint';
@@ -1880,7 +1888,12 @@
         addCell(row, item.tablet_interest === 'rental' ? `Location : ${item.tablet_quantity}` :
           item.tablet_interest === 'purchase' ? `Achat : ${item.tablet_quantity}` : 'Aucune demande');
         const pricing = document.createElement('td');
+        pricing.className = 'establishment-access';
+        const pricingDetails = document.createElement('details');
+        const pricingSummary = document.createElement('summary');
+        pricingSummary.textContent = 'Modifier le nombre de personnes';
         const pricingForm = document.createElement('form');
+        pricingForm.className = 'establishment-account-form';
         const count = document.createElement('input');
         count.type = 'number';
         count.min = '1';
@@ -1908,11 +1921,16 @@
             save.disabled = false;
           }
         });
-        pricing.append(pricingForm, price);
+        pricingDetails.append(pricingSummary, pricingForm);
+        pricing.append(price, pricingDetails);
         row.append(pricing);
         const cell = document.createElement('td');
+        cell.className = 'establishment-access';
         const label = document.createElement('span');
-        label.textContent = item.active ? 'Actif ' : 'Inactif ';
+        label.textContent = item.active ? 'Actif' : 'Inactif';
+        const subscriptionDetails = document.createElement('details');
+        const subscriptionSummary = document.createElement('summary');
+        subscriptionSummary.textContent = 'Gérer l’abonnement';
         const button = document.createElement('button');
         button.type = 'button';
         button.textContent = item.active ? 'Désactiver' : 'Activer';
@@ -1930,7 +1948,8 @@
             button.disabled = false;
           }
         });
-        cell.append(label, button);
+        subscriptionDetails.append(subscriptionSummary, button);
+        cell.append(label, subscriptionDetails);
         row.append(cell);
         const accountCell = document.createElement('td');
         accountCell.className = 'establishment-access';

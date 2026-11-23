@@ -82,6 +82,59 @@ test('the indicative monthly price follows each approved tier', () => {
   ]) assert.equal(context.tariff(count), expected);
 });
 
+test('establishment pricing and subscription use closed controls and preserve their actions', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const start = source.indexOf('    function establishmentTariff(count)');
+  const end = source.indexOf('    async function loadExternalPros()', start);
+  assert.ok(start >= 0 && end > start);
+  const element = tag => ({
+    tag, children: [], open: false, handlers: {}, value: '', disabled: false,
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    setAttribute() {},
+    addEventListener(name, callback) { this.handlers[name] = callback; }
+  });
+  const body = element('tbody');
+  const calls = [];
+  const item = { id: 'one', account_name: 'Résidence', account_active: true,
+    name: 'Résidence', user_count: 12, active: false };
+  const context = {
+    document: { createElement: element, getElementById: () => body },
+    addCell: row => row.append(element('td')),
+    addContactCell: row => row.append(element('td')),
+    createEstablishmentAccountForm: () => element('details'),
+    adminRequest: async (url, options) => {
+      calls.push({ url, options });
+      return options ? {} : { establishments: [item] };
+    },
+    confirm: () => true,
+    setStatus: message => { throw new Error(message); },
+    initiateAccountClosure() {}
+  };
+  vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.load = loadEstablishments;`, context);
+  await context.load();
+  const [pricing, subscription] = body.children[0].children.slice(6, 8);
+  assert.equal(pricing.children[0].textContent, '49 € HT / mois');
+  assert.equal(pricing.children[1].open, false);
+  assert.equal(pricing.children[1].children[0].textContent, 'Modifier le nombre de personnes');
+  const form = pricing.children[1].children[1];
+  form.children[0].value = '20';
+  await form.handlers.submit({ preventDefault() {} });
+  assert.equal(calls[1].url, '/api/admin/establishments/one/users');
+  assert.equal(calls[1].options.body.count, 20);
+  assert.equal(subscription.children[0].textContent, 'Inactif');
+  assert.equal(subscription.children[1].open, false);
+  assert.equal(subscription.children[1].children[0].textContent, 'Gérer l’abonnement');
+  await subscription.children[1].children[1].handlers.click();
+  assert.equal(calls[3].url, '/api/admin/establishments/one/subscription');
+  assert.equal(calls[3].options.body.active, true);
+  item.account_active = false;
+  await context.load();
+  const [inactivePricing, inactiveSubscription] = body.children[0].children.slice(6, 8);
+  assert.equal(inactivePricing.children[1].children[1].children[0].disabled, true);
+  assert.equal(inactiveSubscription.children[1].children[1].disabled, true);
+});
+
 test('director overview separates categories and distinguishes accounts from contacts', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const start = source.indexOf('    async function chargerTableauEtablissement()');
