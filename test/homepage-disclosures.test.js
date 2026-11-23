@@ -9,6 +9,35 @@ const mobileSource = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html
 const privacySource = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
 const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8');
 
+test('homepage headings and disclosure titles are centered without displacing their controls', () => {
+  assert.match(source, /\.landing :is\(h1, h2, h3, h4, h5, h6, summary, \.journal-preview-title\) \{ text-align: center; \}/);
+  assert.match(source, /\.info-card summary, \.landing-disclosure > summary \{[\s\S]*?justify-content: center;[\s\S]*?padding-left: 36px;[\s\S]*?padding-right: 36px;/);
+  assert.match(source, /\.info-card summary::after, \.landing-disclosure > summary::after \{[\s\S]*?position: absolute;[\s\S]*?right: 12px;/);
+});
+
+test('each audience has a linked, accessible presentation with closed explanations', () => {
+  const pages = ['senior', 'proches', 'intervenants', 'residences'];
+  for (const audience of pages) {
+    const file = `presentation-${audience}.html`;
+    const page = fs.readFileSync(path.join(__dirname, '..', file), 'utf8');
+    assert.ok(source.includes(`href="/${file}"`), `Missing homepage link for ${audience}`);
+    assert.match(page, /<html lang="fr">/);
+    assert.match(page, /<h1>/);
+    assert.match(page, /href="\/app-mobile\.html#inscription"/);
+    assert.match(page, /href="\/presentation\.css"/);
+    assert.match(page, /src="\/help-bubbles\.js"/);
+    assert.equal((page.match(/<details data-close-on-mouse-leave>/g) || []).length, 3);
+    assert.doesNotMatch(page, /<details[^>]*\bopen\b/);
+    assert.match(page, /15 ou le 112/);
+    for (const other of pages.filter(item => item !== audience)) {
+      assert.ok(page.includes(`href="/presentation-${other}.html"`));
+    }
+  }
+  const residence = fs.readFileSync(path.join(__dirname, '..', 'presentation-residences.html'), 'utf8');
+  assert.match(residence, /direction ne consulte ni les carnets ni les messages privés/);
+  assert.match(residence, /grille mensuelle indicative[\s\S]*Aucun paiement en ligne ni facturation automatique/);
+});
+
 test('homepage proposals are individually collapsed and retain their descriptions', () => {
   for (const title of [
     'Pour les personnes accompagnées', 'Pour les proches et aidants', 'Pour les professionnels', 'Pour les entreprises et résidences',

@@ -19,6 +19,7 @@ before(async () => {
   androidFixture = fs.mkdtempSync(path.join(projectRoot, 'node_modules', '.android-test-'));
   for (const entry of [
     'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html', 'reset-password.html',
+    'presentation-senior.html', 'presentation-proches.html', 'presentation-intervenants.html', 'presentation-residences.html', 'presentation.css',
     'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html', 'language.js',
     'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js', 'push-service-worker.js', 'homepage-images', 'riddle-images', 'downloads', 'scripts'
   ]) {

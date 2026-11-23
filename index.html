@@ -1050,6 +1050,20 @@
     .landing-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
     .landing-disclosure > summary + * { margin-top: 16px; }
 
+    .landing :is(h1, h2, h3, h4, h5, h6, summary, .journal-preview-title) { text-align: center; }
+    .info-card summary, .landing-disclosure > summary {
+      position: relative;
+      justify-content: center;
+      padding-left: 36px;
+      padding-right: 36px;
+    }
+    .info-card summary::after, .landing-disclosure > summary::after {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
     .landing-info a {
       color: var(--primary-dark);
     }
@@ -1270,6 +1284,7 @@
           <h3>Restez entouré en toute simplicité</h3>
           <p>Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.</p>
           <p>Accédez à vos messages, vos prochains rendez-vous et vos jeux gratuits depuis une interface claire. La vue simplifiée est activée par défaut ; vous pouvez afficher toutes les fonctions dans les réglages.</p>
+          <a href="/presentation-senior.html">Découvrir la présentation</a>
           </div>
         </details>
         <details class="info-card">
@@ -1277,6 +1292,7 @@
           <div class="gl-help-bubble">
           <h3>Gardez l’esprit léger, même à distance</h3>
           <p>Consultez le carnet de liaison partagé, recevez des notifications utiles et organisez les visites autour de votre proche, selon vos accès.</p>
+          <a href="/presentation-proches.html">Découvrir la présentation</a>
           </div>
         </details>
         <details class="info-card">
@@ -1284,6 +1300,7 @@
           <div class="gl-help-bubble">
           <h3>Valorisez vos interventions à domicile</h3>
           <p>Coiffeurs, aides ménagères ou prestataires de services : confirmez vos passages, échangez avec les personnes autorisées et simplifiez la gestion de vos rendez-vous auprès des familles.</p>
+          <a href="/presentation-intervenants.html">Découvrir la présentation</a>
           </div>
         </details>
         <details class="info-card">
@@ -1291,6 +1308,7 @@
           <div class="gl-help-bubble">
           <h3>Un espace dédié à la direction</h3>
           <p>Retrouvez les résidents, soignants et intervenants dans des tableaux séparés, et gérez les comptes individuels des résidents et des soignants.</p>
+          <a href="/presentation-residences.html">Découvrir la présentation</a>
           </div>
         </details>
       </div>

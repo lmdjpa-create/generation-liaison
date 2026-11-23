@@ -10,6 +10,7 @@ test('Android web assets omit downloadable builds, including stale files from a 
   try {
     for (const entry of [
       'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html',
+      'presentation-senior.html', 'presentation-proches.html', 'presentation-intervenants.html', 'presentation-residences.html', 'presentation.css',
       'reset-password.html', 'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html',
       'language.js', 'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js',
       'homepage-images', 'riddle-images', 'push-service-worker.js', 'scripts'
@@ -26,6 +27,9 @@ test('Android web assets omit downloadable builds, including stale files from a 
     });
     const web = build([]);
     assert.equal(web.status, 0, web.stderr);
+    for (const file of ['presentation-senior.html', 'presentation-proches.html', 'presentation-intervenants.html', 'presentation-residences.html', 'presentation.css']) {
+      assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), true);
+    }
     for (const file of ['app-generation-liaison.apk', 'app-generation-liaison.aab']) {
       assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), true);
     }

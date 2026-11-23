@@ -16,6 +16,10 @@ const buildNative = buildAndroid || buildIos;
 const apiUrl = (process.env.CAPACITOR_API_URL || '').replace(/\/+$/, '');
 const pages = [
   'index.html',
+  'presentation-senior.html',
+  'presentation-proches.html',
+  'presentation-intervenants.html',
+  'presentation-residences.html',
   'aidant.html',
   'pro.html',
   'app-mobile.html',
@@ -44,7 +48,7 @@ if (buildNative) {
 fs.mkdirSync(output, { recursive: true });
 
 fs.copyFileSync(path.join(root, 'language.js'), path.join(output, 'language.js'));
-for (const file of ['robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js']) {
+for (const file of ['robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'presentation.css', 'help-bubbles.js']) {
   fs.copyFileSync(path.join(root, file), path.join(output, file));
 }
 fs.copyFileSync(path.join(root, 'scripts', 'homepage-analytics.js'), path.join(output, 'homepage-analytics.js'));
