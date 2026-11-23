@@ -1030,6 +1030,26 @@
     .establishment-overview p { margin: 0; color: #53665c; line-height: 1.5; }
     .establishment-access { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
 
+    .landing-disclosure > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 52px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: #f7faf8;
+      color: var(--primary-dark);
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .landing-disclosure > summary::after { content: "+"; font-size: 1.5rem; }
+    .landing-disclosure[open] > summary::after { content: "−"; }
+    .landing-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+    .landing-disclosure > summary + * { margin-top: 16px; }
+
     .landing-info a {
       color: var(--primary-dark);
     }
@@ -1185,13 +1205,18 @@
           </div>
           <p class="landing-kicker">Le lien au quotidien entre générations</p>
           <h1 id="landing-title">Un carnet de liaison pour les proches, les intervenants et les établissements</h1>
-          <p class="landing-description">Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.</p>
+          <details class="landing-disclosure">
+            <summary>À qui s’adresse Génération Liaison ?</summary>
+            <p class="landing-description">Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.</p>
+            <p class="landing-reassurance">✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation</p>
+          </details>
           <a class="landing-login" href="/app-mobile.html#inscription">Créer un espace gratuitement <span aria-hidden="true">→</span></a>
-          <a class="landing-app-link" href="#exemple-carnet">Voir un exemple de carnet</a>
-          <a class="landing-app-link" href="#entreprises">Découvrir l’espace entreprises et résidences</a>
-          <p class="landing-reassurance">✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation</p>
+          <a class="landing-app-link" href="#exemple-carnet" onclick="ouvrirRubriqueAccueil('exemple-carnet-details')">Voir un exemple de carnet</a>
+          <a class="landing-app-link" href="#entreprises" onclick="ouvrirRubriqueAccueil('entreprises-details')">Découvrir l’espace entreprises et résidences</a>
         </div>
         <div>
+        <details class="landing-disclosure">
+        <summary>Voir les aperçus de l’interface senior</summary>
         <figure class="landing-interface-preview">
           <img src="/homepage-images/apercu-espace-proche.png" width="480" height="415" alt="Espace Proche de l’interface senior : boutons Notifications et messages, Contacts et Jeux gratuits." />
           <figcaption>Capture en français de l’espace Proche de l’interface senior.</figcaption>
@@ -1203,6 +1228,9 @@
           <figcaption>Capture en français de la vue simplifiée facultative, avec des données fictives.</figcaption>
         </figure>
         </details>
+        </details>
+        <details class="landing-disclosure" id="exemple-carnet-details">
+        <summary>Exemple de carnet de liaison</summary>
         <figure class="landing-preview" id="exemple-carnet">
           <div class="journal-preview" role="group" aria-label="Exemple fictif de carnet de liaison">
             <div class="journal-preview-title">Exemple de carnet de liaison</div>
@@ -1217,16 +1245,19 @@
           </div>
           <figcaption>Un aperçu du carnet de liaison avec des données fictives.</figcaption>
         </figure>
+        </details>
         </div>
       </div>
     </section>
 
     <section class="landing-info privacy-highlight" aria-labelledby="privacy-title">
-      <h2 id="privacy-title">Vos échanges restent privés et sécurisés</h2>
+      <details class="landing-disclosure">
+      <summary id="privacy-title">Vos échanges restent privés et sécurisés</summary>
       <p>La connexion au site est chiffrée et l’accès au carnet est réservé aux personnes autorisées.</p>
       <p>La personne accompagnée accepte les demandes des aidants ; un tuteur légal vérifié est associé par l’administration. Le partage avec les soignants de l’établissement nécessite l’accord du résident ou de son représentant légal vérifié. Le carnet sert aux nouvelles du quotidien, pas aux données de santé.</p>
       <p>Aucun outil statistique ou publicitaire n’est installé dans les espaces connectés. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.</p>
       <p>Vous pouvez demander l’accès à vos données, leur rectification ou leur effacement. Consultez la <a href="/privacy-policy.html">politique de confidentialité</a> pour connaître vos droits et les prestataires concernés.</p>
+      </details>
       <p>Bon à savoir : Génération Liaison facilite l’organisation de la vie sociale et du quotidien. Il ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.</p>
     </section>
 
@@ -1266,7 +1297,8 @@
     </section>
 
     <section class="landing-info" id="entreprises" aria-labelledby="establishment-title">
-      <h2 id="establishment-title">Entreprises et résidences : un espace pour la direction</h2>
+      <details class="landing-disclosure" id="entreprises-details">
+      <summary id="establishment-title">Entreprises et résidences : un espace pour la direction</summary>
       <p>Organisez les accès de votre établissement et gardez le lien avec les résidents et leurs proches, dans le respect des autorisations de chacun.</p>
       <div class="establishment-overview" aria-label="Les trois tableaux de l’espace directeur">
         <article><h3>Résidents</h3><p>Avec leur accord, créez leurs accès individuels, même sans adresse e-mail.</p></article>
@@ -1275,6 +1307,7 @@
       </div>
       <p>Le résident ou son représentant légal vérifié choisit le partage du carnet de liaison avec les soignants. La direction ne consulte pas les carnets ni les messages privés. Le carnet est réservé aux nouvelles du quotidien, sans données de santé.</p>
       <p>L’accès de l’établissement est activé manuellement par l’administration. Un abonnement est envisagé, avec une grille tarifaire et des options de tablettes indicatives ; aucun paiement en ligne n’est effectué.</p>
+      </details>
       <div class="establishment-access">
         <a class="landing-login" href="/app-mobile.html#inscription">Créer un compte établissement</a>
         <span>Lors de l’inscription, choisissez « Entreprise / résidence ».</span>
@@ -1326,8 +1359,11 @@
 
     <section class="landing-info" aria-labelledby="daily-life-title">
       <h2 id="daily-life-title">Accompagnement et services du quotidien</h2>
+      <details class="landing-disclosure">
+      <summary>Informations sur les prestataires</summary>
       <p>Les services disponibles dépendent des équipes associées et de leur disponibilité. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.</p>
       <p>L’assurance et la qualité des prestations ne sont pas vérifiées par l’application. Demandez les justificatifs et un devis au prestataire avant de vous engager.</p>
+      </details>
       <div class="info-grid">
         <details class="info-card">
           <summary>Garder le lien au quotidien</summary>
@@ -1347,10 +1383,12 @@
     </section>
 
     <section class="landing-info" aria-labelledby="pricing-title">
-      <h2 id="pricing-title">Profitez gratuitement de toutes les fonctionnalités</h2>
+      <details class="landing-disclosure">
+      <summary id="pricing-title">Profitez gratuitement de toutes les fonctionnalités</summary>
       <p>Pendant notre phase de lancement, toutes les fonctionnalités disponibles dans l’application sont gratuites. Aucun abonnement ni paiement n’est proposé.</p>
       <p>Les prestations à domicile sont indépendantes de l’application et peuvent être facturées par le prestataire.</p>
       <p>Les tarifs futurs sont à l’étude et ne sont pas appliqués. Toute formule payante future fera l’objet d’une information claire et préalable. <a href="/cgv.html">Consulter le projet de tarifs et les conditions de vente</a>.</p>
+      </details>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
     </section>
 
@@ -1392,8 +1430,10 @@
 
     <section class="landing-card" id="connexion" aria-labelledby="connexion-title">
       <h2 id="connexion-title">Accéder à Génération Liaison</h2>
-      <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
+      <details class="landing-disclosure">
+      <summary>Comment accéder à l’application ?</summary>
+      <p class="landing-description">Utilisez l’application directement en ligne, sans installer de fichier.</p>
       <p class="landing-note">Sur iPhone, utilisez le site dans Safari : aucune application iOS native n’est proposée. Vous pouvez ajouter un raccourci à l’écran d’accueil en suivant les étapes ci-dessous.</p>
       <div class="install-guide" aria-labelledby="install-guide-title">
         <h3 id="install-guide-title">Sur iPhone : ajouter le site à l’écran d’accueil</h3>
@@ -1417,10 +1457,13 @@
         </ol>
         <p class="install-android-note">Sur Android, vous pouvez aussi utiliser le menu à trois points de votre navigateur pour ajouter le site à l’écran d’accueil, ou télécharger l’application ci-dessous.</p>
       </div>
+      </details>
       <a class="landing-download-link" href="/app-generation-liaison.apk" download>
         Télécharger l’application Android
       </a>
       <p class="landing-note"><a href="/aide-installation-android.html">Besoin d’aide pour installer l’application Android ?</a></p>
+      <details class="landing-disclosure">
+      <summary>Aide et informations légales</summary>
       <p class="landing-note">Une question ou besoin d’aide pour démarrer ? Écrivez-nous à <a href="mailto:mail@generation-liaison.fr">mail@generation-liaison.fr</a>.</p>
       <p class="landing-note">
         <a href="/cgu.html#mentions-legales">Mentions légales</a> ·
@@ -1428,6 +1471,7 @@
         <a href="/cgv.html">Projet de tarifs et CGV</a> ·
         <a href="/privacy-policy.html">Politique de confidentialité</a>
       </p>
+      </details>
       <button type="button" class="analytics-settings" id="analytics-settings">Gestion des cookies</button>
     </section>
   </main>
@@ -1443,6 +1487,11 @@
   </section>
 
   <script>
+    function ouvrirRubriqueAccueil(id) {
+      const rubrique = document.getElementById(id);
+      if (rubrique) rubrique.open = true;
+    }
+
     function redirectLegacyDashboard() {
       if (window.location.hash === '#dashboard') {
         window.location.replace('/app-mobile.html');

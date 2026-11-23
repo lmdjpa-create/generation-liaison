@@ -1,6 +1,15 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'À qui s’adresse Génération Liaison ?': 'Who is Génération Liaison for?',
+    'Voir les aperçus de l’interface senior': 'View the senior interface previews',
+    'Informations sur les prestataires': 'Information about service providers',
+    'Comment accéder à l’application ?': 'How to access the application',
+    'Aide et informations légales': 'Help and legal information',
+    'Informations sur les tableaux': 'About the tables',
+    'Informations sur le carnet et les messages': 'About the journal and messages',
+    'Informations sur les espaces': 'About the workspaces',
+    'Espaces séparés : soins et services du quotidien.': 'Separate workspaces: care and daily services.',
     'Un carnet de liaison pour les proches, les intervenants et les établissements': 'A shared journal for families, professionals and organizations',
     'Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.':
       'For older adults and anyone who needs daily support, including people with disabilities: share updates and organize visits with authorized people, at home or in a residence.',

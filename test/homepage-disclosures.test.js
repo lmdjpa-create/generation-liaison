@@ -22,6 +22,29 @@ test('homepage proposals are individually collapsed and retain their description
   }
 });
 
+test('homepage explanations start closed while direct access and emergency information remain visible', () => {
+  for (const summary of [
+    'À qui s’adresse Génération Liaison ?', 'Voir les aperçus de l’interface senior',
+    'Exemple de carnet de liaison', 'Vos échanges restent privés et sécurisés',
+    'Entreprises et résidences : un espace pour la direction', 'Informations sur les prestataires',
+    'Profitez gratuitement de toutes les fonctionnalités', 'Comment accéder à l’application ?',
+    'Aide et informations légales'
+  ]) {
+    const escaped = summary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    assert.match(source, new RegExp(`<details class="landing-disclosure"(?: id="[^"]+")?>\\s*<summary(?: id="[^"]+")?>${escaped}</summary>`));
+  }
+  assert.match(source, /<\/details>\s*<a class="landing-login" href="\/app-mobile\.html#inscription">/);
+  assert.match(source, /<\/details>\s*<p>Bon à savoir :[\s\S]*15 ou le 112/);
+  const script = source.slice(source.lastIndexOf('<script>') + '<script>'.length, source.lastIndexOf('</script>'));
+  const elements = { 'entreprises-details': { open: false }, 'exemple-carnet-details': { open: false } };
+  const context = { document: { getElementById: id => elements[id] } };
+  const start = script.indexOf('    function ouvrirRubriqueAccueil(id)');
+  const end = script.indexOf('    function redirectLegacyDashboard()', start);
+  vm.runInNewContext(`${script.slice(start, end)}\nouvrirRubriqueAccueil('entreprises-details'); ouvrirRubriqueAccueil('exemple-carnet-details');`, context);
+  assert.equal(elements['entreprises-details'].open, true);
+  assert.equal(elements['exemple-carnet-details'].open, true);
+});
+
 test('homepage describes daily tasks and shopping list sharing accurately', () => {
   const block = source.slice(source.indexOf('aria-labelledby="features-title"'), source.indexOf('aria-labelledby="daily-life-title"'));
   assert.match(block, /Les informations du jour[\s\S]*bulles colorées/);
@@ -60,7 +83,7 @@ test('assistant accuracy warning is shown beside the chat input, not in the home
   assert.doesNotMatch(faq, /Les réponses de l’assistant/);
 });
 
-test('privacy and health data information is visible near the top without unverified guarantees', () => {
+test('privacy and health data information remains available near the top without unverified guarantees', () => {
   const start = source.indexOf('<section class="landing-info privacy-highlight"');
   const end = source.indexOf('</section>', start);
   assert.ok(start > source.indexOf('id="landing-title"') && start < source.indexOf('id="presentation"'));
@@ -72,7 +95,8 @@ test('privacy and health data information is visible near the top without unveri
   assert.match(block, /nouvelles du quotidien, pas aux données de santé/);
   assert.match(block, /href="\/privacy-policy\.html"/);
   assert.doesNotMatch(block, /Render|PostgreSQL|HDS|région.*confirmer/);
-  assert.doesNotMatch(block, /<details/);
+  assert.match(block, /<details class="landing-disclosure">\s*<summary id="privacy-title">/);
+  assert.match(block, /<\/details>\s*<p>Bon à savoir :[\s\S]*15 ou le 112/);
   assert.match(privacySource, /base de données de production sur Supabase/);
   assert.match(privacySource, /conditions de chiffrement de cette base et de ses sauvegardes\s+restent à vérifier/);
   assert.match(privacySource, /Aucune certification HDS n’est revendiquée/);
@@ -111,7 +135,7 @@ test('homepage presents the organization workspace and the actual registration a
   const start = source.indexOf('<section class="landing-info" id="entreprises"');
   assert.ok(start > 0);
   const block = source.slice(start, source.indexOf('</section>', start));
-  assert.match(source, /href="#entreprises">Découvrir l’espace entreprises et résidences/);
+  assert.match(source, /href="#entreprises" onclick="ouvrirRubriqueAccueil\('entreprises-details'\)">Découvrir l’espace entreprises et résidences/);
   for (const title of ['Résidents', 'Soignants', 'Intervenants']) assert.match(block, new RegExp(`<h3>${title}</h3>`));
   assert.match(block, /résident ou son représentant légal vérifié choisit le partage/);
   assert.match(block, /direction ne consulte pas les carnets ni les messages privés/);
@@ -138,7 +162,7 @@ test('homepage shows a responsive, readable fictional journal example beside dir
   assert.match(source, /\.journal-preview-entry p\s*\{\s*margin: 0;\s*font-size: 1rem;/);
   assert.doesNotMatch(example, /<img/);
   assert.match(source, /<figcaption>Un aperçu du carnet de liaison avec des données fictives\.<\/figcaption>/);
-  assert.match(source, /href="#exemple-carnet">Voir un exemple de carnet<\/a>/);
+  assert.match(source, /href="#exemple-carnet" onclick="ouvrirRubriqueAccueil\('exemple-carnet-details'\)">Voir un exemple de carnet<\/a>/);
 });
 
 test('homepage shows the actual optional senior view and explains its fictional data', () => {

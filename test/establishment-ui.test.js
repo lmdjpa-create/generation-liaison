@@ -112,6 +112,15 @@ test('director overview separates categories and distinguishes accounts from con
   assert.deepEqual(rows('intervenant'), [['Intervenant', 'Lou', 'Coordonnées saisies', 'lou@example.test']]);
 });
 
+test('home explanations for director and staff start closed without hiding actions', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const director = source.slice(source.indexOf('<div id="screen-establishment"'), source.indexOf('<div id="screen-staff"'));
+  const staff = source.slice(source.indexOf('<div id="screen-staff"'), source.indexOf('<div id="screen-aidant"'));
+  assert.match(director, /<details class="senior-disclosure">\s*<summary>Informations sur les tableaux<\/summary>[\s\S]*?<\/details>\s*<div class="form-card"[^>]*><h4>Résidents/);
+  assert.match(staff, /<details class="senior-disclosure">\s*<summary>Informations sur le carnet et les messages<\/summary>[\s\S]*?<\/details>\s*<button type="button" onclick="chargerResidentsSoignant\(\)"/);
+  assert.match(staff, /id="care-staff-nonmedical"[^>]*required/);
+});
+
 test('director actions open only the requested panel and can close it', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const start = source.indexOf('    function fermerActionsEtablissement()');
