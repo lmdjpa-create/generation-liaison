@@ -15,6 +15,8 @@
       }
       let timer = null;
       let automatic = false;
+      let mouseOpened = false;
+      let lastPointerType = null;
       let anchor = summary;
 
       function cancelTimer() {
@@ -54,8 +56,13 @@
         cancelTimer();
         const next = event.relatedTarget;
         if (next && (details.contains(next) || targets.some(target => target.contains(next)))) return;
-        if (automatic && !details.contains(document.activeElement) &&
-            !targets.some(target => target === document.activeElement)) {
+        const focusInsideContent = details.contains(document.activeElement) && document.activeElement !== summary;
+        if (mouseOpened && event.pointerType === 'mouse' && !focusInsideContent) {
+          details.open = false;
+          mouseOpened = false;
+          automatic = false;
+        } else if (automatic && !details.contains(document.activeElement) &&
+                   !targets.some(target => target === document.activeElement)) {
           details.open = false;
           automatic = false;
         }
@@ -76,14 +83,17 @@
       }
       details.addEventListener('pointerleave', leave);
       details.addEventListener('focusout', leave);
-      summary.addEventListener('click', () => {
+      summary.addEventListener('pointerdown', event => { lastPointerType = event.pointerType; });
+      summary.addEventListener('click', (event = {}) => {
         cancelTimer();
         automatic = false;
+        mouseOpened = !details.open && event.detail > 0 && lastPointerType === 'mouse';
+        lastPointerType = null;
         anchor = summary;
       });
       details.addEventListener('toggle', () => {
         if (details.open) position();
-        else automatic = false;
+        else { automatic = false; mouseOpened = false; }
       });
       details.dataset.helpEnhanced = 'true';
       window.addEventListener('scroll', () => {
@@ -99,6 +109,31 @@
           automatic = false;
         }
       });
+    });
+
+    document.querySelectorAll('details.landing-disclosure, details[data-close-on-mouse-leave]').forEach(details => {
+      const summary = details.querySelector('summary');
+      if (!summary) return;
+      let pointerType = null;
+      let mouseOpened = false;
+      summary.addEventListener('pointerdown', event => { pointerType = event.pointerType; });
+      summary.addEventListener('click', event => {
+        mouseOpened = !details.open && event.detail > 0 && pointerType === 'mouse';
+        pointerType = null;
+      });
+      details.addEventListener('pointerenter', event => {
+        if (event.pointerType === 'mouse' && details.open && !details.contains(document.activeElement)) {
+          mouseOpened = true;
+        }
+      });
+      details.addEventListener('pointerleave', event => {
+        if (event.pointerType !== 'mouse' || !details.open || !mouseOpened) return;
+        if (event.relatedTarget && details.contains(event.relatedTarget)) return;
+        if (details.contains(document.activeElement) && document.activeElement !== summary) return;
+        details.open = false;
+        mouseOpened = false;
+      });
+      details.addEventListener('toggle', () => { if (!details.open) mouseOpened = false; });
     });
   }
 
