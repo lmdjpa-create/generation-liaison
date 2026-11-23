@@ -53,6 +53,16 @@ async function sendPasswordResetEmail(email, url) {
   if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
 }
 
+async function sendAdministrativeActivation(email, url) {
+  const result = await getResendClient().emails.send({
+    from: process.env.NOTIFICATIONS_FROM_EMAIL,
+    to: email,
+    subject: 'Activation de votre compte Génération Liaison',
+    text: `L’administration a créé un compte à votre adresse. Pour l’activer, choisissez votre mot de passe et acceptez les conditions en ouvrant ce lien dans les 15 minutes :\n\n${url}\n\nSi le lien a expiré, demandez-en un autre depuis « Mot de passe oublié ». Si vous ne souhaitez pas utiliser ce compte, ignorez cet e-mail et contactez l’administration.`
+  });
+  if (result.error) throw new Error(`Échec d’envoi e-mail Resend : ${result.error.message}`);
+}
+
 async function sendSeniorUnlinkCode(email, code) {
   const result = await getResendClient().emails.send({
     from: process.env.NOTIFICATIONS_FROM_EMAIL,
@@ -381,6 +391,7 @@ module.exports = {
   isConfigured,
   publicConfiguration,
   sendPasswordResetEmail,
+  sendAdministrativeActivation,
   sendSeniorUnlinkCode,
   sendSeniorInvitation,
   sendRegistrationInvitation,

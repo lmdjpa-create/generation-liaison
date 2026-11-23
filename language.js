@@ -1,6 +1,15 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Créer un compte': 'Create an account',
+    'Avec l’accord de la personne, créez un nouveau compte. Elle reçoit un e-mail pour choisir elle-même son mot de passe et accepter les conditions. Cette création ne donne pas accès à ses contenus privés.': 'With the person’s agreement, create a new account. They receive an email to choose their own password and accept the terms. Creating the account does not grant access to their private content.',
+    'Type de compte': 'Account type',
+    'Proche / aidant': 'Relative / caregiver',
+    'Je confirme l’accord de la personne.': 'I confirm the person has agreed.',
+    'Compte créé. Un lien d’activation a été envoyé à la personne.': 'Account created. An activation link has been sent to the person.',
+    'Compte créé, mais l’e-mail n’a pas pu être envoyé. Après une minute, demandez à la personne de créer son mot de passe avec « Mot de passe oublié » sur la page de connexion.': 'Account created, but the email could not be sent. After one minute, ask the person to set their password using “Forgot password” on the sign-in page.',
+    'Abonnement dans Entreprises / résidences.': 'Subscription in Businesses / residences.',
+    'Pour activer votre compte, acceptez les conditions générales d’utilisation en vigueur.': 'To activate your account, accept the current terms of use.',
     'Connexion résident ou soignant sans e-mail': 'Resident or care worker sign-in without email',
     'Copiez ce lien et transmettez-le à la personne concernée. Elle pourra l’ouvrir sur son appareil et se connecter avec ses propres identifiants. Sur un appareil partagé, déconnectez d’abord le compte directeur.': 'Copy this link and send it to the person concerned. They can open it on their device and sign in with their own credentials. On a shared device, first sign out of the director account.',
     'Lien de connexion': 'Sign-in link',

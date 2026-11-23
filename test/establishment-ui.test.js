@@ -171,6 +171,42 @@ test('only the director workspace offers the shareable sign-in link', async () =
   assert.match(source, /if \(!token\) \{[\s\S]*?afficherConnexionInitiale\(\);[\s\S]*?return;/);
 });
 
+test('admin account creation sends no password and reports activation delivery failures', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const start = source.indexOf("    document.getElementById('admin-create-account-form').addEventListener");
+  const end = source.indexOf("    document.getElementById('account-invitation-form').addEventListener", start);
+  assert.ok(start >= 0 && end > start);
+  const ids = {
+    'admin-create-first-name': { value: ' Camille ' }, 'admin-create-last-name': { value: ' Exemple ' },
+    'admin-create-email': { value: ' camille@example.test ' }, 'admin-create-role': { value: 'establishment' },
+    'admin-create-confirmed': { checked: true }, 'admin-create-account-status': { textContent: '' }
+  };
+  let handler;
+  let delivery = true;
+  let sent;
+  const button = {};
+  const form = { querySelector: () => button, reset() { this.resetCalled = true; } };
+  const context = {
+    document: { getElementById(id) { return id === 'admin-create-account-form'
+      ? { addEventListener: (_, fn) => { handler = fn; } } : ids[id]; } },
+    adminRequest: async (url, options) => { sent = { url, body: options.body }; return { activationEmailSent: delivery }; },
+    loadOverview: async () => {}
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  await handler({ preventDefault() {}, currentTarget: form });
+  assert.equal(sent.url, '/api/admin/accounts');
+  assert.equal(sent.body.email, 'camille@example.test');
+  assert.equal(sent.body.role, 'establishment');
+  assert.equal(sent.body.confirmed, true);
+  assert.equal(Object.hasOwn(sent.body, 'password'), false);
+  assert.equal(form.resetCalled, true);
+  assert.match(ids['admin-create-account-status'].textContent, /lien d’activation a été envoyé/);
+  delivery = false;
+  await handler({ preventDefault() {}, currentTarget: form });
+  assert.match(ids['admin-create-account-status'].textContent, /Compte créé, mais l’e-mail n’a pas pu être envoyé/);
+  assert.equal(button.disabled, false);
+});
+
 test('director actions open only the requested panel and can close it', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const start = source.indexOf('    function fermerActionsEtablissement()');
@@ -198,7 +234,7 @@ test('director actions open only the requested panel and can close it', () => {
 test('administrative closure requires a reason and confirmation before requesting it', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
   const start = source.indexOf('    async function initiateAccountClosure(');
-  const end = source.indexOf("    document.getElementById('account-invitation-form')", start);
+  const end = source.indexOf("    document.getElementById('admin-create-account-form')", start);
   assert.ok(start >= 0 && end > start);
   const requests = [];
   let confirmed = false;

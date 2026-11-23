@@ -20,8 +20,10 @@ let failEmail = false;
 let emailConfigured = true;
 let failInvitation = false;
 let failRegistrationInvitation = false;
+let failAdministrativeActivation = false;
 const sentInvitations = [];
 const sentRegistrationInvitations = [];
+const sentAdministrativeActivations = [];
 
 before(async () => {
   db = new PGlite();
@@ -38,7 +40,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
@@ -53,6 +55,10 @@ before(async () => {
   delivery.sendRegistrationInvitation = async (email, url, role) => {
     if (failRegistrationInvitation) throw new Error('test registration invitation failure');
     sentRegistrationInvitations.push({ email, url, role });
+  };
+  delivery.sendAdministrativeActivation = async (email, url) => {
+    if (failAdministrativeActivation) throw new Error('test activation delivery failure');
+    sentAdministrativeActivations.push({ email, url });
   };
   const app = require('../server');
   server = app.listen(0);
@@ -89,6 +95,81 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('administrators provision all email account roles without accepting terms or granting private access', async () => {
+  const admin = await register('provision-admin@example.test', 'aidant');
+  const other = await register('provision-other@example.test', 'aidant');
+  const create = '/api/admin/accounts';
+  const fields = { firstName: 'Camille', lastName: 'Exemple', email: 'new-provision@example.test',
+    role: 'senior', confirmed: true };
+  assert.equal((await request(create, { user: other, admin: true, body: fields })).status, 403);
+  assert.equal((await request(create, { user: admin, body: fields })).status, 403);
+  assert.equal((await request(create, { user: admin, admin: true, body: { ...fields, confirmed: false } })).status, 400);
+  assert.equal((await request(create, { user: admin, admin: true, body: { ...fields, role: 'staff' } })).status, 400);
+  emailConfigured = false;
+  assert.equal((await request(create, { user: admin, admin: true, body: fields })).status, 503);
+  emailConfigured = true;
+
+  for (const role of ['senior', 'aidant', 'pro', 'establishment']) {
+    const email = `admin-provision-${role}@example.test`;
+    const created = await request(create, { user: admin, admin: true, body: { ...fields, email, role } });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    assert.equal(created.data.activationEmailSent, true);
+    assert.equal(sentAdministrativeActivations.at(-1).email, email);
+    const token = new URL(sentAdministrativeActivations.at(-1).url).hash.slice(1);
+    const row = (await db.query('SELECT terms_accepted_at, created_by_admin, verification_status FROM app_users WHERE id = $1', [created.data.id])).rows[0];
+    assert.equal(row.terms_accepted_at, null);
+    assert.equal(row.created_by_admin, admin.user.id);
+    assert.equal(row.verification_status, role === 'pro' ? 'pending' : 'approved');
+    assert.equal((await request(create, { user: admin, admin: true, body: { ...fields, email, role } })).status, 409);
+
+    assert.equal((await request('/api/auth/login', { body: { email, password: 'mot-personnel-456' } })).status, 401);
+    const activate = '/api/auth/password-reset/confirm';
+    const body = { token, password: 'mot-personnel-456', acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION };
+    assert.equal((await request(activate, { body: { ...body, acceptedTerms: false } })).status, 400);
+    assert.equal((await request(activate, { body: { ...body, acceptedTermsVersion: 'obsolete' } })).status, 400);
+    assert.equal((await request(activate, { body })).status, 200);
+    assert.equal((await request(activate, { body })).status, 400);
+    const login = await request('/api/auth/login', { body: { email, password: body.password } });
+    assert.equal(login.status, 200);
+    assert.equal(login.data.user.passwordChangeRequired, false);
+    const accepted = (await db.query('SELECT terms_accepted_at FROM app_users WHERE id = $1', [created.data.id])).rows[0];
+    assert.ok(accepted.terms_accepted_at);
+  }
+  failAdministrativeActivation = true;
+  const failedDelivery = await request(create, { user: admin, admin: true, body: { ...fields, email: 'delivery-failure@example.test' } });
+  failAdministrativeActivation = false;
+  assert.equal(failedDelivery.status, 201);
+  assert.equal(failedDelivery.data.activationEmailSent, false);
+});
+
+test('administrators can manage accounts beyond the former 500-account limit', async () => {
+  const admin = await register('overview-admin@example.test', 'aidant');
+  const prefix = randomUUID();
+  const { rows } = await db.query(
+    `WITH profiles AS (
+       INSERT INTO senior_profiles (id, name)
+       SELECT gen_random_uuid(), $1 || '-' || number FROM generate_series(1, 501) number
+       RETURNING id, name
+     )
+     INSERT INTO app_users (id, senior_id, name, email, role, password_salt, password_hash, created_at)
+     SELECT gen_random_uuid(), profiles.id, profiles.name, profiles.name || '@example.test', 'senior',
+            admin.password_salt, admin.password_hash, CURRENT_TIMESTAMP
+     FROM profiles CROSS JOIN app_users admin WHERE admin.id = $2
+     RETURNING id, senior_id`,
+    [prefix, admin.user.id]
+  );
+  try {
+    const result = await request('/api/admin/overview', { user: admin, admin: true });
+    assert.equal(result.status, 200);
+    const listed = new Set(result.data.accounts.map(account => account.id));
+    assert.ok(rows.every(row => listed.has(row.id)));
+    assert.ok(listed.has(admin.user.id));
+  } finally {
+    await db.query('DELETE FROM app_users WHERE id = ANY($1::uuid[])', [rows.map(row => row.id)]);
+    await db.query('DELETE FROM senior_profiles WHERE id = ANY($1::uuid[])', [rows.map(row => row.senior_id)]);
+  }
+});
 
 test('administrators invite registration and initiate a traceable closure without accessing private data', async () => {
   const admin = await register('closure-admin@example.test', 'senior');

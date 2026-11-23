@@ -1619,8 +1619,7 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
          JOIN senior_profiles senior ON senior.id = user_account.senior_id
          LEFT JOIN planning_org_members member ON member.user_id = user_account.id
          GROUP BY user_account.id, senior.name
-         ORDER BY user_account.created_at DESC
-         LIMIT 500`
+         ORDER BY user_account.created_at DESC`
       ),
       pool.query(
         `SELECT partner.id, partner.display_name, partner.service_type, partner.service_area,
@@ -2235,6 +2234,42 @@ app.post('/api/admin/accounts/:accountId/closure', requireAuth, requireAdmin, as
     res.status(201).json({ ...result, message: 'Compte désactivé et clôture à examiner. La suppression complète nécessite un traitement administratif.' });
   } catch (error) {
     sendApiError(res, error, 'Impossible de lancer la clôture.');
+  }
+});
+
+app.post('/api/admin/accounts', requireAuth, requireAdmin, async (req, res) => {
+  if (req.body?.confirmed !== true) {
+    return res.status(400).json({ error: 'Confirmez l’accord de la personne avant de créer son compte.' });
+  }
+  const email = typeof req.body.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (adminEmails.has(email)) {
+    return res.status(409).json({ error: 'Un compte administrateur ne peut pas être créé depuis cet écran.' });
+  }
+  if (!notificationDelivery.isConfigured().email) {
+    return res.status(503).json({ error: 'L’envoi d’e-mails doit être configuré pour créer un compte.' });
+  }
+  let appUrl;
+  try {
+    appUrl = new URL(process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com');
+    if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password) throw new Error('URL publique invalide.');
+  } catch (error) {
+    return sendApiError(res, error, 'Impossible de préparer le lien d’activation.');
+  }
+  try {
+    const account = await authService.createAdministrativeAccount(req.authUser.id, req.body);
+    try {
+      const token = await authService.createPasswordReset(email);
+      if (!token) throw new Error('Lien d’activation indisponible.');
+      const link = new URL('/reset-password.html', appUrl);
+      link.hash = token;
+      await notificationDelivery.sendAdministrativeActivation(email, link.toString());
+      res.set('Cache-Control', 'no-store').status(201).json({ ...account, activationEmailSent: true });
+    } catch (error) {
+      console.error('Échec de l’envoi du lien d’activation :', error.message);
+      res.set('Cache-Control', 'no-store').status(201).json({ ...account, activationEmailSent: false });
+    }
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer le compte.');
   }
 });
 
@@ -3025,7 +3060,7 @@ app.post('/api/auth/password-reset/request', async (req, res) => {
 
 app.post('/api/auth/password-reset/confirm', async (req, res) => {
   try {
-    await authService.resetPassword(req.body?.token, req.body?.password);
+    await authService.resetPassword(req.body?.token, req.body?.password, req.body?.acceptedTerms, req.body?.acceptedTermsVersion);
     return res.json({ message: 'Votre mot de passe a été modifié. Vous pouvez vous connecter.' });
   } catch (error) {
     return sendApiError(res, error, 'Impossible de modifier le mot de passe.');

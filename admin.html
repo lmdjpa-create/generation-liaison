@@ -332,6 +332,24 @@
           <div class="panel-head">
             <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
           </div>
+          <details>
+            <summary>Créer un compte</summary>
+            <p class="hint">Avec l’accord de la personne, créez un nouveau compte. Elle reçoit un e-mail pour choisir elle-même son mot de passe et accepter les conditions. Cette création ne donne pas accès à ses contenus privés.</p>
+            <form id="admin-create-account-form" class="admin-form">
+              <input id="admin-create-first-name" placeholder="Prénom" aria-label="Prénom" maxlength="120" required>
+              <input id="admin-create-last-name" placeholder="Nom" aria-label="Nom" maxlength="120" required>
+              <input id="admin-create-email" type="email" placeholder="Adresse e-mail" aria-label="Adresse e-mail" maxlength="254" required>
+              <select id="admin-create-role" aria-label="Type de compte" required>
+                <option value="senior">Personne accompagnée</option>
+                <option value="aidant">Proche / aidant</option>
+                <option value="pro">Intervenant</option>
+                <option value="establishment">Entreprise / résidence</option>
+              </select>
+              <label><input id="admin-create-confirmed" type="checkbox" required> Je confirme l’accord de la personne.</label>
+              <button type="submit" class="button">Créer le compte</button>
+            </form>
+            <p id="admin-create-account-status" role="status" aria-live="polite"></p>
+          </details>
           <form id="account-invitation-form" class="control-group">
             <label for="account-invitation-email">Inviter à créer un compte</label>
             <input id="account-invitation-email" type="email" maxlength="254" required>
@@ -883,6 +901,36 @@
       }
     }
 
+    document.getElementById('admin-create-account-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button');
+      const status = document.getElementById('admin-create-account-status');
+      button.disabled = true;
+      status.textContent = '';
+      try {
+        const result = await adminRequest('/api/admin/accounts', {
+          method: 'POST',
+          body: {
+            firstName: document.getElementById('admin-create-first-name').value.trim(),
+            lastName: document.getElementById('admin-create-last-name').value.trim(),
+            email: document.getElementById('admin-create-email').value.trim(),
+            role: document.getElementById('admin-create-role').value,
+            confirmed: document.getElementById('admin-create-confirmed').checked
+          }
+        });
+        form.reset();
+        status.textContent = result.activationEmailSent
+          ? 'Compte créé. Un lien d’activation a été envoyé à la personne.'
+          : 'Compte créé, mais l’e-mail n’a pas pu être envoyé. Après une minute, demandez à la personne de créer son mot de passe avec « Mot de passe oublié » sur la page de connexion.';
+        await loadOverview();
+      } catch (error) {
+        status.textContent = error.message || 'Impossible de créer le compte.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+
     document.getElementById('account-invitation-form').addEventListener('submit', async event => {
       event.preventDefault();
       const form = event.currentTarget;
@@ -1126,7 +1174,7 @@
 
     function renderAccounts(accounts, limits) {
       const tbody = document.getElementById('accounts-body');
-      const regularAccounts = accounts.filter(account => account.role !== 'establishment');
+      const regularAccounts = accounts;
       if (!regularAccounts.length) return renderEmpty(tbody, 8, 'Aucun compte.');
       tbody.replaceChildren();
       regularAccounts.forEach(account => {
@@ -1304,30 +1352,37 @@
           close.addEventListener('click', () => initiateAccountClosure(account, close));
           stateLine.append(close);
         }
-        const premium = document.createElement('div');
-        premium.className = 'account-line';
-        const premiumBadge = document.createElement('span');
-        premiumBadge.className = `badge${account.premiumActive ? '' : ' off'}`;
-        premiumBadge.textContent = account.premiumActive
-          ? `${account.premiumStatus === 'trial' ? 'Essai' : 'Premium'}${account.premiumUntil ? ` jusqu’au ${new Date(account.premiumUntil).toLocaleDateString('fr-FR')}` : ''}`
-          : 'Sans abonnement';
-        const premiumChoice = document.createElement('select');
-        premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
-        [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
-          ['year', 'Premium 12 mois'], ['forever', 'Premium sans fin'],
-          ['trial', 'Essai 14 jours'], ['none', 'Retirer l’abonnement']].forEach(([value, label]) => {
-          const option = document.createElement('option');
-          option.value = value;
-          option.textContent = label;
-          premiumChoice.append(option);
-        });
-        const premiumButton = document.createElement('button');
-        premiumButton.className = 'button secondary';
-        premiumButton.type = 'button';
-        premiumButton.textContent = 'Appliquer';
-        premiumButton.addEventListener('click', () => updatePremium(account, premiumChoice.value, premiumButton));
-        premium.append(premiumBadge, premiumChoice, premiumButton);
-        action.append(premium);
+        if (account.role !== 'establishment' && account.role !== 'staff') {
+          const premium = document.createElement('div');
+          premium.className = 'account-line';
+          const premiumBadge = document.createElement('span');
+          premiumBadge.className = `badge${account.premiumActive ? '' : ' off'}`;
+          premiumBadge.textContent = account.premiumActive
+            ? `${account.premiumStatus === 'trial' ? 'Essai' : 'Premium'}${account.premiumUntil ? ` jusqu’au ${new Date(account.premiumUntil).toLocaleDateString('fr-FR')}` : ''}`
+            : 'Sans abonnement';
+          const premiumChoice = document.createElement('select');
+          premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
+          [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
+            ['year', 'Premium 12 mois'], ['forever', 'Premium sans fin'],
+            ['trial', 'Essai 14 jours'], ['none', 'Retirer l’abonnement']].forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            premiumChoice.append(option);
+          });
+          const premiumButton = document.createElement('button');
+          premiumButton.className = 'button secondary';
+          premiumButton.type = 'button';
+          premiumButton.textContent = 'Appliquer';
+          premiumButton.addEventListener('click', () => updatePremium(account, premiumChoice.value, premiumButton));
+          premium.append(premiumBadge, premiumChoice, premiumButton);
+          action.append(premium);
+        } else if (account.role === 'establishment') {
+          const hint = document.createElement('p');
+          hint.className = 'hint';
+          hint.textContent = 'Abonnement dans Entreprises / résidences.';
+          action.append(hint);
+        }
         row.append(action);
         tbody.append(row);
       });

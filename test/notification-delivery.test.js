@@ -22,6 +22,11 @@ test('establishment invitation explains that the recipient chooses the role and 
   assert.match(sent[0].text, /Entreprise \/ résidence/);
   assert.match(sent[0].text, /ne crée pas de compte et ne donne aucun accès/);
   assert.match(sent[0].text, /#inscription/);
+  await context.module.exports.sendAdministrativeActivation('person@example.test', 'https://example.test/reset-password.html#token');
+  assert.equal(sent[1].to, 'person@example.test');
+  assert.match(sent[1].text, /choisissez votre mot de passe et acceptez les conditions/);
+  assert.match(sent[1].text, /15 minutes/);
+  assert.match(sent[1].text, /Mot de passe oublié/);
 });
 
 async function deliverSms(enabled, reminderStillValid = null, reminderType = 'task_reminder') {

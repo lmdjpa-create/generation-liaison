@@ -83,6 +83,8 @@ function createAuthService(pool) {
         ALTER TABLE app_users ADD COLUMN IF NOT EXISTS establishment_subscription_active BOOLEAN NOT NULL DEFAULT FALSE;
         ALTER TABLE app_users ADD COLUMN IF NOT EXISTS establishment_user_count INTEGER
           CHECK (establishment_user_count BETWEEN 1 AND 100000);
+        ALTER TABLE app_users ADD COLUMN IF NOT EXISTS admin_password_change_required BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE app_users ADD COLUMN IF NOT EXISTS created_by_admin UUID REFERENCES app_users(id) ON DELETE SET NULL;
         ALTER TABLE app_users ALTER COLUMN email DROP NOT NULL;
         CREATE TABLE IF NOT EXISTS establishment_resident_accounts (
           resident_user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
@@ -1046,7 +1048,7 @@ function createAuthService(pool) {
     return rows.length ? token : null;
   }
 
-  async function resetPassword(token, password) {
+  async function resetPassword(token, password, acceptedTerms, acceptedTermsVersion) {
     if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) {
       throw new AuthError(400, 'Ce lien est invalide ou a expiré. Demandez un nouveau lien.');
     }
@@ -1067,18 +1069,62 @@ function createAuthService(pool) {
       if (!rows.length) {
         throw new AuthError(400, 'Ce lien est invalide ou a expiré. Demandez un nouveau lien.');
       }
-      const updated = await client.query(
-        `UPDATE app_users SET password_salt = $2, password_hash = $3
-         WHERE id = $1 AND is_active = TRUE RETURNING id`,
-        [rows[0].user_id, credentials.salt, credentials.hash]
+      const { rows: users } = await client.query(
+        'SELECT id, admin_password_change_required FROM app_users WHERE id = $1 AND is_active = TRUE FOR UPDATE',
+        [rows[0].user_id]
       );
-      if (!updated.rows.length) {
+      if (!users.length) {
         throw new AuthError(400, 'Ce lien est invalide ou a expiré. Demandez un nouveau lien.');
       }
+      if (users[0].admin_password_change_required && (acceptedTerms !== true || acceptedTermsVersion !== TERMS_VERSION)) {
+        throw new AuthError(400, 'Pour activer votre compte, acceptez les conditions générales d’utilisation en vigueur.');
+      }
+      await client.query(
+        `UPDATE app_users SET password_salt = $2, password_hash = $3,
+         terms_accepted_at = CASE WHEN admin_password_change_required THEN CURRENT_TIMESTAMP ELSE terms_accepted_at END,
+         terms_version = CASE WHEN admin_password_change_required THEN $4 ELSE terms_version END,
+         admin_password_change_required = FALSE WHERE id = $1`,
+        [rows[0].user_id, credentials.salt, credentials.hash, TERMS_VERSION]
+      );
       await client.query('DELETE FROM app_sessions WHERE user_id = $1', [rows[0].user_id]);
       await client.query('COMMIT');
     } catch (error) {
       await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function createAdministrativeAccount(adminId, { firstName, lastName, email, role }) {
+    await ensureSchema();
+    if (typeof firstName !== 'string' || typeof lastName !== 'string' ||
+        !firstName.trim() || !lastName.trim() || `${firstName.trim()} ${lastName.trim()}`.length > 120 ||
+        typeof email !== 'string' || email.trim().length > 254 ||
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ||
+        !roles.has(role)) {
+      throw new AuthError(400, 'Vérifiez les noms, l’e-mail et le rôle.');
+    }
+    const userId = randomUUID();
+    const seniorId = randomUUID();
+    const name = `${firstName.trim()} ${lastName.trim()}`;
+    const credentials = await hashPassword(randomBytes(32).toString('hex'));
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('INSERT INTO senior_profiles (id, name) VALUES ($1, $2)', [seniorId, name]);
+      await client.query(
+        `INSERT INTO app_users (id, senior_id, name, first_name, last_name, email, role,
+           password_salt, password_hash, verification_status, admin_password_change_required, created_by_admin)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE, $11)`,
+        [userId, seniorId, name, firstName.trim(), lastName.trim(), email.trim().toLowerCase(), role,
+          credentials.salt, credentials.hash, role === 'pro' ? 'pending' : 'approved', adminId]
+      );
+      await client.query('COMMIT');
+      return { id: userId };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      if (error.code === '23505') throw new AuthError(409, 'Un compte existe déjà pour cette adresse e-mail.');
       throw error;
     } finally {
       client.release();
@@ -1286,6 +1332,7 @@ function createAuthService(pool) {
               u.weather_commune_name, u.weather_commune_latitude, u.weather_commune_longitude, u.weather_commune_updated_at,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
+              u.admin_password_change_required AS password_change_required,
               u.password_salt, u.password_hash,
               s.name AS senior_name
          FROM app_users u
@@ -1323,8 +1370,8 @@ function createAuthService(pool) {
               u.weather_commune_name, u.weather_commune_latitude, u.weather_commune_longitude, u.weather_commune_updated_at,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
-              COALESCE((SELECT account.password_change_required FROM establishment_resident_accounts account
-                        WHERE account.resident_user_id = u.id), FALSE) AS password_change_required,
+              (u.admin_password_change_required OR COALESCE((SELECT account.password_change_required FROM establishment_resident_accounts account
+                        WHERE account.resident_user_id = u.id), FALSE)) AS password_change_required,
               s.name AS senior_name
        FROM app_sessions session
        JOIN app_users u ON u.id = session.user_id
@@ -1462,6 +1509,7 @@ function createAuthService(pool) {
   }
 
   return { authenticate, createPasswordReset, ensureSchema, login, logout, register, requestAccountClosure, resetPassword,
+    createAdministrativeAccount,
     createEstablishmentResident, loginEstablishmentResident, resetEstablishmentResidentPassword, changeEstablishmentResidentPassword };
 }
 
