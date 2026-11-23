@@ -200,12 +200,13 @@
         <h1>Vue d’ensemble</h1>
         <p>Gérez les comptes et les services du quotidien depuis votre ordinateur.</p>
       </section>
-      <div class="notice"><strong>Données protégées :</strong> cet espace ne présente ni notes de soins, ni transmissions médicales, ni contacts d’urgence, ni adresses ou téléphones des clients. Pour les demandes de clôture, l’IA reçoit uniquement le rôle, la catégorie de formule et des décomptes de dossiers ; elle donne un pré-jugement indicatif, jamais une décision. L’administration vérifie les dossiers réels et confirme seule la clôture.</div>
+      <div class="notice"><strong>Données protégées :</strong> cet espace ne présente ni notes de soins, ni transmissions médicales, ni contacts d’urgence, ni adresses ou téléphones des clients. Les coordonnées des établissements sont visibles dans leur rubrique dédiée. Pour les demandes de clôture, l’IA reçoit uniquement le rôle, la catégorie de formule et des décomptes de dossiers ; elle donne un pré-jugement indicatif, jamais une décision. L’administration vérifie les dossiers réels et confirme seule la clôture.</div>
       <div id="page-status" class="status" role="status" aria-live="polite"></div>
       <div class="admin-body">
         <nav class="side-nav" id="admin-nav" aria-label="Rubriques de l’administration">
           <button type="button" class="nav-item active" data-target="overview"><span aria-hidden="true">📊</span> Vue d’ensemble</button>
           <button type="button" class="nav-item" data-target="accounts"><span aria-hidden="true">👥</span> Comptes et abonnements</button>
+          <button type="button" class="nav-item" data-target="establishments"><span aria-hidden="true">🏢</span> Entreprises / résidences</button>
           <button type="button" class="nav-item" data-target="services"><span aria-hidden="true">🧰</span> Services du quotidien</button>
           <button type="button" class="nav-item" data-target="care"><span aria-hidden="true">📅</span> Accompagnement</button>
           <button type="button" class="nav-item" data-target="assist"><span aria-hidden="true">💬</span> Assistant et demandes</button>
@@ -214,6 +215,13 @@
         <div class="admin-content">
       <section id="stats" class="stats" aria-label="Indicateurs"></section>
       <div class="layout">
+        <section class="panel" data-section="establishments">
+          <div class="panel-head"><div><h2>Entreprises / résidences</h2><p>Fiches privées renseignées par les établissements. Leur identité et leurs coordonnées ne sont pas vérifiées automatiquement. L’abonnement est géré manuellement : aucun paiement en ligne ni échéance automatique.</p><p>Nombre de personnes renseigné par l’administration, non compté automatiquement. Grille mensuelle indicative HT : 1–10 : 29 € ; 11–25 : 49 € ; 26–50 : 79 € ; 51–100 : 129 € ; au-delà : devis.</p></div></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Compte</th><th>Établissement</th><th>Présentation</th><th>Adresse</th><th>Coordonnées</th><th>Tablettes envisagées</th><th>Personnes et tarif</th><th>Abonnement</th><th>Accès au compte</th></tr></thead>
+            <tbody id="establishments-body"></tbody>
+          </table></div>
+        </section>
         <section class="panel" data-section="overview">
           <div class="panel-head">
             <div><h2>Surveillance technique et aide IA</h2><p>Compteurs anonymes des requêtes API reçues par ce serveur pendant les 15 dernières minutes. Ils sont remis à zéro au redémarrage et ne détectent pas une panne complète du serveur.</p></div>
@@ -307,6 +315,12 @@
           <div class="panel-head">
             <div><h2>Comptes</h2><p id="account-limit">Les nouveaux intervenants restent en attente jusqu’à la vérification de leur pièce d’identité et de leur Kbis. Les justificatifs sont privés et réservés à l’administration.</p></div>
           </div>
+          <form id="account-invitation-form" class="control-group">
+            <label for="account-invitation-email">Inviter à créer un compte</label>
+            <input id="account-invitation-email" type="email" maxlength="254" required>
+            <button type="submit" class="button secondary">Envoyer l’invitation</button>
+          </form>
+          <p class="hint">La personne crée elle-même son compte et choisit son mot de passe. L’invitation ne donne accès à aucun dossier.</p>
           <div class="table-wrap"><table>
             <thead><tr><th>Nom</th><th>E-mail</th><th>Rôle</th><th>Profil</th><th>Équipes</th><th>Créé le</th><th>Vérification et profils seniors</th><th>Accès</th></tr></thead>
             <tbody id="accounts-body"></tbody>
@@ -374,7 +388,9 @@
     const roleLabels = {
       senior: window.generationLiaisonTranslate('Senior'),
       aidant: window.generationLiaisonTranslate('Aidant'),
-      pro: window.generationLiaisonTranslate('Intervenant')
+      pro: window.generationLiaisonTranslate('Intervenant'),
+      staff: window.generationLiaisonTranslate('Soignant en établissement'),
+      establishment: window.generationLiaisonTranslate('Entreprise / résidence')
     };
     const closureJudgmentLabels = {
       simple_to_review: window.generationLiaisonTranslate('Dossier apparemment simple à examiner'),
@@ -829,6 +845,45 @@
       }
     }
 
+    async function initiateAccountClosure(account, button) {
+      const reason = prompt('Indiquez le motif de cette clôture administrative (20 caractères minimum, sans donnée privée).');
+      if (reason === null) return;
+      if (reason.trim().length < 20 || reason.trim().length > 500) {
+        setStatus('Le motif doit contenir de 20 à 500 caractères.', true);
+        return;
+      }
+      if (!confirm(`Clôturer le compte de ${account.name} ? Il sera désactivé immédiatement et certaines données seront effacées sans retour possible. L’effacement complet devra être examiné par l’administration.`)) return;
+      button.disabled = true;
+      try {
+        await adminRequest(`/api/admin/accounts/${encodeURIComponent(account.id)}/closure`, {
+          method: 'POST', body: { confirmed: true, reason: reason.trim() }
+        });
+        await loadOverview();
+        setStatus('Clôture administrative lancée. Le compte est désactivé ; le traitement reste à examiner.');
+      } catch (error) {
+        setStatus(error.message || 'Impossible de lancer la clôture.', true);
+        button.disabled = false;
+      }
+    }
+
+    document.getElementById('account-invitation-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button');
+      button.disabled = true;
+      try {
+        const result = await adminRequest('/api/admin/account-invitations', {
+          method: 'POST', body: { email: document.getElementById('account-invitation-email').value.trim() }
+        });
+        form.reset();
+        setStatus(result.message);
+      } catch (error) {
+        setStatus(error.message || 'Impossible d’envoyer l’invitation.', true);
+      } finally {
+        button.disabled = false;
+      }
+    });
+
     async function downloadVerificationDocument(accountId, documentType) {
       const headers = { ...authHeaders() };
       const adminCode = sessionStorage.getItem(ADMIN_CODE_KEY);
@@ -1023,9 +1078,10 @@
 
     function renderAccounts(accounts, limits) {
       const tbody = document.getElementById('accounts-body');
-      if (!accounts.length) return renderEmpty(tbody, 8, 'Aucun compte.');
+      const regularAccounts = accounts.filter(account => account.role !== 'establishment');
+      if (!regularAccounts.length) return renderEmpty(tbody, 8, 'Aucun compte.');
       tbody.replaceChildren();
-      accounts.forEach(account => {
+      regularAccounts.forEach(account => {
         const row = document.createElement('tr');
         addCell(row, account.name);
         addCell(row, account.email);
@@ -1193,6 +1249,12 @@
           button.textContent = account.active ? 'Suspendre' : 'Réactiver';
           button.addEventListener('click', () => updateAccount(account, button));
           stateLine.append(button);
+          const close = document.createElement('button');
+          close.className = 'button secondary';
+          close.type = 'button';
+          close.textContent = 'Lancer la clôture';
+          close.addEventListener('click', () => initiateAccountClosure(account, close));
+          stateLine.append(close);
         }
         const premium = document.createElement('div');
         premium.className = 'account-line';
@@ -1304,7 +1366,8 @@
           ? 'Premium ou essai'
           : 'Gratuit ou formule inactive';
         addCell(row, roleLabels[request.role] || request.role, accountTier);
-        addCell(row, request.status === 'processing' ? 'En cours de traitement' : 'À examiner');
+        addCell(row, request.status === 'processing' ? 'En cours de traitement' : 'À examiner',
+          request.initiatedBy ? `Initiée par l’administration : ${request.initiationReason}` : 'Demandée par le titulaire');
         const reviewCell = document.createElement('td');
         if (request.aiReviewSummary) {
           const details = document.createElement('details');
@@ -1489,10 +1552,111 @@
         await loadAccountClosureRequests();
         await loadAssistantHandoffs();
         await loadExternalPros();
+        await loadEstablishments();
         setStatus(`${window.generationLiaisonTranslate('Données actualisées à')} ${new Date().toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' })}.`);
       } catch (error) {
         setStatus(error.message || 'Impossible de charger le tableau de bord.', true);
       }
+    }
+
+    function establishmentTariff(count) {
+      if (count === null) return 'Nombre non renseigné';
+      if (count > 100) return 'Sur devis';
+      return `${count <= 10 ? 29 : count <= 25 ? 49 : count <= 50 ? 79 : 129} € HT / mois`;
+    }
+
+    async function loadEstablishments() {
+      const body = document.getElementById('establishments-body');
+      const { establishments } = await adminRequest('/api/admin/establishments');
+      if (!establishments.length) return renderEmpty(body, 9, 'Aucun établissement.');
+      body.replaceChildren(...establishments.map(item => {
+        const row = document.createElement('tr');
+        addCell(row, item.account_name, item.account_email);
+        addCell(row, item.name);
+        addCell(row, item.description);
+        addCell(row, item.address);
+        addCell(row, item.phone, item.email);
+        addCell(row, item.tablet_interest === 'rental' ? `Location : ${item.tablet_quantity}` :
+          item.tablet_interest === 'purchase' ? `Achat : ${item.tablet_quantity}` : 'Aucune demande');
+        const pricing = document.createElement('td');
+        const pricingForm = document.createElement('form');
+        const count = document.createElement('input');
+        count.type = 'number';
+        count.min = '1';
+        count.max = '100000';
+        count.required = true;
+        count.value = item.user_count ?? '';
+        count.setAttribute('aria-label', `Nombre de personnes pour ${item.account_name}`);
+        const price = document.createElement('span');
+        price.textContent = establishmentTariff(item.user_count);
+        const save = document.createElement('button');
+        save.type = 'submit';
+        save.textContent = 'Enregistrer';
+        count.disabled = save.disabled = !item.account_active;
+        pricingForm.append(count, save);
+        pricingForm.addEventListener('submit', async event => {
+          event.preventDefault();
+          save.disabled = true;
+          try {
+            await adminRequest(`/api/admin/establishments/${item.id}/users`, {
+              method: 'PATCH', body: { count: Number(count.value) }
+            });
+            await loadEstablishments();
+          } catch (error) {
+            setStatus(error.message, true);
+            save.disabled = false;
+          }
+        });
+        pricing.append(pricingForm, price);
+        row.append(pricing);
+        const cell = document.createElement('td');
+        const label = document.createElement('span');
+        label.textContent = item.active ? 'Actif ' : 'Inactif ';
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = item.active ? 'Désactiver' : 'Activer';
+        button.disabled = !item.account_active;
+        button.addEventListener('click', async () => {
+          if (!confirm(`${item.active ? 'Désactiver' : 'Activer'} manuellement cet abonnement ?`)) return;
+          button.disabled = true;
+          try {
+            await adminRequest(`/api/admin/establishments/${item.id}/subscription`, {
+              method: 'PATCH', body: { active: !item.active }
+            });
+            await loadEstablishments();
+          } catch (error) {
+            setStatus(error.message, true);
+            button.disabled = false;
+          }
+        });
+        cell.append(label, button);
+        row.append(cell);
+        const accountCell = document.createElement('td');
+        const accountButton = document.createElement('button');
+        accountButton.type = 'button';
+        accountButton.textContent = item.account_active ? 'Suspendre le compte' : 'Réactiver le compte';
+        accountButton.addEventListener('click', async () => {
+          if (!confirm(`${item.account_active ? 'Suspendre' : 'Réactiver'} ce compte établissement ?`)) return;
+          accountButton.disabled = true;
+          try {
+            await adminRequest(`/api/admin/accounts/${encodeURIComponent(item.id)}`, {
+              method: 'PATCH', body: { active: !item.account_active }
+            });
+            await loadEstablishments();
+          } catch (error) {
+            setStatus(error.message || 'Impossible de modifier ce compte.', true);
+            accountButton.disabled = false;
+          }
+        });
+        accountCell.append(accountButton);
+        const close = document.createElement('button');
+        close.type = 'button';
+        close.textContent = 'Lancer la clôture';
+        close.addEventListener('click', () => initiateAccountClosure({ id: item.id, name: item.account_name }, close));
+        accountCell.append(close);
+        row.append(accountCell);
+        return row;
+      }));
     }
 
     async function loadExternalPros() {

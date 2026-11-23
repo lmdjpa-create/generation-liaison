@@ -62,6 +62,7 @@ const seniorInvitationTimes = new Map();
 const siteMonitor = createSiteMonitor();
 const weatherService = createWeatherService({ apiKey: process.env.VISUAL_CROSSING_API_KEY });
 const weatherRequestTimes = new Map();
+const residentLoginTimes = new Map();
 
 app.use(cors());
 app.use((req, res, next) => {
@@ -204,9 +205,30 @@ function requireAuth(req, res, next) {
       req.authUser = {
         ...user,
         isCoordinator: user.role === 'pro' && coordinatorEmails.has(user.email.toLowerCase()),
-        isAdmin: adminEmails.has(user.email.toLowerCase())
+        isAdmin: typeof user.email === 'string' && adminEmails.has(user.email.toLowerCase())
       };
       req.authToken = match[1];
+      if (user.passwordChangeRequired && !(
+        (req.method === 'GET' && req.path === '/api/auth/me') ||
+        (req.method === 'POST' && ['/api/auth/logout', '/api/auth/change-resident-password'].includes(req.path))
+      )) return res.status(403).json({ error: 'Changez d’abord votre mot de passe provisoire.' });
+      if (user.role === 'establishment' && !(
+        (req.method === 'GET' && req.path === '/api/auth/me') ||
+        (req.method === 'POST' && ['/api/auth/logout', '/api/account/closure-request'].includes(req.path)) ||
+        (['GET', 'PUT'].includes(req.method) && req.path === '/api/establishment') ||
+        (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/contacts') ||
+        (['PUT', 'DELETE'].includes(req.method) && /^\/api\/establishment\/contacts\/[0-9a-f-]+$/i.test(req.path)) ||
+        (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/residents') ||
+        (req.method === 'POST' && /^\/api\/establishment\/residents\/[0-9a-f-]+\/reset-password$/i.test(req.path)) ||
+        (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/staff') ||
+        (req.method === 'POST' && /^\/api\/establishment\/staff\/[0-9a-f-]+\/(reset-password|disable)$/i.test(req.path))
+      )) {
+        return res.status(403).json({ error: 'Cette fonction n’est pas disponible dans l’espace établissement.' });
+      }
+      if (user.role === 'staff' && !(
+        (req.method === 'GET' && ['/api/auth/me', '/api/care/residents', '/api/care/entries'].includes(req.path)) ||
+        (req.method === 'POST' && ['/api/auth/logout', '/api/auth/change-resident-password', '/api/care/entries'].includes(req.path))
+      )) return res.status(403).json({ error: 'Cette fonction n’est pas disponible dans l’espace soignant.' });
       if (user.role === 'aidant' && user.isLegalGuardian &&
           user.guardianVerificationStatus !== 'approved' && !canPendingLegalGuardianAccess(req)) {
         return res.status(403).json({
@@ -337,7 +359,7 @@ function addUserAccessFlags(user) {
   return {
     ...user,
     isCoordinator: user.role === 'pro' && coordinatorEmails.has(user.email.toLowerCase()),
-    isAdmin: adminEmails.has(user.email.toLowerCase())
+    isAdmin: typeof user.email === 'string' && adminEmails.has(user.email.toLowerCase())
   };
 }
 
@@ -1415,7 +1437,7 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
   }
   try {
     if (!contactUserId) {
-      const { rows } = await pool.query('SELECT id FROM app_users WHERE email = $1 AND is_active = TRUE', [email]);
+      const { rows } = await pool.query("SELECT id FROM app_users WHERE email = $1 AND is_active = TRUE AND role <> 'establishment'", [email]);
       if (!rows[0]) return res.status(404).json({ error: 'Ce contact n’existe pas ou ne peut pas être ajouté.' });
       contactUserId = rows[0].id;
     }
@@ -1426,7 +1448,7 @@ app.post('/api/contacts', requireAuth, async (req, res) => {
       `WITH target AS (
          SELECT id, name, notification_phone, profile_photo_url, role
          FROM app_users
-         WHERE id = $1 AND is_active = TRUE
+         WHERE id = $1 AND is_active = TRUE AND role <> 'establishment'
        )
        INSERT INTO app_user_contacts (id, user_id, contact_user_id, nickname)
        SELECT $2, $3, target.id, target.name
@@ -1744,7 +1766,7 @@ app.get('/api/admin/overview', requireAuth, requireAdmin, async (req, res) => {
         premiumStatus: row.premium_status,
         premiumUntil: row.premium_until,
         premiumActive: hasActivePremium(row),
-        administrator: adminEmails.has(row.email.toLowerCase()),
+        administrator: typeof row.email === 'string' && adminEmails.has(row.email.toLowerCase()),
         profileName: row.profile_name,
         teamCount: row.team_count,
         createdAt: row.created_at
@@ -2147,6 +2169,14 @@ app.patch('/api/admin/accounts/:accountId', requireAuth, requireAdmin, async (re
   try {
     client = await pool.connect();
     await client.query('BEGIN');
+    const { rows: targetAccounts } = await client.query(
+      'SELECT email FROM app_users WHERE id = $1 FOR UPDATE',
+      [req.params.accountId]
+    );
+    if (!targetAccounts[0]) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Compte introuvable.' });
+    }
     if (req.body.active) {
       const { rows: closureRequests } = await client.query(
         `SELECT id
@@ -2163,11 +2193,7 @@ app.patch('/api/admin/accounts/:accountId', requireAuth, requireAdmin, async (re
       }
     }
     if (!req.body.active) {
-      const { rows: targetAccounts } = await client.query(
-        `SELECT email FROM app_users WHERE id = $1 FOR UPDATE`,
-        [req.params.accountId]
-      );
-      if (targetAccounts[0] && adminEmails.has(targetAccounts[0].email.toLowerCase())) {
+      if (targetAccounts[0] && typeof targetAccounts[0].email === 'string' && adminEmails.has(targetAccounts[0].email.toLowerCase())) {
         await client.query('ROLLBACK');
         return res.status(409).json({ error: 'Un compte administrateur ne peut pas être suspendu depuis cet écran.' });
       }
@@ -2193,6 +2219,42 @@ app.patch('/api/admin/accounts/:accountId', requireAuth, requireAdmin, async (re
     sendApiError(res, error, 'Impossible de modifier ce compte.');
   } finally {
     if (client) client.release();
+  }
+});
+
+app.post('/api/admin/accounts/:accountId/closure', requireAuth, requireAdmin, async (req, res) => {
+  const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : '';
+  if (!isValidUuid(req.params.accountId) || req.body?.confirmed !== true ||
+      reason.length < 20 || reason.length > 500) {
+    return res.status(400).json({ error: 'Confirmez la clôture et indiquez son motif (20 à 500 caractères).' });
+  }
+  try {
+    const result = await authService.requestAccountClosure(req.params.accountId, null, {
+      actorId: req.authUser.id, adminEmails, reason
+    });
+    res.status(201).json({ ...result, message: 'Compte désactivé et clôture à examiner. La suppression complète nécessite un traitement administratif.' });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de lancer la clôture.');
+  }
+});
+
+app.post('/api/admin/account-invitations', requireAuth, requireAdmin, async (req, res) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : '';
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return res.status(400).json({ error: 'Saisissez une adresse e-mail valide.' });
+  }
+  if (!notificationDelivery.isConfigured().email) {
+    return res.status(503).json({ error: 'L’envoi d’e-mails n’est pas configuré.' });
+  }
+  try {
+    const appUrl = new URL(process.env.PUBLIC_APP_URL || 'https://generation-liaison.onrender.com');
+    if (appUrl.protocol !== 'https:' || appUrl.username || appUrl.password) {
+      throw new Error('PUBLIC_APP_URL doit être une URL HTTPS valide.');
+    }
+    await notificationDelivery.sendRegistrationInvitation(email, new URL('/app-mobile.html', appUrl).toString());
+    res.status(202).json({ message: 'Invitation transmise. La personne devra créer son compte elle-même.' });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’envoyer l’invitation.');
   }
 });
 
@@ -2239,6 +2301,7 @@ app.get('/api/admin/account-closure-requests', requireAuth, requireAdmin, async 
               request.requested_at + INTERVAL '30 days' AS due_at,
               request.updated_at, request.ai_reviewed_at,
               request.ai_review_summary, request.ai_review_inventory,
+              request.initiated_by, request.initiation_reason,
               account.name, account.email, account.role, account.premium_status
        FROM app_account_closure_requests request
        JOIN app_users account ON account.id = request.user_id
@@ -2256,6 +2319,8 @@ app.get('/api/admin/account-closure-requests', requireAuth, requireAdmin, async 
         aiReviewedAt: row.ai_reviewed_at,
         aiReviewSummary: row.ai_review_summary,
         aiReviewInventory: row.ai_review_inventory,
+        initiatedBy: row.initiated_by,
+        initiationReason: row.initiation_reason,
         name: row.name,
         email: row.email,
         role: row.role,
@@ -2898,6 +2963,36 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/resident-login', async (req, res) => {
+  const now = Date.now();
+  for (const [key, timestamps] of residentLoginTimes) {
+    if (timestamps[timestamps.length - 1] <= now - 60_000) residentLoginTimes.delete(key);
+  }
+  const key = req.ip;
+  const recent = (residentLoginTimes.get(key) || []).filter(time => time > now - 60_000);
+  if (recent.length >= 30) return res.status(429).json({ error: 'Trop de tentatives. Réessayez dans une minute.' });
+  recent.push(now);
+  residentLoginTimes.set(key, recent);
+  try {
+    const result = await authService.loginEstablishmentResident(req.body || {});
+    res.json({ ...result, user: addUserAccessFlags(result.user) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de se connecter.');
+  }
+});
+
+app.post('/api/auth/change-resident-password', requireAuth, async (req, res) => {
+  try {
+    const result = await authService.changeEstablishmentResidentPassword(
+      req.authUser.id, req.body?.currentPassword, req.body?.newPassword,
+      req.body?.acceptedTerms, req.body?.acceptedTermsVersion
+    );
+    res.json({ ...result, user: addUserAccessFlags(result.user) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier le mot de passe.');
+  }
+});
+
 app.post('/api/auth/password-reset/request', async (req, res) => {
   if (!notificationDelivery.isConfigured().email) {
     return res.status(503).json({ error: 'La récupération par e-mail n’est pas encore configurée.' });
@@ -2933,6 +3028,508 @@ app.post('/api/auth/password-reset/confirm', async (req, res) => {
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json({ user: req.authUser });
+});
+
+app.get('/api/establishment', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.name, p.description, p.address, p.phone, p.email, p.tablet_interest, p.tablet_quantity,
+              u.establishment_subscription_active AS active,
+              u.establishment_user_count AS user_count
+       FROM app_users u LEFT JOIN establishment_profiles p ON p.user_id = u.id WHERE u.id = $1`,
+      [req.authUser.id]
+    );
+    const row = rows[0];
+    res.set('Cache-Control', 'no-store').json({
+      active: row.active,
+      userCount: row.user_count,
+      profile: row.name === null ? null : { name: row.name, description: row.description, address: row.address, phone: row.phone, email: row.email, tablet_interest: row.tablet_interest, tablet_quantity: row.tablet_quantity }
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger la fiche établissement.');
+  }
+});
+
+app.put('/api/establishment', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  const { name, description, address, phone, email, tablet_interest, tablet_quantity } = req.body || {};
+  const fields = [name, description, address, phone, email];
+  if (fields.some(value => typeof value !== 'string') || !name.trim() ||
+      name.trim().length > 120 || description.trim().length > 1000 ||
+      address.trim().length > 300 || phone.trim().length > 40 || email.trim().length > 254 ||
+      (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) ||
+      !['none', 'rental', 'purchase'].includes(tablet_interest) ||
+      (tablet_interest === 'none' ? tablet_quantity !== null :
+        !Number.isInteger(tablet_quantity) || tablet_quantity < 1 || tablet_quantity > 1000)) {
+    return res.status(400).json({ error: 'Vérifiez le nom et les coordonnées de l’établissement.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (
+         SELECT id FROM app_users WHERE id = $1 AND role = 'establishment'
+           AND is_active = TRUE AND establishment_subscription_active = TRUE FOR UPDATE
+       )
+       INSERT INTO establishment_profiles (user_id, name, description, address, phone, email, tablet_interest, tablet_quantity)
+       SELECT id, $2, $3, $4, $5, $6, $7, $8 FROM active
+       ON CONFLICT (user_id) DO UPDATE SET name = EXCLUDED.name, description = EXCLUDED.description,
+         address = EXCLUDED.address, phone = EXCLUDED.phone, email = EXCLUDED.email,
+         tablet_interest = EXCLUDED.tablet_interest, tablet_quantity = EXCLUDED.tablet_quantity, updated_at = CURRENT_TIMESTAMP
+       RETURNING user_id`,
+      [req.authUser.id, ...fields.map(value => value.trim()), tablet_interest, tablet_quantity]
+    );
+    if (!rows.length) return res.status(403).json({ error: 'L’abonnement n’est pas actif. Contactez l’administration pour modifier la fiche.' });
+    res.json({ saved: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer la fiche établissement.');
+  }
+});
+
+app.get('/api/establishment/contacts', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, category, name, phone, email FROM establishment_contacts WHERE user_id = $1 ORDER BY name, id',
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'no-store').json({ contacts: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les coordonnées.');
+  }
+});
+
+function validateEstablishmentContact(body) {
+  if (!body || !['resident', 'caregiver', 'intervenant'].includes(body.category) ||
+      typeof body.name !== 'string' || !body.name.trim() || body.name.trim().length > 120 ||
+      typeof body.phone !== 'string' || body.phone.trim().length > 40 ||
+      typeof body.email !== 'string' || body.email.trim().length > 254 ||
+      (body.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email.trim()))) return null;
+  return [body.category, body.name.trim(), body.phone.trim(), body.email.trim()];
+}
+
+app.post('/api/establishment/contacts', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  const fields = validateEstablishmentContact(req.body);
+  if (!fields) return res.status(400).json({ error: 'Vérifiez le type, le nom et les coordonnées.' });
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (SELECT id FROM app_users WHERE id = $1 AND is_active = TRUE
+        AND role = 'establishment' AND establishment_subscription_active = TRUE FOR UPDATE)
+       INSERT INTO establishment_contacts (id, user_id, category, name, phone, email)
+       SELECT $2, id, $3, $4, $5, $6 FROM active RETURNING id`,
+      [req.authUser.id, randomUUID(), ...fields]
+    );
+    if (!rows.length) return res.status(403).json({ error: 'L’abonnement doit être actif pour modifier les coordonnées.' });
+    res.status(201).json({ id: rows[0].id });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’ajouter ces coordonnées.');
+  }
+});
+
+app.put('/api/establishment/contacts/:id', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  const fields = validateEstablishmentContact(req.body);
+  if (!isValidUuid(req.params.id) || !fields) return res.status(400).json({ error: 'Vérifiez le type, le nom et les coordonnées.' });
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (SELECT id FROM app_users WHERE id = $1 AND is_active = TRUE
+        AND role = 'establishment' AND establishment_subscription_active = TRUE FOR UPDATE)
+       UPDATE establishment_contacts SET category = $3, name = $4, phone = $5, email = $6
+       WHERE user_id IN (SELECT id FROM active) AND id = $2 RETURNING id`,
+      [req.authUser.id, req.params.id, ...fields]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Coordonnées introuvables ou abonnement inactif.' });
+    res.json({ saved: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier ces coordonnées.');
+  }
+});
+
+app.delete('/api/establishment/contacts/:id', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  try {
+    const { rows } = await pool.query(
+      `WITH active AS (SELECT id FROM app_users WHERE id = $1 AND is_active = TRUE
+        AND role = 'establishment' AND establishment_subscription_active = TRUE FOR UPDATE)
+       DELETE FROM establishment_contacts WHERE user_id IN (SELECT id FROM active) AND id = $2 RETURNING id`,
+      [req.authUser.id, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Coordonnées introuvables ou abonnement inactif.' });
+    res.json({ deleted: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de supprimer ces coordonnées.');
+  }
+});
+
+app.get('/api/establishment/residents', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, account.identifier
+       FROM establishment_resident_accounts account JOIN app_users u ON u.id = account.resident_user_id
+       WHERE account.establishment_user_id = $1 AND u.is_active = TRUE AND u.role = 'senior' ORDER BY u.name, u.id`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'no-store').json({ residents: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les accès résidents.');
+  }
+});
+
+app.post('/api/establishment/residents', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const resident = await authService.createEstablishmentResident(req.authUser.id, req.body || {});
+    res.set('Cache-Control', 'no-store').status(201).json(resident);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer l’accès résident.');
+  }
+});
+
+app.post('/api/establishment/residents/:id/reset-password', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  try {
+    await authService.resetEstablishmentResidentPassword(req.authUser.id, req.params.id, req.body?.password);
+    res.json({ reset: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de réinitialiser ce mot de passe.');
+  }
+});
+
+app.get('/api/establishment/staff', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.first_name, u.last_name, account.identifier
+       FROM establishment_resident_accounts account JOIN app_users u ON u.id = account.resident_user_id
+       WHERE account.establishment_user_id = $1 AND u.is_active = TRUE AND u.role = 'staff'
+       ORDER BY u.name, u.id`, [req.authUser.id]
+    );
+    res.set('Cache-Control', 'no-store').json({ staff: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les comptes soignants.');
+  }
+});
+
+app.post('/api/establishment/staff', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  try {
+    const staff = await authService.createEstablishmentResident(req.authUser.id, req.body || {}, 'staff');
+    res.set('Cache-Control', 'no-store').status(201).json(staff);
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de créer le compte soignant.');
+  }
+});
+
+app.post('/api/establishment/staff/:id/reset-password', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  try {
+    await authService.resetEstablishmentResidentPassword(req.authUser.id, req.params.id, req.body?.password, 'staff');
+    res.json({ reset: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de réinitialiser ce mot de passe.');
+  }
+});
+
+app.post('/api/establishment/staff/:id/disable', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  if (!isValidUuid(req.params.id)) return res.status(400).json({ error: 'Identifiant invalide.' });
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT staff.id FROM establishment_resident_accounts account
+       JOIN app_users owner ON owner.id = account.establishment_user_id
+       JOIN app_users staff ON staff.id = account.resident_user_id
+       WHERE owner.id = $1 AND owner.role = 'establishment' AND owner.is_active
+         AND owner.establishment_subscription_active AND staff.id = $2 AND staff.role = 'staff' AND staff.is_active
+       FOR UPDATE OF owner, account, staff`, [req.authUser.id, req.params.id]
+    );
+    if (!rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Compte introuvable ou abonnement inactif.' });
+    }
+    await client.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [req.params.id]);
+    await client.query('DELETE FROM app_sessions WHERE user_id = $1', [req.params.id]);
+    await client.query('COMMIT');
+    res.json({ disabled: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de désactiver le compte.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/care/consent', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) return res.status(403).json({ error: 'Accès interdit.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT resident.id, COALESCE(profile.name, owner.name) AS establishment_name,
+              (consent.consented_at IS NOT NULL AND consent.revoked_at IS NULL) AS consented,
+              (consent.consented_at IS NOT NULL OR consent.revoked_at IS NOT NULL) AS decided
+       FROM app_users resident
+       JOIN establishment_resident_accounts account ON account.resident_user_id = resident.id
+       JOIN app_users owner ON owner.id = account.establishment_user_id AND owner.role = 'establishment'
+       LEFT JOIN establishment_profiles profile ON profile.user_id = owner.id
+       LEFT JOIN establishment_care_consent consent ON consent.resident_user_id = resident.id
+         AND consent.establishment_user_id = owner.id
+       WHERE resident.senior_id = $1 AND resident.role = 'senior' AND resident.is_active`, [req.authUser.seniorId]
+    );
+    res.set('Cache-Control', 'private, no-store').json({ establishment: rows[0] || null });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger l’accord de partage.');
+  }
+});
+
+app.post('/api/care/consent', requireAuth, requireAidantSeniorContext, async (req, res) => {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) return res.status(403).json({ error: 'Accès interdit.' });
+  if (typeof req.body?.consented !== 'boolean') return res.status(400).json({ error: 'Indiquez votre décision.' });
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT resident.id, owner.id AS owner_id, owner.is_active AS owner_active,
+              owner.establishment_subscription_active
+       FROM app_users resident
+       JOIN establishment_resident_accounts account ON account.resident_user_id = resident.id
+       JOIN app_users owner ON owner.id = account.establishment_user_id AND owner.role = 'establishment'
+       WHERE resident.senior_id = $1 AND resident.role = 'senior' AND resident.is_active
+       FOR UPDATE OF resident, account, owner`, [req.authUser.seniorId]
+    );
+    const target = rows[0];
+    if (!target) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Aucun établissement associé.' });
+    }
+    if (req.authUser.role === 'aidant') {
+      const guardian = await client.query(
+        `SELECT link.aidant_user_id FROM app_aidant_senior_links link
+         JOIN app_users guardian ON guardian.id = link.aidant_user_id
+         JOIN app_users verifier ON verifier.id = link.linked_by
+         WHERE link.aidant_user_id = $1 AND link.senior_profile_id = $2 AND link.suspended_at IS NULL
+           AND guardian.is_active AND guardian.is_legal_guardian AND guardian.guardian_verification_status = 'approved'
+           AND lower(verifier.email) = ANY($3::text[])
+         FOR UPDATE OF link, guardian`, [req.authUser.id, req.authUser.seniorId, Array.from(adminEmails)]
+      );
+      if (!guardian.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Seul le résident ou son représentant légal vérifié et associé par l’administration peut décider.' });
+      }
+    }
+    if (req.body.consented && (!target.owner_active || !target.establishment_subscription_active)) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'L’abonnement de l’établissement est inactif.' });
+    }
+    await client.query(
+      `INSERT INTO establishment_care_consent (resident_user_id, establishment_user_id, consented_by, consented_at, revoked_at)
+       VALUES ($1, $2, CASE WHEN $4 THEN $3::uuid ELSE NULL END,
+               CASE WHEN $4 THEN CURRENT_TIMESTAMP ELSE NULL END, CASE WHEN $4 THEN NULL ELSE CURRENT_TIMESTAMP END)
+       ON CONFLICT (resident_user_id) DO UPDATE SET establishment_user_id = EXCLUDED.establishment_user_id,
+         consented_by = CASE WHEN $4 THEN $3::uuid ELSE establishment_care_consent.consented_by END,
+         consented_at = CASE WHEN $4 THEN CURRENT_TIMESTAMP ELSE establishment_care_consent.consented_at END,
+         revoked_at = CASE WHEN $4 THEN NULL ELSE CURRENT_TIMESTAMP END`,
+      [target.id, target.owner_id, req.authUser.id, req.body.consented]
+    );
+    await client.query(
+      `INSERT INTO establishment_care_audit (id, resident_user_id, user_id, action) VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), target.id, req.authUser.id, req.body.consented ? 'consent' : 'revoke']
+    );
+    await client.query('COMMIT');
+    res.json({ consented: req.body.consented });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’enregistrer l’accord.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/care/residents', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'staff') return res.status(403).json({ error: 'Accès réservé aux soignants.' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT resident.id, resident.name
+       FROM establishment_resident_accounts staff_link
+       JOIN app_users staff ON staff.id = staff_link.resident_user_id AND staff.is_active AND staff.role = 'staff'
+       JOIN app_users owner ON owner.id = staff_link.establishment_user_id AND owner.is_active
+         AND owner.role = 'establishment' AND owner.establishment_subscription_active
+       JOIN establishment_resident_accounts resident_link ON resident_link.establishment_user_id = owner.id
+       JOIN app_users resident ON resident.id = resident_link.resident_user_id AND resident.is_active AND resident.role = 'senior'
+       JOIN establishment_care_consent consent ON consent.resident_user_id = resident.id
+         AND consent.establishment_user_id = owner.id AND consent.consented_at IS NOT NULL AND consent.revoked_at IS NULL
+       WHERE staff.id = $1 ORDER BY resident.name, resident.id`, [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store').json({ residents: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les résidents autorisés.');
+  }
+});
+
+async function careEntries(req, res) {
+  if (!['senior', 'aidant', 'staff'].includes(req.authUser.role)) return res.status(403).json({ error: 'Accès interdit.' });
+  const isWrite = req.method === 'POST';
+  const residentId = req.authUser.role === 'staff' ? (isWrite ? req.body?.residentId : req.query.residentId) : null;
+  const before = isWrite ? null : req.query.before;
+  const kind = isWrite ? req.body?.kind : null;
+  const content = isWrite ? req.body?.content : null;
+  if (req.authUser.role === 'staff' && !isValidUuid(residentId)) return res.status(400).json({ error: 'Résident invalide.' });
+  if (before !== undefined && before !== null && !isValidUuid(before)) return res.status(400).json({ error: 'Repère du carnet invalide.' });
+  if (isWrite && req.body?.nonMedical !== true) {
+    return res.status(400).json({ error: 'Confirmez que le texte ne contient aucune donnée de santé.' });
+  }
+  if (isWrite && (!['message', 'transmission'].includes(kind) ||
+      typeof content !== 'string' || !content.trim() || content.length > 2000 ||
+      (kind === 'message' && req.authUser.role === 'senior') ||
+      (kind === 'transmission' && req.authUser.role !== 'staff'))) {
+    return res.status(400).json({ error: 'Vérifiez le type et le contenu du message.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const targetResult = await client.query(
+      `SELECT resident.id, owner.id AS owner_id
+       FROM app_users resident
+       JOIN establishment_resident_accounts account ON account.resident_user_id = resident.id
+       JOIN app_users owner ON owner.id = account.establishment_user_id
+       JOIN establishment_care_consent consent ON consent.resident_user_id = resident.id
+         AND consent.establishment_user_id = owner.id
+       WHERE resident.role = 'senior' AND resident.is_active AND owner.role = 'establishment'
+         AND owner.is_active AND owner.establishment_subscription_active
+         AND consent.consented_at IS NOT NULL AND consent.revoked_at IS NULL
+         AND (($1::uuid IS NOT NULL AND resident.id = $1) OR ($1::uuid IS NULL AND resident.senior_id = $2))
+       FOR UPDATE OF resident, account, owner, consent`, [residentId, req.authUser.seniorId]
+    );
+    const target = targetResult.rows[0];
+    let permitted = Boolean(target);
+    if (permitted && req.authUser.role === 'staff') {
+      const staff = await client.query(
+        `SELECT staff.id FROM establishment_resident_accounts link
+         JOIN app_users staff ON staff.id = link.resident_user_id
+         WHERE staff.id = $1 AND staff.role = 'staff' AND staff.is_active AND link.establishment_user_id = $2
+         FOR UPDATE OF link, staff`, [req.authUser.id, target.owner_id]
+      );
+      permitted = Boolean(staff.rows.length);
+    }
+    if (permitted && req.authUser.role === 'aidant') {
+      const link = await client.query(
+        `SELECT link.aidant_user_id FROM app_aidant_senior_links link
+         JOIN app_users aidant ON aidant.id = link.aidant_user_id
+         WHERE aidant.id = $1 AND aidant.is_active AND link.senior_profile_id = $2 AND link.suspended_at IS NULL
+         FOR UPDATE OF link, aidant`, [req.authUser.id, req.authUser.seniorId]
+      );
+      permitted = Boolean(link.rows.length);
+    }
+    if (!permitted) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'Ce carnet n’est pas accessible.' });
+    }
+    let result;
+    if (isWrite) {
+      result = await client.query(
+        `INSERT INTO establishment_care_entries (id, resident_user_id, establishment_user_id, author_user_id, author_name, kind, content)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, author_name, kind, content, created_at`,
+        [randomUUID(), target.id, target.owner_id, req.authUser.id, req.authUser.name, kind, content.trim()]
+      );
+    } else {
+      if (before) {
+        const cursor = await client.query(
+          `SELECT id FROM establishment_care_entries
+           WHERE id = $1 AND resident_user_id = $2 AND establishment_user_id = $3
+             AND ($4::boolean = FALSE OR kind = 'transmission')`,
+          [before, target.id, target.owner_id, req.authUser.role === 'senior']
+        );
+        if (!cursor.rows.length) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Repère du carnet invalide.' });
+        }
+      }
+      result = await client.query(
+        `SELECT id, author_name, kind, content, created_at FROM establishment_care_entries
+         WHERE resident_user_id = $1 AND establishment_user_id = $2 AND ($3::boolean = FALSE OR kind = 'transmission')
+           AND ($4::uuid IS NULL OR (created_at, id) <
+             (SELECT created_at, id FROM establishment_care_entries WHERE id = $4))
+         ORDER BY created_at DESC, id DESC LIMIT 101`,
+        [target.id, target.owner_id, req.authUser.role === 'senior', before || null]
+      );
+    }
+    await client.query(
+      `INSERT INTO establishment_care_audit (id, resident_user_id, user_id, action) VALUES ($1, $2, $3, $4)`,
+      [randomUUID(), target.id, req.authUser.id, isWrite ? `write_${kind}` : 'read']
+    );
+    await client.query('COMMIT');
+    const entries = result.rows.slice(0, 100);
+    res.set('Cache-Control', 'private, no-store').status(isWrite ? 201 : 200).json({
+      entries, nextCursor: result.rows.length > 100 ? entries[entries.length - 1].id : null
+    });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’accéder au carnet de l’établissement.');
+  } finally {
+    if (client) client.release();
+  }
+}
+
+app.get('/api/care/entries', requireAuth, requireAidantSeniorContext, careEntries);
+app.post('/api/care/entries', requireAuth, requireAidantSeniorContext, careEntries);
+
+app.get('/api/admin/establishments', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT u.id, u.name AS account_name, u.email AS account_email, u.is_active AS account_active,
+              u.establishment_subscription_active AS active,
+              u.establishment_user_count AS user_count,
+              p.name, p.description, p.address, p.phone, p.email, p.tablet_interest, p.tablet_quantity
+       FROM app_users u LEFT JOIN establishment_profiles p ON p.user_id = u.id
+       WHERE u.role = 'establishment' ORDER BY u.created_at DESC`
+    );
+    res.set('Cache-Control', 'no-store').json({ establishments: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les établissements.');
+  }
+});
+
+app.patch('/api/admin/establishments/:id/subscription', requireAuth, requireAdmin, async (req, res) => {
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidPattern.test(req.params.id) || typeof req.body?.active !== 'boolean') {
+    return res.status(400).json({ error: 'Statut d’abonnement invalide.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_users SET establishment_subscription_active = $2
+       WHERE id = $1 AND role = 'establishment' AND is_active = TRUE RETURNING establishment_subscription_active`,
+      [req.params.id, req.body.active]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Établissement introuvable.' });
+    res.json({ active: rows[0].establishment_subscription_active });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier l’abonnement.');
+  }
+});
+
+app.patch('/api/admin/establishments/:id/users', requireAuth, requireAdmin, async (req, res) => {
+  if (!isValidUuid(req.params.id) || !Number.isInteger(req.body?.count) ||
+      req.body.count < 1 || req.body.count > 100000) {
+    return res.status(400).json({ error: 'Saisissez un nombre de personnes compris entre 1 et 100 000.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_users SET establishment_user_count = $2
+       WHERE id = $1 AND role = 'establishment' AND is_active = TRUE RETURNING establishment_user_count`,
+      [req.params.id, req.body.count]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Établissement introuvable.' });
+    res.json({ count: rows[0].establishment_user_count });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer le nombre de personnes.');
+  }
 });
 
 app.put('/api/account/profile', requireAuth, async (req, res) => {
@@ -7086,7 +7683,66 @@ app.get('/api/planning/today', requireAuth, requireAidantSeniorContext, async (r
                 ) ORDER BY event.created_at)
                 FROM planning_visit_events event
                 WHERE event.visit_id = visit.id
-              ), '[]'::json) AS progress
+              ), '[]'::json) AS progress,
+              COALESCE((
+                SELECT json_agg(json_build_object('type', recent.event_type, 'createdAt', recent.created_at, 'note', recent.practical_note)
+                                ORDER BY recent.created_at DESC)
+                FROM (
+                  SELECT event.event_type, event.created_at,
+                         CASE WHEN event.share_with_team THEN event.practical_note ELSE NULL END AS practical_note
+                  FROM planning_visits colleague_visit
+                  JOIN planning_org_members colleague_member
+                    ON colleague_member.organization_id = colleague_visit.organization_id
+                   AND colleague_member.user_id = colleague_visit.assigned_user_id
+                   AND colleague_member.role = 'professional'
+                  JOIN app_users colleague
+                    ON colleague.id = colleague_visit.assigned_user_id AND colleague.is_active = TRUE
+                   AND colleague.verification_status = 'approved'
+                  JOIN planning_visit_events event
+                    ON event.visit_id = colleague_visit.id
+                   AND event.organization_id = colleague_visit.organization_id
+                   AND event.recipient_id = colleague_visit.recipient_id
+                   AND event.user_id = colleague_visit.assigned_user_id
+                  WHERE colleague_visit.organization_id = visit.organization_id
+                    AND colleague_visit.recipient_id = visit.recipient_id
+                    AND colleague_visit.assigned_user_id <> $1
+                    AND colleague_visit.acceptance_status = 'accepted'
+                    AND event.event_type IN ('arrived', 'started', 'completed')
+                    AND event.created_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+                  ORDER BY event.created_at DESC
+                  LIMIT 100
+                ) recent
+              ), '[]'::json) AS team_progress,
+              COALESCE((
+                SELECT json_agg(json_build_object('scheduledAt', recent.scheduled_at, 'status', recent.shared_status)
+                                ORDER BY recent.scheduled_at)
+                FROM (
+                  SELECT colleague_visit.scheduled_at,
+                    CASE WHEN colleague_visit.status = 'completed' THEN 'completed'
+                         WHEN EXISTS (
+                           SELECT 1 FROM planning_visit_events event
+                           WHERE event.visit_id = colleague_visit.id
+                             AND event.event_type IN ('arrived', 'started')
+                         ) THEN 'in_progress'
+                         ELSE 'planned' END AS shared_status
+                  FROM planning_visits colleague_visit
+                  JOIN planning_org_members colleague_member
+                    ON colleague_member.organization_id = colleague_visit.organization_id
+                   AND colleague_member.user_id = colleague_visit.assigned_user_id
+                   AND colleague_member.role = 'professional'
+                  JOIN app_users colleague
+                    ON colleague.id = colleague_visit.assigned_user_id AND colleague.is_active = TRUE
+                   AND colleague.verification_status = 'approved'
+                  WHERE colleague_visit.organization_id = visit.organization_id
+                    AND colleague_visit.recipient_id = visit.recipient_id
+                    AND colleague_visit.assigned_user_id <> $1
+                    AND colleague_visit.acceptance_status = 'accepted'
+                    AND colleague_visit.scheduled_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
+                    AND colleague_visit.scheduled_at < CURRENT_TIMESTAMP + INTERVAL '30 days'
+                  ORDER BY colleague_visit.scheduled_at
+                  LIMIT 100
+                ) recent
+              ), '[]'::json) AS team_visits
        FROM planning_visits visit
        JOIN planning_recipients recipient
          ON recipient.id = visit.recipient_id
@@ -7129,6 +7785,7 @@ app.get('/api/planning/today', requireAuth, requireAidantSeniorContext, async (r
       );
     }
     await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
     res.json({
       visits: rows.map(row => ({
         id: row.id,
@@ -7137,6 +7794,8 @@ app.get('/api/planning/today', requireAuth, requireAidantSeniorContext, async (r
         visitType: row.visit_type,
         status: row.status,
         progress: row.progress,
+        teamProgress: row.team_progress,
+        teamVisits: row.team_visits,
         ...getServiceDistance(
           row.home_latitude,
           row.home_longitude,
@@ -7179,7 +7838,7 @@ app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, asyn
               COALESCE((
                 SELECT json_agg(json_build_object(
                   'type', event.event_type,
-                  'note', event.practical_note,
+                  'note', CASE WHEN $3 = 'aidant' THEN event.practical_note ELSE NULL END,
                   'createdAt', event.created_at,
                   'authorRole', author.role
                 ) ORDER BY event.created_at)
@@ -7200,7 +7859,7 @@ app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, asyn
          AND visit.scheduled_at >= CURRENT_TIMESTAMP - INTERVAL '30 days'
          AND visit.scheduled_at < CURRENT_TIMESTAMP + INTERVAL '14 days'
        ORDER BY visit.scheduled_at`,
-      [req.authUser.seniorId, req.authUser.id]
+      [req.authUser.seniorId, req.authUser.id, req.authUser.role]
     );
     const recipientIds = [...new Set(rows.map(row => row.recipient_id))];
     for (const recipientId of recipientIds) {
@@ -7218,6 +7877,7 @@ app.get('/api/planning/following', requireAuth, requireAidantSeniorContext, asyn
       );
     }
     await client.query('COMMIT');
+    res.set('Cache-Control', 'private, no-store');
     res.json({
       visits: rows.map(row => ({
         id: row.id,
@@ -7329,8 +7989,8 @@ app.post('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSenior
   }
 
   const { type } = req.body || {};
-  if (!['colleague_note', 'doctor_recommendation'].includes(type)) {
-    return res.status(400).json({ error: 'Choisissez une transmission d’équipe ou une recommandation du médecin.' });
+  if (type !== 'colleague_note') {
+    return res.status(400).json({ error: 'Seules les nouvelles de liaison sont acceptées.' });
   }
   const { importance } = req.body || {};
   if (!['information', 'follow_up', 'priority'].includes(importance)) {
@@ -7338,19 +7998,8 @@ app.post('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSenior
   }
 
   let content;
-  let sourceName = null;
-  let sourceDate = null;
   try {
     content = requiredText(req.body?.content, 1500, 'transmission');
-    if (type === 'doctor_recommendation') {
-      sourceName = requiredText(req.body?.sourceName, 120, 'source médicale');
-      sourceDate = requiredText(req.body?.sourceDate, 10, 'date de la recommandation');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(sourceDate) ||
-          Number.isNaN(Date.parse(`${sourceDate}T00:00:00Z`)) ||
-          new Date(`${sourceDate}T00:00:00Z`).toISOString().slice(0, 10) !== sourceDate) {
-        throw new AuthError(400, 'Saisissez une date de recommandation valide.');
-      }
-    }
   } catch (error) {
     return sendApiError(res, error, 'Vérifiez les champs de la transmission.');
   }
@@ -7388,7 +8037,7 @@ app.post('/api/planning/visits/:visitId/notes', requireAuth, requireAidantSenior
        SELECT $1, eligible.organization_id, eligible.recipient_id, $3, $4, $5, $6, $7, $8
        FROM eligible
        RETURNING id, organization_id, recipient_id, created_at`,
-      [randomUUID(), req.params.visitId, req.authUser.id, type, importance, sourceName, sourceDate, content]
+      [randomUUID(), req.params.visitId, req.authUser.id, type, importance, null, null, content]
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
@@ -7480,6 +8129,9 @@ app.post('/api/planning/visits/:visitId/progress', requireAuth, async (req, res)
   if (!['arrived', 'started', 'completed'].includes(stage)) {
     return res.status(400).json({ error: 'Étape de visite invalide.' });
   }
+  if (req.body?.shareWithTeam !== undefined && typeof req.body.shareWithTeam !== 'boolean') {
+    return res.status(400).json({ error: 'Choisissez si la note peut être partagée avec l’équipe.' });
+  }
 
   let note;
   try {
@@ -7534,9 +8186,10 @@ app.post('/api/planning/visits/:visitId/progress', requireAuth, async (req, res)
 
     await client.query(
       `INSERT INTO planning_visit_events
-         (id, visit_id, organization_id, recipient_id, user_id, event_type, practical_note)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [randomUUID(), visit.id, visit.organization_id, visit.recipient_id, req.authUser.id, stage, note]
+         (id, visit_id, organization_id, recipient_id, user_id, event_type, practical_note, share_with_team)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [randomUUID(), visit.id, visit.organization_id, visit.recipient_id, req.authUser.id, stage, note,
+        Boolean(note && req.body?.shareWithTeam)]
     );
     if (stage === 'completed') {
       await client.query(

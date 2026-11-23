@@ -14,7 +14,7 @@ const PASSWORD_LENGTH = 64;
 const PASSWORD_MIN_LENGTH = 12;
 const DUMMY_SALT = Buffer.alloc(16, 1);
 const DUMMY_HASH = Buffer.alloc(PASSWORD_LENGTH, 1);
-const roles = new Set(['senior', 'aidant', 'pro']);
+const roles = new Set(['senior', 'aidant', 'pro', 'establishment']);
 
 class AuthError extends Error {
   constructor(status, message) {
@@ -58,7 +58,7 @@ function createAuthService(pool) {
           senior_id UUID NOT NULL UNIQUE REFERENCES senior_profiles(id) ON DELETE CASCADE,
           name VARCHAR(120) NOT NULL,
           email VARCHAR(254) NOT NULL UNIQUE,
-          role VARCHAR(16) NOT NULL CHECK (role IN ('senior', 'aidant', 'pro')),
+          role VARCHAR(16) NOT NULL CHECK (role IN ('senior', 'aidant', 'pro', 'establishment', 'staff')),
           is_active BOOLEAN NOT NULL DEFAULT TRUE,
           verification_status VARCHAR(16) NOT NULL DEFAULT 'approved'
             CHECK (verification_status IN ('pending', 'approved', 'rejected')),
@@ -77,6 +77,78 @@ function createAuthService(pool) {
           terms_version VARCHAR(32),
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
+        ALTER TABLE app_users DROP CONSTRAINT IF EXISTS app_users_role_check;
+        ALTER TABLE app_users ADD CONSTRAINT app_users_role_check
+          CHECK (role IN ('senior', 'aidant', 'pro', 'establishment', 'staff'));
+        ALTER TABLE app_users ADD COLUMN IF NOT EXISTS establishment_subscription_active BOOLEAN NOT NULL DEFAULT FALSE;
+        ALTER TABLE app_users ADD COLUMN IF NOT EXISTS establishment_user_count INTEGER
+          CHECK (establishment_user_count BETWEEN 1 AND 100000);
+        ALTER TABLE app_users ALTER COLUMN email DROP NOT NULL;
+        CREATE TABLE IF NOT EXISTS establishment_resident_accounts (
+          resident_user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+          establishment_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          identifier VARCHAR(32) NOT NULL UNIQUE,
+          birth_date DATE NOT NULL,
+          password_change_required BOOLEAN NOT NULL DEFAULT TRUE,
+          failed_attempts INTEGER NOT NULL DEFAULT 0,
+          locked_until TIMESTAMPTZ
+        );
+        ALTER TABLE establishment_resident_accounts ENABLE ROW LEVEL SECURITY;
+        CREATE TABLE IF NOT EXISTS establishment_care_consent (
+          resident_user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+          establishment_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          consented_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+          consented_at TIMESTAMPTZ,
+          revoked_at TIMESTAMPTZ
+        );
+        CREATE TABLE IF NOT EXISTS establishment_care_entries (
+          id UUID PRIMARY KEY,
+          resident_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          establishment_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          author_user_id UUID REFERENCES app_users(id) ON DELETE SET NULL,
+          author_name VARCHAR(120) NOT NULL,
+          kind VARCHAR(16) NOT NULL CHECK (kind IN ('transmission', 'message')),
+          content VARCHAR(2000) NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS establishment_care_audit (
+          id UUID PRIMARY KEY,
+          resident_user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          user_id UUID REFERENCES app_users(id) ON DELETE SET NULL,
+          action VARCHAR(32) NOT NULL,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        ALTER TABLE establishment_care_consent ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE establishment_care_entries ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE establishment_care_audit ENABLE ROW LEVEL SECURITY;
+        CREATE TABLE IF NOT EXISTS establishment_profiles (
+          user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+          name VARCHAR(120) NOT NULL,
+          description VARCHAR(1000) NOT NULL DEFAULT '',
+          address VARCHAR(300) NOT NULL DEFAULT '',
+          phone VARCHAR(40) NOT NULL DEFAULT '',
+          email VARCHAR(254) NOT NULL DEFAULT '',
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        ALTER TABLE establishment_profiles
+          ADD COLUMN IF NOT EXISTS tablet_interest VARCHAR(16) NOT NULL DEFAULT 'none'
+            CHECK (tablet_interest IN ('none', 'rental', 'purchase')),
+          ADD COLUMN IF NOT EXISTS tablet_quantity INTEGER CHECK (tablet_quantity BETWEEN 1 AND 1000);
+        CREATE TABLE IF NOT EXISTS establishment_contacts (
+          id UUID PRIMARY KEY,
+          user_id UUID NOT NULL REFERENCES app_users(id) ON DELETE CASCADE,
+          category VARCHAR(16) NOT NULL CHECK (category IN ('resident', 'caregiver', 'intervenant')),
+          name VARCHAR(120) NOT NULL,
+          phone VARCHAR(40) NOT NULL DEFAULT '',
+          email VARCHAR(254) NOT NULL DEFAULT '',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        ALTER TABLE establishment_contacts DROP CONSTRAINT IF EXISTS establishment_contacts_category_check;
+        ALTER TABLE establishment_contacts ADD CONSTRAINT establishment_contacts_category_check
+          CHECK (category IN ('resident', 'caregiver', 'intervenant'));
+        CREATE INDEX IF NOT EXISTS establishment_contacts_owner_idx ON establishment_contacts (user_id);
+        ALTER TABLE establishment_profiles ENABLE ROW LEVEL SECURITY;
+        ALTER TABLE establishment_contacts ENABLE ROW LEVEL SECURITY;
         ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS terms_version VARCHAR(32);
@@ -396,6 +468,8 @@ function createAuthService(pool) {
         );
         ALTER TABLE app_account_closure_requests
           ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          ADD COLUMN IF NOT EXISTS initiated_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
+          ADD COLUMN IF NOT EXISTS initiation_reason VARCHAR(500),
           ADD COLUMN IF NOT EXISTS handled_at TIMESTAMPTZ,
           ADD COLUMN IF NOT EXISTS handled_by UUID REFERENCES app_users(id) ON DELETE SET NULL,
           ADD COLUMN IF NOT EXISTS resolution_note VARCHAR(1000),
@@ -574,9 +648,12 @@ function createAuthService(pool) {
           event_type VARCHAR(16) NOT NULL
             CHECK (event_type IN ('arrived', 'started', 'completed')),
           practical_note VARCHAR(500),
+          share_with_team BOOLEAN NOT NULL DEFAULT FALSE,
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           UNIQUE (visit_id, event_type)
         );
+        ALTER TABLE planning_visit_events
+          ADD COLUMN IF NOT EXISTS share_with_team BOOLEAN NOT NULL DEFAULT FALSE;
         CREATE TABLE IF NOT EXISTS planning_visit_evaluations (
           id UUID PRIMARY KEY,
           visit_id UUID NOT NULL REFERENCES planning_visits(id) ON DELETE CASCADE,
@@ -741,6 +818,7 @@ function createAuthService(pool) {
       shareAccountPhoto: row.share_account_photo === true,
       email: row.email,
       role: row.role,
+      passwordChangeRequired: row.password_change_required === true,
       isActive: row.is_active !== false,
       verificationStatus: row.verification_status || 'approved',
       isLegalGuardian: row.is_legal_guardian === true,
@@ -1007,6 +1085,188 @@ function createAuthService(pool) {
     }
   }
 
+  async function createEstablishmentResident(ownerId, { firstName, lastName, birthDate, password }, accountRole = 'senior') {
+    await ensureSchema();
+    if (!['senior', 'staff'].includes(accountRole)) throw new AuthError(400, 'Type de compte invalide.');
+    if (typeof firstName !== 'string' || typeof lastName !== 'string' ||
+        !firstName.trim() || !lastName.trim() ||
+        `${firstName.trim()} ${lastName.trim()}`.length > 120 ||
+        typeof birthDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) ||
+        !Number.isFinite(Date.parse(`${birthDate}T00:00:00Z`)) ||
+        new Date(`${birthDate}T00:00:00Z`).toISOString().slice(0, 10) !== birthDate ||
+        birthDate > new Date().toISOString().slice(0, 10) ||
+        typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH || password.length > 256) {
+      throw new AuthError(400, 'Vérifiez les noms, la date de naissance et le mot de passe provisoire (12 caractères minimum).');
+    }
+    const credentials = await hashPassword(password);
+    const userId = randomUUID();
+    const seniorId = randomUUID();
+    const identifier = randomBytes(12).toString('hex');
+    const name = `${firstName.trim()} ${lastName.trim()}`;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT id FROM app_users WHERE id = $1 AND role = 'establishment' AND is_active = TRUE
+         AND establishment_subscription_active = TRUE FOR UPDATE`, [ownerId]
+      );
+      if (!rows.length) throw new AuthError(403, 'Un abonnement actif est nécessaire pour créer un accès.');
+      await client.query('INSERT INTO senior_profiles (id, name) VALUES ($1, $2)', [seniorId, name]);
+      await client.query(
+        `INSERT INTO app_users (id, senior_id, name, first_name, last_name, email, role, password_salt, password_hash)
+         VALUES ($1, $2, $3, $4, $5, NULL, $6, $7, $8)`,
+        [userId, seniorId, name, firstName.trim(), lastName.trim(), accountRole, credentials.salt, credentials.hash]
+      );
+      await client.query(
+        `INSERT INTO establishment_resident_accounts (resident_user_id, establishment_user_id, identifier, birth_date)
+         VALUES ($1, $2, $3, $4)`, [userId, ownerId, identifier, birthDate]
+      );
+      await client.query('COMMIT');
+      return { id: userId, identifier };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function loginEstablishmentResident({ identifier, firstName, lastName, birthDate, password }) {
+    await ensureSchema();
+    if (typeof identifier !== 'string' || !/^[0-9a-f]{24}$/i.test(identifier) ||
+        typeof firstName !== 'string' || typeof lastName !== 'string' ||
+        typeof birthDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(birthDate) ||
+        typeof password !== 'string' || password.length > 256) {
+      throw new AuthError(400, 'Complétez les informations de connexion.');
+    }
+    const client = await pool.connect();
+    let failed = false;
+    let result;
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT u.*, s.name AS senior_name, account.password_change_required, account.failed_attempts,
+                (account.locked_until > CURRENT_TIMESTAMP) AS locked,
+                account.birth_date::text AS birth_date, (u.account_photo IS NOT NULL) AS has_account_photo
+         FROM establishment_resident_accounts account
+         JOIN app_users u ON u.id = account.resident_user_id
+         JOIN senior_profiles s ON s.id = u.senior_id
+         WHERE account.identifier = $1 FOR UPDATE OF account, u`,
+        [identifier.toLowerCase()]
+      );
+      const row = rows[0];
+      const matches = await verifyPassword(password, row?.password_salt || DUMMY_SALT.toString('hex'),
+        row?.password_hash || DUMMY_HASH.toString('hex'));
+      const valid = row && row.is_active && !row.locked && matches &&
+        row.first_name.toLocaleLowerCase('fr-FR') === firstName.trim().toLocaleLowerCase('fr-FR') &&
+        row.last_name.toLocaleLowerCase('fr-FR') === lastName.trim().toLocaleLowerCase('fr-FR') &&
+        row.birth_date === birthDate;
+      if (!valid) {
+        if (row && !row.locked) {
+          await client.query(
+            `UPDATE establishment_resident_accounts
+             SET failed_attempts = CASE WHEN locked_until IS NOT NULL AND locked_until <= CURRENT_TIMESTAMP THEN 1 ELSE failed_attempts + 1 END,
+             locked_until = CASE WHEN locked_until IS NOT NULL AND locked_until <= CURRENT_TIMESTAMP THEN NULL
+               WHEN failed_attempts + 1 >= 5 THEN CURRENT_TIMESTAMP + INTERVAL '15 minutes' ELSE NULL END
+             WHERE resident_user_id = $1`, [row.id]
+          );
+        }
+        failed = true;
+      } else {
+        await client.query(
+          'UPDATE establishment_resident_accounts SET failed_attempts = 0, locked_until = NULL WHERE resident_user_id = $1',
+          [row.id]
+        );
+        result = { token: await createSession(client, row.id), user: publicUser(row) };
+      }
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+    if (failed) throw new AuthError(401, 'Informations incorrectes ou accès temporairement bloqué. Réessayez plus tard.');
+    return result;
+  }
+
+  async function resetEstablishmentResidentPassword(ownerId, residentId, password, accountRole = 'senior') {
+    await ensureSchema();
+    if (typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH || password.length > 256) {
+      throw new AuthError(400, 'Le mot de passe provisoire doit contenir au moins 12 caractères.');
+    }
+    const credentials = await hashPassword(password);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT account.resident_user_id FROM establishment_resident_accounts account
+         JOIN app_users owner ON owner.id = account.establishment_user_id
+         JOIN app_users resident ON resident.id = account.resident_user_id
+         WHERE owner.id = $1 AND account.resident_user_id = $2 AND owner.role = 'establishment'
+           AND owner.is_active = TRUE AND owner.establishment_subscription_active = TRUE AND resident.is_active = TRUE
+           AND resident.role = $3
+         FOR UPDATE OF owner, account, resident`, [ownerId, residentId, accountRole]
+      );
+      if (!rows.length) throw new AuthError(404, 'Compte introuvable ou abonnement inactif.');
+      await client.query('UPDATE app_users SET password_salt = $2, password_hash = $3 WHERE id = $1',
+        [residentId, credentials.salt, credentials.hash]);
+      await client.query(
+        `UPDATE establishment_resident_accounts SET password_change_required = TRUE, failed_attempts = 0, locked_until = NULL
+         WHERE resident_user_id = $1`, [residentId]
+      );
+      await client.query('DELETE FROM app_sessions WHERE user_id = $1', [residentId]);
+      await client.query('COMMIT');
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function changeEstablishmentResidentPassword(userId, currentPassword, newPassword, acceptedTerms, acceptedTermsVersion) {
+    await ensureSchema();
+    if (acceptedTerms !== true || acceptedTermsVersion !== TERMS_VERSION) {
+      throw new AuthError(400, 'Vous devez accepter les conditions générales d’utilisation en vigueur.');
+    }
+    if (typeof currentPassword !== 'string' || typeof newPassword !== 'string' ||
+        newPassword.length < PASSWORD_MIN_LENGTH || newPassword.length > 256 || newPassword === currentPassword) {
+      throw new AuthError(400, 'Choisissez un nouveau mot de passe différent, de 12 caractères minimum.');
+    }
+    const credentials = await hashPassword(newPassword);
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const { rows } = await client.query(
+        `SELECT u.*, s.name AS senior_name, account.password_change_required,
+                (u.account_photo IS NOT NULL) AS has_account_photo
+         FROM app_users u JOIN senior_profiles s ON s.id = u.senior_id
+         JOIN establishment_resident_accounts account ON account.resident_user_id = u.id
+         WHERE u.id = $1 AND u.is_active = TRUE FOR UPDATE OF u, account`, [userId]
+      );
+      const row = rows[0];
+      if (!row || !row.password_change_required ||
+          !await verifyPassword(currentPassword, row.password_salt, row.password_hash)) {
+        throw new AuthError(401, 'Mot de passe provisoire incorrect ou accès indisponible.');
+      }
+      await client.query(
+        `UPDATE app_users SET password_salt = $2, password_hash = $3, terms_accepted_at = CURRENT_TIMESTAMP,
+         terms_version = $4 WHERE id = $1`, [userId, credentials.salt, credentials.hash, TERMS_VERSION]
+      );
+      await client.query('UPDATE establishment_resident_accounts SET password_change_required = FALSE WHERE resident_user_id = $1', [userId]);
+      await client.query('DELETE FROM app_sessions WHERE user_id = $1', [userId]);
+      const token = await createSession(client, userId);
+      await client.query('COMMIT');
+      return { token, user: publicUser({ ...row, password_change_required: false }) };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   async function login({ email, password }) {
     await ensureSchema();
     if (typeof email !== 'string' || typeof password !== 'string' || !email.trim() || !password) {
@@ -1063,6 +1323,8 @@ function createAuthService(pool) {
               u.weather_commune_name, u.weather_commune_latitude, u.weather_commune_longitude, u.weather_commune_updated_at,
               u.premium_status, u.premium_until,
               u.profile_photo_url, u.civility, u.share_account_photo, (u.account_photo IS NOT NULL) AS has_account_photo,
+              COALESCE((SELECT account.password_change_required FROM establishment_resident_accounts account
+                        WHERE account.resident_user_id = u.id), FALSE) AS password_change_required,
               s.name AS senior_name
        FROM app_sessions session
        JOIN app_users u ON u.id = session.user_id
@@ -1079,9 +1341,9 @@ function createAuthService(pool) {
     await pool.query('DELETE FROM app_sessions WHERE token_hash = $1', [hashToken(token)]);
   }
 
-  async function requestAccountClosure(userId, password) {
+  async function requestAccountClosure(userId, password, administrative = null) {
     await ensureSchema();
-    if (typeof password !== 'string' || !password) {
+    if (!administrative && (typeof password !== 'string' || !password)) {
       throw new AuthError(400, 'Saisissez votre mot de passe pour confirmer la clôture du compte.');
     }
 
@@ -1089,30 +1351,40 @@ function createAuthService(pool) {
     try {
       await client.query('BEGIN');
       const { rows } = await client.query(
-        `SELECT id, is_active, password_salt, password_hash
+        `SELECT id, email, is_active, password_salt, password_hash
          FROM app_users
          WHERE id = $1
          FOR UPDATE`,
         [userId]
       );
       const account = rows[0];
-      if (!account || !account.is_active) {
+      if (!account || (!administrative && !account.is_active)) {
         throw new AuthError(409, 'Ce compte est déjà clôturé ou indisponible.');
       }
-      if (!await verifyPassword(password, account.password_salt, account.password_hash)) {
+      if (administrative && (userId === administrative.actorId ||
+          (account.email && administrative.adminEmails.has(account.email.toLowerCase())))) {
+        throw new AuthError(409, 'Un compte administrateur ne peut pas être clôturé depuis cet écran.');
+      }
+      if (administrative) {
+        const existing = await client.query('SELECT id FROM app_account_closure_requests WHERE user_id = $1 LIMIT 1', [userId]);
+        if (existing.rows.length) throw new AuthError(409, 'Une clôture existe déjà pour ce compte.');
+      }
+      if (!administrative && !await verifyPassword(password, account.password_salt, account.password_hash)) {
         throw new AuthError(401, 'Le mot de passe est incorrect. La demande n’a pas été enregistrée.');
       }
 
       const requestId = randomUUID();
       const { rows: requestRows } = await client.query(
-        `INSERT INTO app_account_closure_requests (id, user_id)
-         VALUES ($1, $2)
+        `INSERT INTO app_account_closure_requests (id, user_id, initiated_by, initiation_reason)
+         VALUES ($1, $2, $3, $4)
          RETURNING id, requested_at`,
-        [requestId, userId]
+        [requestId, userId, administrative?.actorId || null, administrative?.reason || null]
       );
       await client.query(
         `UPDATE app_users
          SET is_active = FALSE,
+             establishment_subscription_active = FALSE,
+             establishment_user_count = NULL,
              directory_listed = FALSE,
              directory_activity = NULL,
              directory_description = NULL,
@@ -1144,6 +1416,17 @@ function createAuthService(pool) {
         [userId]
       );
       await client.query('DELETE FROM app_sessions WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM establishment_profiles WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM establishment_contacts WHERE user_id = $1', [userId]);
+      await client.query('DELETE FROM establishment_resident_accounts WHERE resident_user_id = $1', [userId]);
+      await client.query('DELETE FROM establishment_care_consent WHERE resident_user_id = $1', [userId]);
+      await client.query('DELETE FROM establishment_care_entries WHERE resident_user_id = $1', [userId]);
+      await client.query('DELETE FROM establishment_care_audit WHERE resident_user_id = $1', [userId]);
+      await client.query(
+        `UPDATE establishment_care_entries SET author_user_id = NULL, author_name = 'Compte clôturé'
+         WHERE author_user_id = $1`, [userId]
+      );
+      await client.query('UPDATE establishment_care_audit SET user_id = NULL WHERE user_id = $1', [userId]);
       await client.query('UPDATE app_logs SET author_user_id = NULL WHERE author_user_id = $1', [userId]);
       await client.query('DELETE FROM app_shopping_lists WHERE user_id = $1', [userId]);
       await client.query(
@@ -1178,7 +1461,8 @@ function createAuthService(pool) {
     }
   }
 
-  return { authenticate, createPasswordReset, ensureSchema, login, logout, register, requestAccountClosure, resetPassword };
+  return { authenticate, createPasswordReset, ensureSchema, login, logout, register, requestAccountClosure, resetPassword,
+    createEstablishmentResident, loginEstablishmentResident, resetEstablishmentResidentPassword, changeEstablishmentResidentPassword };
 }
 
 module.exports = {

@@ -1,6 +1,45 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    '🏢 Entreprise / résidence': '🏢 Business / residence',
+    'Entreprise / résidence': 'Business / residence',
+    'Espace Directeur · Entreprise / Résidence': 'Manager workspace · business / residence',
+    'Présentation de l’établissement': 'Organization profile',
+    'Nom de l’établissement': 'Organization name',
+    'Présentation': 'Description',
+    'Adresse': 'Address',
+    'Téléphone': 'Phone',
+    'E-mail de contact': 'Contact email',
+    'Option tablettes (facultatif)': 'Tablet option (optional)',
+    'Aucune demande': 'No request',
+    'Location envisagée : 15 à 25 € HT / mois / tablette': 'Possible rental: €15–25 excluding tax / month / tablet',
+    'Achat envisagé : 229 à 299 € TTC / tablette': 'Possible purchase: €229–299 including tax / tablet',
+    'Nombre de tablettes souhaitées': 'Number of tablets requested',
+    'Tarifs indicatifs, selon devis et disponibilité. La location suppose un partenaire ; celui-ci n’est pas encore confirmé. Ce choix exprime un intérêt et ne constitue pas une commande.':
+      'Indicative prices, subject to a quote and availability. Rental requires a partner that has not yet been confirmed. This expresses interest and is not an order.',
+    'Résidents et soignants': 'Residents and caregivers',
+    'Catégorie': 'Category',
+    'Résident': 'Resident',
+    'Soignant': 'Caregiver',
+    'Enregistrer les coordonnées': 'Save contact details',
+    'Annuler la modification': 'Cancel editing',
+    'Actualiser la fiche': 'Refresh profile',
+    'Demander la clôture': 'Request account closure',
+    'Coordonnées privées du compte directeur. Ne saisissez aucune information médicale. Assurez-vous d’être autorisé à enregistrer ces informations et informez les personnes concernées. Ces fiches ne créent pas de comptes et ne donnent aucun accès aux dossiers.':
+      'These contact details are private to the manager account. Do not enter medical information. Ensure you are authorized to record the details and inform the people concerned. These entries do not create accounts or grant access to records.',
+    'Explications du journal du quotidien': 'Daily journal help',
+    'Retrouvez les nouvelles et étapes des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui ».':
+      'Find updates and visit stages from previous days. Today’s information appears in “Today”.',
+    'Retrouvez les étapes d’intervention, y compris celles du jour, et les nouvelles des jours précédents.':
+      'Find visit stages, including today’s, and updates from previous days.',
+    'Retrouvez les étapes des visites à la date sélectionnée dans l’agenda.':
+      'Find visit stages for the date selected in the calendar.',
+    'Ce journal ne surveille pas votre sécurité.': 'This journal does not monitor your safety.',
+    'Ce journal ne surveille pas la sécurité de la personne accompagnée.': 'This journal does not monitor the safety of the person receiving support.',
+    'Avant d’imprimer, vérifiez le contenu : le papier peut être lu par d’autres personnes.':
+      'Before printing, check the contents: other people may read the paper copy.',
+    'Suivi des collègues limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées. Ce journal ne remplace pas un dossier médical.':
+      'Colleague updates are limited to the last 100 stages over 30 days and 100 visits between 30 days before and 30 days after today. A completed visit does not specify the tasks performed. This journal does not replace a medical record.',
     'Afficher les nouvelles plus anciennes': 'Show older updates',
     'Impossible de charger les nouvelles plus anciennes. Réessayez.': 'Unable to load older updates. Please try again.',
     'Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas votre sécurité.':
@@ -205,6 +244,14 @@
       'Find appointments and discover everyday services, independent of medical care.',
     'Choisissez vos notifications et laissez-vous guider dans l’application par l’assistant.':
       'Choose your notifications and let the assistant guide you through the app.',
+    'Les informations du jour': 'Today’s information',
+    'Dans « Aujourd’hui », retrouvez les informations accessibles à votre compte, comme les rendez-vous, les tâches et les messages, présentées en bulles colorées.':
+      'In “Today”, find the information available to your account, such as appointments, tasks and messages, displayed in colorful bubbles.',
+    'Le senior et ses aidants associés peuvent préparer des tâches et les attribuer à un intervenant enregistré dans leur annuaire partagé. L’intervenant ne voit que les tâches qui lui sont confiées et peut indiquer qu’elles sont terminées. Prévenez-le : aucune notification d’attribution n’est envoyée.':
+      'The senior and their linked caregivers can prepare tasks and assign them to a professional saved in their shared directory. The professional sees only tasks assigned to them and can mark them as completed. Let them know: no assignment notification is sent.',
+    'Liste de courses': 'Shopping list',
+    'Le senior peut enregistrer une liste de courses privée et, s’il le souhaite, en envoyer une copie par message aux personnes choisies. Une copie envoyée ne se met pas à jour automatiquement.':
+      'The senior can save a private shopping list and choose to send a copy by message to selected people. A sent copy does not update automatically.',
     'Découvrez des services du quotidien, comme la coiffure à domicile, distincts du suivi des soins.':
       'Discover everyday services, such as hairdressing at home, separate from care coordination.',
     'Découvrez des services du quotidien, comme la coiffure à domicile, indépendants du suivi médical.':
@@ -308,9 +355,17 @@
     'Pour aujourd’hui ou en retard': 'Due today or overdue',
     'Messages non lus': 'Unread messages',
     'Notifications non lues parmi les 50 dernières': 'Unread notifications among the latest 50',
+    '50 dernières notifications — pour répondre, ouvrez Notifications et messages': 'Latest 50 notifications — open Notifications and messages to respond',
     'Impossible de charger les notifications.': 'Unable to load notifications.',
     'Interventions du jour ou actualisées aujourd’hui': 'Visits today or updated today',
     'Dernière étape': 'Latest update',
+    'Étapes du jour': 'Today’s updates',
+    'Collègue': 'Colleague',
+    'Moi': 'Me',
+    'Prévue le': 'Scheduled for',
+    'Visite prévue, non confirmée terminée': 'Visit scheduled, not confirmed complete',
+    'Visite signalée en cours': 'Visit reported in progress',
+    'Visite signalée terminée': 'Visit reported complete',
     'Impossible de charger le suivi des interventions.': 'Unable to load visit updates.',
     'Services du jour': 'Services today',
     'En attente de réponse': 'Awaiting a response',

@@ -144,10 +144,12 @@ test('automatic senior narration selects only the requested categories on each s
   const screens = {
     'screen-senior': {
       'date-senior': 'Lundi',
-      'senior-weather-status': 'Soleil',
-      'senior-next-visit-text': 'Visite demain',
       'assistant-messages': 'Conversation privée',
       'wellbeing-checkin-result': 'Bilan'
+    },
+    'screen-informations-senior': {
+      'senior-weather-status': 'Soleil',
+      'senior-next-visit-text': 'Visite demain'
     },
     'screen-more': { 'senior-journal-list': 'Nouvelle du journal' },
     'screen-messages': {
@@ -185,7 +187,8 @@ test('automatic senior narration selects only the requested categories on each s
     timers.pop()();
   }
   assert.deepEqual(spoken, [
-    'Lundi. Soleil. Visite demain',
+    'Lundi',
+    'Soleil. Visite demain',
     'Nouvelle du journal',
     'Notification. Message',
     'Rendez-vous',
@@ -355,6 +358,11 @@ test('quick replies send only to the selected contact, keep the draft, and repor
   assert.equal(calls.length, 3);
 });
 
+test('removed presentation choice cannot be restored from an old preference', () => {
+  assert.doesNotMatch(source, /Présentation douce|settings-presentation|presentation-jardin|generation-liaison-presentation-/);
+  assert.match(source, /id="settings-senior-display"/);
+});
+
 test('simplified senior view is optional, scoped to the account and clears hidden recipients', () => {
   const classes = new Set(), values = new Map(), selected = [{ checked: true }, { checked: true }];
   const context = {
@@ -381,6 +389,27 @@ test('simplified senior view is optional, scoped to the account and clears hidde
   context.changerVueSenior(false);
   assert.equal(classes.has('senior-simple'), false);
   assert.equal(values.get('generation-liaison-senior-simple-alice'), 'false');
+});
+
+test('daily journals center their entries and keep concise safety notices', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const journal = extract(`id="${role}-journal-details"`, '</details>');
+    assert.match(journal, new RegExp(`id="${role}-journal-list"`));
+    assert.doesNotMatch(journal, /Archive des nouvelles|Le nom de l’auteur|État et étapes de vos visites/);
+    assert.match(journal, /ne surveille pas|ne remplace pas un dossier médical/);
+  }
+  assert.match(source, /:is\(#senior-journal-list, #aidant-journal-list, #pro-journal-list\) \.progress-item\s*\{\s*text-align:\s*center/);
+  assert.match(extract('id="senior-journal-details"', '</details>'), /Avant d’imprimer/);
+  assert.match(extract('id="aidant-journal-details"', '</details>'), /Avant d’imprimer/);
+});
+
+test('journal buttons share centered typography and link to timed help for each role', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`<details class="senior-explanation journal-help" data-help-for="#${role}-journal-details > summary">[\\s\\S]*?<div class="gl-help-bubble">`));
+  }
+  assert.match(source, /:is\(#senior-journal-details, #aidant-journal-details, #pro-journal-details\) > summary\s*\{[^}]*align-items:\s*center;[^}]*font-size:\s*1\.125rem;/);
+  assert.match(source, /\.journal-help\[data-help-enhanced\] > summary \{ display: none; \}/);
+  assert.match(source, /@media \(hover: none\) \{\s*\.screen-container \.journal-help\[data-help-enhanced\] > summary/);
 });
 
 test('simplified journal shortcut opens the senior journal without hiding safety follow-up', () => {
@@ -1134,7 +1163,7 @@ test('senior feature sections retain their content and can open programmatically
 
 test('companionship, wellbeing, video call, meal delivery and emergency lead the senior home', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
-  const order = ['id="senior-weather-card"', 'id="senior-next-visit"', 'id="senior-assistant-details"',
+  const order = ['id="senior-assistant-details"',
     'id="wellbeing-checkin-details"', 'onclick="declencherVisio()"', 'Livraison de repas',
     'class="form-card emergency-call-card"', 'id="senior-more-button"'].map(item => dashboard.indexOf(item));
   assert.ok(order.every((position, index) => position >= 0 && (index === 0 || order[index - 1] < position)));
@@ -1658,6 +1687,11 @@ test('opening a conversation marks received messages read and displays the sende
   assert.match(container.children[0].children[2].text, /· Lu/);
 });
 
+test('professional workspace heading and subtitle contrast with the dark header', () => {
+  assert.match(source, /#professional-workspace > \.header-mobile > h3,\s*#professional-workspace > \.header-mobile > span\s*\{\s*color:\s*#fff;/);
+  assert.match(source, /id="professional-workspace">[\s\S]*?<div class="header-mobile" style="background: #34495e;">/);
+});
+
 test('soft button colours are limited to aidant and pro sessions and cleared on logout', () => {
   const login = extract('    async function setAuthenticatedView(user)', '        initialiserVueSenior(user);');
   const logout = extract('    async function deconnecterUtilisateur(', "        activeSeniorProfileId = '';");
@@ -2054,6 +2088,11 @@ test('emergency calls require confirmation and can be confirmed again after a co
   numbers[0].listeners.click();
   assert.equal(element('emergency-call-confirmation').hidden, false);
   assert.equal(element('emergency-call-confirm-click').disabled, false);
+});
+
+test('professional notification shortcut spans the workspace and keeps its action and badge', () => {
+  assert.match(source, /#pro-notifications-tile\s*\{\s*width:\s*100%;\s*\}/);
+  assert.match(source, /id="pro-notifications-tile"[^>]*onclick="ouvrirNotifications\(\)"[^>]*>[\s\S]*?id="home-notification-count-pro"/);
 });
 
 test('the notification shortcut opens the separate page', () => {

@@ -20,7 +20,7 @@ before(async () => {
   for (const entry of [
     'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html', 'reset-password.html',
     'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html', 'language.js',
-    'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js', 'push-service-worker.js', 'homepage-images', 'downloads', 'scripts'
+    'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js', 'push-service-worker.js', 'homepage-images', 'riddle-images', 'downloads', 'scripts'
   ]) {
     fs.cpSync(path.join(projectRoot, entry), path.join(androidFixture, entry), { recursive: true });
   }
@@ -251,7 +251,7 @@ test('privacy notice describes minimized AI-assisted account-closure review and 
   assert.match(policy, /l’administration examine les données réelles et prend seule la décision finale/);
   assert.match(policy, /décomptes de dossiers/);
   assert.match(policy, /Ni le nom, ni l’adresse e-mail, ni les identifiants, ni le contenu des notes/);
-  assert.match(policy, /Préparer l’examen administratif des demandes de clôture/);
+  assert.match(policy, /préparer l’examen des clôtures au moyen d’un pré-jugement IA/);
   assert.match(policy, /<strong>OpenAI :<\/strong>/);
 });
 
@@ -305,7 +305,7 @@ test('homepage exposes public downloads and legal links without developer tools'
   assert.doesNotMatch(html, /Vérification de la connexion\.\.\./);
   assert.match(html, /href="\/cgu\.html#mentions-legales">Mentions légales/);
   assert.match(html, /href="\/cgu\.html">Conditions d’utilisation/);
-  assert.match(html, /href="\/cgv\.html">Tarifs et CGV/);
+  assert.match(html, /href="\/cgv\.html">Projet de tarifs et CGV/);
   const terms = await (await fetch(`${baseUrl}/cgu.html`)).text();
   assert.match(terms, /id="mentions-legales"/);
 });
@@ -477,9 +477,9 @@ test('mobile profile placeholder styles are intact in source and built apps', ()
 
 test('senior home greets the signed-in user and refreshes the date when the app opens', () => {
   const mobileApp = fs.readFileSync(path.join(projectRoot, 'app-mobile.html'), 'utf8');
-  assert.match(mobileApp, /Bonjour <span id="welcome-senior-name">Senior<\/span> !/);
+  assert.match(mobileApp, /Bonjour <span id="welcome-senior-name">Personne accompagnée<\/span> !/);
   assert.match(mobileApp, /function afficherAccueilSenior\(user\)/);
-  assert.match(mobileApp, /const displayName = user\.name \|\| user\.seniorName \|\| 'Senior'/);
+  assert.match(mobileApp, /const displayName = user\.name \|\| user\.seniorName \|\| window\.generationLiaisonTranslate\('Personne accompagnée'\)/);
   assert.match(mobileApp, /function mettreAJourDateSenior\(\)/);
   assert.match(mobileApp, /hourCycle: 'h23'/);
   assert.match(mobileApp, /majuscule\(parts\.weekday\).*majuscule\(parts\.month\).*parts\.hour\}:\$\{parts\.minute/);
@@ -900,7 +900,7 @@ test('renders live planning controls without demonstration contact data', () => 
   assert.match(source, /Arrivée signalée/);
   assert.match(source, /planningRequest\(`\/api\/planning\/today\?date=/);
   assert.match(source, /planning-previous-day/);
-  assert.match(source, /Voir les recommandations et transmissions/);
+  assert.match(source, /Voir les nouvelles de liaison/);
   assert.match(source, /30 derniers jours/);
   assert.match(source, /importance: document\.getElementById/);
   assert.match(source, /🔵 Information/);
@@ -908,7 +908,7 @@ test('renders live planning controls without demonstration contact data', () => 
   assert.match(source, /🔴 Prioritaire/);
   assert.match(source, /pas une urgence médicale/);
   assert.doesNotMatch(source, /Camille Exemple|Louise Démonstration|Paul Exemple/);
-  assert.match(source, /sans donnée médicale/i);
+  assert.match(source, /N’y saisissez aucune donnée clinique ni information d’urgence/);
 });
 
 test('requires documents and keeps new professionals pending until review', () => {
@@ -1147,7 +1147,7 @@ test('closes an account only after confirming its password and records the erasu
     connect: async () => ({
       query: async (sql, values = []) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') return { rows: [] };
-        if (sql.includes('SELECT id, is_active, password_salt, password_hash')) {
+        if (sql.includes('SELECT id, email, is_active, password_salt, password_hash')) {
           return {
             rows: active
               ? [{
@@ -1164,6 +1164,9 @@ test('closes an account only after confirming its password and records the erasu
         }
         if (sql.includes('UPDATE app_users')) {
           active = false;
+          return { rows: [] };
+        }
+        if (/UPDATE (establishment_care_entries|establishment_care_audit|app_logs)/.test(sql)) {
           return { rows: [] };
         }
         if (sql.startsWith('DELETE FROM')) {
@@ -1194,7 +1197,14 @@ test('closes an account only after confirming its password and records the erasu
     'app_key_contacts',
     'app_push_subscriptions',
     'app_sessions',
-    'app_user_contacts'
+    'app_shopping_lists',
+    'app_user_contacts',
+    'establishment_care_audit',
+    'establishment_care_consent',
+    'establishment_care_entries',
+    'establishment_contacts',
+    'establishment_profiles',
+    'establishment_resident_accounts'
   ]);
 });
 

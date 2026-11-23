@@ -95,6 +95,10 @@
         .visit-notes-button { width: 100%; margin-top: 10px; padding: 11px 12px; border: 1px solid #2c3e50; border-radius: 8px; color: #2c3e50; background: #fff; font-weight: bold; cursor: pointer; }
         .visit-progress button:disabled, .form-card button:disabled { opacity: 0.55; cursor: not-allowed; }
         .form-card { margin: 14px 0; padding: 16px; border-radius: 12px; background: white; box-shadow: 0 3px 10px rgba(0,0,0,0.05); text-align: left; }
+        #screen-establishment table { width: 100%; border-collapse: collapse; }
+        #screen-establishment th, #screen-establishment td { text-align: left; padding: 9px; border-bottom: 1px solid #ddd; }
+        .establishment-actions-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+        .establishment-actions-buttons button { flex: 1 1 170px; text-align: left; }
         #aidant-daily-summary p, #senior-daily-summary p, #pro-daily-summary p { white-space: pre-line; overflow-wrap: anywhere; }
         :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > p:not(.helper-text) {
             margin: 10px 0;
@@ -147,7 +151,7 @@
         .weather-widget .weather-temp { font-size: 2.6rem; font-weight: 800; line-height: 1; text-shadow: 0 2px 6px rgba(0,0,0,0.3); }
         .weather-widget [role="status"] { margin: 2px 0 8px; font-size: 1rem; font-weight: 700; color: white; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
         #main-app-senior .form-card.weather-widget button, .form-card.weather-widget button { min-height: 40px; padding: 6px 18px; font-size: 1rem; background: rgba(255,255,255,0.92) !important; color: #145a86 !important; border: 0; font-weight: 700; }
-        #main-app-senior .weather-widget details > summary { min-height: 36px; padding: 4px 12px; color: white !important; font-weight: 700; cursor: pointer; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
+        .weather-widget details > summary { min-height: 36px; padding: 4px 12px; color: white !important; font-weight: 700; cursor: pointer; text-align: center; text-shadow: 0 1px 3px rgba(0,0,0,0.4); }
         .weather-widget ul { list-style: none; margin: 4px 0 0; padding: 0; text-align: left; }
         .weather-widget li { margin: 6px 0; padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,0.25); color: white; font-weight: 600; }
         .weather-widget .helper-text, .weather-widget .helper-text a { margin: 2px 0 0; font-size: 0.8rem; color: rgba(255,255,255,0.9); }        .emergency-call-card > #emergency-call-heading { margin-bottom: 28px; }
@@ -185,6 +189,8 @@
         }
         .helper-text { color: #62736d; font-size: 0.82rem; line-height: 1.45; }
         .consent-item, .progress-item { padding: 12px 0; border-bottom: 1px solid #e8ecef; text-align: left; }
+        :is(#senior-journal-details, #aidant-journal-details, #pro-journal-details),
+        :is(#senior-journal-list, #aidant-journal-list, #pro-journal-list) .progress-item { text-align: center; }
         .visit-evaluation { margin-top: 12px; padding: 12px; border-radius: 10px; background: #f7f9fa; }
         .evaluation-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
         .rating-pill { border: 2px solid #d5dce2; border-radius: 999px; padding: 8px 12px; background: white; color: #34495e; font-weight: 700; cursor: pointer; }
@@ -341,6 +347,8 @@
         .header-mobile { display: flex; flex-direction: column; gap: 2px; background: var(--brand-soft); color: var(--ink); border-radius: 18px; padding: 16px; box-shadow: 0 6px 18px rgba(31, 58, 77, 0.05); }
         .header-mobile h3 { color: var(--ink); }
         .header-mobile span { color: #3f6a5c; }
+        #professional-workspace > .header-mobile > h3,
+        #professional-workspace > .header-mobile > span { color: #fff; }
         .nav-bar { border-top: 0; border-radius: 22px 22px 0 0; box-shadow: 0 -6px 18px rgba(31, 58, 77, 0.08); }
         .nav-item { color: #7a8f9d; }
         .nav-item.active { color: var(--brand-dark); font-weight: 700; }
@@ -359,6 +367,7 @@
         .next-visit-card button { flex: 0 0 auto; border: 0; border-radius: 12px; padding: 10px 14px; background: white; color: var(--brand-dark); font-weight: 700; cursor: pointer; }
         .action-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
         .action-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 8px; border: 1px solid #e3eee9; border-radius: 18px; background: white; color: var(--ink); font-size: 0.95rem; font-weight: 700; box-shadow: 0 6px 18px rgba(31, 58, 77, 0.07); cursor: pointer; }
+        #pro-notifications-tile { width: 100%; }
         .tile-icon { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; font-size: 1.6rem; }
         .aidant-greeting { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; }
         .aidant-avatar { display: grid; place-items: center; flex: 0 0 52px; width: 52px; height: 52px; border-radius: 50%; background: var(--brand-soft); color: var(--brand-dark); font-size: 1.5rem; }
@@ -389,7 +398,7 @@
             text-align: center;
             overflow-wrap: anywhere;
         }
-        #aidant-senior-content > .form-card.aidant-tile-open > .senior-disclosure > summary { min-height: 80px; margin-bottom: 14px; }
+        #aidant-senior-content > .form-card.aidant-tile-open > .senior-disclosure:not(.senior-explanation) > summary { min-height: 80px; margin-bottom: 14px; }
         #aidant-senior-content .senior-explanation[data-help-enhanced] > summary,
         #screen-senior-pro .senior-explanation[data-help-enhanced] > summary { display: none; }
         @media (hover: none) {
@@ -480,6 +489,27 @@
         .senior-mode .senior-tab-disclosure > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         #main-app-senior .senior-disclosure + .senior-disclosure { margin-top: 12px; }
         .screen-container .senior-tab-disclosure + .senior-tab-disclosure { margin-top: 12px; }
+        :is(#senior-journal-details, #aidant-journal-details, #pro-journal-details) > summary {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 1.125rem;
+        }
+        .journal-help[data-help-enhanced] > summary { display: none; }
+        @media (hover: none) {
+            .screen-container .journal-help[data-help-enhanced] > summary {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 44px;
+                min-height: 44px;
+                padding: 0;
+                font-size: 0;
+            }
+            .screen-container .journal-help[data-help-enhanced] > summary::before { content: '?'; font-size: 1.125rem; }
+        }
         #main-app-senior .senior-action-tile { width: 100%; margin: 14px 0; }
         #senior-pro-directory-action > .action-tile {
             box-sizing: border-box;
@@ -657,7 +687,6 @@
         .senior-simple-only { display: none; }
         body.senior-simple .senior-simple-only { display: block; }
         body.senior-simple .senior-full-only,
-        body.senior-simple #senior-weather-card,
         body.senior-simple #assistant-chat-panel,
         body.senior-simple #wellbeing-checkin-details,
         body.senior-simple .meal-delivery-card,
@@ -814,8 +843,21 @@
             <button class="btn-submit" type="submit">Se connecter</button>
             <p class="helper-text">Après connexion, votre navigateur peut proposer d’enregistrer vos identifiants. Le site ne conserve pas votre mot de passe.</p>
             <p><a href="/reset-password.html">Mot de passe oublié ?</a></p>
+            <button type="button" class="register-button" onclick="document.getElementById('login-section').style.display='none'; document.getElementById('resident-login-section').style.display='block'">Résident ou soignant sans e-mail : se connecter</button>
         </form>
 
+        <form id="resident-login-section" class="form-grid" style="display:none;">
+            <h2>Connexion établissement sans e-mail</h2>
+            <p>Utilisez les informations et l’identifiant remis par votre établissement.</p>
+            <label for="resident-login-first-name">Prénom</label><input id="resident-login-first-name" required autocomplete="given-name">
+            <label for="resident-login-last-name">Nom</label><input id="resident-login-last-name" required autocomplete="family-name">
+            <label for="resident-login-birth-date">Date de naissance</label><input id="resident-login-birth-date" type="date" required>
+            <label for="resident-login-identifier">Identifiant unique</label><input id="resident-login-identifier" required maxlength="24" autocomplete="username">
+            <label for="resident-login-password">Mot de passe</label><input id="resident-login-password" type="password" required autocomplete="current-password">
+            <button type="submit">Se connecter</button>
+            <button type="button" onclick="document.getElementById('resident-login-section').style.display='none'; document.getElementById('login-section').style.display='block'">Retour</button>
+            <p id="resident-login-status" role="status" aria-live="polite"></p>
+        </form>
         <!-- Bloc Inscription -->
         <div id="register-section" style="display: none;">
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Créer un Compte</h2>
@@ -856,7 +898,9 @@
                 <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
                 <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>
                 <option value="senior">🧑 Personne accompagnée</option>
+                <option value="establishment">🏢 Entreprise / résidence</option>
             </select>
+            <p id="reg-establishment-info" class="helper-text" hidden>Un abonnement mensuel payant est prévu pour les établissements, selon le nombre de personnes : 1 à 10 : 29 € HT ; 11 à 25 : 49 € HT ; 26 à 50 : 79 € HT ; 51 à 100 : 129 € HT ; au-delà : devis. Grille indicative ; contactez l’administration pour les conditions. L’activation est manuelle, sans paiement en ligne.</p>
             <section id="reg-account-commune-fields" class="form-card" style="text-align:left;">
                 <h3>Commune du compte (obligatoire)</h3>
                 <p class="helper-text">Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.</p>
@@ -922,24 +966,6 @@
             <button type="button" onclick="ouvrirAgenda()">Mes rendez-vous</button>
             <button type="button" onclick="switchScreen('contacts')">Mes contacts</button>
         </div>
-        <section class="form-card weather-widget" id="senior-weather-card" aria-labelledby="senior-weather-title">
-            <h2 id="senior-weather-title">Météo</h2>
-            <div class="weather-hero" id="senior-weather-hero" hidden><span class="weather-icon" id="senior-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="senior-weather-temp"></span></div>
-            <p id="senior-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
-            <button type="button" onclick="chargerMeteo('senior')">Actualiser</button>
-            <details id="senior-weather-week" hidden>
-                <summary>Voir les prévisions de la semaine</summary>
-                <ul id="senior-weather-days"></ul>
-            </details>
-            <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
-            
-        </section>
-        <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
-            <div>
-                <p class="next-visit-label">Prochaine visite</p>
-                <p class="next-visit-text" id="senior-next-visit-text" role="status" aria-live="polite">Chargement du prochain rendez-vous…</p>
-            </div>
-        </section>
         <section class="form-card" id="assistant-chat-panel">
           <details class="senior-disclosure" id="senior-assistant-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🤝</span>Un peu de compagnie</summary>
@@ -1033,6 +1059,7 @@
                 </div>
             </div>
         </section>
+        <button type="button" class="action-tile senior-action-tile" onclick="switchScreen('informations-senior')"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📋</span>Mes informations du jour</button>
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure" id="senior-key-contacts-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🧑‍⚕️</span><span>Contacts utiles</span></summary>
@@ -1078,6 +1105,22 @@
     </div>
 </div>
 
+<div id="screen-informations-senior" class="screen-container" style="background-color: var(--senior-bg);">
+    <button type="button" class="register-button" onclick="switchScreen('senior')">← Retour à l’accueil</button>
+    <h1>Mes informations du jour</h1>
+    <section class="next-visit-card" id="senior-next-visit" aria-label="Prochaine visite">
+        <div><p class="next-visit-label">Prochaine visite</p>
+        <p class="next-visit-text" id="senior-next-visit-text" role="status" aria-live="polite">Chargement du prochain rendez-vous…</p></div>
+    </section>
+    <section class="form-card weather-widget" id="senior-weather-card" aria-labelledby="senior-weather-title">
+        <h2 id="senior-weather-title">Météo</h2>
+        <div class="weather-hero" id="senior-weather-hero" hidden><span class="weather-icon" id="senior-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="senior-weather-temp"></span></div>
+        <p id="senior-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
+        <button type="button" onclick="chargerMeteo('senior')">Actualiser</button>
+        <details id="senior-weather-week" hidden><summary>Voir les prévisions de la semaine</summary><ul id="senior-weather-days"></ul></details>
+        <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
+    </section>
+</div>
 <div id="screen-more" class="screen-container" style="background-color: var(--senior-bg);">
     <div id="main-app-senior-more" style="text-align: center;">
         <button type="button" id="senior-more-back" onclick="switchScreen('senior')">&larr; Retour &agrave; l&rsquo;accueil</button>
@@ -1287,13 +1330,27 @@
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure senior-tab-disclosure" id="senior-journal-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
-            <p class="helper-text">Archive des nouvelles et des étapes d’interventions de la veille et des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui » puis sont conservées ici dès le lendemain. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas votre sécurité.</p>
+            <p class="helper-text">Ce journal ne surveille pas votre sécurité.</p>
             <button type="button" id="senior-weekly-prepare">Préparer la gazette de la semaine</button>
-            <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
+            <p class="helper-text">Avant d’imprimer, vérifiez le contenu : le papier peut être lu par d’autres personnes.</p>
             <p id="senior-weekly-status" role="status" aria-live="polite"></p>
             <div id="senior-weekly-preview" class="weekly-preview"></div>
             <button type="button" id="senior-weekly-print" hidden>Imprimer la gazette</button>
             <div id="senior-journal-list" aria-live="polite"></div>
+          </details>
+          <details class="senior-explanation journal-help" data-help-for="#senior-journal-details > summary">
+            <summary aria-label="Explications du journal du quotidien">Explications</summary>
+            <div class="gl-help-bubble">
+              <p class="helper-text">Retrouvez les nouvelles et étapes des jours précédents. Les informations du jour apparaissent dans « Aujourd’hui ».</p>
+            </div>
+          </details>
+        </section>
+        <section class="form-card" style="text-align:left;">
+          <details class="senior-disclosure senior-tab-disclosure">
+            <summary>Carnet de mon établissement</summary>
+            <p>Ce carnet de liaison sert aux nouvelles du quotidien, pas aux informations de santé. Votre accord permet aux soignants de votre établissement de lire et d’écrire les nouvelles. Vos proches associés et les soignants peuvent aussi échanger des messages entre eux, sans que vous puissiez les consulter. Vos notes familiales privées ne leur sont pas ouvertes. Vous pouvez retirer cet accord à tout moment.</p>
+            <button type="button" onclick="chargerCarnetEtablissement('senior')">Afficher mon accord et les transmissions</button>
+            <div id="care-senior-consent"></div><p id="care-senior-status" role="status"></p><div id="care-senior-entries"></div>
           </details>
         </section>
     </div>
@@ -1387,6 +1444,166 @@
 </div>
 
 <!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->
+<div id="screen-resident-password" class="screen-container">
+    <section class="form-card">
+        <h2>Choisissez votre mot de passe personnel</h2>
+        <p>Le mot de passe provisoire a été remis par votre établissement. Choisissez un mot de passe différent et ne le partagez pas.</p>
+        <form id="resident-password-form" class="form-grid">
+            <label for="resident-current-password">Mot de passe provisoire</label><input id="resident-current-password" type="password" required autocomplete="current-password">
+            <label for="resident-new-password">Nouveau mot de passe (12 caractères minimum)</label><input id="resident-new-password" type="password" minlength="12" maxlength="256" required autocomplete="new-password">
+            <label for="resident-confirm-password">Confirmer le nouveau mot de passe</label><input id="resident-confirm-password" type="password" minlength="12" maxlength="256" required autocomplete="new-password">
+            <label><input id="resident-accept-terms" type="checkbox" required> J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et la <a href="/privacy-policy.html" target="_blank" rel="noopener">politique de confidentialité</a>.</label>
+            <button type="submit">Enregistrer et continuer</button>
+            <p id="resident-password-status" role="status" aria-live="polite"></p>
+        </form>
+        <button type="button" onclick="deconnecterUtilisateur()">Déconnexion</button>
+    </section>
+</div>
+<div id="screen-care-onboarding" class="screen-container">
+    <section class="form-card">
+        <h2>Partage avec votre établissement</h2>
+        <p id="care-onboarding-establishment"></p>
+        <p>Acceptez-vous que les soignants de cet établissement lisent et écrivent des nouvelles du quotidien vous concernant ? Ces nouvelles seront aussi visibles par vos proches associés. Ce carnet n’est pas destiné aux informations de santé.</p>
+        <p>Vos proches associés et les soignants pourront aussi échanger entre eux des messages que vous ne verrez pas. Vos notes familiales privées ne seront pas partagées. Vous pouvez retirer votre accord à tout moment dans votre carnet.</p>
+        <button type="button" onclick="deciderPartageInitial(true)">J’accepte</button>
+        <button type="button" onclick="deciderPartageInitial(false)">Je refuse</button>
+        <p id="care-onboarding-status" role="status" aria-live="polite"></p>
+    </section>
+</div>
+<div id="screen-establishment" class="screen-container">
+    <div class="header-mobile"><h2>Espace Directeur · Entreprise / Résidence</h2></div>
+    <div class="establishment-layout">
+    <section class="form-card establishment-actions">
+        <h3>Actions</h3>
+        <div class="establishment-actions-buttons">
+        <button type="button" onclick="chargerTableauEtablissement()">Actualiser les tableaux</button>
+        <button type="button" data-establishment-panel="establishment-profile-panel" aria-expanded="false" aria-controls="establishment-profile-panel" onclick="ouvrirActionEtablissement(this)">Fiche de l’établissement</button>
+        <button type="button" data-establishment-panel="establishment-contacts-panel" aria-expanded="false" aria-controls="establishment-contacts-panel" onclick="ouvrirActionEtablissement(this)">Gérer les coordonnées</button>
+        <button type="button" data-establishment-panel="establishment-residents-panel" aria-expanded="false" aria-controls="establishment-residents-panel" onclick="ouvrirActionEtablissement(this)">Gérer les accès résidents</button>
+        <button type="button" data-establishment-panel="establishment-staff-panel" aria-expanded="false" aria-controls="establishment-staff-panel" onclick="ouvrirActionEtablissement(this)">Gérer les comptes soignants</button>
+        <button type="button" data-establishment-panel="establishment-closure-panel" aria-expanded="false" aria-controls="establishment-closure-panel" onclick="ouvrirActionEtablissement(this)">Clôturer mon compte</button>
+        <button type="button" onclick="deconnecterUtilisateur()">Déconnexion</button>
+        </div>
+    </section>
+    <section class="form-card establishment-overview">
+        <h3>Tableaux des résidents, soignants et intervenants</h3>
+        <p id="establishment-subscription-status" role="status" aria-live="polite"></p>
+        <p>Les comptes et les coordonnées saisies sont distincts : une même personne peut apparaître deux fois. Les intervenants sont les contacts saisis par le directeur et ne reçoivent pas d’accès automatiquement.</p>
+        <div class="form-card" style="overflow-x:auto"><h4>Résidents</h4><table>
+            <thead><tr><th>Catégorie</th><th>Nom</th><th>Origine</th><th>Coordonnées</th></tr></thead>
+            <tbody id="establishment-overview-resident"></tbody>
+        </table></div>
+        <div class="form-card" style="overflow-x:auto"><h4>Soignants</h4><table>
+            <thead><tr><th>Catégorie</th><th>Nom</th><th>Origine</th><th>Coordonnées</th></tr></thead>
+            <tbody id="establishment-overview-caregiver"></tbody>
+        </table></div>
+        <div class="form-card" style="overflow-x:auto"><h4>Intervenants</h4><table>
+            <thead><tr><th>Catégorie</th><th>Nom</th><th>Origine</th><th>Coordonnées</th></tr></thead>
+            <tbody id="establishment-overview-intervenant"></tbody>
+        </table></div>
+        <p id="establishment-overview-status" role="status"></p>
+    </section>
+    <section class="form-card" id="establishment-profile-panel" hidden>
+        <h3>Présentation de l’établissement</h3>
+        <p>Cette fiche est visible uniquement par votre compte et l’administration. Ne saisissez pas de données sur les personnes accompagnées. L’administration active manuellement l’abonnement pour autoriser les modifications ; aucun paiement en ligne n’est effectué ici.</p>
+        <form id="establishment-form" class="form-grid">
+            <label for="establishment-name">Nom de l’établissement</label>
+            <input id="establishment-name" required maxlength="120">
+            <label for="establishment-description">Présentation</label>
+            <textarea id="establishment-description" maxlength="1000"></textarea>
+            <label for="establishment-address">Adresse</label>
+            <input id="establishment-address" maxlength="300">
+            <label for="establishment-phone">Téléphone</label>
+            <input id="establishment-phone" type="tel" maxlength="40">
+            <label for="establishment-email">E-mail de contact</label>
+            <input id="establishment-email" type="email" maxlength="254">
+            <label for="establishment-tablet-interest">Option tablettes (facultatif)</label>
+            <select id="establishment-tablet-interest">
+                <option value="none">Aucune demande</option>
+                <option value="rental">Location envisagée : 15 à 25 € HT / mois / tablette</option>
+                <option value="purchase">Achat envisagé : 229 à 299 € TTC / tablette</option>
+            </select>
+            <label for="establishment-tablet-quantity">Nombre de tablettes souhaitées</label>
+            <input id="establishment-tablet-quantity" type="number" min="1" max="1000">
+            <p>Tarifs indicatifs, selon devis et disponibilité. La location suppose un partenaire ; celui-ci n’est pas encore confirmé. Ce choix exprime un intérêt et ne constitue pas une commande.</p>
+            <button type="submit">Enregistrer</button>
+            <p id="establishment-status" role="status" aria-live="polite"></p>
+        </form>
+        <button type="button" onclick="chargerEtablissement()">Actualiser la fiche</button>
+    </section>
+    <section class="form-card" id="establishment-contacts-panel" hidden>
+        <h3>Coordonnées des résidents, soignants et intervenants</h3>
+        <p>Coordonnées privées du compte directeur. Ne saisissez aucune information médicale. Assurez-vous d’être autorisé à enregistrer ces informations et informez les personnes concernées. Ces fiches ne créent pas de comptes et ne donnent aucun accès aux dossiers.</p>
+        <form id="establishment-contact-form" class="form-grid">
+            <label for="establishment-contact-category">Catégorie</label>
+            <select id="establishment-contact-category"><option value="resident">Résident</option><option value="caregiver">Soignant</option><option value="intervenant">Intervenant</option></select>
+            <label for="establishment-contact-name">Nom</label>
+            <input id="establishment-contact-name" maxlength="120" required>
+            <label for="establishment-contact-phone">Téléphone</label>
+            <input id="establishment-contact-phone" type="tel" maxlength="40">
+            <label for="establishment-contact-email">E-mail</label>
+            <input id="establishment-contact-email" type="email" maxlength="254">
+            <button type="submit">Enregistrer les coordonnées</button>
+            <button type="button" id="establishment-contact-cancel">Annuler la modification</button>
+        </form>
+        <p id="establishment-contacts-status" role="status" aria-live="polite"></p>
+        <div id="establishment-contacts-list"></div>
+    </section>
+    <section class="form-card" id="establishment-residents-panel" hidden>
+        <h3>Accès résidents sans e-mail</h3>
+        <p>Créez un accès seulement avec l’accord du résident. Remettez-lui son identifiant et son mot de passe provisoire en privé. Il devra changer ce mot de passe et accepter les conditions. La création n’autorise pas le directeur à consulter son dossier ; toutefois, une personne connaissant le mot de passe provisoire peut activer le compte.</p>
+        <form id="establishment-resident-form" class="form-grid">
+            <label for="establishment-resident-first-name">Prénom</label><input id="establishment-resident-first-name" required maxlength="120">
+            <label for="establishment-resident-last-name">Nom</label><input id="establishment-resident-last-name" required maxlength="120">
+            <label for="establishment-resident-birth-date">Date de naissance</label><input id="establishment-resident-birth-date" type="date" required>
+            <label for="establishment-resident-password">Mot de passe provisoire (12 caractères minimum)</label><input id="establishment-resident-password" type="password" minlength="12" maxlength="256" required autocomplete="new-password">
+            <button type="submit">Créer l’accès résident</button>
+        </form>
+        <p id="establishment-residents-status" role="status" aria-live="polite"></p>
+        <div id="establishment-residents-list"></div>
+    </section>
+    <section class="form-card" id="establishment-staff-panel" hidden>
+        <h3>Comptes individuels des soignants</h3>
+        <p>Remettez l’identifiant et le mot de passe provisoire personnellement au soignant. Il devra changer son mot de passe. Seuls les résidents ayant donné leur accord sont accessibles.</p>
+        <form id="establishment-staff-form" class="form-grid">
+            <label for="staff-first-name">Prénom</label><input id="staff-first-name" required maxlength="120">
+            <label for="staff-last-name">Nom</label><input id="staff-last-name" required maxlength="120">
+            <label for="staff-birth-date">Date de naissance</label><input id="staff-birth-date" type="date" required>
+            <label for="staff-password">Mot de passe provisoire (12 caractères minimum)</label><input id="staff-password" type="password" minlength="12" maxlength="256" required autocomplete="new-password">
+            <button type="submit">Créer le compte soignant</button>
+        </form>
+        <p id="establishment-staff-status" role="status" aria-live="polite"></p>
+        <div id="establishment-staff-list"></div>
+    </section>
+    <section class="form-card" id="establishment-closure-panel" hidden>
+        <h3>Clôturer mon compte</h3>
+        <p>La demande désactive immédiatement votre compte et sera examinée par l’administration.</p>
+        <form id="establishment-closure-form" class="form-grid">
+            <label for="establishment-closure-password">Mot de passe</label>
+            <input id="establishment-closure-password" type="password" autocomplete="current-password" required>
+            <button type="submit">Demander la clôture</button>
+            <p id="establishment-closure-status" role="status" aria-live="polite"></p>
+        </form>
+    </section>
+    </div>
+</div>
+<div id="screen-staff" class="screen-container">
+    <section class="form-card">
+        <h2>Espace soignant</h2>
+        <p>Ce carnet de liaison est réservé aux nouvelles du quotidien : ne saisissez pas de données de santé, de traitement ou de notes familiales privées. Les nouvelles sont visibles par le résident et ses proches associés. Les messages sont visibles par les proches associés et tous les soignants autorisés, mais pas par le résident.</p>
+        <button type="button" onclick="chargerResidentsSoignant()">Actualiser les résidents autorisés</button>
+        <label for="care-staff-resident">Résident</label><select id="care-staff-resident"><option value="">Choisir un résident</option></select>
+        <button type="button" onclick="chargerCarnetEtablissement('staff')">Afficher le carnet</button>
+        <p id="care-staff-status" role="status"></p><div id="care-staff-entries"></div>
+        <form id="care-staff-form" class="form-grid">
+            <label for="care-staff-kind">Type</label><select id="care-staff-kind"><option value="transmission">Transmission visible par le résident</option><option value="message">Message aux proches et soignants</option></select>
+            <label for="care-staff-content">Texte</label><textarea id="care-staff-content" maxlength="2000" required></textarea>
+            <label><input id="care-staff-nonmedical" type="checkbox" required> Je confirme que ce texte ne contient aucune donnée de santé.</label>
+            <button type="submit">Envoyer</button>
+        </form>
+        <button type="button" onclick="deconnecterUtilisateur()">Déconnexion</button>
+    </section>
+</div>
 <div id="screen-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
     <div class="aidant-greeting">
         <div class="account-avatar aidant-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></div>
@@ -1394,39 +1611,13 @@
             <h2>Bonjour <span id="welcome-aidant-name">!</span></h2>
         </div>
     </div>
-    <section class="form-card weather-widget" id="aidant-weather-card" aria-labelledby="aidant-weather-title">
-        <h2 id="aidant-weather-title">Météo</h2>
-            <div class="weather-hero" id="aidant-weather-hero" hidden><span class="weather-icon" id="aidant-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="aidant-weather-temp"></span></div>
-        <p id="aidant-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
-        <button type="button" onclick="chargerMeteo('aidant')">Actualiser</button>
-        <details id="aidant-weather-week" hidden>
-            <summary>Voir les prévisions de la semaine</summary>
-            <ul id="aidant-weather-days"></ul>
-        </details>
-        <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
-        
-    </section>
     <div class="header-mobile next-visit-card" id="aidant-followed-person" style="flex-direction:row;">
         <div>
             <p class="next-visit-label">Suivi de <span id="senior-name-aidant">Senior</span></p>
             <p class="next-visit-text">Espace Proches 👨‍👩‍👧‍👦</p>
         </div>
     </div>
-    <section class="form-card" id="aidant-daily-summary" aria-labelledby="aidant-daily-summary-title" hidden>
-        <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
-        <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
-        <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
-        <p id="aidant-summary-messages" role="status">Chargement des messages…</p>
-        <p id="aidant-summary-notifications" role="status">Chargement des notifications…</p>
-        <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
-        <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
-        <p id="aidant-summary-services" role="status">Chargement des services…</p>
-        <details id="aidant-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('aidant')">
-            <summary>Historique des 30 derniers jours</summary>
-            <p class="helper-text">Rendez-vous et tâches datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
-            <div id="aidant-history-list" aria-live="polite"></div>
-        </details>
-    </section>
+    <button type="button" class="action-tile" onclick="switchScreen('informations-aidant')">Informations du jour</button>
     <div id="aidant-shortcuts" class="action-tiles">
         <button type="button" id="aidant-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-aidant" hidden></span></button>
         <button type="button" class="action-tile" onclick="ouvrirAgenda()"><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda</button>
@@ -1452,6 +1643,20 @@
         </details>
     </section>
     <div id="aidant-senior-content" style="display:none;">
+    <section class="form-card">
+      <details class="senior-disclosure">
+        <summary>Carnet de l’établissement</summary>
+        <p>Ce carnet de liaison est réservé aux nouvelles du quotidien : ne saisissez pas de données de santé ou de traitement. Les messages sont visibles par les proches associés et tous les soignants autorisés, mais pas par le résident. Les nouvelles sont aussi visibles par le résident. Vos notes familiales privées restent séparées.</p>
+        <button type="button" onclick="chargerCarnetEtablissement('aidant')">Afficher l’accord et le carnet</button>
+        <div id="care-aidant-consent"></div><p id="care-aidant-status" role="status"></p><div id="care-aidant-entries"></div>
+        <form id="care-aidant-form" class="form-grid">
+          <label for="care-aidant-content">Message aux soignants et aux proches associés</label>
+          <textarea id="care-aidant-content" maxlength="2000" required></textarea>
+          <label><input id="care-aidant-nonmedical" type="checkbox" required> Je confirme que ce texte ne contient aucune donnée de santé.</label>
+          <button type="submit">Envoyer</button>
+        </form>
+      </details>
+    </section>
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-key-contacts-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🧑‍⚕️</span><span>Contacts utiles</span></summary>
@@ -1508,13 +1713,19 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-journal-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
-        <p class="helper-text">Les étapes d’intervention apparaissent ici dès aujourd’hui et restent dans le journal. Les nouvelles de la veille et des jours précédents sont également conservées ici. Le nom de l’auteur est indiqué lorsqu’il est disponible ; sinon, seul son rôle apparaît. Ce journal ne surveille pas la sécurité de la personne accompagnée.</p>
+        <p class="helper-text">Ce journal ne surveille pas la sécurité de la personne accompagnée.</p>
         <button type="button" id="aidant-weekly-prepare">Préparer la gazette de la semaine</button>
-        <p class="helper-text">Aperçu des nouvelles familiales et photos acceptées des 7 derniers jours. Vérifiez le contenu avant de l’imprimer : le papier peut être lu par d’autres personnes.</p>
+        <p class="helper-text">Avant d’imprimer, vérifiez le contenu : le papier peut être lu par d’autres personnes.</p>
         <p id="aidant-weekly-status" role="status" aria-live="polite"></p>
         <div id="aidant-weekly-preview" class="weekly-preview"></div>
         <button type="button" id="aidant-weekly-print" hidden>Imprimer la gazette</button>
         <div id="aidant-journal-list" aria-live="polite"></div>
+      </details>
+      <details class="senior-explanation journal-help" data-help-for="#aidant-journal-details > summary">
+        <summary aria-label="Explications du journal du quotidien">Explications</summary>
+        <div class="gl-help-bubble">
+          <p class="helper-text">Retrouvez les étapes d’intervention, y compris celles du jour, et les nouvelles des jours précédents.</p>
+        </div>
       </details>
     </section>
     <section class="form-card">
@@ -1574,6 +1785,33 @@
     </div>
 </div>
 
+<div id="screen-informations-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
+    <button type="button" class="register-button" onclick="switchScreen('aidant')">← Retour à l’accueil</button>
+    <h1>Informations du jour</h1>
+    <section class="form-card" id="aidant-daily-summary" aria-labelledby="aidant-daily-summary-title" hidden>
+        <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
+        <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
+        <p id="aidant-summary-tasks" role="status">Chargement des tâches…</p>
+        <p id="aidant-summary-messages" role="status">Chargement des messages…</p>
+        <p id="aidant-summary-notification-details" aria-live="polite" hidden></p>
+        <p id="aidant-summary-checkins" role="status">Chargement des nouvelles de bien-être…</p>
+        <p id="aidant-summary-following" role="status">Chargement du suivi des interventions…</p>
+        <p id="aidant-summary-services" role="status">Chargement des services…</p>
+        <details id="aidant-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('aidant')">
+            <summary>Historique des 30 derniers jours</summary>
+            <p class="helper-text">Rendez-vous et tâches datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
+            <div id="aidant-history-list" aria-live="polite"></div>
+        </details>
+    </section>
+    <section class="form-card weather-widget" id="aidant-weather-card" aria-labelledby="aidant-weather-title">
+        <h2 id="aidant-weather-title">Météo</h2>
+        <div class="weather-hero" id="aidant-weather-hero" hidden><span class="weather-icon" id="aidant-weather-icon" aria-hidden="true"></span><span class="weather-temp" id="aidant-weather-temp"></span></div>
+        <p id="aidant-weather-status" role="status" aria-live="polite">Choisissez votre commune pour voir la météo.</p>
+        <button type="button" onclick="chargerMeteo('aidant')">Actualiser</button>
+        <details id="aidant-weather-week" hidden><summary>Voir les prévisions de la semaine</summary><ul id="aidant-weather-days"></ul></details>
+        <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
+    </section>
+</div>
 <!-- 🩺 3. INTERFACE PROFESSIONNEL -->
 <div id="screen-pro" class="screen-container" style="background-color: var(--pro-bg);">
     <section class="form-card" id="professional-verification-panel" style="display:none;">
@@ -1593,22 +1831,8 @@
         <h3 style="margin:0;">Espace intervenants <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h3>
         <span style="font-size:0.85rem; opacity:0.9;">Espaces séparés : soins et services du quotidien</span>
     </div>
-    <section class="form-card" id="pro-daily-summary" aria-labelledby="pro-daily-summary-title">
-        <h3 id="pro-daily-summary-title">Aujourd’hui</h3>
-        <p class="helper-text">Aperçu des informations accessibles à votre compte.</p>
-        <p id="pro-summary-visit" role="status">Chargement des rendez-vous…</p>
-        <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
-        <p id="pro-summary-services" role="status">Chargement des services…</p>
-        <p id="pro-summary-tasks" role="status">Chargement des tâches…</p>
-        <p id="pro-summary-messages" role="status">Chargement des messages…</p>
-        <p id="pro-summary-notifications" role="status">Chargement des notifications…</p>
-        <details id="pro-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('pro')">
-            <summary>Historique des 30 derniers jours</summary>
-            <p class="helper-text">Rendez-vous autorisés et tâches qui vous sont confiées, datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
-            <div id="pro-history-list" aria-live="polite"></div>
-        </details>
-    </section>
-    <button type="button" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
+    <button type="button" class="action-tile" onclick="switchScreen('informations-pro')">Informations du jour</button>
+    <button type="button" id="pro-notifications-tile" class="action-tile" onclick="ouvrirNotifications()"><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🔔</span>Notifications et messages <span id="home-notification-count-pro" hidden></span></button>
     <section class="form-card">
         <details class="senior-disclosure" id="pro-intervention-tasks-details">
             <summary>Tâches confiées par les personnes accompagnées</summary>
@@ -1633,6 +1857,19 @@
     </div>
     <h3 class="schedule-day" id="schedule-day-title">Visites du jour</h3>
     <div id="pro-planning" aria-live="polite">Chargement de votre planning…</div>
+    <section class="form-card">
+        <details class="senior-disclosure senior-tab-disclosure" id="pro-journal-details">
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📰</span><span>Journal du quotidien</span></summary>
+            <p class="helper-text">Suivi des collègues limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées. Ce journal ne remplace pas un dossier médical.</p>
+            <div id="pro-journal-list" aria-live="polite">Chargement des étapes…</div>
+        </details>
+        <details class="senior-explanation journal-help" data-help-for="#pro-journal-details > summary">
+            <summary aria-label="Explications du journal du quotidien">Explications</summary>
+            <div class="gl-help-bubble">
+              <p class="helper-text">Retrouvez les étapes des visites à la date sélectionnée dans l’agenda.</p>
+            </div>
+        </details>
+    </section>
     <section class="form-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">📅</span>Agenda des services du quotidien</summary>
@@ -1713,6 +1950,27 @@
 </div>
 
 
+<div id="screen-informations-pro" class="screen-container" style="background-color: var(--pro-bg);">
+    <button type="button" class="register-button" onclick="switchScreen('pro')">← Retour à l’accueil</button>
+    <h1>Informations du jour</h1>
+    <section class="form-card" id="pro-daily-summary" aria-labelledby="pro-daily-summary-title">
+        <h3 id="pro-daily-summary-title">Aujourd’hui</h3>
+        <p class="helper-text">Aperçu des informations accessibles à votre compte.</p>
+        <p id="pro-summary-visit" role="status">Chargement des rendez-vous…</p>
+        <p id="pro-summary-demands" role="status">Chargement des demandes…</p>
+        <p id="pro-summary-services" role="status">Chargement des services…</p>
+        <p id="pro-summary-tasks" role="status">Chargement des tâches…</p>
+        <p id="pro-summary-messages" role="status">Chargement des messages…</p>
+        <p id="pro-summary-notification-details" aria-live="polite" hidden></p>
+        <p id="pro-summary-following" role="status">Chargement des étapes d’intervention…</p>
+        <p class="helper-text">Suivi de l’équipe limité aux 100 dernières étapes sur 30 jours et 100 visites entre 30 jours avant et 30 jours après aujourd’hui. Une visite terminée ne précise pas les tâches réalisées.</p>
+        <details id="pro-history-details" ontoggle="if (this.open) chargerHistoriqueQuotidien('pro')">
+            <summary>Historique des 30 derniers jours</summary>
+            <p class="helper-text">Rendez-vous autorisés et tâches qui vous sont confiées, datés des 30 jours précédents, à l’heure de Paris. Les données plus anciennes ne sont pas supprimées.</p>
+            <div id="pro-history-list" aria-live="polite"></div>
+        </details>
+    </section>
+</div>
 <div id="screen-messages" class="screen-container">
     <button type="button" class="register-button" onclick="switchScreen(connectedUser.role)">← Retour à l’accueil</button>
     <h1>Notifications et messages</h1>
@@ -2718,8 +2976,10 @@
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
         const messagesAllowed = screenName === 'messages' &&
             ['senior', 'aidant', 'pro'].includes(connectedUser?.role);
+        const informationAllowed = ['senior', 'aidant', 'pro'].includes(connectedUser?.role) &&
+            screenName === `informations-${connectedUser.role}`;
         const moreAllowed = ['more', 'senior-pro'].includes(screenName) && connectedUser?.role === 'senior';
-        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed && !agendaAllowed && !messagesAllowed && !moreAllowed) ||
+        if (!connectedUser || (screenName !== connectedUser.role && !directoryAllowed && !contactsAllowed && !settingsAllowed && !agendaAllowed && !messagesAllowed && !informationAllowed && !moreAllowed) ||
             (pendingAccess && screenName !== connectedUser.role && !settingsAllowed)) {
             return;
         }
@@ -2765,6 +3025,19 @@
         }
         if (pendingAccess) return;
         chargerNotifications();
+        if (informationAllowed) {
+            document.getElementById(`screen-${screenName}`).scrollTop = 0;
+            if (connectedUser.role === 'senior') chargerProchainRendezVous();
+            if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
+                chargerSyntheseAidant();
+                if (document.getElementById('aidant-history-details').open) chargerHistoriqueQuotidien('aidant');
+            }
+            if (connectedUser.role === 'pro') {
+                chargerSynthesePro();
+                if (document.getElementById('pro-history-details').open) chargerHistoriqueQuotidien('pro');
+            }
+            return;
+        }
         if (screenName === 'messages') {
             document.getElementById('screen-messages').scrollTop = 0;
             chargerCorrespondants(connectedUser.role);
@@ -2850,7 +3123,10 @@
             isProfessional ? 'Photo de profil (obligatoire)' : 'Photo de profil (facultative)'
         );
         document.getElementById('professional-registration-fields').style.display = isProfessional ? 'block' : 'none';
-        document.getElementById('reg-account-commune-fields').style.display = isProfessional ? 'none' : 'block';
+        document.getElementById('reg-account-commune-fields').style.display = ['senior', 'aidant'].includes(role) ? 'block' : 'none';
+        document.getElementById('reg-account-photo').disabled = role === 'establishment';
+        document.getElementById('reg-establishment-info').hidden = role !== 'establishment';
+        if (role === 'establishment') document.getElementById('reg-account-photo').value = '';
         document.getElementById('reg-senior-fields').style.display = role === 'aidant' ? 'block' : 'none';
         afficherChampsTutelle();
         if (!isProfessional) {
@@ -3300,6 +3576,11 @@
     }
 
     async function setAuthenticatedView(user) {
+        reinitialiserCarnetEtablissement();
+        fermerActionsEtablissement();
+        establishmentOverviewLoadId++;
+        ['resident', 'caregiver', 'intervenant'].forEach(category => document.getElementById(`establishment-overview-${category}`).replaceChildren());
+        document.getElementById('establishment-overview-status').textContent = '';
         reinitialiserMeteo();
         annulerDicteeMessage();
         annulerPropositionMessage();
@@ -3326,6 +3607,29 @@
         }
         connectedUser = user;
         currentUser = user;
+        if (user.passwordChangeRequired) {
+            document.getElementById('auth-box').style.display = 'none';
+            document.getElementById('nav-bar').style.display = 'none';
+            document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
+            document.getElementById('screen-resident-password').classList.add('active');
+            return;
+        }
+        if (user.role === 'establishment') {
+            document.getElementById('auth-box').style.display = 'none';
+            document.getElementById('nav-bar').style.display = 'none';
+            document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
+            document.getElementById('screen-establishment').classList.add('active');
+            await chargerEtablissement();
+            return;
+        }
+        if (user.role === 'staff') {
+            document.getElementById('auth-box').style.display = 'none';
+            document.getElementById('nav-bar').style.display = 'none';
+            document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
+            document.getElementById('screen-staff').classList.add('active');
+            await chargerResidentsSoignant();
+            return;
+        }
         if (['senior', 'aidant'].includes(user.role) &&
             !(user.role === 'aidant' && user.isLegalGuardian && user.guardianVerificationStatus !== 'approved')) {
             void chargerMeteo(user.role);
@@ -3460,7 +3764,8 @@
                 chargerPlanningPro();
                 chargerPlanningServices();
                 chargerDirectoryBookings(true);
-                if (document.getElementById('screen-pro').classList.contains('active')) {
+                if (document.getElementById('screen-pro').classList.contains('active') ||
+                    document.getElementById('screen-informations-pro').classList.contains('active')) {
                     chargerSynthesePro();
                     if (document.getElementById('pro-history-details').open) chargerHistoriqueQuotidien('pro');
                 }
@@ -3471,14 +3776,17 @@
             }
             if (connectedUser.role === 'aidant' && activeSeniorProfileId) {
                 chargerCheckinsPartages();
-                if (document.getElementById('screen-aidant').classList.contains('active')) {
+                if (document.getElementById('screen-aidant').classList.contains('active') ||
+                    document.getElementById('screen-informations-aidant').classList.contains('active')) {
                     chargerSyntheseAidant();
                     if (document.getElementById('aidant-history-details').open) chargerHistoriqueQuotidien('aidant');
+                    if (document.getElementById('aidant-journal-details').open) chargerJournalQuotidien('aidant');
                 }
             }
             if (connectedUser.role === 'senior') {
                 chargerAssistantConversation();
-                if (document.getElementById('screen-senior').classList.contains('active')) {
+                if (document.getElementById('screen-senior').classList.contains('active') ||
+                    document.getElementById('screen-informations-senior').classList.contains('active')) {
                     chargerProchainRendezVous();
                     chargerSyntheseSenior();
                 } else if (document.getElementById('screen-senior-pro').classList.contains('active')) {
@@ -6552,7 +6860,8 @@
             const screen = document.querySelector('.screen-container.active');
             if (!screen) return;
             const allowed = {
-                'screen-senior': '#date-senior, #senior-weather-temp, #senior-weather-status, #senior-weather-days, #senior-next-visit-text',
+                'screen-senior': '#date-senior',
+                'screen-informations-senior': '#senior-weather-temp, #senior-weather-status, #senior-weather-days, #senior-next-visit-text',
                 'screen-more': '#senior-journal-list',
                 'screen-senior-pro': '#senior-summary-visit, #senior-summary-messages, #senior-summary-notifications',
                 'screen-messages': '#notification-opened-senior, #notifications-senior, #message-list-senior',
@@ -6981,6 +7290,24 @@
         return `${time} · ${type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ' (en attente)' : ''}${event.conflict ? ' ⚠ chevauchement' : ''}`;
     }
 
+    function etapesIntervenant(visits) {
+        return visits.flatMap((visit, index) => {
+            const progress = progressArray(visit.progress);
+            const ownStatus = visit.status === 'completed' ? 'completed'
+                : visit.status === 'scheduled' ? (progress.some(event => ['arrived', 'started'].includes(event.type)) ? 'in_progress' : 'planned') : '';
+            const statuses = [
+                ...(ownStatus && visit.scheduledAt ? [{ scheduledAt: visit.scheduledAt, status: ownStatus, colleague: false }] : []),
+                ...progressArray(visit.teamVisits).map(item => ({ ...item, colleague: true }))
+            ];
+            return [
+                ...progress.map(event => ({ type: event.type, createdAt: event.createdAt, note: event.note, visitNumber: index + 1, colleague: false })),
+                ...progressArray(visit.teamProgress).map(event => ({ type: event.type, createdAt: event.createdAt, note: event.note, visitNumber: index + 1, colleague: true })),
+                ...statuses.filter(item => item.scheduledAt && ['planned', 'in_progress', 'completed'].includes(item.status))
+                    .map(item => ({ type: `visit_${item.status}`, createdAt: item.scheduledAt, visitNumber: index + 1, colleague: item.colleague, scheduled: true }))
+            ];
+        }).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
     function chargerSyntheseAidant() {
         return chargerSyntheseQuotidienne('aidant');
     }
@@ -6999,16 +7326,21 @@
         const userId = connectedUser.id;
         const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
         const fieldKeys = role === 'pro'
-            ? ['visit', 'demands', 'services', 'messages', 'notifications', 'tasks']
-            : ['visit', 'tasks', 'messages', 'notifications', 'following', 'services']
-                .concat(role === 'aidant' ? ['checkins'] : []);
+            ? ['visit', 'demands', 'services', 'messages', 'following', 'tasks']
+            : ['visit', 'tasks', 'messages', 'following', 'services']
+                .concat(role === 'aidant' ? ['checkins'] : ['notifications']);
         const fields = Object.fromEntries(fieldKeys.map(key => [key, document.getElementById(`${role}-summary-${key}`)]));
+        const notificationDetails = role === 'senior' ? null : document.getElementById(`${role}-summary-notification-details`);
         const today = dateCheckinBienEtre();
         const context = `${role}:${userId}:${seniorId}:${today}`;
         const t = value => window.generationLiaisonTranslate(value);
         if (aidantSummaryContext !== context) {
             aidantSummaryContext = context;
             Object.values(fields).forEach(field => { field.textContent = t('Chargement…'); });
+            if (notificationDetails) {
+                notificationDetails.textContent = '';
+                notificationDetails.hidden = true;
+            }
         }
         const tomorrow = new Date(`${today}T00:00:00Z`);
         tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
@@ -7020,6 +7352,7 @@
         };
         if (role === 'pro') {
             requests.demands = '/api/directory/bookings';
+            requests.following = `/api/planning/today?date=${today}`;
             requests.tasks = '/api/intervention-tasks';
         } else {
             requests.tasks = '/api/shared-tasks';
@@ -7056,9 +7389,21 @@
         fields.messages.textContent = results.messages.status === 'fulfilled'
             ? (results.messages.value.count ? `${t('Messages non lus')} : ${results.messages.value.count}` : '')
             : t('Impossible de charger les messages.');
-        fields.notifications.textContent = results.notifications.status === 'fulfilled'
-            ? (results.notifications.value.unreadCount ? `${t('Notifications non lues parmi les 50 dernières')} : ${results.notifications.value.unreadCount}` : '')
-            : t('Impossible de charger les notifications.');
+        if (role === 'senior') {
+            fields.notifications.textContent = results.notifications.status === 'fulfilled'
+                ? (results.notifications.value.unreadCount ? `${t('Notifications non lues parmi les 50 dernières')} : ${results.notifications.value.unreadCount}` : '')
+                : t('Impossible de charger les notifications.');
+        }
+        if (notificationDetails) {
+            const notifications = results.notifications.status === 'fulfilled' ? results.notifications.value.notifications : [];
+            notificationDetails.textContent = results.notifications.status === 'rejected'
+                ? t('Impossible de charger les notifications.')
+                : notifications.length
+                    ? `${t('50 dernières notifications — pour répondre, ouvrez Notifications et messages')} :\n` +
+                        notifications.map(item => `${formatDateTime(item.createdAt)} · ${item.title}\n${item.message}`).join('\n\n')
+                    : '';
+            notificationDetails.hidden = !notificationDetails.textContent;
+        }
         if (role !== 'pro' && results.following.status === 'fulfilled') {
             const visits = results.following.value.visits.filter(item => todayDate(item.scheduledAt) ||
                 progressArray(item.progress).some(event => todayDate(event.createdAt)));
@@ -7067,8 +7412,19 @@
                 .map(event => ({ ...event, visitType: item.visitType })))
                 .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             const last = updates[0];
-            fields.following.textContent = !visits.length ? '' : `${t('Interventions du jour ou actualisées aujourd’hui')} : ${visits.length}${last ? `\n${t('Dernière étape')} : ${last.visitType} — ${t(stageLabel(last.type))}` : ''}`;
+            const stages = role === 'aidant' ? updates.map(event =>
+                `${formatDateTime(event.createdAt)} · ${event.visitType} — ${t(stageLabel(event.type))}${event.note ? ` : ${event.note}` : ''}`
+            ) : [];
+            fields.following.textContent = role === 'aidant' ? stages.join('\n')
+                : !visits.length ? '' : `${t('Interventions du jour ou actualisées aujourd’hui')} : ${visits.length}${last ? `\n${t('Dernière étape')} : ${last.visitType} — ${t(stageLabel(last.type))}` : ''}`;
         } else if (role !== 'pro') {
+            fields.following.textContent = t('Impossible de charger le suivi des interventions.');
+        } else if (results.following.status === 'fulfilled') {
+            const stages = etapesIntervenant(results.following.value.visits).filter(event => todayDate(event.createdAt));
+            fields.following.textContent = stages.map(event =>
+                `${event.scheduled ? `${t('Prévue le')} ` : ''}${formatDateTime(event.createdAt)} · ${t('Visite')} ${event.visitNumber} · ${t(event.colleague ? 'Collègue' : 'Moi')} — ${t(stageLabel(event.type))}${event.note ? ` : ${event.note}` : ''}`
+            ).join('\n');
+        } else {
             fields.following.textContent = t('Impossible de charger le suivi des interventions.');
         }
         if (results.services.status === 'fulfilled') {
@@ -7595,7 +7951,10 @@
         return {
             arrived: 'Arrivée signalée',
             started: 'Intervention démarrée',
-            completed: 'Visite terminée'
+            completed: 'Visite terminée',
+            visit_planned: 'Visite prévue, non confirmée terminée',
+            visit_in_progress: 'Visite signalée en cours',
+            visit_completed: 'Visite signalée terminée'
         }[stage] || 'Étape enregistrée';
     }
 
@@ -7674,10 +8033,10 @@
         button.disabled = true;
         const panel = document.createElement('section');
         panel.className = 'visit-notes-panel form-card';
-        panel.append(makeTextElement('h4', 'Recommandations et transmissions · 30 derniers jours'));
+        panel.append(makeTextElement('h4', 'Nouvelles de liaison · 30 derniers jours'));
         panel.append(makeTextElement(
             'p',
-            'Les recommandations médicales sont retranscrites par un utilisateur ; l’application ne vérifie ni la source ni leur actualité.',
+            'Ce carnet est réservé aux nouvelles du quotidien. Ne saisissez pas de données de santé ou de traitement.',
             'helper-text'
         ));
         const notesContainer = document.createElement('div');
@@ -7712,22 +8071,12 @@
         const typeSelect = document.createElement('select');
         typeSelect.required = true;
         typeSelect.add(new Option('Transmission d’un collègue', 'colleague_note'));
-        typeSelect.add(new Option('Recommandation du médecin (retranscription)', 'doctor_recommendation'));
         const importanceSelect = document.createElement('select');
         importanceSelect.required = true;
         importanceSelect.setAttribute('aria-label', 'Importance de la transmission');
         importanceSelect.add(new Option('🔵 Information', 'information'));
         importanceSelect.add(new Option('🟠 À suivre', 'follow_up'));
         importanceSelect.add(new Option('🔴 Prioritaire', 'priority'));
-        const source = document.createElement('input');
-        source.type = 'text';
-        source.maxLength = 120;
-        source.placeholder = 'Nom du médecin ou source indiquée';
-        source.hidden = true;
-        const sourceDate = document.createElement('input');
-        sourceDate.type = 'date';
-        sourceDate.setAttribute('aria-label', 'Date de la recommandation médicale');
-        sourceDate.hidden = true;
         const content = document.createElement('textarea');
         content.maxLength = 1500;
         content.required = true;
@@ -7735,21 +8084,7 @@
         const submit = document.createElement('button');
         submit.type = 'submit';
         submit.textContent = 'Enregistrer la transmission';
-        const disclaimer = makeTextElement(
-            'p',
-            'La source médicale est retranscrite par l’auteur de la note et n’est pas vérifiée par l’application.',
-            'helper-text'
-        );
-        typeSelect.addEventListener('change', () => {
-            const isDoctorRecommendation = typeSelect.value === 'doctor_recommendation';
-            source.hidden = !isDoctorRecommendation;
-            source.required = isDoctorRecommendation;
-            sourceDate.hidden = !isDoctorRecommendation;
-            sourceDate.required = isDoctorRecommendation;
-            disclaimer.hidden = !isDoctorRecommendation;
-        });
-        disclaimer.hidden = true;
-        form.append(typeSelect, importanceSelect, source, sourceDate, content, submit, disclaimer);
+        form.append(typeSelect, importanceSelect, content, submit);
         form.addEventListener('submit', async event => {
             event.preventDefault();
             submit.disabled = true;
@@ -7759,8 +8094,6 @@
                     body: {
                         type: typeSelect.value,
                         importance: importanceSelect.value,
-                        sourceName: source.value.trim(),
-                        sourceDate: sourceDate.value,
                         content: content.value.trim()
                     }
                 });
@@ -7775,27 +8108,43 @@
         return form;
     }
 
+    function afficherJournalIntervenant(visits) {
+        const container = document.getElementById('pro-journal-list');
+        const entries = etapesIntervenant(visits);
+        container.replaceChildren();
+        entries.forEach(event => {
+            const item = document.createElement('div');
+            item.className = 'progress-item';
+            item.append(makeTextElement('strong', `${event.scheduled ? 'Prévue le ' : ''}${formatDateTime(event.createdAt)}`), document.createElement('br'),
+                makeTextElement('span', `Visite ${event.visitNumber} · ${event.colleague ? 'Collègue' : 'Moi'} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`));
+            container.append(item);
+        });
+        if (!entries.length) container.append(makeTextElement('p', 'Aucune étape pour les visites de cette date.', 'helper-text'));
+    }
+
     async function chargerPlanningPro() {
         const container = document.getElementById('pro-planning');
         if (!container || !connectedUser || connectedUser.role !== 'pro') return;
 
         const loadId = ++planningLoadId;
+        const userId = connectedUser.id;
         try {
             const dateInput = document.getElementById('planning-date');
             if (!dateInput.value) dateInput.value = dateInputValue(new Date());
             updatePlanningDateTitle();
             const result = await planningRequest(`/api/planning/today?date=${encodeURIComponent(dateInput.value)}`);
-            if (loadId !== planningLoadId) return;
+            if (loadId !== planningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
+            afficherJournalIntervenant(result.visits);
             container.replaceChildren();
             if (!result.visits.length) {
                 container.append(makeTextElement('p', 'Aucune visite ne vous est affectée à cette date.', 'helper-text'));
             } else {
-                result.visits.forEach(visit => {
+                result.visits.forEach((visit, index) => {
                     const card = document.createElement('article');
                     card.className = 'visit-card';
                     const heading = document.createElement('div');
                     heading.className = 'visit-heading';
-                    heading.append(makeTextElement('strong', visit.recipient.name));
+                    heading.append(makeTextElement('strong', `Visite ${index + 1} · ${visit.recipient.name}`));
                     heading.append(makeTextElement('span', formatDateTime(visit.scheduledAt), 'visit-time'));
                     card.append(heading);
                     card.append(makeTextElement('p', `${visit.visitType} · durée prévue ${visit.durationMinutes} min`, 'visit-kind'));
@@ -7804,7 +8153,7 @@
                     const notesButton = document.createElement('button');
                     notesButton.type = 'button';
                     notesButton.className = 'visit-notes-button';
-                    notesButton.textContent = 'Voir les recommandations et transmissions';
+                    notesButton.textContent = 'Voir les nouvelles de liaison';
                     notesButton.setAttribute('aria-expanded', 'false');
                     notesButton.addEventListener('click', () => ouvrirHistoriqueVisite(visit.id, card, notesButton));
                     card.append(notesButton);
@@ -7843,12 +8192,18 @@
                         controls.className = 'visit-progress';
                         const note = document.createElement('textarea');
                         note.maxLength = 500;
-                        note.placeholder = 'Note pratique facultative (sans donnée médicale)';
+                        note.placeholder = 'Note pratique facultative (sans donnée personnelle ou de santé)';
+                        const warning = makeTextElement('p', 'Cette note est visible des aidants autorisés. N’indiquez aucune donnée personnelle ou de santé.');
+                        warning.className = 'helper-text';
+                        const shareLabel = document.createElement('label');
+                        const share = document.createElement('input');
+                        share.type = 'checkbox';
+                        shareLabel.append(share, document.createTextNode(' Partager cette note avec mes collègues autorisés. Je confirme qu’elle ne contient aucune donnée personnelle ou de santé.'));
                         const button = document.createElement('button');
                         button.type = 'button';
                         button.textContent = stageLabel(stage);
-                        button.addEventListener('click', () => enregistrerEtapeVisite(visit.id, stage, note, button));
-                        controls.append(note, button);
+                        button.addEventListener('click', () => enregistrerEtapeVisite(visit.id, stage, note, share, button));
+                        controls.append(warning, note, shareLabel, button);
                         card.append(controls);
                     }
                     container.append(card);
@@ -7869,8 +8224,11 @@
                 }
             }
         } catch (error) {
-            if (loadId !== planningLoadId) return;
+            if (loadId !== planningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
             container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger le planning.', 'helper-text'));
+            document.getElementById('pro-journal-list').replaceChildren(
+                makeTextElement('p', 'Impossible de charger les étapes des interventions.', 'helper-text')
+            );
         }
     }
 
@@ -8133,7 +8491,7 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'visit-notes-button';
-            button.textContent = 'Voir les recommandations et transmissions';
+            button.textContent = 'Voir les nouvelles de liaison';
             button.setAttribute('aria-expanded', 'false');
             button.addEventListener('click', () => ouvrirHistoriqueVisite(visit.id, card, button));
             card.append(button);
@@ -8165,12 +8523,12 @@
         });
     }
 
-    async function enregistrerEtapeVisite(visitId, stage, noteInput, button) {
+    async function enregistrerEtapeVisite(visitId, stage, noteInput, shareInput, button) {
         button.disabled = true;
         try {
             await planningRequest(`/api/planning/visits/${encodeURIComponent(visitId)}/progress`, {
                 method: 'POST',
-                body: { stage, note: noteInput.value.trim() }
+                body: { stage, note: noteInput.value.trim(), shareWithTeam: shareInput.checked }
             });
             showToast(stageLabel(stage));
             await chargerPlanningPro();
@@ -8509,6 +8867,7 @@
             switchScreen('settings');
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
+            reinitialiserCarnetEtablissement();
             historyLoadId++;
             historyContext = '';
             document.getElementById('aidant-history-list').replaceChildren();
@@ -8785,6 +9144,647 @@
         });
     }
 
+    document.getElementById('resident-login-section').addEventListener('submit', async event => {
+        event.preventDefault();
+        const status = document.getElementById('resident-login-status');
+        const button = event.currentTarget.querySelector('[type="submit"]');
+        button.disabled = true;
+        try {
+            await requestSession('/api/auth/resident-login', {
+                firstName: document.getElementById('resident-login-first-name').value.trim(),
+                lastName: document.getElementById('resident-login-last-name').value.trim(),
+                birthDate: document.getElementById('resident-login-birth-date').value,
+                identifier: document.getElementById('resident-login-identifier').value.trim(),
+                password: document.getElementById('resident-login-password').value
+            });
+            event.currentTarget.reset();
+            status.textContent = '';
+        } catch (error) {
+            status.textContent = error.message || 'Connexion impossible.';
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    document.getElementById('resident-password-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const status = document.getElementById('resident-password-status');
+        const newPassword = document.getElementById('resident-new-password').value;
+        if (newPassword !== document.getElementById('resident-confirm-password').value) {
+            status.textContent = 'Les deux nouveaux mots de passe ne correspondent pas.';
+            return;
+        }
+        const button = event.currentTarget.querySelector('[type="submit"]');
+        button.disabled = true;
+        try {
+            const result = await readResponse(await fetch(`${SERVER_URL}/api/auth/change-resident-password`, {
+                method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    currentPassword: document.getElementById('resident-current-password').value,
+                    newPassword, acceptedTerms: document.getElementById('resident-accept-terms').checked,
+                    acceptedTermsVersion: '2026-11-03.1'
+                })
+            }));
+            localStorage.setItem(SESSION_KEY, result.token);
+            event.currentTarget.reset();
+            status.textContent = '';
+            await setAuthenticatedView(result.user);
+            if (result.user.role === 'senior') {
+                try {
+                    const consent = await readResponse(await fetch(`${SERVER_URL}/api/care/consent`, { headers: authHeaders() }));
+                    if (connectedUser?.id === result.user.id && consent.establishment && !consent.establishment.decided) {
+                        document.getElementById('care-onboarding-establishment').textContent = consent.establishment.establishment_name;
+                        document.getElementById('care-onboarding-status').textContent = '';
+                        document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
+                        document.getElementById('nav-bar').style.display = 'none';
+                        document.getElementById('screen-care-onboarding').classList.add('active');
+                    }
+                } catch (error) {
+                    showToast('Votre mot de passe est enregistré, mais la demande de partage est indisponible. Réessayez dans le carnet de votre établissement.', false);
+                }
+            }
+        } catch (error) {
+            status.textContent = error.message || 'Impossible de modifier le mot de passe.';
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    async function deciderPartageInitial(consented) {
+        const status = document.getElementById('care-onboarding-status');
+        const buttons = document.querySelectorAll('#screen-care-onboarding button');
+        buttons.forEach(button => { button.disabled = true; });
+        try {
+            await readResponse(await fetch(`${SERVER_URL}/api/care/consent`, {
+                method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consented })
+            }));
+            document.getElementById('screen-care-onboarding').classList.remove('active');
+            document.getElementById('screen-senior').classList.add('active');
+            document.getElementById('nav-bar').style.display = 'flex';
+        } catch (error) {
+            status.textContent = error.message || 'Décision non enregistrée. Réessayez.';
+        } finally {
+            buttons.forEach(button => { button.disabled = false; });
+        }
+    }
+
+    const establishmentFields = ['name', 'description', 'address', 'phone', 'email'];
+    let establishmentContactsEditable = false;
+    let establishmentContactId = null;
+    let establishmentOverviewLoadId = 0;
+
+    function fermerActionsEtablissement() {
+        document.querySelectorAll('[data-establishment-panel]').forEach(button => {
+            button.setAttribute('aria-expanded', 'false');
+            document.getElementById(button.dataset.establishmentPanel).hidden = true;
+        });
+    }
+
+    function ouvrirActionEtablissement(button) {
+        const panel = document.getElementById(button.dataset.establishmentPanel);
+        const opening = panel.hidden;
+        fermerActionsEtablissement();
+        if (opening) {
+            panel.hidden = false;
+            button.setAttribute('aria-expanded', 'true');
+            panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    async function chargerTableauEtablissement() {
+        const userId = connectedUser?.id;
+        const loadId = ++establishmentOverviewLoadId;
+        const categories = ['resident', 'caregiver', 'intervenant'];
+        const status = document.getElementById('establishment-overview-status');
+        categories.forEach(category => document.getElementById(`establishment-overview-${category}`).replaceChildren());
+        status.textContent = 'Chargement du tableau…';
+        try {
+            const [contacts, residents, staff] = await Promise.all(
+                ['/api/establishment/contacts', '/api/establishment/residents', '/api/establishment/staff']
+                    .map(async path => readResponse(await fetch(`${SERVER_URL}${path}`, { headers: authHeaders() })))
+            );
+            if (connectedUser?.id !== userId || loadId !== establishmentOverviewLoadId) return;
+            const rows = [
+                ...residents.residents.map(item => ['resident', `${item.first_name} ${item.last_name}`, 'Compte individuel', '—']),
+                ...staff.staff.map(item => ['caregiver', `${item.first_name} ${item.last_name}`, 'Compte individuel', '—']),
+                ...contacts.contacts.map(item => [
+                    item.category,
+                    item.name, 'Coordonnées saisies', [item.phone, item.email].filter(Boolean).join(' · ') || '—'
+                ])
+            ];
+            for (const [category, ...values] of rows) {
+                const row = document.createElement('tr');
+                for (const value of [{ resident: 'Résident', caregiver: 'Soignant', intervenant: 'Intervenant' }[category], ...values]) {
+                    const cell = document.createElement('td');
+                    cell.textContent = value;
+                    row.append(cell);
+                }
+                document.getElementById(`establishment-overview-${category}`).append(row);
+            }
+            for (const category of categories) {
+                if (!rows.some(row => row[0] === category)) {
+                    const row = document.createElement('tr');
+                    const cell = document.createElement('td');
+                    cell.colSpan = 4;
+                    cell.textContent = 'Aucune personne enregistrée.';
+                    row.append(cell);
+                    document.getElementById(`establishment-overview-${category}`).append(row);
+                }
+            }
+            status.textContent = rows.length ? `${rows.length} ligne(s).` : 'Aucune personne enregistrée.';
+        } catch (error) {
+            if (connectedUser?.id === userId && loadId === establishmentOverviewLoadId) {
+                status.textContent = error.message || 'Impossible de charger le tableau.';
+            }
+        }
+    }
+
+    async function chargerSoignantsEtablissement() {
+        const userId = connectedUser.id;
+        const list = document.getElementById('establishment-staff-list');
+        const status = document.getElementById('establishment-staff-status');
+        list.replaceChildren();
+        status.textContent = 'Chargement des soignants…';
+        try {
+            const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment/staff`, { headers: authHeaders() }));
+            if (connectedUser?.id !== userId) return;
+            status.textContent = result.staff.length ? '' : 'Aucun compte soignant.';
+            for (const staff of result.staff) {
+                const item = document.createElement('div');
+                const label = document.createElement('p');
+                label.textContent = `${staff.first_name} ${staff.last_name} · Identifiant : ${staff.identifier}`;
+                const form = document.createElement('form');
+                const password = document.createElement('input');
+                password.type = 'password'; password.minLength = 12; password.maxLength = 256;
+                password.required = true; password.autocomplete = 'new-password';
+                password.setAttribute('aria-label', `Nouveau mot de passe provisoire pour ${staff.first_name} ${staff.last_name}`);
+                const reset = document.createElement('button');
+                reset.type = 'submit'; reset.textContent = 'Réinitialiser le mot de passe';
+                const disable = document.createElement('button');
+                disable.type = 'button'; disable.textContent = 'Désactiver ce soignant';
+                password.disabled = reset.disabled = disable.disabled = !establishmentContactsEditable;
+                form.append(password, reset);
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    if (!confirm('Réinitialiser le mot de passe et déconnecter ce soignant ?')) return;
+                    reset.disabled = true;
+                    try {
+                        await readResponse(await fetch(`${SERVER_URL}/api/establishment/staff/${staff.id}/reset-password`, {
+                            method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: password.value })
+                        }));
+                        password.value = '';
+                        if (connectedUser?.id === userId) status.textContent = 'Mot de passe réinitialisé. Remettez-le en privé.';
+                    } catch (error) {
+                        if (connectedUser?.id === userId) status.textContent = error.message || 'Réinitialisation impossible.';
+                    } finally { reset.disabled = !establishmentContactsEditable; }
+                });
+                disable.addEventListener('click', async () => {
+                    if (!confirm('Désactiver ce compte soignant et fermer ses sessions ?')) return;
+                    disable.disabled = true;
+                    try {
+                        await readResponse(await fetch(`${SERVER_URL}/api/establishment/staff/${staff.id}/disable`, {
+                            method: 'POST', headers: authHeaders()
+                        }));
+                        if (connectedUser?.id === userId) {
+                            await chargerSoignantsEtablissement();
+                            await chargerTableauEtablissement();
+                        }
+                    } catch (error) {
+                        if (connectedUser?.id === userId) status.textContent = error.message || 'Désactivation impossible.';
+                        disable.disabled = !establishmentContactsEditable;
+                    }
+                });
+                item.append(label, form, disable);
+                list.append(item);
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement impossible.';
+        }
+    }
+
+    document.getElementById('establishment-staff-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const userId = connectedUser?.id;
+        const button = event.currentTarget.querySelector('[type="submit"]');
+        const status = document.getElementById('establishment-staff-status');
+        button.disabled = true;
+        try {
+            const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment/staff`, {
+                method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ firstName: document.getElementById('staff-first-name').value.trim(),
+                    lastName: document.getElementById('staff-last-name').value.trim(),
+                    birthDate: document.getElementById('staff-birth-date').value,
+                    password: document.getElementById('staff-password').value })
+            }));
+            event.currentTarget.reset();
+            if (connectedUser?.id === userId) {
+                await chargerSoignantsEtablissement();
+                await chargerTableauEtablissement();
+                await chargerTableauEtablissement();
+                status.textContent = `Compte créé. Identifiant à remettre au soignant : ${result.identifier}.`;
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Création impossible.';
+        } finally { button.disabled = !establishmentContactsEditable; }
+    });
+
+    let careLoadId = 0;
+    function reinitialiserCarnetEtablissement() {
+        careLoadId++;
+        for (const role of ['senior', 'aidant', 'staff']) {
+            document.getElementById(`care-${role}-entries`).replaceChildren();
+            document.getElementById(`care-${role}-status`).textContent = '';
+            if (role !== 'staff') document.getElementById(`care-${role}-consent`).replaceChildren();
+            if (role !== 'senior') {
+                document.getElementById(`care-${role}-content`).value = '';
+                document.getElementById(`care-${role}-nonmedical`).checked = false;
+            }
+        }
+        document.getElementById('care-staff-resident').replaceChildren(new Option('Choisir un résident', ''));
+    }
+    async function chargerResidentsSoignant() {
+        const userId = connectedUser?.id;
+        const select = document.getElementById('care-staff-resident');
+        const status = document.getElementById('care-staff-status');
+        document.getElementById('care-staff-entries').replaceChildren();
+        select.replaceChildren(new Option('Choisir un résident', ''));
+        status.textContent = 'Chargement des résidents autorisés…';
+        try {
+            const result = await readResponse(await fetch(`${SERVER_URL}/api/care/residents`, { headers: authHeaders() }));
+            if (connectedUser?.id !== userId || connectedUser?.role !== 'staff') return;
+            for (const resident of result.residents) select.add(new Option(resident.name, resident.id));
+            status.textContent = result.residents.length ? 'Choisissez un résident.' : 'Aucun résident autorisé ou abonnement inactif.';
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement impossible.';
+        }
+    }
+
+    document.getElementById('care-staff-resident').addEventListener('change', () => {
+        careLoadId++;
+        document.getElementById('care-staff-entries').replaceChildren();
+        document.getElementById('care-staff-content').value = '';
+        document.getElementById('care-staff-nonmedical').checked = false;
+    });
+
+    async function chargerCarnetEtablissement(role, before = '') {
+        if (connectedUser?.role !== role) return;
+        const userId = connectedUser.id;
+        const profileId = activeSeniorProfileId;
+        const residentId = role === 'staff' ? document.getElementById('care-staff-resident').value : '';
+        const loadId = ++careLoadId;
+        const status = document.getElementById(`care-${role}-status`);
+        const entries = document.getElementById(`care-${role}-entries`);
+        const consentBox = role === 'staff' ? null : document.getElementById(`care-${role}-consent`);
+        const current = () => connectedUser?.id === userId && connectedUser?.role === role && loadId === careLoadId &&
+            (role !== 'aidant' || activeSeniorProfileId === profileId) &&
+            (role !== 'staff' || document.getElementById('care-staff-resident').value === residentId);
+        if (!before) entries.replaceChildren();
+        if (consentBox && !before) consentBox.replaceChildren();
+        if (role === 'staff' && !residentId) { status.textContent = 'Choisissez un résident.'; return; }
+        status.textContent = 'Chargement…';
+        try {
+            if (consentBox && !before) {
+                const response = await readResponse(await fetch(`${SERVER_URL}/api/care/consent`, { headers: authHeaders() }));
+                if (!current()) return;
+                const establishment = response.establishment;
+                if (!establishment) { status.textContent = 'Aucun établissement associé à ce compte.'; return; }
+                const label = document.createElement('p');
+                label.textContent = `${establishment.establishment_name} : ${establishment.consented ? 'partage autorisé' : 'partage non autorisé'}.`;
+                consentBox.append(label);
+                if (role === 'senior' || (connectedUser.isLegalGuardian && connectedUser.guardianVerificationStatus === 'approved')) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.textContent = establishment.consented ? 'Retirer cet accord' : 'Autoriser le partage';
+                    button.addEventListener('click', async () => {
+                        if (!confirm(establishment.consented ? 'Retirer l’accès au carnet de l’établissement ?' :
+                            'Autoriser les soignants de cet établissement à accéder aux transmissions et les échanges privés entre proches et soignants ?')) return;
+                        button.disabled = true;
+                        try {
+                            await readResponse(await fetch(`${SERVER_URL}/api/care/consent`, {
+                                method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ consented: !establishment.consented })
+                            }));
+                            if (current()) await chargerCarnetEtablissement(role);
+                        } catch (error) {
+                            if (current()) { status.textContent = error.message || 'Décision non enregistrée.'; button.disabled = false; }
+                        }
+                    });
+                    consentBox.append(button);
+                }
+                if (!establishment.consented) { status.textContent = 'Le carnet n’est pas partagé.'; return; }
+            }
+            const params = new URLSearchParams();
+            if (residentId) params.set('residentId', residentId);
+            if (before) params.set('before', before);
+            const suffix = params.toString() ? `?${params}` : '';
+            const response = await readResponse(await fetch(`${SERVER_URL}/api/care/entries${suffix}`, { headers: authHeaders() }));
+            if (!current()) return;
+            entries.querySelector('[data-care-more]')?.remove();
+            for (const entry of response.entries) {
+                const item = document.createElement('p');
+                item.textContent = `${entry.kind === 'message' ? 'Message' : 'Transmission'} · ${entry.author_name} · ${new Date(entry.created_at).toLocaleString('fr-FR')} : ${entry.content}`;
+                entries.append(item);
+            }
+            if (response.nextCursor) {
+                const more = document.createElement('button');
+                more.type = 'button'; more.dataset.careMore = 'true'; more.textContent = 'Afficher les messages précédents';
+                more.addEventListener('click', () => chargerCarnetEtablissement(role, response.nextCursor));
+                entries.append(more);
+            }
+            status.textContent = response.entries.length ? '' : 'Aucune transmission ou message.';
+        } catch (error) {
+            if (current()) status.textContent = error.message || 'Chargement impossible.';
+        }
+    }
+
+    for (const role of ['staff', 'aidant']) {
+        document.getElementById(`care-${role}-form`).addEventListener('submit', async event => {
+            event.preventDefault();
+            if (connectedUser?.role !== role) return;
+            const userId = connectedUser.id;
+            const profileId = activeSeniorProfileId;
+            const residentId = role === 'staff' ? document.getElementById('care-staff-resident').value : null;
+            const field = document.getElementById(`care-${role}-content`);
+            const status = document.getElementById(`care-${role}-status`);
+            const button = event.currentTarget.querySelector('[type="submit"]');
+            button.disabled = true;
+            try {
+                await readResponse(await fetch(`${SERVER_URL}/api/care/entries`, {
+                    method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ residentId, kind: role === 'staff' ? document.getElementById('care-staff-kind').value : 'message', content: field.value, nonMedical: document.getElementById(`care-${role}-nonmedical`).checked })
+                }));
+                if (connectedUser?.id === userId && (role !== 'aidant' || activeSeniorProfileId === profileId) &&
+                    (role !== 'staff' || document.getElementById('care-staff-resident').value === residentId)) {
+                    field.value = '';
+                    document.getElementById(`care-${role}-nonmedical`).checked = false;
+                    await chargerCarnetEtablissement(role);
+                }
+            } catch (error) {
+                if (connectedUser?.id === userId) status.textContent = error.message || 'Envoi impossible.';
+            } finally { button.disabled = false; }
+        });
+    }
+
+    async function chargerResidentsEtablissement() {
+        const userId = connectedUser.id;
+        const list = document.getElementById('establishment-residents-list');
+        const status = document.getElementById('establishment-residents-status');
+        list.replaceChildren();
+        status.textContent = 'Chargement des accès…';
+        try {
+            const { residents } = await readResponse(await fetch(`${SERVER_URL}/api/establishment/residents`, { headers: authHeaders() }));
+            if (connectedUser?.id !== userId) return;
+            status.textContent = residents.length ? '' : 'Aucun accès résident.';
+            for (const resident of residents) {
+                const item = document.createElement('div');
+                const label = document.createElement('p');
+                label.textContent = `${resident.first_name} ${resident.last_name} · Identifiant : ${resident.identifier}`;
+                const form = document.createElement('form');
+                const password = document.createElement('input');
+                password.type = 'password';
+                password.minLength = 12;
+                password.maxLength = 256;
+                password.required = true;
+                password.autocomplete = 'new-password';
+                password.setAttribute('aria-label', `Nouveau mot de passe provisoire pour ${resident.first_name} ${resident.last_name}`);
+                const reset = document.createElement('button');
+                reset.type = 'submit';
+                reset.textContent = 'Réinitialiser le mot de passe';
+                password.disabled = reset.disabled = !establishmentContactsEditable;
+                form.append(password, reset);
+                form.addEventListener('submit', async event => {
+                    event.preventDefault();
+                    if (!confirm('Réinitialiser ce mot de passe et déconnecter le résident ?')) return;
+                    reset.disabled = true;
+                    try {
+                        await readResponse(await fetch(`${SERVER_URL}/api/establishment/residents/${resident.id}/reset-password`, {
+                            method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: password.value })
+                        }));
+                        password.value = '';
+                        if (connectedUser?.id === userId) status.textContent = 'Mot de passe provisoire enregistré. Remettez-le au résident en privé.';
+                    } catch (error) {
+                        if (connectedUser?.id === userId) status.textContent = error.message || 'Réinitialisation impossible.';
+                    } finally {
+                        reset.disabled = !establishmentContactsEditable;
+                    }
+                });
+                item.append(label, form);
+                list.append(item);
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement des accès impossible.';
+        }
+    }
+
+    function reinitialiserContactEtablissement() {
+        establishmentContactId = null;
+        document.getElementById('establishment-contact-form').reset();
+    }
+
+    async function chargerContactsEtablissement() {
+        const userId = connectedUser.id;
+        const list = document.getElementById('establishment-contacts-list');
+        const status = document.getElementById('establishment-contacts-status');
+        list.replaceChildren();
+        status.textContent = 'Chargement…';
+        try {
+            const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment/contacts`, { headers: authHeaders() }));
+            if (connectedUser?.id !== userId) return;
+            status.textContent = result.contacts.length ? '' : 'Aucune coordonnée enregistrée.';
+            for (const contact of result.contacts) {
+                const item = document.createElement('div');
+                const label = document.createElement('p');
+                label.textContent = `${{ resident: 'Résident', caregiver: 'Soignant', intervenant: 'Intervenant' }[contact.category]} · ${contact.name} · ${contact.phone || '—'} · ${contact.email || '—'}`;
+                const edit = document.createElement('button');
+                edit.type = 'button';
+                edit.textContent = 'Modifier';
+                edit.disabled = !establishmentContactsEditable;
+                edit.addEventListener('click', () => {
+                    establishmentContactId = contact.id;
+                    for (const field of ['category', 'name', 'phone', 'email']) {
+                        document.getElementById(`establishment-contact-${field}`).value = contact[field];
+                    }
+                    document.getElementById('establishment-contact-name').focus();
+                });
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.textContent = 'Supprimer';
+                remove.disabled = !establishmentContactsEditable;
+                remove.addEventListener('click', async () => {
+                    if (!confirm('Supprimer ces coordonnées ?')) return;
+                    remove.disabled = true;
+                    try {
+                        await readResponse(await fetch(`${SERVER_URL}/api/establishment/contacts/${contact.id}`, {
+                            method: 'DELETE', headers: authHeaders()
+                        }));
+                        if (connectedUser?.id === userId) {
+                            reinitialiserContactEtablissement();
+                            await chargerContactsEtablissement();
+                            await chargerTableauEtablissement();
+                        }
+                    } catch (error) {
+                        if (connectedUser?.id === userId) status.textContent = error.message || 'Suppression impossible.';
+                        remove.disabled = false;
+                    }
+                });
+                item.append(label, edit, remove);
+                list.append(item);
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement impossible.';
+        }
+    }
+
+    async function chargerEtablissement() {
+        const userId = connectedUser.id;
+        const form = document.getElementById('establishment-form');
+        form.reset();
+        const status = document.getElementById('establishment-status');
+        form.querySelectorAll('input, textarea, select, button').forEach(element => { element.disabled = true; });
+        establishmentContactsEditable = false;
+        document.getElementById('establishment-contact-form').querySelectorAll('input, select, button')
+            .forEach(element => { element.disabled = true; });
+        document.getElementById('establishment-resident-form').querySelectorAll('input, button')
+            .forEach(element => { element.disabled = true; });
+        document.getElementById('establishment-staff-form').querySelectorAll('input, button')
+            .forEach(element => { element.disabled = true; });
+        document.getElementById('establishment-residents-list').replaceChildren();
+        document.getElementById('establishment-contacts-list').replaceChildren();
+        reinitialiserContactEtablissement();
+        status.textContent = 'Chargement…';
+        document.getElementById('establishment-subscription-status').textContent = 'Chargement de l’abonnement…';
+        try {
+            const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment`, { headers: authHeaders() }));
+            if (connectedUser?.id !== userId) return;
+            for (const field of establishmentFields) {
+                document.getElementById(`establishment-${field}`).value = result.profile?.[field] || '';
+            }
+            document.getElementById('establishment-tablet-interest').value = result.profile?.tablet_interest || 'none';
+            document.getElementById('establishment-tablet-quantity').value = result.profile?.tablet_quantity ?? '';
+            form.querySelectorAll('input, textarea, select, button').forEach(element => { element.disabled = !result.active; });
+            establishmentContactsEditable = result.active;
+            document.getElementById('establishment-contact-form').querySelectorAll('input, select, button')
+                .forEach(element => { element.disabled = !result.active; });
+            document.getElementById('establishment-resident-form').querySelectorAll('input, button')
+                .forEach(element => { element.disabled = !result.active; });
+            document.getElementById('establishment-staff-form').querySelectorAll('input, button')
+                .forEach(element => { element.disabled = !result.active; });
+            const count = result.userCount === null ? 'Nombre de personnes non renseigné.' : `Nombre de personnes déclaré par l’administration : ${result.userCount}.`;
+            status.textContent = `${result.active ? 'Abonnement actif.' : 'Abonnement inactif : consultez votre fiche ou contactez l’administration pour la modifier.'} ${count}`;
+            document.getElementById('establishment-subscription-status').textContent = status.textContent;
+            await chargerContactsEtablissement();
+            await chargerResidentsEtablissement();
+            await chargerTableauEtablissement();
+            await chargerSoignantsEtablissement();
+        } catch (error) {
+            if (connectedUser?.id === userId) {
+                status.textContent = error.message || 'Impossible de charger la fiche.';
+                document.getElementById('establishment-subscription-status').textContent = status.textContent;
+            }
+        }
+    }
+
+    document.getElementById('establishment-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const userId = connectedUser?.id;
+        const status = document.getElementById('establishment-status');
+        const button = event.currentTarget.querySelector('[type="submit"]');
+        button.disabled = true;
+        try {
+            const body = Object.fromEntries(establishmentFields.map(field =>
+                [field, document.getElementById(`establishment-${field}`).value]));
+            body.tablet_interest = document.getElementById('establishment-tablet-interest').value;
+            body.tablet_quantity = body.tablet_interest === 'none' ? null :
+                Number(document.getElementById('establishment-tablet-quantity').value);
+            await readResponse(await fetch(`${SERVER_URL}/api/establishment`, {
+                method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            }));
+            if (connectedUser?.id === userId) status.textContent = 'Fiche enregistrée.';
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Impossible d’enregistrer la fiche.';
+        } finally {
+            button.disabled = false;
+        }
+    });
+
+    document.getElementById('establishment-contact-cancel').addEventListener('click', reinitialiserContactEtablissement);
+    document.getElementById('establishment-resident-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const userId = connectedUser?.id;
+        const button = event.currentTarget.querySelector('[type="submit"]');
+        const status = document.getElementById('establishment-residents-status');
+        button.disabled = true;
+        try {
+            const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment/residents`, {
+                method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    firstName: document.getElementById('establishment-resident-first-name').value.trim(),
+                    lastName: document.getElementById('establishment-resident-last-name').value.trim(),
+                    birthDate: document.getElementById('establishment-resident-birth-date').value,
+                    password: document.getElementById('establishment-resident-password').value
+                })
+            }));
+            event.currentTarget.reset();
+            if (connectedUser?.id === userId) {
+                await chargerResidentsEtablissement();
+                status.textContent = `Accès créé. Identifiant à remettre au résident : ${result.identifier}.`;
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Création impossible.';
+        } finally {
+            button.disabled = !establishmentContactsEditable;
+        }
+    });
+
+    document.getElementById('establishment-contact-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const userId = connectedUser?.id;
+        const status = document.getElementById('establishment-contacts-status');
+        const button = event.currentTarget.querySelector('[type="submit"]');
+        const body = Object.fromEntries(['category', 'name', 'phone', 'email'].map(field =>
+            [field, document.getElementById(`establishment-contact-${field}`).value]));
+        const path = establishmentContactId ? `/api/establishment/contacts/${establishmentContactId}` : '/api/establishment/contacts';
+        button.disabled = true;
+        try {
+            await readResponse(await fetch(`${SERVER_URL}${path}`, {
+                method: establishmentContactId ? 'PUT' : 'POST',
+                headers: { ...authHeaders(), 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+            }));
+            if (connectedUser?.id === userId) {
+                reinitialiserContactEtablissement();
+                await chargerContactsEtablissement();
+                await chargerTableauEtablissement();
+            }
+        } catch (error) {
+            if (connectedUser?.id === userId) status.textContent = error.message || 'Enregistrement impossible.';
+        } finally {
+            button.disabled = !establishmentContactsEditable;
+        }
+    });
+
+    document.getElementById('establishment-closure-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        if (!confirm('Désactiver votre compte et demander sa clôture ?')) return;
+        const status = document.getElementById('establishment-closure-status');
+        const button = event.currentTarget.querySelector('button');
+        button.disabled = true;
+        try {
+            await readResponse(await fetch(`${SERVER_URL}/api/account/closure-request`, {
+                method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ password: document.getElementById('establishment-closure-password').value })
+            }));
+            await deconnecterUtilisateur({ sessionAlreadyRevoked: true, successMessage: 'Demande de clôture enregistrée.' });
+        } catch (error) {
+            status.textContent = error.message || 'Impossible de demander la clôture.';
+        } finally {
+            button.disabled = false;
+        }
+    });
+
     async function requestSession(path, credentials) {
         const response = await fetch(`${SERVER_URL}${path}`, {
             method: 'POST',
@@ -8843,6 +9843,11 @@
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
         connectedUser = null;
+        reinitialiserCarnetEtablissement();
+        fermerActionsEtablissement();
+        establishmentOverviewLoadId++;
+        ['resident', 'caregiver', 'intervenant'].forEach(category => document.getElementById(`establishment-overview-${category}`).replaceChildren());
+        document.getElementById('establishment-overview-status').textContent = '';
         aidantSummaryLoadId++;
         aidantSummaryContext = '';
         historyLoadId++;
@@ -8851,6 +9856,13 @@
             document.getElementById(`${role}-history-list`).replaceChildren();
             document.getElementById(`${role}-history-details`).open = false;
         });
+        ['aidant', 'pro'].forEach(role => {
+            const notificationDetails = document.getElementById(`${role}-summary-notification-details`);
+            notificationDetails.textContent = '';
+            notificationDetails.hidden = true;
+        });
+        planningLoadId++;
+        document.getElementById('pro-journal-list').replaceChildren();
         reinitialiserMeteo();
         arreterLectureSenior();
         annulerDicteeMessage();
@@ -8905,6 +9917,22 @@
         }
 
         document.getElementById('auth-box').style.display = 'block';
+        document.getElementById('establishment-form').reset();
+        document.getElementById('establishment-status').textContent = '';
+        document.getElementById('establishment-closure-form').reset();
+        document.getElementById('establishment-closure-status').textContent = '';
+        reinitialiserContactEtablissement();
+        establishmentContactsEditable = false;
+        document.getElementById('establishment-contacts-list').replaceChildren();
+        document.getElementById('establishment-contacts-status').textContent = '';
+        document.getElementById('establishment-resident-form').reset();
+        document.getElementById('establishment-residents-list').replaceChildren();
+        document.getElementById('establishment-residents-status').textContent = '';
+        document.getElementById('resident-password-form').reset();
+        document.getElementById('resident-password-status').textContent = '';
+        document.getElementById('resident-login-section').reset();
+        document.getElementById('resident-login-section').style.display = 'none';
+        document.getElementById('resident-login-status').textContent = '';
         document.getElementById('main-app-senior').style.display = 'none';
         document.getElementById('nav-bar').style.display = 'none';
         document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
@@ -9050,7 +10078,7 @@
                 lastName,
                 civility,
                 email,
-                seniorName: role === 'senior' ? name : seniorName,
+                seniorName: role === 'senior' ? name : role === 'aidant' ? seniorName : '',
                 password,
                 role,
                 isLegalGuardian,
@@ -9059,9 +10087,9 @@
                 smsNotificationsEnabled,
                 acceptedTerms: true,
                 acceptedTermsVersion: '2026-11-03.1',
-                requireAccountCommune: role !== 'pro'
+                requireAccountCommune: ['senior', 'aidant'].includes(role)
             };
-            if (role !== 'pro') {
+            if (['senior', 'aidant'].includes(role)) {
                 const commune = await choisirCommune(
                     'account', 'reg-account-city', 'reg-account-postcode', 'reg-account-city-select', 'reg-account-city-label'
                 );

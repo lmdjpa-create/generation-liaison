@@ -22,6 +22,13 @@ test('homepage proposals are individually collapsed and retain their description
   }
 });
 
+test('homepage describes daily tasks and shopping list sharing accurately', () => {
+  const block = source.slice(source.indexOf('aria-labelledby="features-title"'), source.indexOf('aria-labelledby="daily-life-title"'));
+  assert.match(block, /Les informations du jour[\s\S]*bulles colorées/);
+  assert.match(block, /Tâches du quotidien[\s\S]*annuaire partagé[\s\S]*ne voit que les tâches qui lui sont confiées[\s\S]*aucune notification d’attribution/);
+  assert.match(block, /Liste de courses[\s\S]*liste de courses privée[\s\S]*copie par message aux personnes choisies[\s\S]*ne se met pas à jour automatiquement/);
+});
+
 test('homepage keeps direct application access and the emergency warning visible', () => {
   assert.match(source, /<a class="landing-login" href="\/app-mobile\.html#inscription">Créer un espace gratuitement/);
   assert.match(source, /<\/div>\s*<p class="info-note">Génération Liaison ne remplace ni un professionnel de santé ni un service d’urgence\.[\s\S]*?15 ou le 112\.<\/p>/);
@@ -66,10 +73,35 @@ test('privacy and health data information is visible near the top without unveri
   assert.match(block, /href="\/privacy-policy\.html"/);
   assert.doesNotMatch(block, /Render|PostgreSQL|HDS|région.*confirmer/);
   assert.doesNotMatch(block, /<details/);
-  assert.match(privacySource, /bases PostgreSQL et leurs sauvegardes sont chiffrées au repos\s+\(AES-256\)/);
-  assert.match(privacySource, /La région utilisée pour cette application n’a pas été vérifiée/);
+  assert.match(privacySource, /base de données de production sur Supabase/);
+  assert.match(privacySource, /conditions de chiffrement de cette base et de ses sauvegardes\s+restent à vérifier/);
   assert.match(privacySource, /Aucune certification HDS n’est revendiquée/);
-  assert.match(privacySource, /documentation de Render sur PostgreSQL/);
+});
+
+test('homepage metadata and reassurance match the updated presentation', () => {
+  assert.match(source, /<title>Génération Liaison : carnet de liaison pour tous<\/title>/);
+  assert.match(source, /<meta name="description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
+  assert.match(source, /<meta property="og:description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
+  assert.match(source, /Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation/);
+  assert.match(source, /Bon à savoir :[\s\S]*?15 ou le 112/);
+  assert.match(source, /href="mailto:mail@generation-liaison\.fr"/);
+  assert.match(source, /id="analytics-settings">Gestion des cookies/);
+});
+
+test('updated homepage copy remains available in English', () => {
+  const window = { localStorage: { getItem: () => 'en' } };
+  const document = { documentElement: {}, addEventListener() {} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
+  for (const text of [
+    'Le carnet de liaison simple pour les personnes accompagnées et leurs proches',
+    'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.',
+    '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation',
+    'Faut-il télécharger une application sur téléphone ?',
+    'Comment sont sélectionnés les prestataires à domicile ?',
+    'Gestion des cookies'
+  ]) {
+    assert.notEqual(window.generationLiaisonTranslate(text), text);
+  }
 });
 
 test('homepage metadata and reassurance match the updated presentation', () => {

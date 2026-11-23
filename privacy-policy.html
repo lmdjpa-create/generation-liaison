@@ -133,6 +133,9 @@
         </p>
         <ul>
           <li>Identité, civilité facultative, adresse e-mail, rôle dans l’application, photo de profil facultative et préférence de partage ;</li>
+          <li>Pour les établissements : présentation et coordonnées professionnelles, intérêt éventuel pour des tablettes, statut d’abonnement et nombre de personnes déclaré par l’administration ; coordonnées (nom, téléphone et e-mail) des résidents, soignants et intervenants saisies par le compte directeur ;</li>
+          <li>Pour les comptes résidents et soignants créés par un établissement sans adresse e-mail : prénom, nom, date de naissance, identifiant de connexion généré, lien avec l’établissement et données nécessaires à la sécurité du compte ;</li>
+          <li>Pour le carnet d’établissement : décision de partage, transmissions, messages entre proches et soignants, auteur, dates et traces d’accès ;</li>
           <li>Point de départ d’un professionnel (position GPS ou centre approximatif d’une commune) et rayon d’intervention ;</li>
           <li>Commune du compte et coordonnées approximatives de son centre, demandées à l’inscription des seniors et aidants ; éventuelle autre commune choisie pour la météo, enregistrée dans le compte ; désactivation éventuelle de la météo, conservée sur l’appareil par compte ;</li>
           <li>Rendez-vous, demandes de services, interventions, évaluations et notes de suivi que vous saisissez, avec leur date et, pour les nouvelles notes du carnet, le compte auteur et son rôle ;</li>
@@ -151,7 +154,7 @@
           <li>Notifications d’urgence adressées aux aidants actifs enregistrés par le senior, si celui-ci confirme une demande d’appel au 15 ou au 112 ;</li>
           <li>Préférences et coordonnées de notification, ainsi que les identifiants techniques nécessaires aux notifications push ;</li>
           <li>Informations techniques de connexion et de sécurité, notamment les identifiants de session ;</li>
-          <li>Statut et suivi des demandes de clôture, avec un inventaire de décomptes de données associées et un pré-jugement IA indicatif ;</li>
+          <li>Statut et suivi des clôtures, leur origine et, pour une clôture administrative, l’administrateur et son motif, avec un inventaire de décomptes de données associées et un pré-jugement IA indicatif ;</li>
           <li>Informations nécessaires à la connexion facultative d’un agenda Google et à la visioconférence.</li>
         </ul>
 
@@ -159,10 +162,14 @@
         <p>Les données sont traitées pour :</p>
         <ul>
           <li>Créer et gérer les comptes et les espaces correspondant aux différents rôles ;</li>
+          <li>Permettre au compte directeur d’un établissement de gérer ses coordonnées et celles de ses résidents, soignants et intervenants, et à l’administration de suivre manuellement son abonnement. La fiche de l’établissement est accessible au directeur et à l’administration ; la liste des personnes reste réservée au compte directeur. Elle ne crée pas de compte pour ces personnes et ne donne pas accès à leurs dossiers. L’établissement doit informer les personnes concernées et vérifier sa base légale. La clôture du compte supprime la fiche et les coordonnées de la base active ; les sauvegardes suivent les règles de conservation du prestataire ;</li>
+          <li>Permettre au directeur de créer séparément un compte résident sans e-mail et d’en réinitialiser le mot de passe provisoire. Le résident doit changer ce mot de passe et accepter les conditions d’utilisation avant d’accéder à son compte. Le directeur doit transmettre les identifiants en privé : toute personne connaissant le mot de passe provisoire peut activer le compte et accéder à ses données. La création ne vérifie pas automatiquement l’identité ni le consentement du résident, et le lien avec l’établissement ne donne pas en lui-même accès à son dossier. La clôture du compte résident supprime son identifiant et sa date de naissance de la base active ; les sauvegardes suivent les règles du prestataire ;</li>
+          <li>Créer des comptes individuels de soignants avec les mêmes précautions pour le mot de passe provisoire. Après l’accord du résident ou de son représentant légal vérifié et associé par l’administration, les soignants actifs de l’établissement peuvent lire et écrire des nouvelles visibles aussi par le résident et ses proches associés. Les proches associés et les soignants peuvent échanger des messages visibles de tous ces participants mais pas du résident. Ce carnet concerne le quotidien, sans données de santé ou de traitement ; les auteurs doivent le confirmer avant l’envoi, mais les textes ne sont pas filtrés automatiquement. Les notes familiales privées et les anciennes notes générales ne sont pas importées. L’accord peut être retiré ; l’accès dépend aussi de l’abonnement et de l’activité des comptes et associations. Le directeur et l’administration ne disposent pas d’une lecture de ce carnet. Les accès et décisions sont tracés. À la clôture du résident, ces entrées et traces sont supprimées de la base active ; à la clôture d’un auteur, son nom est anonymisé dans ces entrées. Les sauvegardes suivent les règles du prestataire ;</li>
           <li>Afficher votre civilité et votre photo de profil dans votre compte. La photo des intervenants est obligatoire pour la validation de leur compte et visible des personnes qui les ont ajoutés à leurs contacts. Pour les autres comptes, le partage avec ces contacts est activé par défaut et peut être désactivé dans les réglages. Vous pouvez remplacer la photo et, hors comptes intervenants, la supprimer ; elle est effacée du compte lors de sa clôture ;</li>
           <li>Organiser les services, rendez-vous, interventions et échanges avec l’équipe ;</li>
           <li>Afficher le nom et le rôle de l’auteur des nouvelles notes du carnet aux personnes déjà autorisées à les consulter. Les anciennes notes ne permettent pas toujours d’identifier leur auteur ; lors d’une demande de clôture, le lien entre le compte et ses notes est effacé, mais les notes restent dans le carnet avec le rôle ;</li>
           <li>Afficher les anniversaires saisis dans votre agenda et créer un rappel annuel indiquant l’âge dans vos notifications. Le titre est visible par les personnes autorisées à comparer votre agenda ; la date de naissance et le rappel ne leur sont pas transmis. La suppression de l’anniversaire efface sa date et ses rappels de la base active ; les sauvegardes restent soumises à la durée de conservation du prestataire ;</li>
+          <li>Afficher aux aidants autorisés les étapes et notes pratiques des visites, et aux professionnels affectés les étapes des collègues de la même équipe pour les personnes dont le partage est autorisé. Une note n’est visible des collègues que si son auteur choisit explicitement de la partager et confirme qu’elle ne contient aucune donnée personnelle ou de santé. Les notes anciennes ne sont pas partagées automatiquement avec les collègues. Les notes pratiques de visite ne sont pas affichées dans l’espace senior ;</li>
           <li>Afficher par défaut la météo de la commune du compte lorsqu’elle est renseignée, ou celle choisie dans les réglages, sans géolocalisation automatique. Vous pouvez changer de commune ou désactiver la météo sur cet appareil dans les réglages ; les communes du compte et de la météo sont effacées lors de la clôture du compte ;</li>
           <li>Permettre les échanges entre contacts enregistrés mutuellement ou seniors et aidants associés et indiquer à l’expéditeur qu’un message a été ouvert. Lors d’un envoi à plusieurs personnes choisies, chaque destinataire reçoit une copie privée sans voir les autres ;</li>
           <li>Partager les photos de l’album avec les aidants actifs associés : les photos proposées par les aidants ne sont partagées qu’après acceptation du senior. Le senior peut supprimer toute photo et l’auteur peut supprimer les siennes. La clôture du compte senior efface l’album de la base active et la clôture du compte d’un auteur efface ses photos ; les sauvegardes restent soumises à la durée de conservation du prestataire ;</li>
@@ -179,7 +186,7 @@
           <li>Proposer un check-in quotidien de bien-être et une réponse empathique de l’assistant IA, si vous choisissez cette fonction ;</li>
           <li>Signaler certains propos pouvant évoquer un danger immédiat dans le check-in, inviter le senior à répondre s’il est en sécurité et, selon sa réponse, préparer une alerte aux aidants ou un appel qu’il confirme ;</li>
           <li>Préparer, après double confirmation du senior, des notifications à ses aidants actifs lorsqu’il demande à ouvrir le composeur du 15, du 18 ou du 112 ;</li>
-          <li>Préparer l’examen administratif des demandes de clôture au moyen d’un pré-jugement IA fondé sur des décomptes minimisés ;</li>
+          <li>Permettre à l’administration de lancer une clôture motivée et confirmée, distincte d’une demande du titulaire, puis préparer l’examen des clôtures au moyen d’un pré-jugement IA fondé sur des décomptes minimisés ;</li>
           <li>Sécuriser l’application, prévenir les abus et respecter les obligations applicables.</li>
         </ul>
 
@@ -196,7 +203,8 @@
           leur traitement.
         </p>
         <ul>
-          <li><strong>Render :</strong> hébergement de l’application et de sa base de données ;</li>
+          <li><strong>Render :</strong> hébergement de l’application ;</li>
+          <li><strong>Supabase :</strong> hébergement de la base de données de production ;</li>
           <li><strong>OpenAI :</strong> prénom et messages transmis à l’assistant IA pour générer une réponse ; texte du check-in transmis pour préparer une réponse de bien-être ; pour le pré-examen des clôtures, rôle, catégorie de formule et décomptes par type de dossier uniquement ;</li>
           <li><strong>Google :</strong> connexion et échanges nécessaires à Google Calendar. Si l’intervenant active la synchronisation du planning, les dates et durées des prochaines visites et prestations confirmées sont copiées dans son agenda avec un titre générique, sans nom ni détail de soin, ainsi qu’un identifiant technique. Les modifications Google de ces événements nécessitent l’accord de l’intervenant et de la personne accompagnée ou de son aidant avant modification du planning partagé. La synchronisation de l’annuaire transmet séparément les données nécessaires aux réservations confirmées ;</li>
           <li><strong>Service public geo.api.gouv.fr :</strong> ville ou code postal saisi pour trouver le centre d’une commune française lors d’une recherche, de l’inscription d’un professionnel ou du choix de la commune météo ; position GPS recherchée pour identifier la commune correspondante dans l’annuaire ;</li>
@@ -281,13 +289,13 @@
           leur fonctionnement.
         </p>
         <p>
-          Selon la documentation de Render, les bases PostgreSQL et leurs sauvegardes sont chiffrées au repos
-          (AES-256). La région utilisée pour cette application n’a pas été vérifiée dans le compte d’hébergement.
-          Aucune certification HDS n’est revendiquée. Ces informations ne constituent pas une garantie de
+          L’application est hébergée sur Render et sa base de données de production sur Supabase.
+          La région utilisée et les conditions de chiffrement de cette base et de ses sauvegardes
+          restent à vérifier. Aucune certification HDS n’est revendiquée. Ces informations ne constituent pas une garantie de
           conformité HDS ; l’application facilite l’organisation du quotidien et ne remplace pas un dossier médical.
-          Certaines fonctions permettent toutefois des transmissions professionnelles de soin. N’y ajoutez pas
-          d’autres données de santé tant que les conditions d’hébergement et les obligations applicables ne sont
-          pas confirmées. Voir la <a href="https://render.com/docs/postgresql-creating-connecting" rel="noopener noreferrer">documentation de Render sur PostgreSQL</a>.
+          Les carnets de liaison sont réservés aux nouvelles du quotidien : n’y saisissez pas de données de santé
+          ou de traitement. Les textes libres ne sont pas filtrés automatiquement. Les conditions d’hébergement
+          et les obligations applicables restent à vérifier avant tout traitement de données de santé.
         </p>
 
         <h2>5. Durée de conservation</h2>

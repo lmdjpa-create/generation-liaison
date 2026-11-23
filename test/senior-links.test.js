@@ -19,7 +19,9 @@ let sentCode;
 let failEmail = false;
 let emailConfigured = true;
 let failInvitation = false;
+let failRegistrationInvitation = false;
 const sentInvitations = [];
+const sentRegistrationInvitations = [];
 
 before(async () => {
   db = new PGlite();
@@ -36,7 +38,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
@@ -47,6 +49,10 @@ before(async () => {
   delivery.sendSeniorInvitation = async (email, url) => {
     if (failInvitation) throw new Error('test invitation delivery failure');
     sentInvitations.push({ email, url });
+  };
+  delivery.sendRegistrationInvitation = async (email, url) => {
+    if (failRegistrationInvitation) throw new Error('test registration invitation failure');
+    sentRegistrationInvitations.push({ email, url });
   };
   const app = require('../server');
   server = app.listen(0);
@@ -84,6 +90,236 @@ async function register(email, role, isLegalGuardian = false) {
   return result.data;
 }
 
+test('administrators invite registration and initiate a traceable closure without accessing private data', async () => {
+  const admin = await register('closure-admin@example.test', 'senior');
+  const target = await register('admin-closure-target@example.test', 'senior');
+  const other = await register('admin-closure-other@example.test', 'aidant');
+  const invite = '/api/admin/account-invitations';
+  assert.equal((await request(invite, { user: other, admin: true, body: { email: 'new@example.test' } })).status, 403);
+  assert.equal((await request(invite, { user: admin, body: { email: 'new@example.test' } })).status, 403);
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'bad' } })).status, 400);
+  emailConfigured = false;
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'new@example.test' } })).status, 503);
+  emailConfigured = true;
+  failRegistrationInvitation = true;
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'new@example.test' } })).status, 500);
+  failRegistrationInvitation = false;
+  assert.equal((await request(invite, { user: admin, admin: true, body: { email: 'new@example.test' } })).status, 202);
+  assert.equal(sentRegistrationInvitations.at(-1).email, 'new@example.test');
+  assert.equal((await db.query("SELECT id FROM app_users WHERE email = 'new@example.test'")).rows.length, 0);
+
+  const path = `/api/admin/accounts/${target.user.id}/closure`;
+  const body = { confirmed: true, reason: 'Traitement administratif documenté' };
+  assert.equal((await request(path, { user: other, admin: true, body })).status, 403);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, confirmed: false } })).status, 400);
+  assert.equal((await request(`/api/admin/accounts/${admin.user.id}/closure`, { user: admin, admin: true, body })).status, 409);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 201);
+  assert.equal((await request('/api/auth/me', { user: target })).status, 401);
+  const row = (await db.query('SELECT initiated_by, initiation_reason FROM app_account_closure_requests WHERE user_id = $1', [target.user.id])).rows[0];
+  assert.equal(row.initiated_by, admin.user.id);
+  assert.equal(row.initiation_reason, body.reason);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 409);
+  assert.equal((await request(`/api/admin/accounts/${target.user.id}`, { user: admin, admin: true, method: 'PATCH', body: { active: true } })).status, 409);
+});
+
+test('establishment profiles stay private and require manual subscription activation to edit', async () => {
+  const admin = await register('establishment-admin@example.test', 'senior');
+  const establishment = await register('establishment@example.test', 'establishment');
+  const other = await register('other-establishment@example.test', 'establishment');
+  const senior = await register('private-profile-senior@example.test', 'senior');
+  const profile = {
+    name: 'Résidence des Lilas', description: 'Présentation', address: '1 rue du Parc',
+    phone: '0123456789', email: 'contact@example.test', tablet_interest: 'rental', tablet_quantity: 2
+  };
+  assert.equal((await request('/api/establishment', { user: establishment })).data.active, false);
+  assert.equal((await request('/api/establishment', { user: establishment, method: 'PUT', body: profile })).status, 403);
+  const person = { category: 'resident', name: 'Personne test', phone: '0123456789', email: 'personne@example.test' };
+  assert.equal((await request('/api/establishment/contacts', { user: establishment, body: person })).status, 403);
+  assert.equal((await request('/api/admin/establishments', { user: senior, admin: true })).status, 403);
+  assert.equal((await request('/api/admin/establishments', { user: admin })).status, 403);
+  assert.equal((await request('/api/notifications', { user: establishment })).status, 403);
+  assert.equal((await request('/api/contacts', { user: senior, body: { email: 'establishment@example.test' } })).status, 404);
+  assert.equal((await request('/api/contacts', { user: senior, body: { contactUserId: establishment.user.id } })).status, 404);
+  const endpoint = `/api/admin/establishments/${establishment.user.id}`;
+  assert.equal((await request(`${endpoint}/users`, { user: admin, admin: true, method: 'PATCH', body: { count: 25 } })).status, 200);
+  assert.equal((await request(`${endpoint}/users`, { user: admin, admin: true, method: 'PATCH', body: { count: 0 } })).status, 400);
+  assert.equal((await request(`${endpoint}/subscription`, { user: admin, admin: true, method: 'PATCH', body: { active: true } })).status, 200);
+  assert.equal((await request('/api/establishment', { user: establishment, method: 'PUT', body: profile })).status, 200);
+  const created = await request('/api/establishment/contacts', { user: establishment, body: person });
+  assert.equal(created.status, 201);
+  const contactPath = `/api/establishment/contacts/${created.data.id}`;
+  assert.equal((await request(`/api/admin/establishments/${other.user.id}/subscription`, {
+    user: admin, admin: true, method: 'PATCH', body: { active: true }
+  })).status, 200);
+  assert.equal((await request('/api/establishment/contacts', { user: other })).data.contacts.length, 0);
+  assert.equal((await request('/api/establishment/contacts', { user: senior })).status, 403);
+  assert.equal((await request(contactPath, { user: other, method: 'PUT', body: person })).status, 404);
+  assert.equal((await request(contactPath, { user: establishment, method: 'PUT', body: { ...person, category: 'caregiver' } })).status, 200);
+  assert.equal((await request('/api/establishment/contacts', { user: establishment })).data.contacts[0].category, 'caregiver');
+  const worker = await request('/api/establishment/contacts', {
+    user: establishment, body: { category: 'intervenant', name: 'Visiteur', phone: '', email: '' }
+  });
+  assert.equal(worker.status, 201);
+  assert.equal((await request('/api/establishment/contacts', { user: establishment })).data.contacts.some(contact => contact.category === 'intervenant'), true);
+  assert.equal((await request('/api/establishment', { user: other })).data.profile, null);
+  assert.deepEqual((await request('/api/establishment', { user: establishment })).data.profile, profile);
+  assert.equal((await request('/api/admin/establishments', { user: admin, admin: true })).data.establishments
+    .find(item => item.id === establishment.user.id).user_count, 25);
+  assert.equal((await request(`${endpoint}/subscription`, { user: admin, admin: true, method: 'PATCH', body: { active: false } })).status, 200);
+  assert.equal((await request('/api/establishment', { user: establishment })).data.profile.name, profile.name);
+  assert.equal((await request('/api/establishment', { user: establishment, method: 'PUT', body: profile })).status, 403);
+  assert.equal((await request('/api/establishment/contacts', { user: establishment })).data.contacts.length, 2);
+  assert.equal((await request(contactPath, { user: establishment, method: 'DELETE' })).status, 404);
+  const closed = await request('/api/account/closure-request', {
+    user: establishment, body: { password: 'a-test-password-123' }
+  });
+  assert.equal(closed.status, 200);
+  assert.equal((await request('/api/establishment', { user: establishment })).status, 401);
+  assert.equal((await db.query('SELECT * FROM establishment_profiles WHERE user_id = $1', [establishment.user.id])).rows.length, 0);
+  assert.equal((await db.query('SELECT * FROM establishment_contacts WHERE user_id = $1', [establishment.user.id])).rows.length, 0);
+});
+
+test('director-created resident signs in without email and must change the temporary password', async () => {
+  const admin = await register('establishment-admin-2@example.test', 'senior');
+  const director = await register('resident-owner@example.test', 'establishment');
+  const other = await register('resident-other@example.test', 'establishment');
+  for (const owner of [director, other]) {
+    assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+      user: admin, admin: true, method: 'PATCH', body: { active: true }
+    })).status, 200);
+  }
+  const details = { firstName: 'Camille', lastName: 'Exemple', birthDate: '1940-05-01', password: 'mot-provisoire-123' };
+  const created = await request('/api/establishment/residents', { user: director, body: details });
+  assert.equal(created.status, 201);
+  assert.match(created.data.identifier, /^[0-9a-f]{24}$/);
+  assert.equal((await request('/api/establishment/residents', { user: other })).data.residents.length, 0);
+  const reset = `/api/establishment/residents/${created.data.id}/reset-password`;
+  assert.equal((await request(reset, { user: other, body: { password: 'autre-provisoire-123' } })).status, 404);
+  const credentials = { ...details, identifier: created.data.identifier };
+  assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, birthDate: '1941-05-01' } })).status, 401);
+  const login = await request('/api/auth/resident-login', { body: credentials });
+  assert.equal(login.status, 200);
+  assert.equal(login.data.user.email, null);
+  assert.equal(login.data.user.passwordChangeRequired, true);
+  const resident = login.data;
+  assert.equal((await request('/api/logs/all', { user: resident })).status, 403);
+  assert.equal((await request('/api/auth/change-resident-password', {
+    user: resident, body: { currentPassword: details.password, newPassword: 'nouveau-mot-de-passe-123' }
+  })).status, 400);
+  const changed = await request('/api/auth/change-resident-password', {
+    user: resident, body: { currentPassword: details.password, newPassword: 'nouveau-mot-de-passe-123',
+      acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION }
+  });
+  assert.equal(changed.status, 200);
+  assert.equal(changed.data.user.passwordChangeRequired, false);
+  assert.equal((await request('/api/auth/me', { user: resident })).status, 401);
+  assert.equal((await request('/api/auth/me', { user: changed.data })).status, 200);
+  assert.equal((await request(reset, { user: director, body: { password: 'second-provisoire-123' } })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: changed.data })).status, 401);
+  const relogin = await request('/api/auth/resident-login', { body: { ...credentials, password: 'second-provisoire-123' } });
+  assert.equal(relogin.status, 200);
+  assert.equal(relogin.data.user.passwordChangeRequired, true);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, password: 'incorrect-password' } })).status, 401);
+  }
+  assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, password: 'second-provisoire-123' } })).status, 401);
+  await db.query("UPDATE establishment_resident_accounts SET locked_until = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE resident_user_id = $1", [created.data.id]);
+  assert.equal((await request('/api/auth/resident-login', { body: { ...credentials, password: 'second-provisoire-123' } })).status, 200);
+});
+
+test('establishment care requires consent and isolates staff, family messages and private notes', async () => {
+  const adminLogin = await register('care-admin@example.test', 'senior');
+  const owner = await register('care-owner@example.test', 'establishment');
+  const outsider = await register('care-other-owner@example.test', 'establishment');
+  for (const establishment of [owner, outsider]) {
+    assert.equal((await request(`/api/admin/establishments/${establishment.user.id}/subscription`, {
+      user: adminLogin, admin: true, method: 'PATCH', body: { active: true }
+    })).status, 200);
+  }
+  const residentDetails = { firstName: 'Resident', lastName: 'Test', birthDate: '1945-01-02', password: 'temporary-password-123' };
+  const staffDetails = { firstName: 'Staff', lastName: 'Test', birthDate: '1980-03-04', password: 'temporary-password-456' };
+  const residentCreated = await request('/api/establishment/residents', { user: owner, body: residentDetails });
+  const staffCreated = await request('/api/establishment/staff', { user: owner, body: staffDetails });
+  const otherCreated = await request('/api/establishment/staff', { user: outsider, body: staffDetails });
+  assert.equal(staffCreated.status, 201);
+  async function activate(details, created) {
+    const login = await request('/api/auth/resident-login', { body: { ...details, identifier: created.data.identifier } });
+    assert.equal(login.status, 200);
+    const changed = await request('/api/auth/change-resident-password', { user: login.data, body: {
+      currentPassword: details.password, newPassword: 'a-different-password-456', acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION
+    } });
+    assert.equal(changed.status, 200);
+    return changed.data;
+  }
+  const resident = await activate(residentDetails, residentCreated);
+  const staff = await activate(staffDetails, staffCreated);
+  const otherStaff = await activate(staffDetails, otherCreated);
+  const aidant = await register('care-family@example.test', 'aidant');
+  const guardian = await register('care-guardian@example.test', 'aidant', true);
+  await db.query("UPDATE app_users SET guardian_verification_status = 'approved' WHERE id = $1", [guardian.user.id]);
+  assert.equal((await request(`/api/admin/accounts/${guardian.user.id}/senior-links`, {
+    user: adminLogin, admin: true, body: { seniorUserId: resident.user.id }
+  })).status, 201);
+  await db.query(
+    'INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by) VALUES ($1, $2, $3)',
+    [aidant.user.id, resident.user.seniorId, resident.user.id]
+  );
+  const residentId = resident.user.id;
+  assert.equal((await request('/api/care/residents', { user: staff })).data.residents.length, 0);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: staff })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: aidant, seniorId: resident.user.seniorId, body: { consented: true } })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: resident })).data.establishment.decided, false);
+  assert.equal((await request('/api/care/consent', { user: guardian, seniorId: resident.user.seniorId, body: { consented: true } })).status, 200);
+  assert.equal((await request('/api/care/consent', { user: guardian, seniorId: resident.user.seniorId, body: { consented: false } })).status, 200);
+  assert.equal((await request('/api/care/consent', { user: resident })).data.establishment.decided, true);
+  assert.equal((await request('/api/care/consent', { user: resident, body: { consented: true } })).status, 200);
+  assert.equal((await request('/api/care/residents', { user: staff })).data.residents.length, 1);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: otherStaff })).status, 403);
+  assert.equal((await request('/api/care/entries', { user: staff, body: { residentId, kind: 'transmission', content: 'Transmission' } })).status, 400);
+  assert.equal((await request('/api/care/entries', { user: staff, body: { residentId, kind: 'transmission', content: 'Transmission', nonMedical: true } })).status, 201);
+  assert.equal((await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId, body: { kind: 'message', content: 'Message privé', nonMedical: true } })).status, 201);
+  assert.equal((await request('/api/care/entries', { user: staff, body: { residentId, kind: 'message', content: 'Réponse', nonMedical: true } })).status, 201);
+  assert.equal((await request('/api/care/entries', { user: resident, body: { kind: 'message', content: 'Interdit', nonMedical: true } })).status, 400);
+  assert.equal((await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId, body: { kind: 'transmission', content: 'Interdit', nonMedical: true } })).status, 400);
+  const residentEntries = await request('/api/care/entries', { user: resident });
+  assert.deepEqual(residentEntries.data.entries.map(entry => entry.content), ['Transmission']);
+  const familyEntries = await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId });
+  assert.equal(familyEntries.data.entries.length, 3);
+  assert.equal((await request('/api/logs/all', { user: staff })).status, 403);
+  assert.equal((await request('/api/care/entries', { user: adminLogin })).status, 403);
+  assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+    user: adminLogin, admin: true, method: 'PATCH', body: { active: false }
+  })).status, 200);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: staff })).status, 403);
+  assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {
+    user: adminLogin, admin: true, method: 'PATCH', body: { active: true }
+  })).status, 200);
+  await db.query('UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP WHERE aidant_user_id = $1 AND senior_profile_id = $2',
+    [aidant.user.id, resident.user.seniorId]);
+  assert.equal((await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: resident, body: { consented: false } })).status, 200);
+  assert.equal((await request(`/api/care/entries?residentId=${residentId}`, { user: staff })).status, 403);
+  assert.equal((await request('/api/care/consent', { user: resident, body: { consented: true } })).status, 200);
+  assert.equal((await request(`/api/establishment/staff/${staff.user.id}/disable`, { user: owner, body: {} })).status, 200);
+  assert.equal((await request('/api/auth/me', { user: staff })).status, 401);
+  assert.equal((await request('/api/account/closure-request', {
+    user: resident, body: { password: 'a-different-password-456' }
+  })).status, 200);
+  assert.equal((await db.query('SELECT id FROM establishment_care_entries WHERE resident_user_id = $1', [residentId])).rows.length, 0);
+  assert.equal((await db.query('SELECT id FROM establishment_care_audit WHERE resident_user_id = $1', [residentId])).rows.length, 0);
+});
+
+test('doctor recommendations cannot be added to liaison updates', async () => {
+  const professional = await register('liaison-pro@example.test', 'pro');
+  await db.query("UPDATE app_users SET verification_status = 'approved' WHERE id = $1", [professional.user.id]);
+  const result = await request(`/api/planning/visits/${randomUUID()}/notes`, {
+    user: professional,
+    body: { type: 'doctor_recommendation', importance: 'information', content: 'Test' }
+  });
+  assert.equal(result.status, 400);
+  assert.match(result.data.error, /nouvelles de liaison/);
+});
+
 test('iOS native push registration is rejected but existing registrations can be removed', async () => {
   const user = await register('ios-push-test@example.test', 'senior');
   const previous = delivery.isConfigured;
@@ -108,6 +344,123 @@ test('iOS native push registration is rejected but existing registrations can be
   } finally {
     delivery.isConfigured = previous;
   }
+});
+
+test('visit comments stay private from seniors and are shared with authorized colleagues only by choice', async () => {
+  const senior = await register('team-progress-senior@example.test', 'senior');
+  const otherSenior = await register('team-progress-other-senior@example.test', 'senior');
+  const aidant = await register('team-progress-aidant@example.test', 'aidant');
+  const unrelatedAidant = await register('team-progress-unrelated-aidant@example.test', 'aidant');
+  const own = await register('team-progress-own@example.test', 'pro');
+  const colleague = await register('team-progress-colleague@example.test', 'pro');
+  const stranger = await register('team-progress-stranger@example.test', 'pro');
+  await db.query("UPDATE app_users SET verification_status = 'approved' WHERE id = ANY($1::uuid[])",
+    [[own.user.id, colleague.user.id, stranger.user.id]]);
+  const organization = randomUUID();
+  const otherOrganization = randomUUID();
+  const recipient = randomUUID();
+  const otherRecipient = randomUUID();
+  const otherOrganizationRecipient = randomUUID();
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, senior.user.seniorId]);
+  await db.query('INSERT INTO planning_organizations (id, name, coordinator_user_id) VALUES ($1, $2, $3)',
+    [organization, 'Équipe fictive', own.user.id]);
+  await db.query('INSERT INTO planning_organizations (id, name, coordinator_user_id) VALUES ($1, $2, $3)',
+    [otherOrganization, 'Autre équipe fictive', colleague.user.id]);
+  await db.query("INSERT INTO planning_org_members (organization_id, user_id, role) VALUES ($1, $2, 'professional')",
+    [otherOrganization, colleague.user.id]);
+  await db.query(`INSERT INTO planning_recipients (id, organization_id, senior_id, name, consent_at, created_by)
+    VALUES ($1, $2, $3, 'Personne fictive', CURRENT_TIMESTAMP, $4)`,
+  [otherOrganizationRecipient, otherOrganization, senior.user.seniorId, colleague.user.id]);
+  for (const professional of [own, colleague, stranger]) {
+    await db.query("INSERT INTO planning_org_members (organization_id, user_id, role) VALUES ($1, $2, 'professional')",
+      [organization, professional.user.id]);
+  }
+  for (const [id, person] of [[recipient, senior], [otherRecipient, otherSenior]]) {
+    await db.query(`INSERT INTO planning_recipients (id, organization_id, senior_id, name, consent_at, created_by)
+      VALUES ($1, $2, $3, 'Personne fictive', CURRENT_TIMESTAMP, $4)`,
+    [id, organization, person.user.seniorId, own.user.id]);
+  }
+  const ownVisit = randomUUID();
+  const colleagueVisit = randomUUID();
+  const otherVisit = randomUUID();
+  const pendingVisit = randomUUID();
+  const plannedVisit = randomUUID();
+  const finishedVisit = randomUUID();
+  const otherOrganizationVisit = randomUUID();
+  await db.query(`INSERT INTO planning_visits
+    (id, organization_id, recipient_id, assigned_user_id, scheduled_at, duration_minutes, visit_type, created_by, acceptance_status)
+    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, 30, 'Visite', $4, 'accepted')`,
+  [otherOrganizationVisit, otherOrganization, otherOrganizationRecipient, colleague.user.id]);
+  await db.query(`INSERT INTO planning_visit_events
+    (id, visit_id, organization_id, recipient_id, user_id, event_type, practical_note, share_with_team)
+    VALUES ($1, $2, $3, $4, $5, 'arrived', 'Autre équipe', TRUE)`,
+  [randomUUID(), otherOrganizationVisit, otherOrganization, otherOrganizationRecipient, colleague.user.id]);
+  for (const [id, personId, professional, status] of [
+    [ownVisit, recipient, own, 'accepted'],
+    [colleagueVisit, recipient, colleague, 'accepted'],
+    [otherVisit, otherRecipient, colleague, 'accepted'],
+    [pendingVisit, recipient, colleague, 'pending'],
+    [plannedVisit, recipient, colleague, 'accepted'],
+    [finishedVisit, recipient, colleague, 'accepted']
+  ]) {
+    await db.query(`INSERT INTO planning_visits
+      (id, organization_id, recipient_id, assigned_user_id, scheduled_at, duration_minutes, visit_type, created_by, acceptance_status)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, 30, 'Visite', $4, $5)`,
+    [id, organization, personId, professional.user.id, status]);
+  }
+  await db.query("UPDATE planning_visits SET status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = $1", [finishedVisit]);
+  for (const [visitId, personId, type, note] of [
+    [colleagueVisit, recipient, 'arrived', 'Note privée'],
+    [otherVisit, otherRecipient, 'started', 'Autre personne'],
+    [pendingVisit, recipient, 'completed', 'Visite non acceptée'],
+    [finishedVisit, recipient, 'completed', 'Note confidentielle']
+  ]) {
+    await db.query(`INSERT INTO planning_visit_events
+      (id, visit_id, organization_id, recipient_id, user_id, event_type, practical_note)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [randomUUID(), visitId, organization, personId, colleague.user.id, type, note]);
+  }
+  const progressPath = `/api/planning/visits/${colleagueVisit}/progress`;
+  assert.equal((await request(progressPath, { user: colleague, body: {
+    stage: 'started', note: 'Commentaire partagé', shareWithTeam: 'true'
+  } })).status, 400);
+  assert.equal((await request(progressPath, { user: colleague, body: {
+    stage: 'started', note: 'Commentaire partagé', shareWithTeam: true
+  } })).status, 200);
+  const path = '/api/planning/today';
+  assert.equal((await request(path)).status, 401);
+  assert.equal((await request(path, { user: senior })).status, 403);
+  assert.deepEqual((await request(path, { user: stranger })).data.visits, []);
+  let response = await request(path, { user: own });
+  assert.equal(response.status, 200);
+  assert.equal(response.data.visits.length, 1);
+  const shared = response.data.visits[0].teamProgress;
+  assert.equal(shared.length, 3);
+  assert.deepEqual(new Set(shared.map(item => item.type)), new Set(['arrived', 'started', 'completed']));
+  assert.deepEqual(Object.keys(shared[0]).sort(), ['createdAt', 'note', 'type']);
+  assert.equal(shared.find(item => item.type === 'arrived').note, null);
+  assert.equal(shared.find(item => item.type === 'started').note, 'Commentaire partagé');
+  assert.doesNotMatch(JSON.stringify(shared), /Note privée|Autre personne|Visite non acceptée|Note confidentielle|Autre équipe/);
+  const seniorFollowing = await request('/api/planning/following', { user: senior });
+  const aidantFollowing = await request('/api/planning/following', { user: aidant, seniorId: senior.user.seniorId });
+  assert.equal((await request('/api/planning/following', { user: unrelatedAidant, seniorId: senior.user.seniorId })).status, 403);
+  const seniorProgress = seniorFollowing.data.visits.find(item => item.id === colleagueVisit).progress;
+  const aidantProgress = aidantFollowing.data.visits.find(item => item.id === colleagueVisit).progress;
+  assert.ok(seniorProgress.every(item => item.note === null));
+  assert.equal(aidantProgress.find(item => item.type === 'arrived').note, 'Note privée');
+  assert.equal(aidantProgress.find(item => item.type === 'started').note, 'Commentaire partagé');
+  const visits = response.data.visits[0].teamVisits;
+  assert.equal(visits.length, 3);
+  assert.deepEqual(new Set(visits.map(item => item.status)), new Set(['planned', 'in_progress', 'completed']));
+  assert.deepEqual(Object.keys(visits[0]).sort(), ['scheduledAt', 'status']);
+  await db.query('DELETE FROM planning_org_members WHERE organization_id = $1 AND user_id = $2',
+    [organization, colleague.user.id]);
+  response = await request(path, { user: own });
+  assert.deepEqual(response.data.visits[0].teamProgress, []);
+  assert.deepEqual(response.data.visits[0].teamVisits, []);
+  await db.query('UPDATE planning_recipients SET consent_revoked_at = CURRENT_TIMESTAMP WHERE id = $1', [recipient]);
+  assert.deepEqual((await request(path, { user: own })).data.visits, []);
 });
 
 test('weather requires a valid session and valid coordinates and reports missing configuration', async () => {
