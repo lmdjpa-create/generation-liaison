@@ -1107,9 +1107,9 @@ test('birthday form submits the birth date and keeps it when saving fails', asyn
   assert.equal(resetCount, 1);
 });
 
-test('senior settings remain accessible from navigation without a dashboard shortcut', () => {
+test('senior settings remain accessible from navigation and the association shortcut', () => {
   const dashboard = extract('<div id="main-app-senior"', '<!-- 👨‍👩‍👧 2. INTERFACE AIDANT -->');
-  assert.doesNotMatch(dashboard, /switchScreen\('settings'\)/);
+  assert.match(dashboard, /switchScreen\('settings'\); document\.getElementById\('senior-links-details'\)\.open = true/);
   assert.match(source, /<button id="nav-settings"[^>]*onclick="switchScreen\('settings'\)"/);
 });
 

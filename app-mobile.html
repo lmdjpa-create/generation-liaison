@@ -965,6 +965,11 @@
     <div id="main-app-senior" style="display: none; text-align: center;">
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Personne accompagnée</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
+        <section class="form-card" id="senior-home-links">
+            <h2>Lier mon compte à un aidant</h2>
+            <p>Un aidant peut demander à vous rejoindre. Vérifiez son identité, puis acceptez ou refusez sa demande.</p>
+            <button type="button" onclick="switchScreen('settings'); document.getElementById('senior-links-details').open = true">Voir les demandes des aidants</button>
+        </section>
         <div class="senior-simple-only" id="senior-simple-actions">
             <button type="button" onclick="ouvrirNotifications()">Notifications et messages <span id="home-notification-count-senior-simple" hidden></span></button>
             <button type="button" onclick="ouvrirJournalSenior()">Mon journal</button>
@@ -1643,6 +1648,11 @@
             <h2>Bonjour <span id="welcome-aidant-name">!</span></h2>
         </div>
     </div>
+    <section class="form-card" id="aidant-home-links">
+        <h2>Lier mon compte à une personne accompagnée</h2>
+        <p>Si vous n’êtes pas tuteur légal, demandez l’accès avec son adresse e-mail. Votre demande marque votre accord ; la personne doit ensuite l’accepter pour lier vos comptes. Les tuteurs légaux doivent contacter l’administration.</p>
+        <button type="button" onclick="switchScreen('settings'); document.getElementById('aidant-links-details').open = true">Gérer mes profils accompagnés</button>
+    </section>
     <div class="header-mobile next-visit-card" id="aidant-followed-person" style="flex-direction:row;">
         <div>
             <p class="next-visit-label">Suivi de <span id="senior-name-aidant">Senior</span></p>
@@ -1667,7 +1677,6 @@
         <h3>Aucune personne accompagnée associée</h3>
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à une personne accompagnée ou contactez l’administration si vous êtes tuteur légal.</p>
         <button type="button" id="aidant-refresh-seniors">Actualiser les profils</button>
-        <button type="button" onclick="switchScreen('settings'); document.getElementById('aidant-links-details').open = true">Gérer mes profils accompagnés</button>
         <details class="senior-disclosure" id="aidant-local-outings-no-senior">
           <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛍️</span>Brocantes et vide-greniers</summary>
           <p>Consultez les événements près de chez vous sur Vide-greniers.org.</p>
@@ -2304,7 +2313,7 @@
       </details>
     </section>
 <section class="form-card" style="text-align:left;" id="settings-senior-links">
-          <details class="senior-tab-disclosure">
+          <details class="senior-tab-disclosure" id="senior-links-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👥</span>Accès des aidants à mon profil</summary>
             <p class="helper-text">Vous pouvez accepter ou refuser les demandes. Pour retirer un accès, il sera suspendu immédiatement ; l’administration vous enverra ensuite un code de confirmation par e-mail.</p>
             <p class="helper-text">Cette suspension ne supprime pas l’aidant de vos contacts et n’arrête pas les alertes d’urgence qui leur sont destinées. Si vous vous êtes ajoutés mutuellement dans Contacts, la messagerie reste accessible : retirez aussi ce contact pour l’interrompre.</p>

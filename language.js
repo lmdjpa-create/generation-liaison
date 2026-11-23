@@ -1,6 +1,22 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Lier mon compte à un aidant': 'Connect my account to a caregiver',
+    'Un aidant peut demander à vous rejoindre. Vérifiez son identité, puis acceptez ou refusez sa demande.': 'A caregiver can ask to connect with you. Check their identity, then accept or decline their request.',
+    'Voir les demandes des aidants': 'See caregiver requests',
+    'Lier mon compte à une personne accompagnée': 'Connect my account to a person receiving support',
+    'Si vous n’êtes pas tuteur légal, demandez l’accès avec son adresse e-mail. Votre demande marque votre accord ; la personne doit ensuite l’accepter pour lier vos comptes. Les tuteurs légaux doivent contacter l’administration.': 'If you are not a legal guardian, request access using their email address. Your request shows your agreement; the person must then accept it to connect your accounts. Legal guardians must contact the administration.',
+    'Demandes d’accès des aidants': 'Caregiver access requests',
+    'Le senior peut normalement accepter lui-même. En cas d’oubli, confirmez uniquement après avoir vérifié son accord directement auprès de lui. Cette action ne donne pas accès à ses contenus privés à l’administration.': 'The person can normally accept the request themselves. If they forget, confirm only after checking their agreement directly with them. This does not give administrators access to private content.',
+    'Aucune demande d’accès en cours.': 'No pending access requests.',
+    'Comment avez-vous vérifié l’accord du senior ?': 'How did you verify the person’s agreement?',
+    'Indiquez le mode de vérification, sans donnée de santé ni information privée (20 caractères minimum).': 'Describe how you verified it, without health or private information (at least 20 characters).',
+    ' Je confirme avoir vérifié l’accord du senior.': ' I confirm that I verified the person’s agreement.',
+    'Confirmer à la place du senior': 'Confirm on the person’s behalf',
+    'Confirmer cet accès après avoir vérifié l’accord du senior ?': 'Confirm this access after verifying the person’s agreement?',
+    'Accord confirmé et accès activé.': 'Agreement confirmed and access activated.',
+    'Impossible de confirmer la demande.': 'Unable to confirm the request.',
+    'Impossible de charger les demandes d’accès.': 'Unable to load access requests.',
     'Découvrir la présentation': 'Explore the overview',
     'Présentations': 'Overviews',
     'Proches': 'Family and caregivers',

@@ -31,6 +31,27 @@ test('caregiver profiles and senior and caregiver notification settings start co
   assert.equal(details.open, true);
 });
 
+test('both home pages open their own association settings', () => {
+  assert.match(source, /<h2>Bonjour <span id="welcome-aidant-name">!<\/span><\/h2>\s*<\/div>\s*<\/div>\s*<section class="form-card" id="aidant-home-links">/);
+  for (const [sectionId, detailsId] of [['senior-home-links', 'senior-links-details'], ['aidant-home-links', 'aidant-links-details']]) {
+    const start = source.indexOf(`id="${sectionId}"`);
+    assert.ok(start !== -1);
+    const section = source.slice(start, source.indexOf('</section>', start));
+    const shortcut = section.match(/onclick="([^"]+)"/);
+    assert.ok(shortcut);
+    const details = { open: false };
+    let screen;
+    vm.runInNewContext(shortcut[1], {
+      switchScreen: value => { screen = value; },
+      document: { getElementById: id => { assert.equal(id, detailsId); return details; } }
+    });
+    assert.equal(screen, 'settings');
+    assert.equal(details.open, true);
+    const settings = source.slice(source.indexOf(`id="settings-${sectionId.startsWith('senior') ? 'senior' : 'aidant'}-links"`));
+    assert.match(settings.slice(0, settings.indexOf('</section>')), new RegExp(`<details[^>]*id="${detailsId}"`));
+  }
+});
+
 test('inclusive account label preserves the existing senior role', () => {
   const registration = source.slice(source.indexOf('id="register-section"'), source.indexOf('id="legal-guardian-verification-panel"'));
   assert.match(registration, /<option value="senior">🧑 Personne accompagnée<\/option>/);

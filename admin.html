@@ -385,6 +385,10 @@
           </table></div>
         </section>
         <section class="panel" data-section="accounts">
+          <div class="panel-head"><div><h2>Demandes d’accès des aidants</h2><p>Le senior peut normalement accepter lui-même. En cas d’oubli, confirmez uniquement après avoir vérifié son accord directement auprès de lui. Cette action ne donne pas accès à ses contenus privés à l’administration.</p></div></div>
+          <div id="senior-link-requests" aria-live="polite">Chargement des demandes…</div>
+        </section>
+        <section class="panel" data-section="accounts">
           <div class="panel-head">
             <div><h2>Demandes de clôture et d’effacement</h2><p>Le compte est désactivé dès la demande. Traitez chaque demande dans les 30 jours calendaires suivant sa réception. L’IA prépare un pré-jugement indicatif à partir d’un inventaire minimisé ; elle n’accède ni au contenu des notes et transmissions ni aux justificatifs professionnels. L’administration vérifie les données réelles, décide des suppressions ou conservations, puis confirme le traitement avec une note.</p></div>
           </div>
@@ -1608,6 +1612,74 @@
       }
     }
 
+    async function loadSeniorLinkRequests() {
+      const container = document.getElementById('senior-link-requests');
+      const hasDraft = () => container.contains(document.activeElement) ||
+          [...container.querySelectorAll('textarea')].some(input => input.value.trim()) ||
+          container.querySelector('input[type="checkbox"]:checked');
+      if (hasDraft()) return;
+      try {
+        const { requests } = await adminRequest('/api/admin/senior-link-requests');
+        if (hasDraft()) return;
+        container.replaceChildren();
+        if (!requests.length) {
+          container.textContent = window.generationLiaisonTranslate('Aucune demande d’accès en cours.');
+          return;
+        }
+        for (const request of requests) {
+          const item = document.createElement('div');
+          item.className = 'assistant-handoff';
+          const description = document.createElement('p');
+          description.textContent = `${request.aidant_name} (${request.aidant_email}) → ${request.senior_name} (${request.senior_email})`;
+          const form = document.createElement('form');
+          form.className = 'assistant-settings';
+          const noteLabel = document.createElement('label');
+          noteLabel.textContent = window.generationLiaisonTranslate('Comment avez-vous vérifié l’accord du senior ?');
+          const note = document.createElement('textarea');
+          note.required = true;
+          note.minLength = 20;
+          note.maxLength = 500;
+          note.rows = 2;
+          noteLabel.append(note);
+          const hint = document.createElement('p');
+          hint.className = 'hint';
+          hint.textContent = window.generationLiaisonTranslate('Indiquez le mode de vérification, sans donnée de santé ni information privée (20 caractères minimum).');
+          const confirmationLabel = document.createElement('label');
+          const confirmation = document.createElement('input');
+          confirmation.type = 'checkbox';
+          confirmation.required = true;
+          confirmationLabel.append(confirmation, document.createTextNode(window.generationLiaisonTranslate(' Je confirme avoir vérifié l’accord du senior.')));
+          const button = document.createElement('button');
+          button.className = 'button secondary';
+          button.type = 'submit';
+          button.textContent = window.generationLiaisonTranslate('Confirmer à la place du senior');
+          form.append(noteLabel, hint, confirmationLabel, button);
+          form.addEventListener('submit', async event => {
+            event.preventDefault();
+            if (!window.confirm(window.generationLiaisonTranslate('Confirmer cet accès après avoir vérifié l’accord du senior ?'))) return;
+            button.disabled = true;
+            try {
+              await adminRequest(`/api/admin/senior-link-requests/${encodeURIComponent(request.id)}/confirm`, {
+                method: 'POST', body: { confirmed: confirmation.checked, note: note.value.trim() }
+              });
+              item.remove();
+              await loadOverview();
+              setStatus('Accord confirmé et accès activé.');
+            } catch (error) {
+              setStatus(error.message || 'Impossible de confirmer la demande.', true);
+              button.disabled = false;
+            }
+          });
+          item.append(description, form);
+          container.append(item);
+        }
+      } catch (error) {
+        const message = error.message || 'Impossible de charger les demandes d’accès.';
+        if (hasDraft()) setStatus(message, true);
+        else container.textContent = window.generationLiaisonTranslate(message);
+      }
+    }
+
     async function loadSeniorLinkRemovals() {
       const container = document.getElementById('senior-link-removals');
       try {
@@ -1674,6 +1746,7 @@
         renderRedEvaluations(result.redEvaluations || []);
         renderAccounts(result.accounts, result.limits);
         await loadSiteMonitor();
+        await loadSeniorLinkRequests();
         await loadSeniorLinkRemovals();
         await loadAccountClosureRequests();
         await loadAssistantHandoffs();

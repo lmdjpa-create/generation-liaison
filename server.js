@@ -5055,6 +5055,17 @@ app.post('/api/senior-links/requests', requireAuth, async (req, res) => {
   }
 });
 
+async function createSeniorAssociation(client, aidantId, seniorId, linkedBy) {
+  await lockScheduleParticipants(client, null, seniorId);
+  await assertLegacyBookingsSafeForLink(client, aidantId, seniorId);
+  const link = await client.query(
+    `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+     VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING senior_profile_id`,
+    [aidantId, seniorId, linkedBy]
+  );
+  if (!link.rowCount) throw new AuthError(409, 'Une association existe déjà ou est suspendue.');
+}
+
 app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res) => {
   if (req.authUser.role !== 'senior') return res.status(403).json({ error: 'Action réservée au senior concerné.' });
   if (!isValidUuid(req.params.id) || !['accept', 'decline'].includes(req.body?.decision)) {
@@ -5077,17 +5088,7 @@ app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res
       return res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
     }
     if (req.body.decision === 'accept') {
-      await lockScheduleParticipants(client, null, req.authUser.seniorId);
-      await assertLegacyBookingsSafeForLink(client, rows[0].aidant_user_id, req.authUser.seniorId);
-      const link = await client.query(
-        `INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
-         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING RETURNING senior_profile_id`,
-        [rows[0].aidant_user_id, req.authUser.seniorId, req.authUser.id]
-      );
-      if (!link.rowCount) {
-        await client.query('ROLLBACK');
-        return res.status(409).json({ error: 'Une association existe déjà ou est suspendue.' });
-      }
+      await createSeniorAssociation(client, rows[0].aidant_user_id, req.authUser.seniorId, req.authUser.id);
     }
     await client.query(
       `UPDATE app_aidant_link_requests SET status = $2, resolved_at = CURRENT_TIMESTAMP WHERE id = $1`,
@@ -5101,6 +5102,72 @@ app.post('/api/senior-links/requests/:id/decision', requireAuth, async (req, res
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     sendApiError(res, error, 'Impossible de traiter la demande.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/admin/senior-link-requests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT request.id, request.created_at, senior.name AS senior_name, senior.email AS senior_email,
+              aidant.name AS aidant_name, aidant.email AS aidant_email
+       FROM app_aidant_link_requests request
+       JOIN app_users senior ON senior.id = request.senior_user_id
+       JOIN app_users aidant ON aidant.id = request.aidant_user_id
+       WHERE request.status = 'pending' AND senior.role = 'senior' AND senior.is_active = TRUE
+         AND senior.admin_password_change_required = FALSE
+         AND aidant.role = 'aidant' AND aidant.is_active = TRUE AND aidant.is_legal_guardian = FALSE
+       ORDER BY request.created_at`
+    );
+    res.set('Cache-Control', 'private, no-store').json({ requests: rows });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les demandes d’accès.');
+  }
+});
+
+app.post('/api/admin/senior-link-requests/:id/confirm', requireAuth, requireAdmin, async (req, res) => {
+  const note = typeof req.body?.note === 'string' ? req.body.note.trim() : '';
+  if (!isValidUuid(req.params.id) || req.body?.confirmed !== true || note.length < 20 || note.length > 500) {
+    return res.status(400).json({ error: 'Confirmez l’accord du senior et indiquez comment il a été vérifié (20 à 500 caractères).' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT request.id, request.aidant_user_id, request.senior_user_id, senior.senior_id
+       FROM app_aidant_link_requests request
+       JOIN app_users senior ON senior.id = request.senior_user_id
+       JOIN app_users aidant ON aidant.id = request.aidant_user_id
+       WHERE request.id = $1 AND request.status = 'pending'
+         AND senior.role = 'senior' AND senior.is_active = TRUE AND senior.admin_password_change_required = FALSE
+         AND aidant.role = 'aidant' AND aidant.is_active = TRUE AND aidant.is_legal_guardian = FALSE
+       FOR UPDATE OF request, senior, aidant`,
+      [req.params.id]
+    );
+    const pending = rows[0];
+    if (!pending) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Demande introuvable ou déjà traitée.' });
+    }
+    await createSeniorAssociation(client, pending.aidant_user_id, pending.senior_id, req.authUser.id);
+    await client.query(
+      `UPDATE app_aidant_link_requests SET status = 'accepted', resolved_at = CURRENT_TIMESTAMP,
+              confirmed_by_admin = $2, admin_confirmation_note = $3 WHERE id = $1`,
+      [pending.id, req.authUser.id, note]
+    );
+    await insertAppNotification(client, pending.senior_user_id, 'senior_link_decision',
+      'Accès accordé à un aidant', 'L’administration a confirmé votre accord pour une demande d’accès. Vous pouvez suspendre cet accès dans vos réglages.',
+      'senior_link', pending.id);
+    await insertAppNotification(client, pending.aidant_user_id, 'senior_link_decision',
+      'Réponse à votre demande', 'L’administration a confirmé l’accord de la personne. Consultez votre espace.',
+      'senior_link', pending.id);
+    await client.query('COMMIT');
+    res.json({ accepted: true });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible de confirmer la demande.');
   } finally {
     if (client) client.release();
   }

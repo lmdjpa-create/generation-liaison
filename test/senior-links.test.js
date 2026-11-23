@@ -2095,6 +2095,65 @@ test('consent, suspension, administrator email and confirmation protect senior d
   assert.equal((await request('/api/logs/all', { user: aidant, seniorId })).status, 403);
 });
 
+test('administrator confirms only a pending request after verifying the senior agreement', async () => {
+  const senior = await register('admin-consent-senior@example.test', 'senior');
+  const aidant = await register('admin-consent-aidant@example.test', 'aidant');
+  const admin = (await request('/api/auth/login', { body: { email: 'admin@example.test', password: 'a-test-password-123' } })).data;
+  const listPath = '/api/admin/senior-link-requests';
+  const body = { confirmed: true, note: 'Accord confirmé directement par téléphone.' };
+  assert.equal((await request(listPath, { user: aidant, admin: true })).status, 403);
+  assert.equal((await request(listPath, { user: admin })).status, 403);
+  assert.equal((await request(`/api/admin/senior-link-requests/${randomUUID()}/confirm`,
+    { user: admin, admin: true, body })).status, 404);
+  await request('/api/senior-links/requests', { user: aidant, body: { email: 'admin-consent-senior@example.test' } });
+  let pending = (await request('/api/senior-links', { user: senior })).data.requests[0];
+  const path = `/api/admin/senior-link-requests/${pending.id}/confirm`;
+  assert.ok((await request(listPath, { user: admin, admin: true })).data.requests.some(row => row.id === pending.id));
+  assert.equal((await request(path, { user: aidant, admin: true, body })).status, 403);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, confirmed: false } })).status, 400);
+  assert.equal((await request(path, { user: admin, admin: true, body: { ...body, note: 'court' } })).status, 400);
+  assert.equal((await request('/api/logs/all', { user: aidant, seniorId: senior.user.seniorId })).status, 403);
+  for (const [column, value, restore] of [
+    ['is_active', false, true], ['admin_password_change_required', true, false]
+  ]) {
+    await db.query(`UPDATE app_users SET ${column} = $2 WHERE id = $1`, [senior.user.id, value]);
+    assert.equal((await request(path, { user: admin, admin: true, body })).status, 404);
+    assert.ok(!(await request(listPath, { user: admin, admin: true })).data.requests.some(row => row.id === pending.id));
+    await db.query(`UPDATE app_users SET ${column} = $2 WHERE id = $1`, [senior.user.id, restore]);
+  }
+  await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [aidant.user.id]);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 404);
+  await db.query('UPDATE app_users SET is_active = TRUE WHERE id = $1', [aidant.user.id]);
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by, suspended_at)
+    VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`, [aidant.user.id, senior.user.seniorId, senior.user.id]);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 409);
+  assert.equal((await request('/api/logs/all', { user: aidant, seniorId: senior.user.seniorId })).status, 403);
+  await db.query('DELETE FROM app_aidant_senior_links WHERE aidant_user_id = $1 AND senior_profile_id = $2',
+    [aidant.user.id, senior.user.seniorId]);
+  assert.equal((await request(`/api/senior-links/requests/${pending.id}/decision`, {
+    user: senior, body: { decision: 'decline' }
+  })).status, 200);
+  assert.equal((await request(path, { user: admin, admin: true, body })).status, 404);
+  await request('/api/senior-links/requests', { user: aidant, body: { email: 'admin-consent-senior@example.test' } });
+  pending = (await request('/api/senior-links', { user: senior })).data.requests[0];
+  const confirm = `/api/admin/senior-link-requests/${pending.id}/confirm`;
+  assert.equal((await request(confirm, { user: admin, admin: true, body })).status, 200);
+  assert.equal((await request(confirm, { user: admin, admin: true, body })).status, 404);
+  const audit = (await db.query('SELECT status, confirmed_by_admin, admin_confirmation_note FROM app_aidant_link_requests WHERE id = $1', [pending.id])).rows[0];
+  assert.equal(audit.status, 'accepted');
+  assert.equal(audit.confirmed_by_admin, admin.user.id);
+  assert.equal(audit.admin_confirmation_note, body.note);
+  const notices = (await db.query(`SELECT user_id FROM app_notifications
+    WHERE entity_id = $1 AND notification_type = 'senior_link_decision'`, [pending.id])).rows;
+  assert.deepEqual(new Set(notices.map(row => row.user_id)), new Set([senior.user.id, aidant.user.id]));
+  assert.equal((await request('/api/logs/all', { user: aidant, seniorId: senior.user.seniorId })).status, 200);
+  await db.query(`INSERT INTO app_logs (senior_id, author_id, content, log_type)
+    VALUES ($1, 1, 'private-admin-consent-test', 'note')`, [senior.user.seniorId]);
+  const adminLogs = await request('/api/logs/all', { user: admin, seniorId: senior.user.seniorId });
+  assert.equal(adminLogs.status, 200);
+  assert.ok(!adminLogs.data.some(log => log.content === 'private-admin-consent-test'));
+});
+
 test('association refuses an existing conflict with an unidentified legacy booking and removal releases it', async () => {
   const senior = await register('link-conflict-senior@example.test', 'senior');
   const aidant = await register('link-conflict-aidant@example.test', 'aidant');
@@ -2118,6 +2177,12 @@ test('association refuses an existing conflict with an unidentified legacy booki
   const refused = await request(decision, { user: senior, body: { decision: 'accept' } });
   assert.equal(refused.status, 409);
   assert.match(refused.data.error, /ancienne réservation/);
+  const conflictAdmin = (await request('/api/auth/login', { body: { email: 'admin@example.test', password: 'a-test-password-123' } })).data;
+  const adminRefused = await request(`/api/admin/senior-link-requests/${requestId}/confirm`, {
+    user: conflictAdmin, admin: true, body: { confirmed: true, note: 'Accord confirmé directement par téléphone.' }
+  });
+  assert.equal(adminRefused.status, 409);
+  assert.match(adminRefused.data.error, /ancienne réservation/);
   assert.equal((await db.query('SELECT count(*)::int AS n FROM app_aidant_senior_links WHERE aidant_user_id = $1',
     [aidant.user.id])).rows[0].n, 0);
   await db.query("UPDATE app_directory_bookings SET status = 'declined' WHERE id = $1", [occupiedId]);

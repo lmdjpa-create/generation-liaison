@@ -271,6 +271,9 @@ function createAuthService(pool) {
           created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
           resolved_at TIMESTAMPTZ
         );
+        ALTER TABLE app_aidant_link_requests
+          ADD COLUMN IF NOT EXISTS confirmed_by_admin UUID REFERENCES app_users(id) ON DELETE SET NULL,
+          ADD COLUMN IF NOT EXISTS admin_confirmation_note TEXT;
         CREATE UNIQUE INDEX IF NOT EXISTS app_aidant_link_requests_pending_idx
           ON app_aidant_link_requests (aidant_user_id, senior_user_id)
           WHERE status = 'pending';
