@@ -191,12 +191,13 @@ test('only the director workspace offers the shareable sign-in link', async () =
   const residentSection = { style: {} };
   const elements = {
     'establishment-login-link': link, 'establishment-login-link-status': status,
-    'login-section': loginSection, 'resident-login-section': residentSection
+    'login-section': loginSection, 'resident-login-section': residentSection,
+    'self-registration-choice': {}, 'staff-login-help': {}
   };
   let copied;
   let registrationOpened = false;
   const context = {
-    URL, SERVER_URL: 'https://example.test', connectedUser: { role: 'establishment' },
+    URL, URLSearchParams, SERVER_URL: 'https://example.test', connectedUser: { role: 'establishment' },
     document: { getElementById: id => elements[id] },
     navigator: { clipboard: { writeText: async value => { copied = value; } } },
     window: { location: { hash: '#connexion-etablissement' } },

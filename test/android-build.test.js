@@ -30,6 +30,9 @@ test('Android web assets omit downloadable builds, including stale files from a 
     for (const file of ['presentation-senior.html', 'presentation-proches.html', 'presentation-intervenants.html', 'presentation-residences.html', 'presentation.css']) {
       assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), true);
     }
+    for (const file of ['senior-portrait.jpg', 'accueil-residence.jpg']) {
+      assert.equal(fs.existsSync(path.join(fixture, 'dist', 'homepage-images', file)), true);
+    }
     for (const file of ['app-generation-liaison.apk', 'app-generation-liaison.aab']) {
       assert.equal(fs.existsSync(path.join(fixture, 'dist', file)), true);
     }

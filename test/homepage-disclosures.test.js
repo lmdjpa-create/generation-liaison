@@ -9,6 +9,34 @@ const mobileSource = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html
 const privacySource = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
 const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8');
 
+test('homepage offers every audience a photo, sign-in link and detailed information', () => {
+  const header = source.slice(source.indexOf('<header class="audience-header">'), source.indexOf('</header>'));
+  assert.match(header, /<img src="\/logo-generation-liaison\.jpg"/);
+  assert.match(header, /<span>Génération<br>Liaison<\/span>/);
+  const cards = source.slice(source.indexOf('<section class="audience-list"'), source.indexOf('<p class="audience-safety">'));
+  const articles = [...cards.matchAll(/<article class="audience-card">([\s\S]*?)<\/article>/g)];
+  assert.equal(articles.length, 5);
+  const images = articles.map(([, card]) => card.match(/<img src="\/homepage-images\/([^"]+)"/)?.[1]);
+  assert.equal(new Set(images).size, 5);
+  for (const image of images) assert.ok(image && fs.existsSync(path.join(__dirname, '..', 'homepage-images', image)));
+  for (const [index, [title, role]] of [
+    ['Senior et personne accompagnée', 'senior'], ['Proches et aidants', 'aidant'],
+    ['Professionnels et intervenants', 'pro'], ['Entreprises et résidences', 'establishment'],
+    ['Soignants en établissement', 'staff']
+  ].entries()) {
+    const card = articles[index][1];
+    assert.ok(card.includes(`<h2>${title}</h2>`));
+    assert.match(card, /<img src="\/homepage-images\/[^"]+"[^>]*alt="[^"]+"/);
+    assert.ok(card.includes(`<a class="landing-login" href="/app-mobile.html?profil=${role}">Se connecter</a>`));
+    assert.match(card, /<details>\s*<summary>Informations<\/summary>[\s\S]*?<p>/);
+  }
+  assert.match(source, /\.audience-card:nth-child\(odd\) img \{ order: 2; \}/);
+  assert.match(source, /\.audience-card img \{[^}]*width: 100%;[^}]*height: auto;[^}]*aspect-ratio: 4 \/ 3;[^}]*object-fit: cover;/);
+  assert.match(source, /@media \(max-width: 700px\) \{\s*\.audience-card \{ grid-template-columns: 1fr; \}/);
+  assert.match(source, /\.audience-card img \{ width: min\(100%, 462px\); aspect-ratio: 16 \/ 9; justify-self: center; \}/);
+  assert.match(source, /<details class="landing-more">\s*<summary>Toutes les informations sur Génération Liaison<\/summary>/);
+});
+
 test('homepage headings and disclosure titles are centered without displacing their controls', () => {
   assert.match(source, /\.landing :is\(h1, h2, h3, h4, h5, h6, summary, \.journal-preview-title\) \{ text-align: center; \}/);
   assert.match(source, /\.info-card summary, \.landing-disclosure > summary \{[\s\S]*?justify-content: center;[\s\S]*?padding-left: 36px;[\s\S]*?padding-right: 36px;/);

@@ -858,8 +858,11 @@
             <p class="brand-tagline">Mieux coordonner aujourd’hui pour demain</p>
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Connexion Sécurisée</h2>
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Entrez vos identifiants Génération Liaison</p>
-            <p style="margin: 0 0 8px;">Pas encore de compte ?</p>
-            <button id="register-open" class="register-button" type="button" onclick="basculerFormulaire(true)">S’inscrire</button>
+            <div id="self-registration-choice">
+                <p style="margin: 0 0 8px;">Pas encore de compte ?</p>
+                <button id="register-open" class="register-button" type="button" onclick="basculerFormulaire(true)">S’inscrire</button>
+            </div>
+            <p id="staff-login-help" class="helper-text" hidden>Votre établissement crée votre compte soignant. Pour une connexion sans e-mail, demandez-lui le lien et vos identifiants.</p>
             <input type="email" id="auth-email" name="username" autocomplete="username" placeholder="Adresse e-mail" required>
             <input type="password" id="auth-password" name="password" autocomplete="current-password" placeholder="Mot de passe" required>
             <button class="btn-submit" type="submit">Se connecter</button>
@@ -915,6 +918,7 @@
                 </section>
             </div>
             <input type="password" id="reg-password" name="password" autocomplete="new-password" placeholder="Mot de passe (12 caractères min)">
+            <label for="reg-role">Type de compte</label>
             <select id="reg-role">
                 <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
                 <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>
@@ -9949,6 +9953,14 @@
     });
 
     function afficherConnexionInitiale() {
+        const profil = new URLSearchParams(window.location.search || '').get('profil');
+        const isStaff = profil === 'staff';
+        document.getElementById('self-registration-choice').hidden = isStaff;
+        document.getElementById('staff-login-help').hidden = !isStaff;
+        if (['senior', 'aidant', 'pro', 'establishment'].includes(profil)) {
+            document.getElementById('reg-role').value = profil;
+            afficherChampsInscriptionProfessionnel();
+        }
         if (window.location.hash === '#inscription') {
             basculerFormulaire(true);
         } else if (window.location.hash === '#connexion-etablissement') {

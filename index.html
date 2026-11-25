@@ -1191,6 +1191,98 @@
       outline-offset: 3px;
     }
 
+    .audience-header, .audience-list, .landing-more {
+      width: min(100%, 960px);
+    }
+    .audience-header { text-align: center; }
+    .audience-header .landing-brand {
+      display: inline-flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      max-width: 100%;
+      gap: 16px;
+      padding: 16px;
+      border: 2px solid #a9d2bc;
+      border-radius: 22px;
+      background: #f5fbf7;
+      font-size: clamp(2.45rem, 7.8vw, 3.6rem);
+    }
+    .audience-header .landing-brand img {
+      width: clamp(100px, 20vw, 140px);
+      height: auto;
+      border-radius: 16px;
+    }
+    .audience-header .landing-brand > span { line-height: 1.1; }
+    .audience-header h1 { margin: 0; }
+    .audience-list { display: grid; gap: 20px; }
+    .audience-card {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: center;
+      gap: clamp(20px, 4vw, 40px);
+      padding: clamp(18px, 3vw, 28px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: 0 14px 38px rgba(25, 57, 42, 0.08);
+    }
+    .audience-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      border-radius: 16px;
+    }
+    .audience-card:nth-child(odd) img { order: 2; }
+    .audience-card img[src="/homepage-images/senior-portrait.jpg"] { object-position: center 35%; }
+    .audience-card h2 { margin: 0 0 12px; }
+    .audience-card p { color: #344c43; line-height: 1.65; }
+    .audience-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      gap: 12px;
+    }
+    .audience-actions > .landing-login { padding-left: 8px; padding-right: 8px; }
+    .audience-actions details { min-width: 0; }
+    .audience-actions summary {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 8px;
+      border: 2px solid #156c4f;
+      border-radius: 12px;
+      color: #156c4f;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .audience-actions summary:focus-visible, .audience-card a:focus-visible {
+      outline: 3px solid #163b72;
+      outline-offset: 3px;
+    }
+    .audience-details { width: calc(200% + 12px); margin-left: calc(-100% - 12px); padding-top: 12px; }
+    .audience-details a { color: #156c4f; font-weight: 700; }
+    .landing-more > summary {
+      padding: 16px;
+      border: 1px solid #b8d5c7;
+      border-radius: 14px;
+      background: #edf7f1;
+      color: #155e48;
+      text-align: center;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .landing-more > summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+    .landing-more[open] > section { margin: 20px auto 0; }
+    .audience-safety { max-width: 760px; margin: 0; text-align: center; color: #344c43; line-height: 1.5; }
+    @media (max-width: 700px) {
+      .audience-card { grid-template-columns: 1fr; }
+      .audience-card img { width: min(100%, 462px); aspect-ratio: 16 / 9; justify-self: center; }
+      .audience-card:nth-child(odd) img { order: 0; }
+    }
+
     @media (max-width: 560px) {
       .landing {
         padding: 18px 14px;
@@ -1210,6 +1302,107 @@
 </head>
 <body>
   <main class="landing" id="accueil">
+    <header class="audience-header">
+      <div class="landing-brand"><img src="/logo-generation-liaison.jpg" width="600" height="600" alt="" /><span>Génération<br>Liaison</span></div>
+      <h1>Le lien au quotidien entre générations</h1>
+    </header>
+
+    <section class="audience-list" aria-label="Choisissez votre espace">
+      <article class="audience-card">
+        <img src="/homepage-images/senior-portrait.jpg" width="1100" height="1650" alt="Une femme âgée souriante, assise à table." />
+        <div>
+          <h2>Senior et personne accompagnée</h2>
+          <p>Gardez le lien avec vos proches, retrouvez vos rendez-vous et profitez de jeux dans une interface simple.</p>
+          <div class="audience-actions">
+            <a class="landing-login" href="/app-mobile.html?profil=senior">Se connecter</a>
+            <details>
+              <summary>Informations</summary>
+              <div class="audience-details">
+                <h3>Restez entouré en toute simplicité</h3>
+                <p>Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.</p>
+                <p>Accédez à vos messages, vos prochains rendez-vous et vos jeux gratuits depuis une interface claire. La vue simplifiée est activée par défaut ; vous pouvez afficher toutes les fonctions dans les réglages.</p>
+                <a href="/presentation-senior.html">Découvrir la présentation</a>
+              </div>
+            </details>
+          </div>
+        </div>
+      </article>
+      <article class="audience-card">
+        <img src="/homepage-images/famille.jpg" width="1200" height="800" loading="lazy" alt="Une personne âgée entourée de ses proches." />
+        <div>
+          <h2>Proches et aidants</h2>
+          <p>Partagez des nouvelles et organisez le quotidien avec votre proche, selon vos autorisations.</p>
+          <div class="audience-actions">
+            <a class="landing-login" href="/app-mobile.html?profil=aidant">Se connecter</a>
+            <details>
+              <summary>Informations</summary>
+              <div class="audience-details">
+                <h3>Gardez l’esprit léger, même à distance</h3>
+                <p>Consultez le carnet de liaison partagé, recevez des notifications utiles et organisez les visites autour de votre proche, selon vos accès.</p>
+                <a href="/presentation-proches.html">Découvrir la présentation</a>
+              </div>
+            </details>
+          </div>
+        </div>
+      </article>
+      <article class="audience-card">
+        <img src="/homepage-images/coiffure.jpg" width="900" height="700" loading="lazy" alt="Une coiffeuse accompagne une personne âgée." />
+        <div>
+          <h2>Professionnels et intervenants</h2>
+          <p>Organisez vos interventions, retrouvez vos rendez-vous et échangez avec les personnes autorisées.</p>
+          <div class="audience-actions">
+            <a class="landing-login" href="/app-mobile.html?profil=pro">Se connecter</a>
+            <details>
+              <summary>Informations</summary>
+              <div class="audience-details">
+                <h3>Valorisez vos interventions à domicile</h3>
+                <p>Coiffeurs, aides ménagères ou prestataires de services : confirmez vos passages, échangez avec les personnes autorisées et simplifiez la gestion de vos rendez-vous auprès des familles.</p>
+                <a href="/presentation-intervenants.html">Découvrir la présentation</a>
+              </div>
+            </details>
+          </div>
+        </div>
+      </article>
+      <article class="audience-card">
+        <img src="/homepage-images/accueil-residence.jpg" width="1100" height="733" loading="lazy" alt="Une personne au téléphone à l’accueil d’une résidence." />
+        <div>
+          <h2>Entreprises et résidences</h2>
+          <p>Gérez les accès des résidents et des soignants et retrouvez les intervenants de votre établissement.</p>
+          <div class="audience-actions">
+            <a class="landing-login" href="/app-mobile.html?profil=establishment">Se connecter</a>
+            <details>
+              <summary>Informations</summary>
+              <div class="audience-details">
+                <h3>Un espace dédié à la direction</h3>
+                <p>Retrouvez les résidents, soignants et intervenants dans des tableaux séparés, et gérez les comptes individuels des résidents et des soignants.</p>
+                <a href="/presentation-residences.html">Découvrir la présentation</a>
+              </div>
+            </details>
+          </div>
+        </div>
+      </article>
+      <article class="audience-card">
+        <img src="/homepage-images/soins.jpg" width="900" height="700" loading="lazy" alt="Une soignante auprès d’une personne accompagnée." />
+        <div>
+          <h2>Soignants en établissement</h2>
+          <p>Partagez des nouvelles du quotidien avec les résidents et leurs proches autorisés.</p>
+          <div class="audience-actions">
+            <a class="landing-login" href="/app-mobile.html?profil=staff">Se connecter</a>
+            <details>
+              <summary>Informations</summary>
+              <div class="audience-details">
+                <p>Votre établissement crée votre compte individuel. Pour une connexion sans e-mail, rapprochez-vous de votre établissement.</p>
+                <p>Le carnet concerne les nouvelles du quotidien, pas les données de santé. Le partage avec les soignants nécessite l’accord du résident ou de son représentant légal vérifié.</p>
+                <a href="/presentation-residences.html">Découvrir la présentation</a>
+              </div>
+            </details>
+          </div>
+        </div>
+      </article>
+    </section>
+    <p class="audience-safety">Génération Liaison ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.</p>
+    <details class="landing-more">
+      <summary>Toutes les informations sur Génération Liaison</summary>
     <section class="landing-card" aria-labelledby="landing-title">
       <div class="landing-intro">
         <div>
@@ -1218,7 +1411,7 @@
             <span>Génération Liaison</span>
           </div>
           <p class="landing-kicker">Le lien au quotidien entre générations</p>
-          <h1 id="landing-title">Un carnet de liaison pour les proches, les intervenants et les établissements</h1>
+          <h2 id="landing-title">Un carnet de liaison pour les proches, les intervenants et les établissements</h2>
           <details class="landing-disclosure">
             <summary>À qui s’adresse Génération Liaison ?</summary>
             <p class="landing-description">Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.</p>
@@ -1489,9 +1682,11 @@
         <a href="/cgv.html">Projet de tarifs et CGV</a> ·
         <a href="/privacy-policy.html">Politique de confidentialité</a>
       </p>
+      <p class="landing-note">Photos : <a href="https://www.pexels.com/photo/elderly-woman-sitting-20210675/">Pham Huynh Tuan Vy</a> et <a href="https://www.pexels.com/photo/woman-talking-on-phone-at-reception-desk-in-nursing-home-18459194/">Jsme MILA</a> sur Pexels.</p>
       </details>
       <button type="button" class="analytics-settings" id="analytics-settings">Gestion des cookies</button>
     </section>
+    </details>
   </main>
 
   <section class="analytics-consent" id="analytics-consent" aria-labelledby="analytics-consent-title" hidden>

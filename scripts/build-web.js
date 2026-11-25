@@ -53,7 +53,7 @@ for (const file of ['robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 
 }
 fs.copyFileSync(path.join(root, 'scripts', 'homepage-analytics.js'), path.join(output, 'homepage-analytics.js'));
 
-const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg', 'apercu-carnet.png', 'apercu-accueil-senior.png', 'apercu-espace-proche.png'];
+const homepageImages = ['famille.jpg', 'soins.jpg', 'coiffure.jpg', 'senior-portrait.jpg', 'accueil-residence.jpg', 'apercu-carnet.png', 'apercu-accueil-senior.png', 'apercu-espace-proche.png'];
 fs.mkdirSync(path.join(output, 'homepage-images'), { recursive: true });
 for (const image of homepageImages) {
   fs.copyFileSync(path.join(root, 'homepage-images', image), path.join(output, 'homepage-images', image));

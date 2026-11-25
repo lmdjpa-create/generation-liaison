@@ -59,6 +59,7 @@ function createApp(response) {
     configurerPreferencesNotification() {},
     configurerAnnuaire() {},
     configurerExplicationsSenior() {},
+    afficherChampsInscriptionProfessionnel() { calls.push({ registrationRole: element('reg-role').value }); },
     afficherProchainRendezVous() {},
     surveillerNotificationsVisibles() {},
     modifierSynchronisationGoogle() {}
@@ -85,6 +86,50 @@ test('startup registers existing note forms and restores the authenticated sessi
   assert.equal(app.calls[0].options.headers.Authorization, 'Bearer valid-token');
   assert.deepEqual(app.calls[1].user, user);
   assert.equal(app.storage.get('generation-liaison-mobile-session'), 'valid-token');
+});
+
+test('audience links preselect a registration role without overriding a connected session', async () => {
+  for (const role of ['senior', 'aidant', 'pro', 'establishment']) {
+    const visitor = createApp();
+    visitor.storage.delete('generation-liaison-mobile-session');
+    visitor.context.window.location.search = `?profil=${role}`;
+    await visitor.context.start();
+    assert.equal(visitor.element('reg-role').value, role);
+    assert.equal(visitor.calls[0].registrationRole, role);
+    assert.notEqual(visitor.element('login-section').style.display, 'none');
+    visitor.context.basculerFormulaire(true);
+    assert.equal(visitor.element('register-section').style.display, 'block');
+    assert.equal(visitor.element('reg-role').value, role);
+  }
+  const connected = createApp({ ok: true, json: async () => ({ user: { id: 'a', role: 'aidant' } }) });
+  connected.context.window.location.search = '?profil=senior';
+  await connected.context.start();
+  assert.equal(connected.calls[1].user.role, 'aidant');
+  assert.notEqual(connected.element('reg-role').value, 'senior');
+
+  const expired = createApp({ ok: false, json: async () => ({ error: 'Votre session a expiré. Reconnectez-vous.' }) });
+  expired.context.window.location.search = '?profil=senior';
+  await expired.context.start();
+  assert.equal(expired.storage.has('generation-liaison-mobile-session'), false);
+  assert.equal(expired.element('reg-role').value, 'senior');
+});
+
+test('staff are directed to their establishment, and unknown profiles do not select a role', async () => {
+  const staff = createApp();
+  staff.storage.delete('generation-liaison-mobile-session');
+  staff.context.window.location.search = '?profil=staff';
+  await staff.context.start();
+  assert.equal(staff.element('self-registration-choice').hidden, true);
+  assert.equal(staff.element('staff-login-help').hidden, false);
+  assert.equal(staff.element('reg-role').value, '');
+
+  const invalid = createApp();
+  invalid.storage.delete('generation-liaison-mobile-session');
+  invalid.context.window.location.search = '?profil=admin';
+  await invalid.context.start();
+  assert.equal(invalid.element('reg-role').value, '');
+  assert.equal(invalid.element('self-registration-choice').hidden, false);
+  assert.equal(invalid.calls.length, 0);
 });
 
 test('registration link opens the form only for visitors without a session', async () => {
