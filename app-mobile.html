@@ -545,6 +545,10 @@
         #screen-aidant #aidant-shortcuts .action-tile { min-height: 132px; justify-content: center; flex-direction: column; text-align: center; }
         .daily-recipe-box { margin-top: 14px; padding: 16px; border: 2px solid #d5a548; border-radius: 14px; background: #fff5df; color: #253842; text-align: left; }
         .daily-recipe-box h3 { margin-top: 0; }
+        #senior-daily-recipe .daily-recipe-box > h3:first-child,
+        #daily-discoveries-senior > h3 { text-align: center; }
+        #daily-discoveries-senior .daily-photo-credit { position: relative; font-size: .55rem; }
+        #daily-discoveries-senior .daily-photo-credit::after { content: ''; position: absolute; inset: -10px; }
         .daily-recipe-content { white-space: pre-line; }
         #aidant-respite, #aidant-respite > details > summary { text-align: center; }
         #aidant-respite > details > summary { list-style-position: inside; }
@@ -1312,7 +1316,7 @@
         </section>
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure" id="senior-shopping-details">
-            <summary>Ma liste de courses</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🛒</span>Ma liste de courses</summary>
             <p class="helper-text">Votre liste reste privée jusqu’à ce que vous décidiez de l’envoyer. Enregistrez-la pour la retrouver plus tard.</p>
             <label for="senior-shopping-content">Articles à acheter (un par ligne)</label>
             <textarea id="senior-shopping-content" maxlength="1800" rows="6" placeholder="Pain&#10;Lait&#10;Pommes"></textarea>
@@ -4653,7 +4657,7 @@
         containers.forEach(container => {
           container.hidden = false;
           container.innerHTML = `
-          ${photo ? `<h3>${t('Photo du jour')}</h3><img src="/riddle-images/${photo[0]}.jpg" alt="${t(photo[1])}" style="max-width:100%;max-height:300px;"><p>${t(photo[1])} · <a href="/riddle-images/credits.html">${t('Crédits des photos')}</a></p>` : ''}
+          ${photo ? `<h3>${t('Photo du jour')}</h3><img src="/riddle-images/${photo[0]}.jpg" alt="${t(photo[1])}" style="max-width:100%;max-height:300px;"><p>${t(photo[1])} · <a class="daily-photo-credit" href="/riddle-images/credits.html">${t('Crédits des photos')}</a></p>` : ''}
           <h3>${t('Musique du jour')}</h3><p>${t(track[0])}</p><a href="${track[1]}" target="_blank" rel="noopener noreferrer">${t('Écouter sur Wikimedia Commons')}</a><p class="helper-text">${t('Le lien ouvre un autre site. Aucune musique ne démarre automatiquement dans l’application.')}</p>
           ${texteInteret ? `<p class="helper-text" data-interest-feedback></p>` : ''}`;
           if (texteInteret) {
