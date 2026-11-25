@@ -224,6 +224,38 @@
             font-weight: 700;
         }
         label[for="reg-tablet-interest"] { margin-bottom: 12px; }
+        #messages-senior .message-urgent {
+            padding: 10px 14px;
+            border-left: 4px solid #c99729;
+            border-radius: 4px 10px 10px 4px;
+            background: #fff8e6;
+            color: #684f16;
+        }
+        #messages-senior .quick-reply-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        #messages-senior .quick-reply-row .quick-reply { margin: 0; }
+        label[for^="message-filter-"], label[for^="care-message-filter-"] { display: block; margin-top: 14px; }
+        #message-list-senior:not(:empty) {
+            margin: 14px 0;
+            padding: 14px;
+            border: 1px solid #dbe8df;
+            border-radius: 14px;
+            background: #f8fbf9;
+        }
+        #message-loading-senior { margin: 14px 0; color: #526b60; }
+        #message-loading-senior[hidden] { display: none; }
+        #message-loading-senior .message-placeholder {
+            height: 48px;
+            margin-top: 8px;
+            border-radius: 12px;
+            background: #e8efea;
+        }
+        #message-loading-senior .message-placeholder:last-child { width: 68%; }
+        #message-status-senior { font-size: 1rem; font-weight: 700; }
+        @media (prefers-reduced-motion: no-preference) {
+            #messages-senior button { transition: transform .15s ease, box-shadow .15s ease; }
+            #messages-senior button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(20, 73, 52, .16); }
+            #messages-senior button:not(:disabled):active { transform: translateY(0); }
+        }
         .consent-item, .progress-item { padding: 12px 0; border-bottom: 1px solid #e8ecef; text-align: left; }
         :is(#senior-journal-details, #aidant-journal-details, #pro-journal-details),
         :is(#senior-journal-list, #aidant-journal-list, #pro-journal-list) .progress-item { text-align: center; }
@@ -357,6 +389,7 @@
             text-align: left;
             overflow-wrap: anywhere;
         }
+        .message-bubble[hidden] { display: none; }
         .message-bubble p { margin: 6px 0; white-space: pre-wrap; }
         .message-author { display: flex; align-items: center; gap: 8px; }
         .message-avatar {
@@ -1056,6 +1089,7 @@
     </section>
     <!-- TABLEAU DE BORD LAZ -->
     <div id="main-app-senior" style="display: none; text-align: center;">
+        <div id="interests-onboarding-senior" hidden></div>
         <h1 aria-live="polite" style="font-size: 2.2rem; margin-top: 10px;">Bonjour <span id="welcome-senior-name">Personne accompagnée</span> ! <span class="account-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></span></h1>
         <div style="font-size: 1.2rem; color: #7f8c8d; margin-bottom: 25px; font-weight: bold;" id="date-senior">Chargement...</div>
         <div id="home-informations-senior" style="text-align:left;">
@@ -1215,11 +1249,13 @@
         </section>
         <section class="form-card" id="senior-daily-recipe">
           <details class="senior-disclosure">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🍲</span>Recette du jour</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🌼</span>Mes découvertes du jour</summary>
             <div class="daily-recipe-box">
+            <h3>Recette du jour</h3>
             <h3 id="senior-recipe-title">Chargement de la recette…</h3>
             <p class="daily-recipe-content" id="senior-recipe-content"></p>
-            <p class="helper-text">Sept idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+            <p class="helper-text">Des idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+            <div id="daily-discoveries-senior" hidden></div>
             </div>
           </details>
         </section>
@@ -1754,7 +1790,11 @@
         <button type="button" onclick="chargerResidentsSoignant()">Actualiser les résidents autorisés</button>
         <label for="care-staff-resident">Résident</label><select id="care-staff-resident"><option value="">Choisir un résident</option></select>
         <button type="button" onclick="chargerCarnetEtablissement('staff')">Afficher le carnet</button>
+        <label for="care-message-filter-staff">Afficher les messages</label>
+        <select id="care-message-filter-staff"><option value="all">Tous les messages</option><option value="received">Messages reçus</option><option value="sent">Messages envoyés</option></select>
+        <p class="helper-text">Les transmissions restent visibles quel que soit le filtre.</p>
         <p id="care-staff-status" role="status"></p><div id="care-staff-entries"></div>
+        <p id="care-message-filter-status-staff" role="status" hidden></p>
         <form id="care-staff-form" class="form-grid">
             <label for="care-staff-kind">Type</label><select id="care-staff-kind"><option value="transmission">Transmission visible par le résident</option><option value="message">Message aux proches et soignants</option></select>
             <label for="care-staff-content">Texte</label><textarea id="care-staff-content" maxlength="2000" required></textarea>
@@ -1771,6 +1811,7 @@
     </section>
 </div>
 <div id="screen-aidant" class="screen-container" style="background-color: var(--aidant-bg);">
+    <div id="interests-onboarding-aidant" hidden></div>
     <div class="aidant-greeting">
         <div class="account-avatar aidant-avatar" aria-hidden="true"><img alt="" hidden><span>🧑</span></div>
         <div>
@@ -1831,11 +1872,13 @@
         <p id="aidant-senior-status" aria-live="polite">Aucun profil n’est disponible. Demandez l’accès à une personne accompagnée ou contactez l’administration si vous êtes tuteur légal.</p>
         <button type="button" id="aidant-refresh-seniors">Actualiser les profils</button>
         <details class="senior-disclosure" id="aidant-daily-recipe-no-senior">
-          <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🍲</span>Recette du jour</summary>
+          <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🌼</span>Mes découvertes du jour</summary>
           <div class="daily-recipe-box">
+          <h3>Recette du jour</h3>
           <h3 id="aidant-no-senior-recipe-title">Chargement de la recette…</h3>
           <p class="daily-recipe-content" id="aidant-no-senior-recipe-content"></p>
-          <p class="helper-text">Sept idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+          <p class="helper-text">Des idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+          <div id="daily-discoveries-aidant-no-senior" hidden></div>
           </div>
         </details>
     </section>
@@ -1845,7 +1888,11 @@
         <summary>Carnet de l’établissement</summary>
         <p>Ce carnet de liaison est réservé aux nouvelles du quotidien : ne saisissez pas de données de santé ou de traitement. Les messages sont visibles par les proches associés et tous les soignants autorisés, mais pas par le résident. Les nouvelles sont aussi visibles par le résident. Vos notes familiales privées restent séparées.</p>
         <button type="button" onclick="chargerCarnetEtablissement('aidant')">Afficher l’accord et le carnet</button>
+        <label for="care-message-filter-aidant">Afficher les messages</label>
+        <select id="care-message-filter-aidant"><option value="all">Tous les messages</option><option value="received">Messages reçus</option><option value="sent">Messages envoyés</option></select>
+        <p class="helper-text">Les transmissions restent visibles quel que soit le filtre.</p>
         <div id="care-aidant-consent"></div><p id="care-aidant-status" role="status"></p><div id="care-aidant-entries"></div>
+        <p id="care-message-filter-status-aidant" role="status" hidden></p>
         <form id="care-aidant-form" class="form-grid">
           <label for="care-aidant-content">Message aux soignants et aux proches associés</label>
           <textarea id="care-aidant-content" maxlength="2000" required></textarea>
@@ -1974,11 +2021,13 @@
     </section>
     <section class="form-card" id="aidant-daily-recipe">
       <details class="senior-disclosure">
-        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🍲</span>Recette du jour</summary>
+        <summary><span class="tile-icon" aria-hidden="true" style="background:#fdf1dc;">🌼</span>Mes découvertes du jour</summary>
         <div class="daily-recipe-box">
+        <h3>Recette du jour</h3>
         <h3 id="aidant-recipe-title">Chargement de la recette…</h3>
         <p class="daily-recipe-content" id="aidant-recipe-content"></p>
-        <p class="helper-text">Sept idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+        <p class="helper-text">Des idées à retrouver à tour de rôle. Adaptez les ingrédients à vos allergies et à vos besoins.</p>
+        <div id="daily-discoveries-aidant" hidden></div>
         </div>
       </details>
     </section>
@@ -2151,20 +2200,24 @@
       <details class="senior-tab-disclosure" id="message-details-senior">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">💬</span>Messages avec mes contacts</summary>
         <div id="messages-senior">
-            <details class="senior-disclosure senior-explanation" data-help-for="#message-open-senior">
-                <summary>Explications</summary>
-                <div class="gl-help-bubble">
-                <p class="helper-text">La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.</p>
-                </div>
-            </details>
-            <p class="helper-text">Pour une urgence, appelez les secours.</p>
+            <p class="message-urgent">Pour une urgence, appelez les secours.</p>
             <label for="message-contact-senior">Correspondant</label>
             <select id="message-contact-senior" aria-label="Choisir un correspondant"></select>
-            <button id="message-open-senior" type="button" onclick="ouvrirConversation('senior')">Ouvrir les messages</button>
+            <button id="message-open-senior" type="button" onclick="ouvrirConversationSenior()">Ouvrir les messages</button>
+            <label for="message-filter-senior">Afficher les messages</label>
+            <select id="message-filter-senior"><option value="all">Tous les messages</option><option value="received">Messages reçus</option><option value="sent">Messages envoyés</option></select>
+            <div id="message-loading-senior" role="status" aria-live="polite" hidden>
+                <span>Chargement des messages…</span>
+                <div class="message-placeholder" aria-hidden="true"></div>
+                <div class="message-placeholder" aria-hidden="true"></div>
+            </div>
             <div id="message-list-senior" aria-live="polite"></div>
+            <p id="message-filter-status-senior" role="status" hidden></p>
             <p>Répondre rapidement au correspondant choisi :</p>
-            <button type="button" class="quick-reply" id="message-quick-received" onclick="envoyerReponseRapide('Bien reçu')">Bien reçu</button>
-            <button type="button" class="quick-reply" id="message-quick-well" onclick="envoyerReponseRapide('Tout va bien')">Tout va bien</button>
+            <div class="quick-reply-row">
+                <button type="button" class="quick-reply" id="message-quick-received" onclick="envoyerReponseRapide('Bien reçu')"><span aria-hidden="true">✅</span> Bien reçu</button>
+                <button type="button" class="quick-reply" id="message-quick-well" onclick="envoyerReponseRapide('Tout va bien')"><span aria-hidden="true">😊</span> Tout va bien</button>
+            </div>
             <form id="message-form-senior">
                 <label for="message-text-senior">Votre message</label>
                 <textarea id="message-text-senior" maxlength="2000" required></textarea>
@@ -2210,7 +2263,10 @@
             <label for="message-contact-aidant">Correspondant</label>
             <select id="message-contact-aidant" aria-label="Choisir un correspondant"></select>
             <button id="message-open-aidant" type="button" onclick="ouvrirConversation('aidant')">Ouvrir les messages</button>
+            <label for="message-filter-aidant">Afficher les messages</label>
+            <select id="message-filter-aidant"><option value="all">Tous les messages</option><option value="received">Messages reçus</option><option value="sent">Messages envoyés</option></select>
             <div id="message-list-aidant" aria-live="polite"></div>
+            <p id="message-filter-status-aidant" role="status" hidden></p>
             <form id="message-form-aidant">
                 <label for="message-text-aidant">Votre message</label>
                 <textarea id="message-text-aidant" maxlength="2000" required></textarea>
@@ -2232,7 +2288,10 @@
             <label for="message-contact-pro">Correspondant</label>
             <select id="message-contact-pro" aria-label="Choisir un correspondant"></select>
             <button id="message-open-pro" type="button" onclick="ouvrirConversation('pro')">Ouvrir les messages</button>
+            <label for="message-filter-pro">Afficher les messages</label>
+            <select id="message-filter-pro"><option value="all">Tous les messages</option><option value="received">Messages reçus</option><option value="sent">Messages envoyés</option></select>
             <div id="message-list-pro" aria-live="polite"></div>
+            <p id="message-filter-status-pro" role="status" hidden></p>
             <form id="message-form-pro">
                 <label for="message-text-pro">Votre message</label>
                 <textarea id="message-text-pro" maxlength="2000" required></textarea>
@@ -2248,6 +2307,12 @@
     <h1>Réglages</h1>
     <button id="settings-logout" type="button" onclick="deconnecterUtilisateur()">Se déconnecter</button>
     <div id="account-tablet-settings"></div>
+    <section class="form-card" id="settings-interests" hidden>
+      <details class="senior-tab-disclosure">
+        <summary>Mes centres d’intérêt</summary>
+        <div id="interests-settings-form"></div>
+      </details>
+    </section>
     <section class="form-card" id="settings-senior-display" style="display:none;">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👁️</span>Affichage senior</summary>
@@ -3901,6 +3966,7 @@
         document.getElementById('senior-home-links').hidden = true;
         document.getElementById('senior-home-links-status').textContent = '';
         document.getElementById('aidant-home-links').hidden = true;
+        reinitialiserCentresInteret();
         reinitialiserCarnetEtablissement();
         fermerActionsEtablissement();
         establishmentOverviewLoadId++;
@@ -3910,6 +3976,8 @@
         reinitialiserMeteo();
         annulerDicteeMessage();
         annulerPropositionMessage();
+        reinitialiserChargementConversationSenior();
+        reinitialiserFiltresMessages();
         reinitialiserAlbumJournal();
         document.getElementById('aidant-daily-summary').hidden = true;
         clearInterval(planningRefreshTimer);
@@ -4047,6 +4115,7 @@
             return;
         }
 
+        if (['senior', 'aidant'].includes(user.role)) void chargerCentresInteret(user);
         if (['senior', 'aidant'].includes(user.role)) actualiserRecetteDuJour();
         if (user.role === 'aidant') {
             document.getElementById('aidant-link-form').style.display = user.isLegalGuardian ? 'none' : 'grid';
@@ -4098,7 +4167,10 @@
         planningRefreshTimer = setInterval(() => {
             if (!connectedUser) return;
             actualiserMeteoSiNecessaire();
-            if (['senior', 'aidant'].includes(connectedUser.role)) actualiserRecetteDuJour();
+            if (['senior', 'aidant'].includes(connectedUser.role)) {
+                actualiserRecetteDuJour();
+                afficherDecouvertesDuJour();
+            }
             if (['senior', 'aidant', 'pro'].includes(connectedUser.role) &&
                 document.getElementById(`screen-${connectedUser.role}`).classList.contains('active')) {
                 chargerBoiteReception(connectedUser.role);
@@ -4229,8 +4301,33 @@
             ['Pommes de terre au fromage blanc', 'Pour 2 personnes : 2 pommes de terre, 100 g de fromage blanc, ciboulette.\nFaites cuire les pommes de terre dans l’eau 25 à 30 minutes, jusqu’à ce qu’elles soient tendres. Mélangez le fromage blanc avec la ciboulette et servez avec les pommes de terre.'],
             ['Poêlée de haricots blancs à la tomate', 'Pour 2 personnes : 250 g de haricots blancs en conserve égouttés, 2 tomates, 1 cuillère à café d’huile.\nRincez les haricots. Faites cuire les tomates coupées dans l’huile 10 minutes, ajoutez les haricots et réchauffez 5 minutes.']
         ];
+        const desserts = [
+            recettes[3],
+            ['Yaourt aux fruits', 'Pour 2 personnes : 2 yaourts nature, 1 pomme et 1 poire.\nLavez et coupez les fruits en petits morceaux, puis répartissez-les sur les yaourts.'],
+            ['Bananes à la cannelle', 'Pour 2 personnes : 2 bananes et une pincée de cannelle.\nCoupez les bananes en rondelles, réchauffez-les quelques minutes à feu doux et ajoutez la cannelle.'],
+            ['Pomme au four', 'Pour 2 personnes : 2 pommes et 2 cuillères à soupe d’eau.\nRetirez les cœurs, ajoutez l’eau et faites cuire au four à 180 °C environ 25 minutes, jusqu’à ce que les pommes soient tendres.']
+        ];
         const day = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86400000);
-        const recette = recettes[((day % recettes.length) + recettes.length) % recettes.length];
+        let selection = recettes;
+        const preferences = typeof centresInteretEffectifs === 'function'
+            ? centresInteretEffectifs() : null;
+        if (preferences) {
+            if (preferences.includes('sale') && !preferences.includes('sucre')) {
+                selection = recettes.filter((_, index) => index !== 3);
+            } else if (preferences.includes('sucre') && !preferences.includes('sale')) {
+                selection = desserts;
+            }
+            if (typeof themesDuTexte === 'function') {
+                const ingredients = themesDuTexte().ingredients;
+                const candidates = [...recettes, ...desserts.slice(1)];
+                const matched = candidates.filter(recipe => {
+                    const title = recipe[0].normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+                    return ingredients.some(ingredient => title.includes(ingredient));
+                });
+                if (matched.length) selection = matched;
+            }
+        }
+        const recette = selection[((day % selection.length) + selection.length) % selection.length];
         ['senior', 'aidant', 'aidant-no-senior'].forEach(role => {
             document.getElementById(`${role}-recipe-title`).textContent = recette[0];
             document.getElementById(`${role}-recipe-content`).textContent = recette[1];
@@ -4265,6 +4362,195 @@
         }
         const response = await fetch(`${SERVER_URL}${path}`, requestOptions);
         return readResponse(response);
+    }
+
+    let centresInteret = null;
+    let texteInteret = '';
+    let centresInteretRevision = 0;
+    const questionsCentresInteret = [
+        ['sale', 'Des recettes salées'],
+        ['sucre', 'Des recettes sucrées'],
+        ['nature', 'Des photos de paysages et de nature'],
+        ['animaux', 'Des photos d’animaux'],
+        ['musique', 'De la musique au piano']
+    ];
+
+    function reinitialiserCentresInteret() {
+        centresInteretRevision++;
+        centresInteret = null;
+        texteInteret = '';
+        ['senior', 'aidant'].forEach(role => {
+            const onboarding = document.getElementById(`interests-onboarding-${role}`);
+            onboarding.hidden = true;
+            onboarding.replaceChildren();
+        });
+        ['senior', 'aidant', 'aidant-no-senior'].forEach(role => {
+            const daily = document.getElementById(`daily-discoveries-${role}`);
+            daily.hidden = true;
+            daily.replaceChildren();
+        });
+        document.getElementById('settings-interests').hidden = true;
+        document.getElementById('interests-settings-form').replaceChildren();
+        dateRecetteAffichee = '';
+    }
+
+    function formulaireCentresInteret(container, initial, text, onboarding) {
+        const t = window.generationLiaisonTranslate;
+        container.innerHTML = `<section class="form-card">
+          <form onsubmit="event.preventDefault(); enregistrerCentresInteret(this);">
+            <h2>${t(onboarding ? 'Que souhaitez-vous découvrir ?' : 'Modifier mes centres d’intérêt')}</h2>
+            <p>${t('Choisissez librement. Ces choix restent privés et peuvent être modifiés dans les réglages.')}</p>
+            <fieldset><legend>${t('Qu’aimez-vous ?')}</legend>
+              ${questionsCentresInteret.map(([value, label]) => `<label class="notification-choice"><input type="checkbox" name="interest" value="${value}"> ${t(label)}</label>`).join('')}
+            </fieldset>
+            <label>${t('Vous pouvez aussi écrire des mots que vous aimez, par exemple : chat, pomme, piano.')}
+              <textarea name="interest-text" maxlength="200" rows="3"></textarea>
+            </label>
+            <p class="helper-text">${t('N’indiquez pas d’informations médicales ou sensibles. Les propositions restent limitées aux thèmes disponibles.')}</p>
+            <p class="helper-text">${t('Vous pouvez aussi continuer sans choisir.')}</p>
+            <button type="submit">${t('Enregistrer mes choix')}</button>
+            <p role="status" aria-live="polite"></p>
+          </form>
+        </section>`;
+        container.querySelectorAll('input[name="interest"]').forEach(input => {
+            input.checked = initial.includes(input.value);
+        });
+        container.querySelector('textarea[name="interest-text"]').value = text;
+    }
+
+    async function chargerCentresInteret(user) {
+        const revision = ++centresInteretRevision;
+        const onboarding = document.getElementById(`interests-onboarding-${user.role}`);
+        const settings = document.getElementById('settings-interests');
+        settings.hidden = false;
+        onboarding.hidden = false;
+        onboarding.innerHTML = `<p role="status">${window.generationLiaisonTranslate('Chargement de vos centres d’intérêt…')}</p>`;
+        try {
+            const response = await fetch(`${SERVER_URL}/api/account/daily-interests`, { headers: authHeaders(false) });
+            const result = await readResponse(response);
+            if (revision !== centresInteretRevision || connectedUser?.id !== user.id) return;
+            centresInteret = result.interests;
+            texteInteret = result.text;
+            if (centresInteret === null) {
+                formulaireCentresInteret(onboarding, [], texteInteret, true);
+            } else {
+                onboarding.hidden = true;
+                onboarding.replaceChildren();
+            }
+            formulaireCentresInteret(document.getElementById('interests-settings-form'), centresInteret || [], texteInteret, false);
+            dateRecetteAffichee = '';
+            actualiserRecetteDuJour();
+            afficherDecouvertesDuJour();
+        } catch (error) {
+            if (revision !== centresInteretRevision || connectedUser?.id !== user.id) return;
+            console.error('Chargement des centres d’intérêt impossible :', error);
+            onboarding.innerHTML = `<p role="status">${window.generationLiaisonTranslate('Impossible de charger vos centres d’intérêt.')}</p><button type="button" onclick="chargerCentresInteret(connectedUser)">${window.generationLiaisonTranslate('Réessayer')}</button>`;
+        }
+    }
+
+    async function enregistrerCentresInteret(form) {
+        const user = connectedUser;
+        const revision = centresInteretRevision;
+        const interests = Array.from(form.querySelectorAll('input[name="interest"]:checked'), input => input.value);
+        const text = form.querySelector('textarea[name="interest-text"]').value;
+        const button = form.querySelector('button[type="submit"]');
+        const status = form.querySelector('[role="status"]');
+        button.disabled = true;
+        status.textContent = window.generationLiaisonTranslate('Enregistrement…');
+        try {
+            const response = await fetch(`${SERVER_URL}/api/account/daily-interests`, {
+                method: 'PUT',
+                headers: { ...authHeaders(false), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ interests, text })
+            });
+            const result = await readResponse(response);
+            if (revision !== centresInteretRevision || connectedUser?.id !== user.id) return;
+            centresInteret = result.interests;
+            texteInteret = result.text;
+            const onboarding = document.getElementById(`interests-onboarding-${user.role}`);
+            onboarding.hidden = true;
+            onboarding.replaceChildren();
+            const settingsForm = document.getElementById('interests-settings-form');
+            formulaireCentresInteret(settingsForm, centresInteret, texteInteret, false);
+            settingsForm.querySelector('[role="status"]').textContent = window.generationLiaisonTranslate('Vos choix sont enregistrés.');
+            dateRecetteAffichee = '';
+            actualiserRecetteDuJour();
+            afficherDecouvertesDuJour();
+        } catch (error) {
+            if (revision !== centresInteretRevision || connectedUser?.id !== user.id) return;
+            console.error('Enregistrement des centres d’intérêt impossible :', error);
+            status.textContent = error.message || window.generationLiaisonTranslate('Impossible d’enregistrer vos choix. Réessayez.');
+            button.disabled = false;
+        }
+    }
+
+    function themesDuTexte() {
+        const text = texteInteret.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const has = pattern => pattern.test(text);
+        const photos = [];
+        for (const [pattern, name] of [
+            [/\bchats?\b/, 'chat'], [/\bchiens?\b/, 'chien'], [/\bchevaux\b|\bcheval\b/, 'cheval'],
+            [/\bmoutons?\b/, 'mouton'], [/\bprintemps\b|\bfleurs?\b/, 'printemps'],
+            [/\bete\b/, 'ete'], [/\bautomne\b/, 'automne'], [/\bhiver\b/, 'hiver']
+        ]) if (has(pattern)) photos.push(name);
+        const themes = [];
+        const ingredients = ['pomme', 'poire', 'banane', 'courgette', 'carotte', 'tomate', 'pate', 'riz']
+            .filter(value => has(new RegExp(`\\b${value}s?\\b`)));
+        if (has(/\b(sale(?:e)?s?|plats?|repas|legumes?|courgettes?|carottes?|tomates?|pates?|riz)\b/)) themes.push('sale');
+        if (has(/\b(sucre(?:e)?s?|desserts?|fruits?|pommes?|poires?|bananes?)\b/)) themes.push('sucre');
+        if (has(/\b(nature|paysages?|fleurs?|printemps|ete|automne|hiver)\b/)) themes.push('nature');
+        if (has(/\b(animaux|animal|chats?|chiens?|cheval|chevaux|moutons?)\b/)) themes.push('animaux');
+        if (has(/\b(piano|musique classique)\b/)) themes.push('musique');
+        return { themes, photos, ingredients };
+    }
+
+    function centresInteretEffectifs() {
+        if (!centresInteret) return null;
+        return [...new Set([...centresInteret, ...themesDuTexte().themes])];
+    }
+
+    function afficherDecouvertesDuJour() {
+        if (!connectedUser || !['senior', 'aidant'].includes(connectedUser.role) || !centresInteret) return;
+        const typed = themesDuTexte();
+        const preferences = centresInteretEffectifs();
+        const containers = (connectedUser.role === 'aidant' ? ['aidant', 'aidant-no-senior'] : ['senior'])
+            .map(role => document.getElementById(`daily-discoveries-${role}`));
+        const photos = [];
+        if (preferences.includes('nature')) photos.push(
+            ['printemps', 'Des fleurs au printemps'], ['ete', 'Un paysage d’été'],
+            ['automne', 'Un paysage d’automne'], ['hiver', 'Un paysage d’hiver']);
+        if (preferences.includes('animaux')) photos.push(
+            ['chat', 'Un chat'], ['chien', 'Un chien'], ['cheval', 'Un cheval'], ['mouton', 'Un mouton']);
+        const matchingPhotos = typed.photos.length ? photos.filter(photo => typed.photos.includes(photo[0])) : photos;
+        const music = preferences.includes('musique');
+        if (!photos.length && !music && !texteInteret) {
+            containers.forEach(container => {
+                container.hidden = true;
+                container.replaceChildren();
+            });
+            return;
+        }
+        const day = Math.floor(Date.parse(`${dateCheckinBienEtre()}T00:00:00Z`) / 86400000);
+        const photo = matchingPhotos.length ? matchingPhotos[((day % matchingPhotos.length) + matchingPhotos.length) % matchingPhotos.length] : null;
+        const tracks = [
+            ['Valse de Chopin', 'https://commons.wikimedia.org/wiki/File:Chopin_-_Waltz_in_A-flat_major,_Op._64_No._3.oga'],
+            ['Nicaragua, au piano', 'https://commons.wikimedia.org/wiki/File:Nicaragua_(himno).opus']
+        ];
+        const track = tracks[((day % tracks.length) + tracks.length) % tracks.length];
+        const t = window.generationLiaisonTranslate;
+        containers.forEach(container => {
+          container.hidden = false;
+          container.innerHTML = `
+          ${photo ? `<h3>${t('Photo du jour')}</h3><img src="/riddle-images/${photo[0]}.jpg" alt="${t(photo[1])}" style="max-width:100%;max-height:300px;"><p>${t(photo[1])} · <a href="/riddle-images/credits.html">${t('Crédits des photos')}</a></p>` : ''}
+          ${music ? `<h3>${t('Musique du jour')}</h3><p>${t(track[0])}</p><a href="${track[1]}" target="_blank" rel="noopener noreferrer">${t('Écouter sur Wikimedia Commons')}</a><p class="helper-text">${t('Le lien ouvre un autre site. Aucune musique ne démarre automatiquement dans l’application.')}</p>` : ''}
+          ${texteInteret ? `<p class="helper-text" data-interest-feedback></p>` : ''}`;
+          if (texteInteret) {
+              const labels = questionsCentresInteret.filter(([value]) => typed.themes.includes(value)).map(([, label]) => t(label));
+              container.querySelector('[data-interest-feedback]').textContent = labels.length
+                  ? `${t('Thèmes reconnus dans votre texte :')} ${labels.join(', ')}.`
+                  : t('Nous ne proposons pas encore de découverte pour votre texte.');
+          }
+        });
     }
 
     function afficherAvatarProfil() {
@@ -6487,6 +6773,7 @@
         if (!await chargerCorrespondants(role) || connectedUser?.id !== userId || connectedUser?.role !== role) return;
         const select = document.getElementById(`message-contact-${role}`);
         select.value = message.senderUserId;
+        document.getElementById(`message-filter-${role}`).value = 'all';
         if (!select.value) {
             showToast('Ce correspondant n’est plus associé à votre compte.', false);
             return;
@@ -6494,6 +6781,7 @@
         if (role === 'senior') {
             annulerDicteeMessage();
             annulerPropositionMessage();
+            reinitialiserChargementConversationSenior();
         }
         if (await ouvrirConversation(role, message.id)) {
             document.getElementById(`messages-${role}`).scrollIntoView({ behavior: 'smooth' });
@@ -6579,6 +6867,33 @@
         }
     }
 
+    function appliquerFiltreMessages(container, filter, status) {
+        const messages = Array.from(container.querySelectorAll('[data-message-direction]'));
+        let visible = 0;
+        messages.forEach(message => {
+            const show = filter.value === 'all' || filter.value === message.getAttribute('data-message-direction');
+            message.hidden = !show;
+            if (show) visible++;
+        });
+        status.hidden = !messages.length || visible > 0;
+        status.textContent = status.hidden ? '' : window.generationLiaisonTranslate('Aucun message dans cette catégorie.');
+    }
+
+    function reinitialiserFiltresMessages() {
+        for (const role of ['senior', 'aidant', 'pro']) {
+            document.getElementById(`message-filter-${role}`).value = 'all';
+            const status = document.getElementById(`message-filter-status-${role}`);
+            status.hidden = true;
+            status.textContent = '';
+        }
+        for (const role of ['staff', 'aidant']) {
+            document.getElementById(`care-message-filter-${role}`).value = 'all';
+            const status = document.getElementById(`care-message-filter-status-${role}`);
+            status.hidden = true;
+            status.textContent = '';
+        }
+    }
+
     async function ouvrirConversation(role, focusId = '') {
         const select = document.getElementById(`message-contact-${role}`);
         const contactId = select.value;
@@ -6592,7 +6907,7 @@
         try {
             const focus = focusId ? `?focus=${encodeURIComponent(focusId)}` : '';
             const result = await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}${focus}`);
-            if (connectedUser?.id !== userId || select.value !== contactId) return false;
+            if (connectedUser?.id !== userId || connectedUser?.role !== role || select.value !== contactId) return false;
             if (focusId && !result.messages.some(message => message.id === focusId && !message.mine)) {
                 status.textContent = 'Ce message n’est plus disponible.';
                 return false;
@@ -6606,6 +6921,7 @@
             result.messages.forEach(message => {
                 const item = document.createElement('article');
                 item.className = `message-bubble${message.mine ? ' mine' : ''}`;
+                item.setAttribute('data-message-direction', message.mine ? 'sent' : 'received');
                 if (!message.mine) item.style.setProperty('--message-background', `hsl(${contactHue}, 65%, 90%)`);
                 const author = document.createElement('div');
                 author.className = 'message-author';
@@ -6626,8 +6942,11 @@
                 item.append(makeTextElement('small', `${formatDateTime(message.createdAt)}${message.mine ? (message.readAt ? ' · Lu' : ' · Non lu') : ''}`, 'helper-text'));
                 container.append(item);
             });
+            const filter = document.getElementById(`message-filter-${role}`);
+            appliquerFiltreMessages(container, filter, document.getElementById(`message-filter-status-${role}`));
             if (contactAvatars.length) void chargerPhotoMessages(contactId, userId, role, select, contactAvatars);
-            const unread = result.messages.filter(message => !message.mine && !message.readAt).map(message => message.id);
+            const unread = filter.value === 'sent' ? [] :
+                result.messages.filter(message => !message.mine && !message.readAt).map(message => message.id);
             if (unread.length) {
                 await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}/read`, {
                     method: 'PATCH', body: { ids: unread }
@@ -6639,8 +6958,39 @@
             status.textContent = '';
             return true;
         } catch (error) {
-            status.textContent = error.message || 'Impossible de charger les messages.';
+            if (connectedUser?.id === userId && connectedUser?.role === role && select.value === contactId) {
+                status.textContent = error.message || 'Impossible de charger les messages.';
+            }
             return false;
+        }
+    }
+
+    let seniorConversationLoadingRevision = 0;
+
+    function reinitialiserChargementConversationSenior() {
+        seniorConversationLoadingRevision++;
+        document.getElementById('message-loading-senior').hidden = true;
+        document.getElementById('message-open-senior').disabled = false;
+    }
+
+    async function ouvrirConversationSenior() {
+        if (connectedUser?.role !== 'senior') return false;
+        const select = document.getElementById('message-contact-senior');
+        if (!select.value) return ouvrirConversation('senior');
+        const userId = connectedUser?.id;
+        const button = document.getElementById('message-open-senior');
+        const loading = document.getElementById('message-loading-senior');
+        if (button.disabled) return false;
+        const revision = ++seniorConversationLoadingRevision;
+        button.disabled = true;
+        loading.hidden = false;
+        try {
+            return await ouvrirConversation('senior');
+        } finally {
+            if (revision === seniorConversationLoadingRevision && connectedUser?.id === userId && connectedUser?.role === 'senior') {
+                loading.hidden = true;
+                button.disabled = false;
+            }
         }
     }
 
@@ -7492,6 +7842,7 @@
         const quickButtons = role === 'senior'
             ? [document.getElementById('message-quick-received'), document.getElementById('message-quick-well')] : [];
         quickButtons.forEach(item => { item.disabled = true; });
+        if (role === 'senior') status.textContent = window.generationLiaisonTranslate('Envoi du message…');
         try {
             if (selected.length) {
                 await seniorLinksRequest('/api/messages/multiple', {
@@ -7505,11 +7856,14 @@
             if (connectedUser?.id !== userId || connectedUser?.role !== role) return;
             if (text.value.trim() === message) text.value = '';
             selected.forEach(input => { input.checked = false; });
+            let refreshed = true;
             if (select.value === contactId && (!selected.length || selected.some(input => input.value === contactId))) {
-                await ouvrirConversation(role);
+                refreshed = await ouvrirConversation(role);
             }
             if (connectedUser?.id === userId && connectedUser?.role === role) {
-                status.textContent = selected.length ? 'Messages envoyés séparément.' : 'Message envoyé.';
+                status.textContent = role === 'senior' && !refreshed
+                    ? 'Message envoyé. Impossible de rafraîchir la conversation.'
+                    : selected.length ? 'Messages envoyés séparément.' : 'Message envoyé.';
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role) {
@@ -7535,6 +7889,7 @@
         const userId = connectedUser.id;
         const buttons = [submit, document.getElementById('message-quick-received'), document.getElementById('message-quick-well')];
         buttons.forEach(button => { button.disabled = true; });
+        status.textContent = window.generationLiaisonTranslate('Envoi du message…');
         try {
             await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
                 method: 'POST', body: { message }
@@ -9856,7 +10211,12 @@
         const current = () => connectedUser?.id === userId && connectedUser?.role === role && loadId === careLoadId &&
             (role !== 'aidant' || activeSeniorProfileId === profileId) &&
             (role !== 'staff' || document.getElementById('care-staff-resident').value === residentId);
-        if (!before) entries.replaceChildren();
+        if (!before) {
+            entries.replaceChildren();
+            if (role !== 'senior') {
+                document.getElementById(`care-message-filter-status-${role}`).hidden = true;
+            }
+        }
         if (consentBox && !before) consentBox.replaceChildren();
         if (role === 'staff' && !residentId) { status.textContent = 'Choisissez un résident.'; return; }
         status.textContent = 'Chargement…';
@@ -9901,7 +10261,12 @@
             for (const entry of response.entries) {
                 const item = document.createElement('p');
                 item.textContent = `${entry.kind === 'message' ? 'Message' : 'Transmission'} · ${entry.author_name} · ${new Date(entry.created_at).toLocaleString('fr-FR')} : ${entry.content}`;
+                if (entry.kind === 'message') item.setAttribute('data-message-direction', entry.mine ? 'sent' : 'received');
                 entries.append(item);
+            }
+            if (role !== 'senior') {
+                appliquerFiltreMessages(entries, document.getElementById(`care-message-filter-${role}`),
+                    document.getElementById(`care-message-filter-status-${role}`));
             }
             if (response.nextCursor) {
                 const more = document.createElement('button');
@@ -9916,6 +10281,11 @@
     }
 
     for (const role of ['staff', 'aidant']) {
+        document.getElementById(`care-message-filter-${role}`).addEventListener('change', () => {
+            appliquerFiltreMessages(document.getElementById(`care-${role}-entries`),
+                document.getElementById(`care-message-filter-${role}`),
+                document.getElementById(`care-message-filter-status-${role}`));
+        });
         document.getElementById(`care-${role}-form`).addEventListener('submit', async event => {
             event.preventDefault();
             if (connectedUser?.role !== role) return;
@@ -10305,6 +10675,7 @@
         document.getElementById('senior-home-links-status').textContent = '';
         document.getElementById('aidant-home-links').hidden = true;
         connectedUser = null;
+        reinitialiserCentresInteret();
         reinitialiserCarnetEtablissement();
         fermerActionsEtablissement();
         establishmentOverviewLoadId++;
@@ -10329,6 +10700,8 @@
         reinitialiserMeteo();
         annulerDicteeMessage();
         annulerPropositionMessage();
+        reinitialiserChargementConversationSenior();
+        reinitialiserFiltresMessages();
         reinitialiserAlbumJournal();
         reinitialiserPhotosContacts();
         reinitialiserPhotoMessages();
@@ -11205,8 +11578,10 @@
                     if (role === 'senior') {
                         annulerDicteeMessage();
                         annulerPropositionMessage();
+                        reinitialiserChargementConversationSenior();
                     }
                     select.value = notification.senderUserId;
+                    document.getElementById(`message-filter-${role}`).value = 'all';
                     if (!select.value) {
                         showToast('Ce correspondant n’est plus associé à votre compte.', false);
                         return;
@@ -11251,8 +11626,18 @@
                 if (role === 'senior') {
                     annulerDicteeMessage();
                     annulerPropositionMessage();
+                    reinitialiserChargementConversationSenior();
                 }
                 document.getElementById(`message-list-${role}`).replaceChildren();
+                document.getElementById(`message-filter-status-${role}`).hidden = true;
+            });
+            document.getElementById(`message-filter-${role}`).addEventListener('change', () => {
+                const filter = document.getElementById(`message-filter-${role}`);
+                appliquerFiltreMessages(document.getElementById(`message-list-${role}`), filter,
+                    document.getElementById(`message-filter-status-${role}`));
+                const contact = document.getElementById(`message-contact-${role}`).value;
+                if (filter.value !== 'sent' && contact && openMessageConversations[role] === contact &&
+                    connectedUser?.role === role) void ouvrirConversation(role);
             });
             document.getElementById(`message-form-${role}`).addEventListener('submit', event => {
                 event.preventDefault();

@@ -3613,12 +3613,12 @@ async function careEntries(req, res) {
         }
       }
       result = await client.query(
-        `SELECT id, author_name, kind, content, created_at FROM establishment_care_entries
+        `SELECT id, author_name, kind, content, created_at, COALESCE(author_user_id = $5::uuid, FALSE) AS mine FROM establishment_care_entries
          WHERE resident_user_id = $1 AND establishment_user_id = $2 AND ($3::boolean = FALSE OR kind = 'transmission')
            AND ($4::uuid IS NULL OR (created_at, id) <
              (SELECT created_at, id FROM establishment_care_entries WHERE id = $4))
          ORDER BY created_at DESC, id DESC LIMIT 101`,
-        [target.id, target.owner_id, req.authUser.role === 'senior', before || null]
+        [target.id, target.owner_id, req.authUser.role === 'senior', before || null, req.authUser.id]
       );
     }
     await client.query(
@@ -3723,6 +3723,44 @@ app.put('/api/account/profile', requireAuth, async (req, res) => {
     res.json({ civility, shareAccountPhoto: rows[0].share_account_photo });
   } catch (error) {
     sendApiError(res, error, 'Impossible de modifier votre profil.');
+  }
+});
+
+const dailyInterestChoices = new Set(['sale', 'sucre', 'nature', 'animaux', 'musique']);
+
+app.get('/api/account/daily-interests', requireAuth, async (req, res) => {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Cette fonction est réservée aux seniors et aux aidants.' });
+  }
+  try {
+    const { rows } = await pool.query('SELECT daily_interests, daily_interest_text FROM app_users WHERE id = $1', [req.authUser.id]);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ interests: rows[0].daily_interests, text: rows[0].daily_interest_text || '' });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger vos centres d’intérêt.');
+  }
+});
+
+app.put('/api/account/daily-interests', requireAuth, async (req, res) => {
+  if (!['senior', 'aidant'].includes(req.authUser.role)) {
+    return res.status(403).json({ error: 'Cette fonction est réservée aux seniors et aux aidants.' });
+  }
+  const interests = req.body?.interests;
+  const text = req.body?.text;
+  if (!Array.isArray(interests) || interests.length > dailyInterestChoices.size ||
+      interests.some(value => typeof value !== 'string' || !dailyInterestChoices.has(value)) ||
+      new Set(interests).size !== interests.length ||
+      typeof text !== 'string' || text.length > 200 || /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(text)) {
+    return res.status(400).json({ error: 'Choisissez des centres d’intérêt valides.' });
+  }
+  try {
+    const trimmed = text.trim();
+    await pool.query('UPDATE app_users SET daily_interests = $1::jsonb, daily_interest_text = $2 WHERE id = $3',
+      [JSON.stringify(interests), trimmed || null, req.authUser.id]);
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ interests, text: trimmed });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer vos centres d’intérêt.');
   }
 });
 

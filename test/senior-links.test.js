@@ -99,6 +99,30 @@ async function register(email, role, isLegalGuardian = false) {
   return result.data;
 }
 
+test('daily interests are private, validated, optional and cleared on account closure', async () => {
+  const senior = await register('interests-senior@example.test', 'senior');
+  const aidant = await register('interests-aidant@example.test', 'aidant');
+  const endpoint = '/api/account/daily-interests';
+  assert.equal((await request(endpoint)).status, 401);
+  assert.deepEqual((await request(endpoint, { user: senior })).data, { interests: null, text: '' });
+  assert.equal((await request(endpoint, { user: senior, method: 'PUT', body: { interests: ['nature', 'unknown'], text: '' } })).status, 400);
+  assert.equal((await request(endpoint, { user: senior, method: 'PUT', body: { interests: ['nature', 'nature'], text: '' } })).status, 400);
+  assert.equal((await request(endpoint, { user: senior, method: 'PUT', body: { interests: [], text: 'a'.repeat(201) } })).status, 400);
+  assert.equal((await request(endpoint, { user: senior, method: 'PUT', body: { interests: ['nature', 'musique'], text: ' chat et pomme ' } })).status, 200);
+  assert.deepEqual((await request(endpoint, { user: senior })).data, { interests: ['nature', 'musique'], text: 'chat et pomme' });
+  assert.deepEqual((await request(endpoint, { user: aidant })).data.interests, null);
+  assert.equal((await request(endpoint, { user: aidant, method: 'PUT', body: { interests: [], text: '' } })).status, 200);
+  assert.deepEqual((await request(endpoint, { user: aidant })).data.interests, []);
+  await db.query("UPDATE app_users SET role = 'pro', verification_status = 'approved' WHERE id = $1", [aidant.user.id]);
+  assert.equal((await request(endpoint, { user: aidant })).status, 403);
+  assert.equal((await request('/api/account/closure-request', {
+    user: senior, body: { password: 'a-test-password-123' }
+  })).status, 200);
+  const closed = (await db.query('SELECT daily_interests, daily_interest_text FROM app_users WHERE id = $1', [senior.user.id])).rows[0];
+  assert.equal(closed.daily_interests, null);
+  assert.equal(closed.daily_interest_text, null);
+});
+
 test('announcements are authorized, role-targeted and confined to the director’s establishment', async () => {
   const admin = await register('broadcast-admin@example.test', 'aidant');
   const senior = await register('broadcast-senior@example.test', 'senior');
@@ -547,6 +571,11 @@ test('establishment care requires consent and isolates staff, family messages an
   assert.deepEqual(residentEntries.data.entries.map(entry => entry.content), ['Transmission']);
   const familyEntries = await request('/api/care/entries', { user: aidant, seniorId: resident.user.seniorId });
   assert.equal(familyEntries.data.entries.length, 3);
+  assert.equal(familyEntries.data.entries.find(entry => entry.content === 'Message privé').mine, true);
+  assert.equal(familyEntries.data.entries.find(entry => entry.content === 'Réponse').mine, false);
+  const staffEntries = await request(`/api/care/entries?residentId=${residentId}`, { user: staff });
+  assert.equal(staffEntries.data.entries.find(entry => entry.content === 'Message privé').mine, false);
+  assert.equal(staffEntries.data.entries.find(entry => entry.content === 'Réponse').mine, true);
   assert.equal((await request('/api/logs/all', { user: staff })).status, 403);
   assert.equal((await request('/api/care/entries', { user: adminLogin })).status, 403);
   assert.equal((await request(`/api/admin/establishments/${owner.user.id}/subscription`, {

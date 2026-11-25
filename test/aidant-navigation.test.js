@@ -913,10 +913,11 @@ function createView(response) {
       'chargerAssistantConversation', 'chargerProchainRendezVous', 'afficherProchainRendezVous', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
       'chargerParametresGooglePlanning', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage', 'chargerContactsUtiles', 'chargerTachesPartagees',
       'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
-      'reinitialiserMeteo', 'chargerMeteo', 'actualiserRecetteDuJour',
+      'reinitialiserMeteo', 'chargerMeteo', 'actualiserRecetteDuJour', 'reinitialiserCentresInteret',
+      'chargerCentresInteret', 'afficherDecouvertesDuJour',
       'chargerEtablissement',
       'chargerResidentsSoignant', 'reinitialiserCarnetEtablissement', 'fermerActionsEtablissement', 'reinitialiserChiffresEtablissement',
-      'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'initialiserVueSenior', 'initialiserPresentation', 'planifierLectureSenior'
+      'annulerDicteeMessage', 'annulerPropositionMessage', 'reinitialiserChargementConversationSenior', 'reinitialiserFiltresMessages', 'initialiserLectureSenior', 'initialiserVueSenior', 'initialiserPresentation', 'planifierLectureSenior'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',
     definirVueCalendrier: view => { context.calendarView = view; calls.push('definirVueCalendrier'); },

@@ -219,6 +219,9 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS weather_commune_longitude DOUBLE PRECISION,
           ADD COLUMN IF NOT EXISTS weather_commune_updated_at TIMESTAMPTZ;
         ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS daily_interests JSONB,
+          ADD COLUMN IF NOT EXISTS daily_interest_text VARCHAR(200);
+        ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS notification_phone VARCHAR(16),
           ADD COLUMN IF NOT EXISTS email_notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE,
           ADD COLUMN IF NOT EXISTS sms_notifications_enabled BOOLEAN NOT NULL DEFAULT FALSE,
@@ -1506,6 +1509,8 @@ function createAuthService(pool) {
              delivery_city = NULL,
              delivery_country = NULL,
              tablet_purchase_interest = 'none',
+             daily_interests = NULL,
+             daily_interest_text = NULL,
              weather_commune_name = NULL,
              weather_commune_latitude = NULL,
              weather_commune_longitude = NULL,

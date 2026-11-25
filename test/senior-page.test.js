@@ -178,7 +178,7 @@ test('multiple message delivery confirms selected recipients and keeps the draft
       querySelectorAll: () => chosen.filter(item => item.checked),
       querySelector: () => ({ disabled: false })
     },
-    window: { confirm: () => confirmed },
+    window: { confirm: () => confirmed, generationLiaisonTranslate: text => text },
     annulerDicteeMessage() {}, annulerPropositionMessage() {},
     ouvrirConversation: async () => {},
     seniorLinksRequest: async (url, options) => {
@@ -222,6 +222,7 @@ test('quick replies send only to the selected contact, keep the draft, and repor
   let canRefresh = true;
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: id => nodes[id], querySelector: () => submit },
     seniorLinksRequest: (url, options) => {
       calls.push({ url, options });
@@ -234,6 +235,7 @@ test('quick replies send only to the selected contact, keep the draft, and repor
   assert.match(nodes['message-status-senior'].textContent, /Choisissez/);
   nodes['message-contact-senior'].value = 'alice';
   const pending = context.envoyerReponseRapide('Bien reçu');
+  assert.equal(nodes['message-status-senior'].textContent, 'Envoi du message…');
   await context.envoyerReponseRapide('Tout va bien');
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/messages/alice');
@@ -256,6 +258,62 @@ test('quick replies send only to the selected contact, keep the draft, and repor
   assert.match(nodes['message-status-senior'].textContent, /Message envoyé.*Impossible de rafraîchir/);
   await context.envoyerReponseRapide('Autre texte');
   assert.equal(calls.length, 3);
+});
+
+test('senior conversation loading is cleared safely when a newer request replaces it', async () => {
+  const nodes = {
+    'message-contact-senior': { value: 'alice' },
+    'message-open-senior': { disabled: false },
+    'message-loading-senior': { hidden: true }
+  };
+  const pending = [];
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    document: { getElementById: id => nodes[id] },
+    ouvrirConversation: () => new Promise(resolve => pending.push(resolve))
+  };
+  vm.runInNewContext(extract('    let seniorConversationLoadingRevision = 0;', '    function reinitialiserPhotoMessages()'), context);
+  const first = context.ouvrirConversationSenior();
+  assert.equal(nodes['message-loading-senior'].hidden, false);
+  assert.equal(nodes['message-open-senior'].disabled, true);
+  context.reinitialiserChargementConversationSenior();
+  nodes['message-contact-senior'].value = 'bob';
+  const second = context.ouvrirConversationSenior();
+  pending[0](false);
+  await first;
+  assert.equal(nodes['message-loading-senior'].hidden, false);
+  assert.equal(nodes['message-open-senior'].disabled, true);
+  pending[1](true);
+  assert.equal(await second, true);
+  assert.equal(nodes['message-loading-senior'].hidden, true);
+  assert.equal(nodes['message-open-senior'].disabled, false);
+});
+
+test('senior send reports a successful delivery even if conversation refresh fails', async () => {
+  const nodes = {
+    'message-contact-senior': { value: 'alice' },
+    'message-text-senior': { value: 'Bonjour' },
+    'message-status-senior': { textContent: '' },
+    'message-quick-received': { disabled: false },
+    'message-quick-well': { disabled: false }
+  };
+  const button = { disabled: false };
+  const context = {
+    connectedUser: { id: 'senior', role: 'senior' },
+    document: {
+      body: { classList: { contains: () => true } },
+      getElementById: id => nodes[id],
+      querySelector: () => button
+    },
+    window: { generationLiaisonTranslate: text => text },
+    annulerDicteeMessage() {}, annulerPropositionMessage() {},
+    seniorLinksRequest: async () => ({}), ouvrirConversation: async () => false
+  };
+  vm.runInNewContext(extract('    async function envoyerMessage(role)', '    async function repondreInvitation('), context);
+  await context.envoyerMessage('senior');
+  assert.equal(nodes['message-text-senior'].value, '');
+  assert.match(nodes['message-status-senior'].textContent, /Message envoyé.*Impossible de rafraîchir/);
+  assert.equal(button.disabled, false);
 });
 
 test('removed presentation choice cannot be restored from an old preference', () => {
@@ -1584,10 +1642,38 @@ test('read receipts refresh only for the open and visible conversation', () => {
   assert.deepEqual(calls, ['senior']);
 });
 
+test('message direction filter keeps transmissions visible and reports an empty selection', () => {
+  const entries = ['sent', 'received'].map(direction => ({
+    hidden: false, getAttribute: () => direction
+  }));
+  const transmission = { hidden: false };
+  const container = { querySelectorAll: () => entries };
+  const filter = { value: 'sent' };
+  const status = {};
+  const context = { window: { generationLiaisonTranslate: text => text } };
+  vm.runInNewContext(extract('    function appliquerFiltreMessages(', '    function reinitialiserFiltresMessages()'), context);
+  context.appliquerFiltreMessages(container, filter, status);
+  assert.deepEqual(entries.map(entry => entry.hidden), [false, true]);
+  assert.equal(transmission.hidden, false);
+  assert.equal(status.hidden, true);
+  filter.value = 'received';
+  context.appliquerFiltreMessages(container, filter, status);
+  assert.deepEqual(entries.map(entry => entry.hidden), [true, false]);
+  filter.value = 'all';
+  context.appliquerFiltreMessages(container, filter, status);
+  assert.deepEqual(entries.map(entry => entry.hidden), [false, false]);
+  container.querySelectorAll = () => [entries[0]];
+  filter.value = 'received';
+  context.appliquerFiltreMessages(container, filter, status);
+  assert.equal(status.hidden, false);
+  assert.match(status.textContent, /Aucun message/);
+});
+
 test('opening a conversation marks received messages read and displays the sender receipt after refresh', async () => {
   const container = { children: [], replaceChildren() { this.children = []; }, append(item) { this.children.push(item); } };
   const select = { value: 'contact', options: [{ value: '' }, { value: 'contact' }], selectedOptions: [{ text: 'Contact' }] };
   const status = {};
+  const filter = { value: 'all' };
   const calls = [];
   let senderRead = false;
   const context = {
@@ -1596,13 +1682,14 @@ test('opening a conversation marks received messages read and displays the sende
     accountPhotoObjectUrl: null, messagePhotoObjectUrl: null, messagePhotoLoadId: 0,
     SERVER_URL: '', authHeaders: () => ({}), fetch: async () => ({ status: 404 }),
     document: {
-      getElementById: id => id === 'message-contact-senior' ? select : id === 'message-list-senior' ? container : status,
+      getElementById: id => id === 'message-contact-senior' ? select : id === 'message-list-senior' ? container : id === 'message-filter-senior' ? filter : status,
       createElement: () => ({
         children: [], style: { setProperty() {} }, setAttribute() {},
         append(...items) { this.children.push(...items); }, replaceChildren(...items) { this.children = items; }
       })
     },
     makeTextElement: (tag, text) => ({ tag, text }),
+    appliquerFiltreMessages() {},
     formatDateTime: () => 'date',
     chargerNotifications() {},
     seniorLinksRequest: async (url, options) => {
@@ -1624,6 +1711,11 @@ test('opening a conversation marks received messages read and displays the sende
   senderRead = true;
   assert.equal(await context.open('senior'), true);
   assert.match(container.children[0].children[2].text, /· Lu/);
+  filter.value = 'sent';
+  const before = calls.length;
+  assert.equal(await context.open('senior'), true);
+  assert.equal(calls.length, before + 1);
+  assert.equal(calls.at(-1).options, undefined);
 });
 
 test('professional workspace heading and subtitle contrast with the dark header', () => {
@@ -1680,6 +1772,7 @@ test('message bubbles distinguish participants and keep contact colours when opt
         })
       },
       makeTextElement: (tag, text) => ({ tag, text }),
+      appliquerFiltreMessages() {},
       formatDateTime: () => 'date',
       seniorLinksRequest: async () => ({ messages: [
         { id: 'sent', mine: true, body: 'Bonjour', readAt: 'today' },
@@ -2086,6 +2179,7 @@ test('opening a senior message notification opens the separate page and conversa
     formatDateTime: () => '',
     annulerDicteeMessage() {},
     annulerPropositionMessage() {},
+    reinitialiserChargementConversationSenior() {},
     chargerCorrespondants: async () => true,
     ouvrirConversation: async (role, focus) => { calls.push([role, focus]); return true; },
     showToast: message => { throw new Error(message); }
