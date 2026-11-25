@@ -14,6 +14,13 @@ function setup() {
   function node(id) {
     if (!nodes.has(id)) nodes.set(id, {
       hidden: false, innerHTML: '', textContent: '',
+      style: {},
+      classList: {
+        values: new Set(),
+        toggle(name, enabled) { if (enabled) this.values.add(name); else this.values.delete(name); },
+        contains(name) { return this.values.has(name); }
+      },
+      setAttribute(name, value) { this[name] = value; },
       replaceChildren() { this.innerHTML = ''; },
       querySelectorAll() { return []; },
       querySelector(selector) {
@@ -92,17 +99,26 @@ test('daily discoveries are grouped with the recipe for both roles', () => {
   }
 });
 
-test('empty answer stays answered, and a failed save keeps the form visible', async () => {
+test('empty answer stays answered, music remains available, and a failed save keeps the form visible', async () => {
   const { context, node } = setup();
   context.fetch = async () => ({ ok: true, data: { interests: [], text: '' } });
   await context.chargerCentresInteret(context.connectedUser);
   assert.equal(node('interests-onboarding-senior').hidden, true);
-  assert.equal(node('daily-discoveries-senior').hidden, true);
+  assert.equal(node('daily-discoveries-senior').hidden, false);
+  assert.match(node('daily-discoveries-senior').innerHTML, /Musique du jour/);
+  assert.doesNotMatch(node('daily-discoveries-senior').innerHTML, /autoplay/);
   context.fetch = async () => ({ ok: false });
   const input = form([]);
   await context.enregistrerCentresInteret(input);
   assert.equal(input.button.disabled, false);
   assert.match(input.status.textContent, /Échec/);
+});
+
+test('music written as an interest is recognized', async () => {
+  const { context, node } = setup();
+  context.fetch = async () => ({ ok: true, data: { interests: [], text: 'musique' } });
+  await context.chargerCentresInteret(context.connectedUser);
+  assert.match(node('daily-discoveries-senior').status.textContent, /musique/i);
 });
 
 test('caregivers can see discoveries with and without a linked person', async () => {
@@ -164,12 +180,32 @@ test('written interests select matching photos and flag unsupported topics', asy
   await context.chargerCentresInteret(context.connectedUser);
   const discovery = node('daily-discoveries-senior');
   assert.match(discovery.innerHTML, /riddle-images\/chat.jpg/);
+  assert.match(node('senior-today-card').style.backgroundImage, /fonds\/chat.jpg/);
+  assert.equal(node('senior-today-photo-credit').hidden, false);
   assert.match(discovery.innerHTML, /Musique du jour/);
   assert.match(discovery.status.textContent, /animaux/);
   context.fetch = async () => ({ ok: true, data: { interests: [], text: '<img src=x onerror=alert(1)> danse' } });
   await context.chargerCentresInteret(context.connectedUser);
   assert.doesNotMatch(discovery.innerHTML, /onerror/);
   assert.match(discovery.status.textContent, /ne proposons pas encore/);
+  assert.equal(node('senior-today-card').style.backgroundImage, '');
+  assert.equal(node('senior-today-photo-credit').hidden, true);
+});
+
+test('the daily background follows the photo, resets on logout and allows content to grow', async () => {
+  const { context, node } = setup();
+  context.fetch = async () => ({ ok: true, data: { interests: ['nature'], text: '' } });
+  await context.chargerCentresInteret(context.connectedUser);
+  const card = node('senior-today-card');
+  assert.equal(card.classList.contains('has-daily-photo'), true);
+  assert.match(card.style.backgroundImage, /riddle-images\/fonds\/.+\.jpg/);
+  assert.match(card['aria-label'], /Aujourd’hui —/);
+  context.reinitialiserCentresInteret();
+  assert.equal(card.classList.contains('has-daily-photo'), false);
+  assert.equal(card.style.backgroundImage, '');
+  assert.equal(node('senior-today-photo-credit').hidden, true);
+  assert.match(source, /#senior-today-card\.has-daily-photo\s*\{[^}]*min-height:\s*290px/);
+  assert.match(source, /#senior-today-card\.has-daily-photo > \.today-inbox-list\s*\{[^}]*max-height:\s*none/);
 });
 
 test('written ingredients select recipes containing the requested ingredient', () => {

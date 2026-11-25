@@ -132,8 +132,56 @@
         .form-card .today-inbox-item { display: grid; gap: 4px; width: 100%; padding: 14px; border: 1px solid #c8d8d1; border-radius: 14px; background: #fff; color: #18352e; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
         .form-card .today-inbox-item.unread { border-left: 5px solid #17684f; background: #edf8f2; }
         .today-inbox-item small { color: #52665c; }
+        .wellbeing-mood-choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+        .wellbeing-mood-choices button { flex: 1 1 7rem; min-height: 56px; padding: 10px; }
         #senior-today-visit, #senior-today-tasks { white-space: pre-line; font-weight: 700; overflow-wrap: anywhere; }
         #senior-today-card, #senior-next-visit { border: 2px solid var(--brand); }
+        #senior-today-card.has-daily-photo {
+            box-sizing: border-box;
+            min-height: 290px;
+            position: relative;
+            padding-bottom: 56px;
+            background-size: cover;
+            background-position: center;
+            line-height: 1.5;
+        }
+        #senior-today-card.has-daily-photo > :is(h2, h3, p:not([hidden]):not(:empty), .today-inbox-list:not(:empty), #notification-opened-senior:not(:empty), #notifications-senior:not(:empty), #senior-today-photo-credit:not([hidden])) {
+            width: fit-content;
+            max-width: 100%;
+            box-sizing: border-box;
+            background: rgba(255, 255, 255, .96);
+            color: #172f42;
+            border-radius: 8px;
+            padding: 4px 8px;
+            overflow-wrap: anywhere;
+        }
+        #senior-today-card.has-daily-photo > .today-inbox-list {
+            width: 100%;
+            max-height: none;
+            overflow: visible;
+        }
+        #senior-today-card.has-daily-photo .today-inbox-item span {
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+            line-height: 1.5;
+        }
+        #senior-today-card.has-daily-photo .today-inbox-item small { color: #294c3e; }
+        #senior-today-card.has-daily-photo > :is(p, .today-inbox-list):empty { display: none; }
+        #senior-today-card.has-daily-photo > #senior-today-photo-credit:not([hidden]) {
+            position: absolute;
+            right: 16px;
+            bottom: 16px;
+            padding: 2px 4px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, .6);
+            color: #fff;
+            font-size: 0.75rem;
+        }
+        #senior-today-card.has-daily-photo > #senior-today-photo-credit::before {
+            content: '';
+            position: absolute;
+            inset: -10px;
+        }
         :is(#aidant-daily-summary, #senior-daily-summary, #pro-daily-summary) > :is(#senior-summary-notifications, #aidant-summary-notification-details, #pro-summary-notification-details) {
             border-left: 5px solid #835b9b;
             border-radius: 6px 18px 18px 6px;
@@ -760,7 +808,6 @@
         body.senior-simple .senior-simple-only { display: block; }
         body.senior-simple .senior-full-only,
         body.senior-simple #assistant-chat-panel,
-        body.senior-simple #wellbeing-checkin-details,
         body.senior-simple .meal-delivery-card,
         body.senior-simple #senior-more-button,
         body.senior-simple #senior-pro-button,
@@ -878,6 +925,27 @@
             background: linear-gradient(120deg, #fbe9e5, #efc3bd) !important;
             color: #812c27 !important;
             border: 1px solid #c78078;
+        }
+        body.senior-large :is(.screen-container, #nav-bar) { zoom: 2; }
+        body.senior-large .screen-container { overflow-x: auto; overflow-wrap: anywhere; }
+        body.senior-large .action-tiles { grid-template-columns: 1fr; }
+        body.senior-large :is(#main-app-senior, .screen-container) :is(.action-tile, .senior-disclosure:not(.senior-explanation) > summary, .senior-tab-disclosure > summary) {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            text-align: left;
+            overflow-wrap: anywhere;
+        }
+        body.senior-large :is(.action-tile, .senior-disclosure > summary) .tile-icon { flex: 0 0 52px; }
+        body.senior-large #nav-bar .nav-item { flex-direction: row; gap: 4px; flex-basis: auto; }
+        body.senior-large #wellbeing-checkin-panel .wellbeing-mood-choices button {
+            display: flex; align-items: center; justify-content: flex-start; gap: 8px; text-align: left;
+        }
+        @media (max-width: 480px) {
+            body.senior-large .screen-container { padding: 8px; }
+            body.senior-large .form-card { padding: 10px; }
         }
         body.senior-mode .screen-container button.rating-pill.selected.rating-orange {
             box-shadow: inset 0 0 0 2px #a56400;
@@ -1110,6 +1178,7 @@
                 <div class="today-inbox-list" id="senior-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
                 <div id="notification-opened-senior" aria-live="polite"></div>
                 <div id="notifications-senior" aria-live="polite"></div>
+                <a id="senior-today-photo-credit" href="/riddle-images/credits.html" target="_blank" rel="noopener noreferrer" aria-label="Crédits des photos" hidden>Crédits</a>
             </section>
             <h2>Prochaine visite</h2>
             <section class="form-card" id="senior-next-visit" aria-label="Prochaine visite">
@@ -1129,8 +1198,16 @@
             <button type="button" onclick="switchScreen('contacts')">Mes contacts</button>
         </div>
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
+          <div class="wellbeing-mood-bar" role="group" aria-labelledby="wellbeing-mood-title">
+            <h2 id="wellbeing-mood-title">Vérification de bien-être</h2>
+            <div class="wellbeing-mood-choices">
+              <button type="button" data-wellbeing-mood="bien" aria-pressed="false" onclick="choisirHumeurBienEtre('bien')" disabled><span aria-hidden="true">😊</span> Bien</button>
+              <button type="button" data-wellbeing-mood="moyen" aria-pressed="false" onclick="choisirHumeurBienEtre('moyen')" disabled><span aria-hidden="true">😐</span> Moyen</button>
+              <button type="button" data-wellbeing-mood="mal" aria-pressed="false" onclick="choisirHumeurBienEtre('mal')" disabled><span aria-hidden="true">😟</span> Pas bien</button>
+            </div>
+          </div>
           <details class="senior-disclosure" id="wellbeing-checkin-details">
-            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Vérification de bien-être</summary>
+            <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Écrire ou voir ma réponse</summary>
             <details class="senior-disclosure senior-explanation" data-help-for="#wellbeing-dictation-button">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
@@ -1139,7 +1216,8 @@
             </details>
             <div class="schedule-notice" role="note">Cette fonction n’est pas un service d’urgence et ne surveille pas votre sécurité. En cas de danger immédiat, appelez le 112 ou le 15.</div>
             <form id="wellbeing-checkin-form" class="form-grid">
-                <p>Bonjour. Comment allez-vous aujourd’hui ?</p>
+                <p id="wellbeing-mood-prompt" aria-live="polite">Bonjour. Comment allez-vous aujourd’hui ?</p>
+                <p id="wellbeing-mood-status" class="helper-text" aria-live="polite"></p>
                 <label for="wellbeing-checkin-response">Votre réponse</label>
                 <textarea id="wellbeing-checkin-response" maxlength="1200" placeholder="Écrivez ici comment vous vous sentez..." required></textarea>
                 <button type="button" id="wellbeing-dictation-button">🎙️ Dicter ma réponse</button>
@@ -1150,9 +1228,10 @@
                     <div id="wellbeing-aidant-contacts" aria-live="polite">Chargement des aidants…</div>
                     <label class="notification-choice"><input type="checkbox" id="wellbeing-share-confirmation"> Je confirme l’envoi de ma réponse aux aidants sélectionnés.</label>
                 </fieldset>
-                <button type="submit" id="wellbeing-checkin-submit">Envoyer ma réponse</button>
+                <button type="submit" id="wellbeing-checkin-submit" disabled>Envoyer ma réponse</button>
             </form>
             <p id="wellbeing-checkin-status" class="helper-text" role="status" aria-live="polite"></p>
+            <button type="button" id="wellbeing-checkin-retry" onclick="chargerCheckinBienEtre()" hidden>Réessayer</button>
             <div id="wellbeing-checkin-result" aria-live="polite" hidden></div>
           </details>
           <div id="wellbeing-safety-result" aria-live="polite"></div>
@@ -2319,6 +2398,9 @@
         <p>La vue simplifiée est activée par défaut sur cet appareil et pour ce compte. Vous pouvez afficher toutes les fonctions à tout moment.</p>
         <button type="button" class="senior-full-only" id="senior-simple-enable" onclick="changerVueSenior(true)">Activer la vue simplifiée</button>
         <button type="button" class="senior-simple-only" id="senior-simple-disable" onclick="changerVueSenior(false)">Afficher toutes les fonctions</button>
+        <p>Vous pouvez aussi agrandir tout l’affichage sur cet appareil, sans masquer de fonctions.</p>
+        <button type="button" id="senior-large-toggle" aria-pressed="false" onclick="changerTailleSenior()">Agrandir tout l’affichage</button>
+        <p id="senior-large-status" aria-live="polite"></p>
       </details>
     </section>
     <section class="form-card" id="settings-simple-display" style="display:none;">
@@ -2850,6 +2932,8 @@
     let weeklyGazetteUrls = [];
     let wellbeingLoadedDate = null;
     let currentWellbeingCheckin = null;
+    let wellbeingLoadId = 0;
+    let humeurBienEtre = null;
     let wellbeingSafetyTimer = null;
     let registrationHomeCoordinates = null;
     let professionalHomeCoordinates = null;
@@ -3935,9 +4019,27 @@
         const enabled = localStorage.getItem(key) !== 'false';
         document.body.classList.toggle('simple-mode', enabled);
         document.body.classList.toggle('senior-simple', user.role === 'senior' && enabled);
+        initialiserTailleSenior(user);
         if (user.role === 'senior' && enabled) {
             document.querySelectorAll('#message-multiple-contacts input:checked').forEach(input => { input.checked = false; });
         }
+    }
+
+    function initialiserTailleSenior(user) {
+        const enabled = user.role === 'senior' &&
+            localStorage.getItem(`generation-liaison-senior-large-${user.id}`) === 'true';
+        document.body.classList.toggle('senior-large', enabled);
+        document.getElementById('senior-large-toggle').setAttribute('aria-pressed', String(enabled));
+        document.getElementById('senior-large-status').textContent = window.generationLiaisonTranslate(
+            enabled ? 'Affichage agrandi activé.' : 'Affichage agrandi désactivé.'
+        );
+    }
+
+    function changerTailleSenior() {
+        if (connectedUser?.role !== 'senior') return;
+        const key = `generation-liaison-senior-large-${connectedUser.id}`;
+        localStorage.setItem(key, String(localStorage.getItem(key) !== 'true'));
+        initialiserTailleSenior(connectedUser);
     }
 
     function changerVueSimplifiee(enabled) {
@@ -3993,6 +4095,9 @@
         if (connectedUser?.id !== user.id) {
             reinitialiserChoixTablette();
             wellbeingLoadedDate = null;
+            wellbeingLoadId++;
+            currentWellbeingCheckin = null;
+            reinitialiserCheckinBienEtre();
             openMessageConversations = {};
             document.getElementById('aidant-task-reminders').open = false;
             document.getElementById('aidant-task-reminders-enabled').disabled = true;
@@ -4379,6 +4484,7 @@
         centresInteretRevision++;
         centresInteret = null;
         texteInteret = '';
+        appliquerPhotoAujourdHui(null);
         ['senior', 'aidant'].forEach(role => {
             const onboarding = document.getElementById(`interests-onboarding-${role}`);
             onboarding.hidden = true;
@@ -4500,7 +4606,7 @@
         if (has(/\b(sucre(?:e)?s?|desserts?|fruits?|pommes?|poires?|bananes?)\b/)) themes.push('sucre');
         if (has(/\b(nature|paysages?|fleurs?|printemps|ete|automne|hiver)\b/)) themes.push('nature');
         if (has(/\b(animaux|animal|chats?|chiens?|cheval|chevaux|moutons?)\b/)) themes.push('animaux');
-        if (has(/\b(piano|musique classique)\b/)) themes.push('musique');
+        if (has(/\b(piano|musique)\b/)) themes.push('musique');
         return { themes, photos, ingredients };
     }
 
@@ -4509,10 +4615,23 @@
         return [...new Set([...centresInteret, ...themesDuTexte().themes])];
     }
 
+    function appliquerPhotoAujourdHui(photo) {
+        const card = document.getElementById('senior-today-card');
+        const credit = document.getElementById('senior-today-photo-credit');
+        card.classList.toggle('has-daily-photo', Boolean(photo));
+        card.style.backgroundImage = photo
+            ? `linear-gradient(rgba(255,255,255,.12), rgba(255,255,255,.12)), url("/riddle-images/fonds/${photo[0]}.jpg")`
+            : '';
+        credit.hidden = !photo;
+        card.setAttribute('aria-label', photo
+            ? `${window.generationLiaisonTranslate('Aujourd’hui')} — ${window.generationLiaisonTranslate(photo[1])}`
+            : window.generationLiaisonTranslate('Aujourd’hui'));
+    }
+
     function afficherDecouvertesDuJour() {
-        if (!connectedUser || !['senior', 'aidant'].includes(connectedUser.role) || !centresInteret) return;
+        if (!connectedUser || !['senior', 'aidant'].includes(connectedUser.role)) return;
         const typed = themesDuTexte();
-        const preferences = centresInteretEffectifs();
+        const preferences = centresInteretEffectifs() || [];
         const containers = (connectedUser.role === 'aidant' ? ['aidant', 'aidant-no-senior'] : ['senior'])
             .map(role => document.getElementById(`daily-discoveries-${role}`));
         const photos = [];
@@ -4522,16 +4641,9 @@
         if (preferences.includes('animaux')) photos.push(
             ['chat', 'Un chat'], ['chien', 'Un chien'], ['cheval', 'Un cheval'], ['mouton', 'Un mouton']);
         const matchingPhotos = typed.photos.length ? photos.filter(photo => typed.photos.includes(photo[0])) : photos;
-        const music = preferences.includes('musique');
-        if (!photos.length && !music && !texteInteret) {
-            containers.forEach(container => {
-                container.hidden = true;
-                container.replaceChildren();
-            });
-            return;
-        }
         const day = Math.floor(Date.parse(`${dateCheckinBienEtre()}T00:00:00Z`) / 86400000);
         const photo = matchingPhotos.length ? matchingPhotos[((day % matchingPhotos.length) + matchingPhotos.length) % matchingPhotos.length] : null;
+        if (connectedUser.role === 'senior') appliquerPhotoAujourdHui(photo);
         const tracks = [
             ['Valse de Chopin', 'https://commons.wikimedia.org/wiki/File:Chopin_-_Waltz_in_A-flat_major,_Op._64_No._3.oga'],
             ['Nicaragua, au piano', 'https://commons.wikimedia.org/wiki/File:Nicaragua_(himno).opus']
@@ -4542,7 +4654,7 @@
           container.hidden = false;
           container.innerHTML = `
           ${photo ? `<h3>${t('Photo du jour')}</h3><img src="/riddle-images/${photo[0]}.jpg" alt="${t(photo[1])}" style="max-width:100%;max-height:300px;"><p>${t(photo[1])} · <a href="/riddle-images/credits.html">${t('Crédits des photos')}</a></p>` : ''}
-          ${music ? `<h3>${t('Musique du jour')}</h3><p>${t(track[0])}</p><a href="${track[1]}" target="_blank" rel="noopener noreferrer">${t('Écouter sur Wikimedia Commons')}</a><p class="helper-text">${t('Le lien ouvre un autre site. Aucune musique ne démarre automatiquement dans l’application.')}</p>` : ''}
+          <h3>${t('Musique du jour')}</h3><p>${t(track[0])}</p><a href="${track[1]}" target="_blank" rel="noopener noreferrer">${t('Écouter sur Wikimedia Commons')}</a><p class="helper-text">${t('Le lien ouvre un autre site. Aucune musique ne démarre automatiquement dans l’application.')}</p>
           ${texteInteret ? `<p class="helper-text" data-interest-feedback></p>` : ''}`;
           if (texteInteret) {
               const labels = questionsCentresInteret.filter(([value]) => typed.themes.includes(value)).map(([, label]) => t(label));
@@ -5377,6 +5489,58 @@
         }
     });
 
+    const humeursBienEtre = {
+        bien: { message: 'Je me sens bien.', prompt: 'Vous allez bien. Souhaitez-vous ajouter quelque chose ?' },
+        moyen: { message: 'Je me sens moyennement bien.', prompt: 'Vous pouvez préciser comment vous vous sentez.' },
+        mal: { message: 'Je ne me sens pas bien.', prompt: 'Vous pouvez expliquer ce qui ne va pas. En cas d’urgence, appelez le 15 ou le 112.' }
+    };
+
+    function reinitialiserHumeurBienEtre() {
+        humeurBienEtre = null;
+        const input = document.getElementById('wellbeing-checkin-response');
+        input.value = '';
+        input.required = true;
+        document.getElementById('wellbeing-mood-prompt').textContent =
+            window.generationLiaisonTranslate('Bonjour. Comment allez-vous aujourd’hui ?');
+        document.getElementById('wellbeing-mood-status').textContent = '';
+        document.querySelectorAll('[data-wellbeing-mood]').forEach(button => {
+            button.disabled = true;
+            button.setAttribute('aria-pressed', 'false');
+        });
+        document.getElementById('wellbeing-checkin-submit').disabled = true;
+        document.getElementById('wellbeing-checkin-retry').hidden = true;
+        document.getElementById('wellbeing-share-confirmation').checked = false;
+        document.getElementById('wellbeing-aidant-contacts').replaceChildren();
+    }
+
+    function reinitialiserCheckinBienEtre() {
+        reinitialiserHumeurBienEtre();
+        if (wellbeingSafetyTimer) window.clearTimeout(wellbeingSafetyTimer);
+        wellbeingSafetyTimer = null;
+        document.getElementById('wellbeing-checkin-details').open = false;
+        document.getElementById('wellbeing-checkin-form').hidden = false;
+        document.getElementById('wellbeing-checkin-result').replaceChildren();
+        document.getElementById('wellbeing-checkin-result').hidden = true;
+        document.getElementById('wellbeing-safety-result').replaceChildren();
+        document.getElementById('wellbeing-checkin-status').textContent = '';
+    }
+
+    function choisirHumeurBienEtre(value) {
+        if (!connectedUser || connectedUser.role !== 'senior' ||
+            wellbeingLoadedDate !== dateCheckinBienEtre() || currentWellbeingCheckin ||
+            !Object.prototype.hasOwnProperty.call(humeursBienEtre, value)) return;
+        humeurBienEtre = value;
+        document.querySelectorAll('[data-wellbeing-mood]').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.wellbeingMood === value));
+        });
+        document.getElementById('wellbeing-mood-prompt').textContent =
+            window.generationLiaisonTranslate(humeursBienEtre[value].prompt);
+        document.getElementById('wellbeing-mood-status').textContent =
+            window.generationLiaisonTranslate('Votre choix sera envoyé seulement si vous confirmez. Vous pouvez ajouter un message.');
+        document.getElementById('wellbeing-checkin-response').required = false;
+        document.getElementById('wellbeing-checkin-details').open = true;
+    }
+
     function afficherCheckinBienEtre(checkin) {
         currentWellbeingCheckin = checkin;
         if (wellbeingSafetyTimer) {
@@ -5509,22 +5673,35 @@
         if (!connectedUser || connectedUser.role !== 'senior') return;
         const today = dateCheckinBienEtre();
         if (wellbeingLoadedDate === today) return;
+        const userId = connectedUser.id;
+        const loadId = ++wellbeingLoadId;
+        reinitialiserHumeurBienEtre();
+        document.getElementById('wellbeing-checkin-form').hidden = true;
+        document.getElementById('wellbeing-checkin-result').hidden = true;
         const status = document.getElementById('wellbeing-checkin-status');
         const contacts = document.getElementById('wellbeing-aidant-contacts');
         status.textContent = 'Chargement de votre vérification de bien-être…';
         try {
             const result = await planningRequest('/api/wellbeing/check-in');
+            if (loadId !== wellbeingLoadId || connectedUser?.id !== userId ||
+                connectedUser.role !== 'senior' || today !== dateCheckinBienEtre()) return;
             wellbeingLoadedDate = today;
             afficherCheckinBienEtre(result.checkin);
+            document.querySelectorAll('[data-wellbeing-mood]').forEach(button => { button.disabled = Boolean(result.checkin); });
             status.textContent = result.checkin ? 'Votre vérification de bien-être du jour est déjà enregistrée.' : '';
             if (result.checkin) return;
         } catch (error) {
+            if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
             status.textContent = error.message || 'Impossible de charger votre vérification de bien-être.';
+            document.getElementById('wellbeing-checkin-retry').hidden = false;
+            document.getElementById('wellbeing-checkin-details').open = true;
             return;
         }
 
         try {
             const result = await planningRequest('/api/contacts');
+            if (loadId !== wellbeingLoadId || connectedUser?.id !== userId ||
+                connectedUser.role !== 'senior' || today !== dateCheckinBienEtre()) return;
             const aidants = result.contacts.filter(contact => contact.role === 'aidant');
             contacts.replaceChildren();
             if (!aidants.length) {
@@ -5546,6 +5723,7 @@
                 contacts.append(label);
             });
         } catch (error) {
+            if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
             contacts.replaceChildren(makeTextElement(
                 'p',
                 error.message || 'Impossible de charger vos contacts aidants.',
@@ -5643,6 +5821,16 @@
         const selectedAidants = [...document.querySelectorAll('[data-wellbeing-recipient]:checked')]
             .map(checkbox => checkbox.value);
         const shareConfirmed = document.getElementById('wellbeing-share-confirmation').checked;
+        if (!connectedUser || connectedUser.role !== 'senior' ||
+            wellbeingLoadedDate !== dateCheckinBienEtre() || currentWellbeingCheckin) return;
+        const userId = connectedUser.id;
+        const loadId = wellbeingLoadId;
+        const today = wellbeingLoadedDate;
+        const message = [humeurBienEtre ? humeursBienEtre[humeurBienEtre].message : '', input.value.trim()].filter(Boolean).join(' ');
+        if (!message || message.length > 1200) {
+            status.textContent = window.generationLiaisonTranslate('Votre réponse doit contenir au maximum 1 200 caractères, choix compris.');
+            return;
+        }
         if (selectedAidants.length && !shareConfirmed) {
             status.textContent = 'Cochez la confirmation pour partager votre réponse avec les aidants sélectionnés.';
             document.getElementById('wellbeing-share-confirmation').focus();
@@ -5654,16 +5842,19 @@
             const result = await planningRequest('/api/wellbeing/check-in', {
                 method: 'POST',
                 body: {
-                    message: input.value.trim(),
+                    message,
                     recipientUserIds: selectedAidants,
                     shareConfirmed: selectedAidants.length > 0 && shareConfirmed
                 }
             });
+            if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
             afficherCheckinBienEtre(result.checkin);
+            document.querySelectorAll('[data-wellbeing-mood]').forEach(choice => { choice.disabled = true; });
             status.textContent = result.sharedWithCount
                 ? `Votre réponse a été enregistrée et partagée avec ${result.sharedWithCount} aidant(s).`
                 : 'Votre réponse a été enregistrée. Elle n’a pas été partagée.';
         } catch (error) {
+            if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
             status.textContent = error.message || 'Impossible d’enregistrer votre vérification de bien-être.';
             button.disabled = false;
         }
@@ -10675,6 +10866,10 @@
         document.getElementById('senior-home-links-status').textContent = '';
         document.getElementById('aidant-home-links').hidden = true;
         connectedUser = null;
+        wellbeingLoadedDate = null;
+        wellbeingLoadId++;
+        currentWellbeingCheckin = null;
+        reinitialiserCheckinBienEtre();
         reinitialiserCentresInteret();
         reinitialiserCarnetEtablissement();
         fermerActionsEtablissement();
@@ -10714,7 +10909,7 @@
         reinitialiserAnnuairePartage();
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
-        document.body.classList.remove('senior-mode', 'senior-simple', 'soft-workspace', 'simple-mode');
+        document.body.classList.remove('senior-mode', 'senior-simple', 'senior-large', 'soft-workspace', 'simple-mode');
         activeSeniorProfileId = '';
         localStorage.removeItem('generation-liaison-active-senior');
         directoryLocation = null;

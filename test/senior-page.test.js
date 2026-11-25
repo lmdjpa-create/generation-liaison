@@ -323,12 +323,15 @@ test('removed presentation choice cannot be restored from an old preference', ()
 
 test('simplified view defaults on per account and preserves explicit choices', () => {
   const classes = new Set(), values = new Map(), selected = [{ checked: true }, { checked: true }];
+  const displayElements = { 'senior-large-toggle': { setAttribute() {} }, 'senior-large-status': {} };
   const context = {
     connectedUser: { id: 'alice', role: 'senior' },
     document: {
       body: { classList: { toggle: (name, enabled) => enabled ? classes.add(name) : classes.delete(name) } },
+      getElementById: id => displayElements[id],
       querySelectorAll: () => selected
     },
+    window: { generationLiaisonTranslate: text => text },
     localStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) },
     planifierLectureSenior() {}
   };
@@ -339,12 +342,19 @@ test('simplified view defaults on per account and preserves explicit choices', (
   assert.ok(selected.every(input => !input.checked));
   context.changerVueSenior(true);
   assert.equal(values.get('generation-liaison-senior-simple-alice'), 'true');
+  context.changerTailleSenior();
+  assert.equal(classes.has('senior-large'), true);
+  assert.equal(values.get('generation-liaison-senior-large-alice'), 'true');
   context.initialiserVueSenior({ id: 'bob', role: 'senior' });
   assert.equal(classes.has('senior-simple'), true);
+  assert.equal(classes.has('senior-large'), false);
   context.initialiserVueSenior({ id: 'alice', role: 'aidant' });
   assert.equal(classes.has('senior-simple'), false);
   assert.equal(classes.has('simple-mode'), true);
   context.initialiserVueSenior(context.connectedUser);
+  assert.equal(classes.has('senior-large'), true);
+  context.changerTailleSenior();
+  assert.equal(classes.has('senior-large'), false);
   context.changerVueSenior(false);
   assert.equal(classes.has('senior-simple'), false);
   assert.equal(classes.has('simple-mode'), false);
@@ -417,7 +427,7 @@ test('simplified journal shortcut opens the senior journal without hiding safety
   vm.runInNewContext(extract('    function ouvrirJournalSenior()', '    function switchScreen(screenName)'), context);
   context.ouvrirJournalSenior();
   assert.deepEqual(calls, ['more', ['senior-journal-details', 'senior-journal-details']]);
-  assert.match(source, /body\.senior-simple #wellbeing-checkin-details/);
+  assert.doesNotMatch(source, /body\.senior-simple #wellbeing-checkin-details\s*\{/);
   assert.doesNotMatch(source, /body\.senior-simple #wellbeing-safety-result\s*\{/);
   context.connectedUser.role = 'aidant';
   context.ouvrirJournalSenior();
@@ -1431,6 +1441,120 @@ test('a new day re-enables the senior check-in form', () => {
   assert.equal(elements['wellbeing-checkin-result'].hidden, true);
 });
 
+test('mood choices open the appropriate question without sending or losing text', () => {
+  const choices = ['bien', 'moyen', 'mal'].map(value => ({
+    dataset: { wellbeingMood: value }, setAttribute(name, value) { this[name] = value; }
+  }));
+  const elements = {
+    'wellbeing-mood-prompt': {},
+    'wellbeing-mood-status': {},
+    'wellbeing-checkin-response': { value: 'Mon message', required: true },
+    'wellbeing-checkin-details': { open: false }
+  };
+  const context = {
+    connectedUser: { id: 'alice', role: 'senior' },
+    wellbeingLoadedDate: 'today', currentWellbeingCheckin: null, humeurBienEtre: null,
+    dateCheckinBienEtre: () => 'today',
+    window: { generationLiaisonTranslate: text => text },
+    document: {
+      getElementById: id => elements[id],
+      querySelectorAll: () => choices
+    },
+    planningRequest() { throw new Error('A mood choice must not send anything'); }
+  };
+  vm.runInNewContext(
+    `${extract('    const humeursBienEtre = {', '    function afficherCheckinBienEtre(checkin)')}\n` +
+    'globalThis.choose = choisirHumeurBienEtre;', context
+  );
+  for (const [value, expected] of [['bien', /bien/], ['moyen', /préciser/], ['mal', /15 ou le 112/]]) {
+    context.choose(value);
+    assert.match(elements['wellbeing-mood-prompt'].textContent, expected);
+    assert.equal(elements['wellbeing-checkin-response'].value, 'Mon message');
+    assert.equal(elements['wellbeing-checkin-response'].required, false);
+    assert.equal(elements['wellbeing-checkin-details'].open, true);
+    assert.equal(choices.find(choice => choice.dataset.wellbeingMood === value)['aria-pressed'], 'true');
+  }
+  context.currentWellbeingCheckin = { id: 'already-saved' };
+  context.choose('bien');
+  assert.match(elements['wellbeing-mood-prompt'].textContent, /15 ou le 112/);
+});
+
+test('mood is submitted only on confirmation, with the optional text', async () => {
+  let submit;
+  const requests = [];
+  const elements = {
+    'wellbeing-checkin-form': { addEventListener: (name, fn) => { submit = fn; } },
+    'wellbeing-checkin-response': { value: 'Je suis fatiguée.' },
+    'wellbeing-checkin-submit': { disabled: false },
+    'wellbeing-checkin-status': {},
+    'wellbeing-share-confirmation': { checked: false }
+  };
+  const context = {
+    document: { getElementById: id => elements[id], querySelectorAll: () => [] },
+    connectedUser: { id: 'alice', role: 'senior' },
+    wellbeingLoadedDate: 'today', wellbeingLoadId: 1, currentWellbeingCheckin: null,
+    humeurBienEtre: 'moyen', humeursBienEtre: { moyen: { message: 'Je me sens moyennement bien.' } },
+    dateCheckinBienEtre: () => 'today',
+    planningRequest: async (url, options) => {
+      requests.push({ url, options });
+      return { checkin: { response: options.body.message }, sharedWithCount: 0 };
+    },
+    afficherCheckinBienEtre: checkin => { context.currentWellbeingCheckin = checkin; },
+    window: { generationLiaisonTranslate: text => text }
+  };
+  vm.runInNewContext(extract("    document.getElementById('wellbeing-checkin-form').addEventListener('submit'",
+    '    async function chargerAssistantConversation()'), context);
+  assert.equal(requests.length, 0);
+  await submit({ preventDefault() {} });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].options.body.message, 'Je me sens moyennement bien. Je suis fatiguée.');
+  await submit({ preventDefault() {} });
+  assert.equal(requests.length, 1);
+});
+
+test('check-in loading retries failures and ignores another account’s late response', async () => {
+  const choices = [{ disabled: false }, { disabled: false }, { disabled: false }];
+  const elements = {
+    'wellbeing-checkin-status': {},
+    'wellbeing-checkin-retry': { hidden: true },
+    'wellbeing-checkin-details': { open: false },
+    'wellbeing-checkin-form': { hidden: false },
+    'wellbeing-checkin-result': { hidden: false },
+    'wellbeing-aidant-contacts': { replaceChildren() {}, append() {} }
+  };
+  let resolve;
+  const context = {
+    connectedUser: { id: 'alice', role: 'senior' },
+    wellbeingLoadedDate: null, wellbeingLoadId: 0,
+    document: { getElementById: id => elements[id], querySelectorAll: () => choices },
+    dateCheckinBienEtre: () => 'today',
+    reinitialiserHumeurBienEtre: () => choices.forEach(choice => { choice.disabled = true; }),
+    afficherCheckinBienEtre: checkin => { context.shown = checkin; },
+    planningRequest: async () => { throw new Error('Chargement impossible'); },
+    makeTextElement: () => ({})
+  };
+  vm.runInNewContext(extract('    async function chargerCheckinBienEtre()', '    async function chargerCheckinsPartages()'), context);
+  await context.chargerCheckinBienEtre();
+  assert.equal(elements['wellbeing-checkin-retry'].hidden, false);
+  assert.equal(elements['wellbeing-checkin-details'].open, true);
+  assert.ok(choices.every(choice => choice.disabled));
+  assert.equal(elements['wellbeing-checkin-result'].hidden, true);
+  context.planningRequest = url => url === '/api/wellbeing/check-in'
+    ? new Promise(done => { resolve = done; }) : Promise.resolve({ contacts: [] });
+  const pending = context.chargerCheckinBienEtre();
+  context.connectedUser = { id: 'bob', role: 'senior' };
+  resolve({ checkin: { response: 'Privé' } });
+  await pending;
+  assert.equal(context.shown, undefined);
+  assert.equal(context.wellbeingLoadedDate, null);
+  context.planningRequest = async url => url === '/api/wellbeing/check-in'
+    ? { checkin: null } : { contacts: [] };
+  await context.chargerCheckinBienEtre();
+  assert.equal(context.wellbeingLoadedDate, 'today');
+  assert.equal(context.shown, null);
+  assert.ok(choices.every(choice => !choice.disabled));
+});
+
 test('check-in is collapsed while safety follow-up remains outside the collapsed content', () => {
   const checkin = extract('        <section class="form-card" id="wellbeing-checkin-panel"',
     '        <section class="form-card emergency-call-card"');
@@ -1727,7 +1851,7 @@ test('soft button colours are limited to aidant and pro sessions and cleared on 
   const login = extract('    async function setAuthenticatedView(user)', '        initialiserVueSenior(user);');
   const logout = extract('    async function deconnecterUtilisateur(', "        activeSeniorProfileId = '';");
   assert.match(login, /classList\.toggle\('soft-workspace', \['aidant', 'pro'\]\.includes\(user\.role\)\)/);
-  assert.match(logout, /classList\.remove\('senior-mode', 'senior-simple', 'soft-workspace', 'simple-mode'\)/);
+  assert.match(logout, /classList\.remove\('senior-mode', 'senior-simple', 'senior-large', 'soft-workspace', 'simple-mode'\)/);
   assert.match(source, /body\.soft-workspace :is\(\.screen-container, #nav-bar\) button/);
   assert.match(source, /button:is\(\[aria-pressed="true"\], \.selected, \.active\)/);
   assert.match(source, /button:is\(\.decline, \.btn-danger, \[data-close-account\], #settings-logout\)/);
