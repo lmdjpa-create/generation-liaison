@@ -23,6 +23,27 @@ class AuthError extends Error {
   }
 }
 
+function validateTabletSettings(tabletInterest, postalAddress) {
+  if (!['none', 'purchase', 'purchase_premium', 'rental_premium'].includes(tabletInterest)) {
+    throw new AuthError(400, 'Indiquez votre choix concernant la tablette.');
+  }
+  let address = null;
+  if (postalAddress !== undefined && postalAddress !== null) {
+    const limits = { street: 300, postalCode: 20, city: 120, country: 120 };
+    if (typeof postalAddress !== 'object' || Array.isArray(postalAddress) ||
+        Object.entries(limits).some(([key, limit]) =>
+          typeof postalAddress[key] !== 'string' || !postalAddress[key].trim() ||
+          postalAddress[key].trim().length > limit || /[\u0000-\u001f\u007f]/.test(postalAddress[key]))) {
+      throw new AuthError(400, 'Pour une livraison de tablette, complétez toute l’adresse.');
+    }
+    address = Object.fromEntries(Object.keys(limits).map(key => [key, postalAddress[key].trim()]));
+  }
+  if (tabletInterest !== 'none' && !address) {
+    throw new AuthError(400, 'Pour une livraison de tablette, complétez toute l’adresse.');
+  }
+  return address;
+}
+
 function hashToken(token) {
   return createHash('sha256').update(token).digest('hex');
 }
@@ -186,6 +207,12 @@ function createAuthService(pool) {
           ADD COLUMN IF NOT EXISTS account_commune_code VARCHAR(5),
           ADD COLUMN IF NOT EXISTS account_commune_latitude DOUBLE PRECISION,
           ADD COLUMN IF NOT EXISTS account_commune_longitude DOUBLE PRECISION;
+        ALTER TABLE app_users
+          ADD COLUMN IF NOT EXISTS delivery_street VARCHAR(300),
+          ADD COLUMN IF NOT EXISTS delivery_postal_code VARCHAR(20),
+          ADD COLUMN IF NOT EXISTS delivery_city VARCHAR(120),
+          ADD COLUMN IF NOT EXISTS delivery_country VARCHAR(120),
+          ADD COLUMN IF NOT EXISTS tablet_purchase_interest VARCHAR(24) NOT NULL DEFAULT 'none';
         ALTER TABLE app_users
           ADD COLUMN IF NOT EXISTS weather_commune_name VARCHAR(120),
           ADD COLUMN IF NOT EXISTS weather_commune_latitude DOUBLE PRECISION,
@@ -888,6 +915,8 @@ function createAuthService(pool) {
     homeLongitude,
     serviceRadiusKm,
     accountCommune,
+    postalAddress,
+    tabletInterest = 'none',
     requireAccountCommune = false,
     notificationPhone,
     emailNotificationsEnabled = false,
@@ -970,6 +999,7 @@ function createAuthService(pool) {
          !Number.isFinite(accountCommune.longitude) || accountCommune.longitude < -180 || accountCommune.longitude > 180)) {
       throw new AuthError(400, 'Choisissez une commune de compte valide.');
     }
+    const deliveryAddress = validateTabletSettings(tabletInterest, postalAddress);
 
     const userId = randomUUID();
     const seniorId = randomUUID();
@@ -993,12 +1023,13 @@ function createAuthService(pool) {
             guardian_verification_status,
             email_notifications_consent_at, sms_notifications_consent_at, terms_accepted_at, terms_version,
             first_name, last_name, civility, account_commune_name, account_commune_code,
-            account_commune_latitude, account_commune_longitude)
+            account_commune_latitude, account_commune_longitude,
+            delivery_street, delivery_postal_code, delivery_city, delivery_country, tablet_purchase_interest)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                  CASE WHEN $15 THEN 'pending' ELSE 'not_required' END,
                  CASE WHEN $13 THEN CURRENT_TIMESTAMP ELSE NULL END,
                  CASE WHEN $14 THEN CURRENT_TIMESTAMP ELSE NULL END,
-                 CURRENT_TIMESTAMP, $16, $17, $18, $19, $20, $21, $22, $23)
+                 CURRENT_TIMESTAMP, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
          RETURNING id, senior_id, name, first_name, last_name, civility, share_account_photo, email, role, verification_status,
                    home_latitude, home_longitude, service_radius_km,
                    is_legal_guardian, guardian_verification_status, account_commune_name, account_commune_code,
@@ -1026,7 +1057,12 @@ function createAuthService(pool) {
           accountCommune?.name.trim() || null,
           accountCommune?.code || null,
           accountCommune?.latitude ?? null,
-          accountCommune?.longitude ?? null
+          accountCommune?.longitude ?? null,
+          deliveryAddress?.street ?? null,
+          deliveryAddress?.postalCode ?? null,
+          deliveryAddress?.city ?? null,
+          deliveryAddress?.country ?? null,
+          tabletInterest
         ]
       );
       rows[0].senior_name = normalizedSeniorName || null;
@@ -1465,6 +1501,11 @@ function createAuthService(pool) {
              account_commune_code = NULL,
              account_commune_latitude = NULL,
              account_commune_longitude = NULL,
+             delivery_street = NULL,
+             delivery_postal_code = NULL,
+             delivery_city = NULL,
+             delivery_country = NULL,
+             tablet_purchase_interest = 'none',
              weather_commune_name = NULL,
              weather_commune_latitude = NULL,
              weather_commune_longitude = NULL,
@@ -1536,5 +1577,6 @@ module.exports = {
   TERMS_VERSION,
   createAuthService,
   hashPassword,
+  validateTabletSettings,
   verifyPassword
 };

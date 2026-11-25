@@ -3,7 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const { createHash, randomBytes, randomUUID, timingSafeEqual } = require('node:crypto');
 const { Pool } = require('pg');
-const { AuthError, createAuthService, TERMS_VERSION } = require('./auth');
+const { AuthError, createAuthService, TERMS_VERSION, validateTabletSettings } = require('./auth');
 const { reviewAccountClosure } = require('./account-closure-review');
 const { getServiceDistance } = require('./distance');
 const notificationDelivery = require('./notification-delivery');
@@ -90,6 +90,7 @@ function canAccessAccountSettings(req) {
     (['GET', 'PUT'].includes(req.method) && req.path === '/api/notifications/preferences') ||
     (['POST', 'DELETE'].includes(req.method) && req.path === '/api/notifications/push-subscriptions') ||
     (req.method === 'PUT' && req.path === '/api/account/profile') ||
+    (['GET', 'PUT'].includes(req.method) && req.path === '/api/account/tablet-interest') ||
     (['GET', 'PUT', 'DELETE'].includes(req.method) && req.path === '/api/account/profile-photo') ||
     (req.method === 'POST' && req.path === '/api/account/closure-request');
 }
@@ -218,6 +219,7 @@ function requireAuth(req, res, next) {
       )) return res.status(403).json({ error: 'Changez d’abord votre mot de passe provisoire.' });
       if (user.role === 'establishment' && !(
         canAccessAnnouncements(req) ||
+        (['GET', 'PUT'].includes(req.method) && req.path === '/api/account/tablet-interest') ||
         (req.method === 'GET' && req.path === '/api/auth/me') ||
         (req.method === 'POST' && ['/api/auth/logout', '/api/account/closure-request'].includes(req.path)) ||
         (['GET', 'PUT'].includes(req.method) && req.path === '/api/establishment') ||
@@ -3033,6 +3035,65 @@ app.post('/api/auth/register', async (req, res) => {
     res.status(201).json({ ...result, user: addUserAccessFlags(result.user) });
   } catch (error) {
     sendApiError(res, error, 'Impossible de créer le compte.');
+  }
+});
+
+app.get('/api/account/tablet-interest', requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT tablet_purchase_interest, delivery_street, delivery_postal_code, delivery_city, delivery_country
+       FROM app_users WHERE id = $1 AND is_active = TRUE`, [req.authUser.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Compte indisponible.' });
+    const row = result.rows[0];
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      tabletInterest: row.tablet_purchase_interest,
+      postalAddress: row.delivery_street ? {
+        street: row.delivery_street, postalCode: row.delivery_postal_code,
+        city: row.delivery_city, country: row.delivery_country
+      } : null
+    });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger votre choix de tablette.');
+  }
+});
+
+app.put('/api/account/tablet-interest', requireAuth, async (req, res) => {
+  try {
+    const { tabletInterest, postalAddress } = req.body || {};
+    const address = validateTabletSettings(tabletInterest, postalAddress);
+    const result = await pool.query(
+      `UPDATE app_users SET tablet_purchase_interest = $2, delivery_street = $3,
+       delivery_postal_code = $4, delivery_city = $5, delivery_country = $6
+       WHERE id = $1 AND is_active = TRUE RETURNING id`,
+      [req.authUser.id, tabletInterest, address?.street || null, address?.postalCode || null,
+        address?.city || null, address?.country || null]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Compte indisponible.' });
+    res.set('Cache-Control', 'no-store');
+    res.json({ tabletInterest, postalAddress: address });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible d’enregistrer votre choix de tablette.');
+  }
+});
+
+app.get('/api/admin/tablet-interests', requireAuth, requireAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT name, email, tablet_purchase_interest, delivery_street, delivery_postal_code,
+              delivery_city, delivery_country
+       FROM app_users WHERE is_active = TRUE AND tablet_purchase_interest IN ('purchase', 'purchase_premium', 'rental_premium')
+       ORDER BY created_at DESC`
+    );
+    res.set('Cache-Control', 'no-store');
+    res.json({ interests: result.rows.map(row => ({
+      name: row.name, email: row.email, tabletInterest: row.tablet_purchase_interest,
+      postalAddress: { street: row.delivery_street, postalCode: row.delivery_postal_code,
+        city: row.delivery_city, country: row.delivery_country }
+    })) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les intérêts pour les tablettes.');
   }
 });
 

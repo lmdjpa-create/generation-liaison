@@ -55,6 +55,7 @@ function createApp(response) {
     configurerDicteeMessagerie() {},
     configurerLectureSenior() {},
     configurerProfil() {},
+    configurerChoixTablette() {},
     configurerTuilesAidant() {},
     configurerPreferencesNotification() {},
     configurerAnnuaire() {},

@@ -407,6 +407,18 @@
           </table></div>
         </section>
         <section class="panel" data-section="accounts">
+          <details id="admin-tablet-interests">
+            <summary>Intérêts pour les tablettes</summary>
+            <p>Ces choix ne sont ni des commandes ni des paiements. Les options payantes ne sont pas encore disponibles.</p>
+            <button type="button" class="button secondary" id="admin-tablet-refresh">Charger ou actualiser</button>
+            <p id="admin-tablet-status" role="status" aria-live="polite"></p>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Nom</th><th>E-mail</th><th>Choix</th><th>Adresse de livraison</th></tr></thead>
+              <tbody id="admin-tablet-body"></tbody>
+            </table></div>
+          </details>
+        </section>
+        <section class="panel" data-section="accounts">
           <div class="panel-head"><div><h2>Demandes d’accès des aidants</h2><p>Le senior peut normalement accepter lui-même. En cas d’oubli, confirmez uniquement après avoir vérifié son accord directement auprès de lui. Cette action ne donne pas accès à ses contenus privés à l’administration.</p></div></div>
           <div id="senior-link-requests" aria-live="polite">Chargement des demandes…</div>
         </section>
@@ -527,6 +539,47 @@
       }
       return readResponse(await fetch(url, init));
     }
+
+    let tabletInterestsRevision = 0;
+    document.getElementById('admin-tablet-interests').addEventListener('toggle', event => {
+      if (!event.currentTarget.open) {
+        tabletInterestsRevision++;
+        document.getElementById('admin-tablet-body').replaceChildren();
+        document.getElementById('admin-tablet-status').textContent = '';
+      }
+    });
+    document.getElementById('admin-tablet-refresh').addEventListener('click', async event => {
+      const revision = ++tabletInterestsRevision;
+      const button = event.currentTarget;
+      const status = document.getElementById('admin-tablet-status');
+      const body = document.getElementById('admin-tablet-body');
+      button.disabled = true;
+      status.textContent = 'Chargement...';
+      try {
+        const result = await adminRequest('/api/admin/tablet-interests');
+        if (revision !== tabletInterestsRevision) return;
+        body.replaceChildren();
+        for (const interest of result.interests) {
+          const row = document.createElement('tr');
+          addCell(row, interest.name);
+          addCell(row, interest.email);
+          const labels = {
+            purchase: 'Achat de la tablette seule',
+            purchase_premium: 'Achat de la tablette avec option Premium à venir',
+            rental_premium: 'Location de la tablette avec option Premium à venir'
+          };
+          addCell(row, labels[interest.tabletInterest]);
+          const address = interest.postalAddress;
+          addCell(row, `${address.street}, ${address.postalCode} ${address.city}, ${address.country}`);
+          body.append(row);
+        }
+        status.textContent = result.interests.length ? '' : 'Aucun intérêt enregistré.';
+      } catch (error) {
+        if (revision === tabletInterestsRevision) status.textContent = error.message || 'Impossible de charger les intérêts.';
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     document.getElementById('admin-announcement-form').addEventListener('submit', async event => {
       event.preventDefault();

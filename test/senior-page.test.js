@@ -30,7 +30,7 @@ function voiceTestContext() {
     handlers: {}, addEventListener(type, handler) { this.handlers[type] = handler; }, focus() {}
   };
   const context = {
-    document: { getElementById: element },
+    document: { getElementById: element, addEventListener(type, handler) { this[type] = handler; } },
     window: { generationLiaisonTranslate: value => value, generationLiaisonLocale: () => 'fr-FR' },
     connectedUser: { id: 'senior', role: 'senior' },
     messageDictation: null, messageRewriteRevision: 0, messageRewriteOriginal: '',
@@ -96,134 +96,27 @@ test('AI message suggestion requires confirmation and only applies after an expl
   assert.equal(element('message-rewrite-result').hidden, true);
 });
 
-test('screen reader defaults on, persists settings and reads only visible text', () => {
-  const { context, element } = voiceTestContext();
-  const values = new Map();
-  const voice = { name: 'Claire', lang: 'fr-FR', voiceURI: 'claire' };
-  const spoken = [];
-  const screen = { id: 'screen-messages', querySelectorAll: () => [root] };
-  const root = { tagName: 'DIV', parentElement: null, hidden: false, getAttribute: () => null };
-  const visible = { tagName: 'P', parentElement: root, hidden: false, getAttribute: () => null };
-  const hidden = { tagName: 'P', parentElement: root, hidden: true, getAttribute: () => null };
-  let nodes = [{ nodeValue: 'Bonjour', parentElement: visible }, { nodeValue: 'Secret caché', parentElement: hidden }];
-  const timers = [];
-  Object.assign(context, {
-    seniorVoiceUserId: '', seniorVoiceTimer: null, seniorVoiceLastText: '',
-    localStorage: { getItem: key => values.get(key) || null, setItem: (key, value) => values.set(key, value) },
-    NodeFilter: { SHOW_TEXT: 4 },
-    Option: function(text, value) { this.text = text; this.value = value; },
-    SpeechSynthesisUtterance: function(text) { this.text = text; },
-    setTimeout: fn => { timers.push(fn); return timers.length; },
-    clearTimeout: () => {}
-  });
-  const select = element('senior-voice-choice');
-  select.replaceChildren = () => {};
-  select.add = () => {};
-  context.window.SpeechSynthesisUtterance = context.SpeechSynthesisUtterance;
-  context.window.speechSynthesis = {
-    getVoices: () => [voice], cancel() {}, speak: utterance => spoken.push(utterance), addEventListener() {}
-  };
-  context.window.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
-  context.document.hidden = false;
-  context.document.querySelector = () => screen;
-  context.document.createTreeWalker = () => {
-    let index = 0;
-    return { nextNode: () => nodes[index++] || null };
-  };
-  context.initialiserLectureSenior();
-  assert.equal(element('senior-voice-enabled').checked, true);
-  values.set('generation-liaison-voice-senior-voice', 'claire');
-  assert.equal(context.texteVisibleLectureSenior(root), 'Bonjour');
-  context.texteVisibleLectureSenior = () => 'Bonjour';
-  context.planifierLectureSenior();
-  timers.pop()();
-  assert.equal(spoken[0].text, 'Bonjour');
-  assert.equal(spoken[0].voice, voice);
-  context.document.hidden = true;
-  context.planifierLectureSenior();
-  assert.equal(spoken.length, 1);
-  values.set('generation-liaison-voice-senior-enabled', 'false');
-  context.initialiserLectureSenior();
-  assert.equal(element('senior-voice-enabled').checked, false);
+test('senior speech output is removed while dictation and emergency confirmation remain available', () => {
+  assert.doesNotMatch(source, /speechSynthesis\.speak|settings-senior-voice|wellbeing-question-speak/);
+  assert.match(source, /id="message-dictation-senior"/);
+  assert.match(source, /id="emergency-call-confirm-voice"/);
 });
 
-test('automatic senior narration selects only the requested categories on each screen', () => {
-  const { context, element } = voiceTestContext();
-  const spoken = [];
-  const timers = [];
-  const screens = {
-    'screen-senior': {
-      'date-senior': 'Lundi',
-      'senior-weather-status': 'Soleil',
-      'senior-next-visit-text': 'Visite demain',
-      'assistant-messages': 'Conversation privée',
-      'wellbeing-checkin-result': 'Bilan'
-    },
-    'screen-more': { 'senior-journal-list': 'Nouvelle du journal' },
-    'screen-messages': {
-      'notifications-senior': 'Notification',
-      'message-list-senior': 'Message',
-      'message-rewrite-text': 'Brouillon'
-    },
-    'screen-agenda': { 'calendar-selected-day': 'Rendez-vous', 'personal-event-card': 'Formulaire' },
-    'screen-senior-pro': { 'senior-summary-visit': 'Visite', 'senior-summary-tasks': 'Tâches' },
-    'screen-contacts': { contacts: 'Contact' }
-  };
-  let active = 'screen-senior';
-  Object.assign(context, {
-    seniorVoiceUserId: 'senior', seniorVoiceTimer: null, seniorVoiceLastText: '',
-    localStorage: { getItem: () => null },
-    SpeechSynthesisUtterance: function(text) { this.text = text; },
-    setTimeout: fn => { timers.push(fn); return timers.length; },
-    clearTimeout: () => {}
-  });
-  context.window.SpeechSynthesisUtterance = context.SpeechSynthesisUtterance;
-  context.window.speechSynthesis = {
-    getVoices: () => [], cancel() {}, speak: utterance => spoken.push(utterance.text)
-  };
-  context.document.hidden = false;
-  context.document.querySelector = () => ({
-    id: active,
-    querySelectorAll: selector => selector.split(', ').map(id => screens[active][id.slice(1)])
-      .filter(Boolean).map(text => ({ text }))
-  });
-  context.texteVisibleLectureSenior = root => root.text;
-  element('senior-voice-enabled').checked = true;
-  for (const id of Object.keys(screens)) {
-    active = id;
-    context.planifierLectureSenior();
-    timers.pop()();
-  }
-  assert.deepEqual(spoken, [
-    'Lundi. Soleil. Visite demain',
-    'Nouvelle du journal',
-    'Notification. Message',
-    'Rendez-vous',
-    'Visite'
-  ]);
-});
-
-test('automatic narration skips hidden ancestors and button labels', () => {
+test('message dictation stops when the page becomes hidden', () => {
   const { context } = voiceTestContext();
-  const root = { tagName: 'DIV', hidden: false, parentElement: null, getAttribute: () => null };
-  const hiddenParent = { tagName: 'SECTION', hidden: true, parentElement: root, getAttribute: () => null };
-  const innerRoot = { tagName: 'DIV', hidden: false, parentElement: hiddenParent, getAttribute: () => null };
-  const button = { tagName: 'BUTTON', hidden: false, parentElement: root, getAttribute: () => null };
-  const visible = { tagName: 'P', hidden: false, parentElement: root, getAttribute: () => null };
-  const nodes = [
-    { nodeValue: 'Information', parentElement: visible },
-    { nodeValue: 'Bouton', parentElement: button },
-    { nodeValue: 'Contenu caché', parentElement: innerRoot }
-  ];
-  context.NodeFilter = { SHOW_TEXT: 4 };
-  context.window.getComputedStyle = () => ({ display: 'block', visibility: 'visible' });
-  context.document.createTreeWalker = selectedRoot => {
-    let index = 0;
-    const selectedNodes = selectedRoot === innerRoot ? [nodes[2]] : nodes;
-    return { nextNode: () => selectedNodes[index++] || null };
+  let aborted = false;
+  context.window.SpeechRecognition = function() {
+    this.start = () => {};
+    this.abort = () => { aborted = true; };
   };
-  assert.equal(context.texteVisibleLectureSenior(root), 'Information');
-  assert.equal(context.texteVisibleLectureSenior(innerRoot), '');
+  context.dicterMessageSenior();
+  const start = source.lastIndexOf("    document.addEventListener('visibilitychange', () => {");
+  const end = source.indexOf('    });', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(source.slice(start, end + '    });'.length), context);
+  context.document.hidden = true;
+  context.document.visibilitychange();
+  assert.equal(aborted, true);
 });
 
 test('message contacts show availability per contact rather than a premium requirement', async () => {
@@ -2120,7 +2013,7 @@ test('emergency calls require confirmation and can be confirmed again after a co
     }
   };
   vm.runInNewContext(
-    extract('    let emergencyNumberSelected = null;', '    function parlerCheckinBienEtre(texte, status)'), context
+    extract('    let emergencyNumberSelected = null;', '    function afficherCheckinBienEtre(checkin)'), context
   );
   numbers[1].listeners.click();
   assert.equal(element('emergency-call-confirmation').hidden, false);

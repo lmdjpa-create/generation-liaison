@@ -43,7 +43,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,chat-admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test,broadcast-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,chat-admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test,broadcast-admin@example.test,tablet-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
@@ -797,6 +797,53 @@ test('account municipality is required, private, validated and cleared on accoun
   });
   assert.equal(legacy.status, 201);
   assert.equal(legacy.data.user.accountCommune, null);
+});
+
+test('tablet interest requires an address, is private, editable and cleared on closure', async () => {
+  const base = {
+    name: 'Client tablette', email: 'tablet-buyer@example.test', password: 'a-test-password-123',
+    role: 'establishment', acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION
+  };
+  const postalAddress = { street: '  10 rue des Lilas  ', postalCode: '75001', city: 'Paris', country: 'France' };
+  const expected = { ...postalAddress, street: '10 rue des Lilas' };
+  for (const tabletInterest of ['purchase', 'purchase_premium', 'rental_premium']) {
+    assert.equal((await request('/api/auth/register', { body: { ...base, tabletInterest } })).status, 400);
+  }
+  assert.equal((await request('/api/auth/register', {
+    body: { ...base, tabletInterest: 'purchase', postalAddress: { ...postalAddress, country: '' } }
+  })).status, 400);
+  const created = await request('/api/auth/register', {
+    body: { ...base, tabletInterest: 'purchase_premium', postalAddress }
+  });
+  assert.equal(created.status, 201);
+  const user = created.data;
+  assert.equal(user.user.postalAddress, undefined);
+  assert.equal((await request('/api/account/tablet-interest')).status, 401);
+  assert.deepEqual((await request('/api/account/tablet-interest', { user })).data, {
+    tabletInterest: 'purchase_premium', postalAddress: expected
+  });
+  const other = await register('tablet-other@example.test', 'aidant');
+  assert.equal((await request('/api/account/tablet-interest', { user: other })).data.postalAddress, null);
+  assert.equal((await request('/api/admin/tablet-interests', { user: other })).status, 403);
+  const admin = await register('tablet-admin@example.test', 'aidant');
+  const list = await request('/api/admin/tablet-interests', { user: admin, admin: true });
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.data.interests.find(item => item.email === base.email).postalAddress, expected);
+  const put = body => request('/api/account/tablet-interest', { user, body, method: 'PUT' });
+  assert.equal((await put({ tabletInterest: 'rental_premium', postalAddress: null })).status, 400);
+  assert.equal((await put({ tabletInterest: 'rental_premium', postalAddress: { ...postalAddress, city: '\u0000' } })).status, 400);
+  assert.equal((await put({ tabletInterest: 'rental_premium', postalAddress })).status, 200);
+  assert.equal((await request('/api/account/tablet-interest', { user })).data.tabletInterest, 'rental_premium');
+  assert.equal((await put({ tabletInterest: 'none', postalAddress: null })).status, 200);
+  assert.equal((await request('/api/admin/tablet-interests', { user: admin, admin: true })).data.interests.some(item => item.email === base.email), false);
+  assert.equal((await put({ tabletInterest: 'purchase', postalAddress })).status, 200);
+  assert.equal((await request('/api/account/closure-request', { user, body: { password: base.password } })).status, 200);
+  const saved = await db.query(
+    'SELECT tablet_purchase_interest, delivery_street, delivery_postal_code, delivery_city, delivery_country FROM app_users WHERE id = $1',
+    [user.user.id]
+  );
+  assert.equal(saved.rows[0].tablet_purchase_interest, 'none');
+  assert.ok(Object.entries(saved.rows[0]).filter(([key]) => key.startsWith('delivery_')).every(([, value]) => value === null));
 });
 
 test('technical alerts require repeated server errors and deduplicate across processes', async () => {

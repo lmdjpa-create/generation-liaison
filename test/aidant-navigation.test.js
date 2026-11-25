@@ -899,6 +899,7 @@ function createView(response) {
     reinitialiserPhotosContacts() {},
     reinitialiserPhotoMessages() {},
     reinitialiserProfil() {},
+    reinitialiserChoixTablette() {},
     chargerPhotoProfil() {},
     updatePlanningDateTitle() {},
     ...Object.fromEntries([

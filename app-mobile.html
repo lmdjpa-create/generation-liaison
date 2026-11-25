@@ -211,6 +211,19 @@
             border-radius: 999px;
         }
         .helper-text { color: #62736d; font-size: 0.82rem; line-height: 1.45; }
+        .registration-highlight {
+            display: inline-block;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 10px 14px;
+            border: 3px solid #198754;
+            border-radius: 10px;
+            background: #e8f4ee;
+            color: #146c43;
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+        label[for="reg-tablet-interest"] { margin-bottom: 12px; }
         .consent-item, .progress-item { padding: 12px 0; border-bottom: 1px solid #e8ecef; text-align: left; }
         :is(#senior-journal-details, #aidant-journal-details, #pro-journal-details),
         :is(#senior-journal-list, #aidant-journal-list, #pro-journal-list) .progress-item { text-align: center; }
@@ -903,6 +916,8 @@
             <progress id="reg-progress" value="1" max="4" aria-label="Progression de l’inscription"></progress>
             <div id="reg-step-1" class="register-step">
             <h3 tabindex="-1">Votre profil</h3>
+            <p class="helper-text"><strong class="registration-highlight">L’accès de base à l’application est gratuit.</strong></p>
+            <p class="helper-text">Une option Premium payante pour un futur carnet de soins est envisagée ; elle n’est pas encore disponible. Le carnet actuel concerne le quotidien et ne doit pas contenir de données de santé.</p>
             <label for="reg-role">Type de compte</label>
             <select id="reg-role">
                 <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
@@ -910,7 +925,7 @@
                 <option value="senior">🧑 Personne accompagnée</option>
                 <option value="establishment">🏢 Entreprise / résidence</option>
             </select>
-            <p id="reg-establishment-info" class="helper-text" hidden>Un abonnement mensuel payant est prévu pour les établissements, selon le nombre de personnes : 1 à 10 : 29 € HT ; 11 à 25 : 49 € HT ; 26 à 50 : 79 € HT ; 51 à 100 : 129 € HT ; au-delà : devis. Grille indicative ; contactez l’administration pour les conditions. L’activation est manuelle, sans paiement en ligne.</p>
+            <p id="reg-establishment-info" class="helper-text" hidden>Un abonnement spécifique aux établissements est envisagé. L’activation est manuelle, sans paiement en ligne ; contactez l’administration pour les conditions.</p>
             </div>
             <div id="reg-step-2" class="register-step" hidden>
             <h3 tabindex="-1">Votre identité et votre accès</h3>
@@ -934,6 +949,18 @@
             </div>
             <div id="reg-step-3" class="register-step" hidden>
             <h3 tabindex="-1">Vos informations</h3>
+            <section class="form-card" style="text-align:left;">
+                <h3>Adresse pour une livraison de tablette</h3>
+                <p class="helper-text">Facultative pour créer un compte, cette adresse complète sera nécessaire pour recevoir une tablette. La renseigner ne constitue pas une commande.</p>
+                <label for="reg-postal-address">Adresse postale</label>
+                <input id="reg-postal-address" type="text" maxlength="300" autocomplete="street-address">
+                <label for="reg-postal-code">Code postal</label>
+                <input id="reg-postal-code" type="text" maxlength="20" autocomplete="postal-code">
+                <label for="reg-postal-city">Ville</label>
+                <input id="reg-postal-city" type="text" maxlength="120" autocomplete="address-level2">
+                <label for="reg-postal-country">Pays</label>
+                <input id="reg-postal-country" type="text" maxlength="120" autocomplete="country-name">
+            </section>
             <div id="reg-senior-fields">
                 <input type="text" id="reg-senior-name" placeholder="Nom de la personne accompagnée (facultatif)" aria-label="Nom de la personne accompagnée (facultatif)">
                 <p class="helper-text">Vous pouvez créer votre compte même si la personne accompagnée n’est pas encore inscrite. Le suivi apparaîtra lorsqu’elle rejoindra l’application et partagera son profil.</p>
@@ -950,6 +977,7 @@
             </div>
             <section id="reg-account-commune-fields" class="form-card" style="text-align:left;">
                 <h3>Commune du compte (obligatoire)</h3>
+                <p class="helper-text">Cette commune française de référence pour la météo est distincte de l’adresse de livraison.</p>
                 <p class="helper-text">Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.</p>
                 <p class="helper-text">Saisissez au moins la ville ou le code postal.</p>
                 <label for="reg-account-city">Ville</label>
@@ -989,6 +1017,16 @@
             <div id="reg-step-4" class="register-step" hidden>
             <h3 tabindex="-1">Vérification et conditions</h3>
             <p id="reg-summary"></p>
+            <p id="reg-postal-summary"></p>
+            <label for="reg-tablet-interest" class="registration-highlight">Une tablette vous intéresse-t-elle ?</label>
+            <select id="reg-tablet-interest">
+                <option value="">Choisissez une réponse</option>
+                <option value="none">Non</option>
+                <option value="purchase">Achat seul : 299 € TTC (prix indicatif)</option>
+                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir (tarif à définir)</option>
+                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir (tarif à définir)</option>
+            </select>
+            <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et service Premium en supplément. Le tarif Premium reste à définir et l’option n’est pas encore disponible. Votre réponse indique uniquement un intérêt : elle ne crée ni commande, ni paiement, ni engagement. L’administration pourra consulter votre réponse et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
             <label class="terms-consent" for="reg-terms-accepted">
                 <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
                 <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
@@ -1059,15 +1097,15 @@
         <section class="form-card" id="wellbeing-checkin-panel" style="text-align:left;">
           <details class="senior-disclosure" id="wellbeing-checkin-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">💚</span>Vérification de bien-être</summary>
-            <details class="senior-disclosure senior-explanation" data-help-for="#wellbeing-question-speak">
+            <details class="senior-disclosure senior-explanation" data-help-for="#wellbeing-dictation-button">
                 <summary>Explications</summary>
                 <div class="gl-help-bubble">
-                <p class="helper-text">Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit ; vous pourrez aussi écouter sa réponse.</p>
+                <p class="helper-text">Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit.</p>
                 </div>
             </details>
-            <button type="button" id="wellbeing-question-speak">🔊 Écouter la question</button>
             <div class="schedule-notice" role="note">Cette fonction n’est pas un service d’urgence et ne surveille pas votre sécurité. En cas de danger immédiat, appelez le 112 ou le 15.</div>
             <form id="wellbeing-checkin-form" class="form-grid">
+                <p>Bonjour. Comment allez-vous aujourd’hui ?</p>
                 <label for="wellbeing-checkin-response">Votre réponse</label>
                 <textarea id="wellbeing-checkin-response" maxlength="1200" placeholder="Écrivez ici comment vous vous sentez..." required></textarea>
                 <button type="button" id="wellbeing-dictation-button">🎙️ Dicter ma réponse</button>
@@ -1561,6 +1599,7 @@
             <button type="button" class="simple-view-enable" onclick="changerVueSimplifiee(true)">Activer la vue simplifiée</button>
             <button type="button" class="simple-view-disable" onclick="changerVueSimplifiee(false)">Utiliser l’affichage standard</button>
         </details>
+        <div id="establishment-tablet-settings"></div>
     </section>
     <section class="form-card" id="establishment-announcement-panel" hidden>
         <h3>Messages aux inscrits</h3>
@@ -1638,12 +1677,12 @@
             <label for="establishment-tablet-interest">Option tablettes (facultatif)</label>
             <select id="establishment-tablet-interest">
                 <option value="none">Aucune demande</option>
-                <option value="rental">Location envisagée : 15 à 25 € HT / mois / tablette</option>
-                <option value="purchase">Achat envisagé : 229 à 299 € TTC / tablette</option>
+                <option value="rental">Location envisagée : 25 € HT / mois / tablette sur 12 mois + Premium à venir</option>
+                <option value="purchase">Achat envisagé : 299 € TTC / tablette</option>
             </select>
             <label for="establishment-tablet-quantity">Nombre de tablettes souhaitées</label>
             <input id="establishment-tablet-quantity" type="number" min="1" max="1000">
-            <p>Tarifs indicatifs, selon devis et disponibilité. La location suppose un partenaire ; celui-ci n’est pas encore confirmé. Ce choix exprime un intérêt et ne constitue pas une commande.</p>
+            <p>Tarifs indicatifs, selon devis et disponibilité. La location prévoit un engagement de 12 mois et le service Premium en supplément, dont le tarif reste à définir. Le Premium n’est pas encore disponible et aucun partenaire de location n’est confirmé. Ce choix exprime un intérêt et ne constitue ni une commande ni un engagement.</p>
             <button type="submit">Enregistrer</button>
             <p id="establishment-status" role="status" aria-live="polite"></p>
         </form>
@@ -2208,6 +2247,7 @@
 <div id="screen-settings" class="screen-container">
     <h1>Réglages</h1>
     <button id="settings-logout" type="button" onclick="deconnecterUtilisateur()">Se déconnecter</button>
+    <div id="account-tablet-settings"></div>
     <section class="form-card" id="settings-senior-display" style="display:none;">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👁️</span>Affichage senior</summary>
@@ -2260,17 +2300,6 @@
         </details>
 <p class="helper-text">Les prévisions peuvent être inexactes ou indisponibles. Consultez les alertes officielles pour votre sécurité.</p>
         </div>
-      </details>
-    </section>
-    <section class="form-card" id="settings-senior-voice" style="display:none;">
-      <details class="senior-tab-disclosure">
-        <summary>🔊 Lecture à voix haute</summary>
-        <p class="helper-text">La lecture automatique concerne la date, la météo, les notifications, les messages et les rendez-vous. Elle est activée par défaut sur cet appareil lorsque l’application est ouverte. Les personnes autour de vous peuvent l’entendre. Le navigateur peut demander une première action avant de parler.</p>
-        <label class="notification-choice"><input id="senior-voice-enabled" type="checkbox"> Lire les informations à voix haute</label>
-        <label for="senior-voice-choice">Choisir une voix</label>
-        <select id="senior-voice-choice"><option value="">Voix de l’appareil</option></select>
-        <button id="senior-voice-stop" type="button">Arrêter la lecture</button>
-        <p id="senior-voice-status" class="helper-text" role="status" aria-live="polite"></p>
       </details>
     </section>
     <section class="form-card" id="settings-account-profile">
@@ -2502,6 +2531,34 @@
 </section>
 </div>
 
+<template id="tablet-settings-template">
+    <section class="form-card">
+      <details class="senior-tab-disclosure" data-tablet-settings>
+        <summary>Tablette et adresse de livraison</summary>
+        <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et service Premium en supplément. Le tarif Premium reste à définir et l’option n’est pas encore disponible. Ce choix n’est ni une commande, ni un paiement, ni un engagement. L’administration pourra consulter votre choix et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
+        <form class="form-grid">
+          <fieldset disabled>
+            <label>Votre choix
+              <select name="interest">
+                <option value="none">Non</option>
+                <option value="purchase">Achat seul : 299 € TTC (prix indicatif)</option>
+                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir (tarif à définir)</option>
+                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir (tarif à définir)</option>
+              </select>
+            </label>
+            <p class="helper-text">L’adresse complète est nécessaire si vous souhaitez une tablette. Vous pouvez aussi la supprimer en choisissant « Non » et en vidant les champs.</p>
+            <label>Adresse postale<input name="street" maxlength="300" autocomplete="street-address"></label>
+            <label>Code postal<input name="postalCode" maxlength="20" autocomplete="postal-code"></label>
+            <label>Ville<input name="city" maxlength="120" autocomplete="address-level2"></label>
+            <label>Pays<input name="country" maxlength="120" autocomplete="country-name"></label>
+            <button type="submit">Enregistrer mon choix</button>
+          </fieldset>
+        </form>
+        <p data-tablet-status role="status" aria-live="polite"></p>
+      </details>
+    </section>
+</template>
+
 <div id="screen-agenda" class="screen-container" style="background-color:var(--senior-bg);">
     <div class="header-mobile"><h3 style="margin:0;">Agenda</h3><span>Vos rendez-vous autorisés, heure de Paris</span></div>
     <p id="agenda-senior-context" class="helper-text" hidden></p>
@@ -2720,9 +2777,6 @@
     let messageDictation = null;
     let messageRewriteRevision = 0;
     let messageRewriteOriginal = '';
-    let seniorVoiceTimer = null;
-    let seniorVoiceLastText = '';
-    let seniorVoiceUserId = '';
     let familyAlbumRevision = 0;
     let familyAlbumUrls = [];
     let familyJournalRevision = 0;
@@ -3130,7 +3184,6 @@
         const screenId = pendingGuardian && screenName === 'aidant' ? 'senior' : screenName;
         document.getElementById(`screen-${screenId}`).classList.add('active');
         document.getElementById(`nav-${screenName === 'messages' ? 'notifications' : screenName === 'more' ? 'proche' : screenName === 'senior-pro' ? 'senior' : screenName}`)?.classList.add('active');
-        planifierLectureSenior();
         if (screenName === 'agenda' || screenName === 'directory') {
             const isAidant = connectedUser.role === 'aidant';
             const context = document.getElementById(`${screenName}-senior-context`);
@@ -3298,6 +3351,10 @@
             const name = `${document.getElementById('reg-first-name').value.trim()} ${document.getElementById('reg-last-name').value.trim()}`;
             const email = document.getElementById('reg-email').value.trim();
             document.getElementById('reg-summary').textContent = `${role.options[role.selectedIndex].text} — ${name} — ${email}`;
+            const address = lireAdresseInscription();
+            document.getElementById('reg-postal-summary').textContent = address
+                ? `${window.generationLiaisonTranslate('Adresse de livraison')} : ${address.street}, ${address.postalCode} ${address.city}, ${address.country}`
+                : '';
         }
         document.getElementById(`reg-step-${step}`).querySelector('h3').focus();
     }
@@ -3323,6 +3380,11 @@
             }
         }
         if (step === 3) {
+            const addressFields = ['reg-postal-address', 'reg-postal-code', 'reg-postal-city', 'reg-postal-country'];
+            if (addressFields.some(id => el(id).value.trim())) {
+                const missing = addressFields.find(id => !el(id).value.trim());
+                if (missing) return fail('Pour une livraison de tablette, complétez toute l’adresse.', missing);
+            }
             const documentIds = role === 'pro' ? ['reg-identity-document', 'reg-kbis-document']
                 : role === 'aidant' && el('reg-legal-guardian').checked ? ['reg-guardian-identity', 'reg-guardian-proof'] : [];
             for (const id of documentIds) {
@@ -3349,6 +3411,14 @@
             }
         }
         return null;
+    }
+
+    function lireAdresseInscription() {
+        const street = document.getElementById('reg-postal-address').value.trim();
+        const postalCode = document.getElementById('reg-postal-code').value.trim();
+        const city = document.getElementById('reg-postal-city').value.trim();
+        const country = document.getElementById('reg-postal-country').value.trim();
+        return street || postalCode || city || country ? { street, postalCode, city, country } : null;
     }
 
     function afficherErreurEtapeInscription(error) {
@@ -3819,7 +3889,6 @@
         if (connectedUser?.role !== 'senior') return;
         localStorage.setItem(`generation-liaison-senior-simple-${connectedUser.id}`, String(enabled));
         initialiserVueSenior(connectedUser);
-        planifierLectureSenior();
     }
 
     async function setAuthenticatedView(user) {
@@ -3854,6 +3923,7 @@
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
         if (connectedUser?.id !== user.id) {
+            reinitialiserChoixTablette();
             wellbeingLoadedDate = null;
             openMessageConversations = {};
             document.getElementById('aidant-task-reminders').open = false;
@@ -3899,7 +3969,6 @@
             !(user.role === 'aidant' && user.isLegalGuardian && user.guardianVerificationStatus !== 'approved')) {
             void chargerMeteo(user.role);
         }
-        initialiserLectureSenior();
         reinitialiserPhotosContacts();
         reinitialiserPhotoMessages();
         reinitialiserProfil();
@@ -4333,6 +4402,85 @@
                 uploadButton.disabled = false;
             }
         });
+    }
+
+    let tabletSettingsRevision = 0;
+
+    function reinitialiserChoixTablette() {
+        tabletSettingsRevision++;
+        document.querySelectorAll('[data-tablet-settings]').forEach(details => {
+            details.open = false;
+            details.querySelector('form').reset();
+            details.querySelector('fieldset').disabled = true;
+            details.querySelector('[data-tablet-status]').textContent = '';
+        });
+    }
+
+    function configurerChoixTablette() {
+        const template = document.getElementById('tablet-settings-template');
+        for (const id of ['account-tablet-settings', 'establishment-tablet-settings']) {
+            const container = document.getElementById(id);
+            container.append(template.content.cloneNode(true));
+            const details = container.querySelector('[data-tablet-settings]');
+            const form = details.querySelector('form');
+            const fieldset = details.querySelector('fieldset');
+            const status = details.querySelector('[data-tablet-status]');
+            details.addEventListener('toggle', async () => {
+                if (!details.open) {
+                    tabletSettingsRevision++;
+                    form.reset();
+                    fieldset.disabled = true;
+                    status.textContent = '';
+                    return;
+                }
+                const revision = ++tabletSettingsRevision;
+                const userId = connectedUser?.id;
+                if (!userId) return;
+                fieldset.disabled = true;
+                status.textContent = window.generationLiaisonTranslate('Chargement...');
+                try {
+                    const response = await fetch(`${SERVER_URL}/api/account/tablet-interest`, { headers: authHeaders(false) });
+                    const result = await readResponse(response);
+                    if (revision !== tabletSettingsRevision || connectedUser?.id !== userId || !details.open) return;
+                    form.elements.interest.value = result.tabletInterest;
+                    for (const key of ['street', 'postalCode', 'city', 'country']) {
+                        form.elements[key].value = result.postalAddress?.[key] || '';
+                    }
+                    status.textContent = '';
+                    fieldset.disabled = false;
+                } catch (error) {
+                    if (revision === tabletSettingsRevision && connectedUser?.id === userId) {
+                        status.textContent = error.message || 'Impossible de charger votre choix de tablette.';
+                    }
+                }
+            });
+            form.addEventListener('submit', async event => {
+                event.preventDefault();
+                const revision = tabletSettingsRevision;
+                const userId = connectedUser?.id;
+                if (!userId || fieldset.disabled) return;
+                const values = {};
+                for (const key of ['street', 'postalCode', 'city', 'country']) values[key] = form.elements[key].value.trim();
+                const postalAddress = Object.values(values).some(Boolean) ? values : null;
+                fieldset.disabled = true;
+                try {
+                    const response = await fetch(`${SERVER_URL}/api/account/tablet-interest`, {
+                        method: 'PUT', headers: { ...authHeaders(false), 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tabletInterest: form.elements.interest.value, postalAddress })
+                    });
+                    await readResponse(response);
+                    if (revision === tabletSettingsRevision && connectedUser?.id === userId && details.open) {
+                        status.textContent = window.generationLiaisonTranslate('Choix enregistré. Ce n’est pas une commande.');
+                    }
+                } catch (error) {
+                    if (revision === tabletSettingsRevision && connectedUser?.id === userId) {
+                        status.textContent = error.message || 'Impossible d’enregistrer votre choix de tablette.';
+                    }
+                } finally {
+                    if (revision === tabletSettingsRevision && connectedUser?.id === userId && details.open) fieldset.disabled = false;
+                }
+            });
+        }
     }
 
     function reinitialiserTachesPartagees() {
@@ -4943,17 +5091,6 @@
         }
     });
 
-    function parlerCheckinBienEtre(texte, status) {
-        if (!window.speechSynthesis || !window.SpeechSynthesisUtterance) {
-            status.textContent = 'La lecture vocale n’est pas disponible sur cet appareil.';
-            return;
-        }
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(texte);
-        utterance.lang = window.generationLiaisonLocale();
-        window.speechSynthesis.speak(utterance);
-    }
-
     function afficherCheckinBienEtre(checkin) {
         currentWellbeingCheckin = checkin;
         if (wellbeingSafetyTimer) {
@@ -4983,14 +5120,6 @@
         result.append(makeTextElement('p', checkin.response));
         result.append(makeTextElement('h4', 'La réponse de votre assistant IA'));
         result.append(makeTextElement('p', checkin.assistantReply));
-        const speakButton = document.createElement('button');
-        speakButton.type = 'button';
-        speakButton.textContent = '🔊 Écouter la réponse de l’IA';
-        const speakStatus = makeTextElement('p', '', 'helper-text');
-        speakStatus.setAttribute('aria-live', 'polite');
-        speakButton.addEventListener('click', () =>
-            parlerCheckinBienEtre(checkin.assistantReply, speakStatus));
-        result.append(speakButton, speakStatus);
         afficherSuiviSecuriteBienEtre(safetyResult, checkin);
     }
 
@@ -5169,13 +5298,6 @@
             ));
         }
     }
-
-    document.getElementById('wellbeing-question-speak').addEventListener('click', event => {
-        parlerCheckinBienEtre(
-            'Bonjour. Comment allez-vous aujourd’hui ?',
-            document.getElementById('wellbeing-checkin-status')
-        );
-    });
 
     document.getElementById('wellbeing-aidant-contacts').addEventListener('change', event => {
         if (event.target.matches('[data-wellbeing-recipient]')) {
@@ -7187,158 +7309,6 @@
         } catch (error) {
             console.error('Impossible d’arrêter la dictée :', error);
         }
-    }
-
-    function cleLectureSenior(suffix) {
-        return `generation-liaison-voice-${seniorVoiceUserId}-${suffix}`;
-    }
-
-    function arreterLectureSenior() {
-        clearTimeout(seniorVoiceTimer);
-        seniorVoiceTimer = null;
-        seniorVoiceLastText = '';
-        if (window.speechSynthesis) window.speechSynthesis.cancel();
-    }
-
-    function actualiserVoixSenior() {
-        const select = document.getElementById('senior-voice-choice');
-        const selected = seniorVoiceUserId ? localStorage.getItem(cleLectureSenior('voice')) || '' : '';
-        const voices = window.speechSynthesis?.getVoices() || [];
-        select.replaceChildren(new Option(window.generationLiaisonTranslate('Voix de l’appareil'), ''));
-        voices.forEach(voice => select.add(new Option(`${voice.name} (${voice.lang})`, voice.voiceURI)));
-        select.value = voices.some(voice => voice.voiceURI === selected) ? selected : '';
-    }
-
-    function initialiserLectureSenior() {
-        arreterLectureSenior();
-        seniorVoiceUserId = connectedUser?.role === 'senior' ? connectedUser.id : '';
-        document.getElementById('settings-senior-voice').style.display = seniorVoiceUserId ? 'block' : 'none';
-        const enabled = document.getElementById('senior-voice-enabled');
-        const supported = Boolean(window.speechSynthesis && window.SpeechSynthesisUtterance);
-        enabled.disabled = !supported;
-        enabled.checked = Boolean(seniorVoiceUserId) && localStorage.getItem(cleLectureSenior('enabled')) !== 'false';
-        document.getElementById('senior-voice-status').textContent = supported
-            ? '' : window.generationLiaisonTranslate('La lecture vocale n’est pas disponible sur cet appareil.');
-        actualiserVoixSenior();
-    }
-
-    function texteVisibleLectureSenior(root) {
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-        const parts = [];
-        let node;
-        while ((node = walker.nextNode())) {
-            const text = node.nodeValue.trim();
-            if (!text || /^Chargement/.test(text)) continue;
-            let element = node.parentElement;
-            let visible = true;
-            while (element) {
-                if (element.hidden || element.getAttribute('aria-hidden') === 'true' ||
-                    ['SCRIPT', 'STYLE', 'SELECT', 'TEXTAREA', 'INPUT', 'BUTTON'].includes(element.tagName)) {
-                    visible = false;
-                    break;
-                }
-                if (element.tagName === 'DETAILS' && !element.open) {
-                    const summary = element.querySelector('summary');
-                    if (!summary?.contains(node)) { visible = false; break; }
-                }
-                const style = window.getComputedStyle(element);
-                if (style.display === 'none' || style.visibility === 'hidden') {
-                    visible = false;
-                    break;
-                }
-                element = element.parentElement;
-            }
-            if (visible) parts.push(text);
-        }
-        return parts.join('. ');
-    }
-
-    function planifierLectureSenior() {
-        clearTimeout(seniorVoiceTimer);
-        if (!seniorVoiceUserId || connectedUser?.id !== seniorVoiceUserId ||
-            !document.getElementById('senior-voice-enabled').checked || document.hidden || messageDictation || window.generationLiaisonListenings?.size ||
-            !window.speechSynthesis || !window.SpeechSynthesisUtterance) return;
-        seniorVoiceTimer = setTimeout(() => {
-            if (connectedUser?.id !== seniorVoiceUserId || document.hidden || messageDictation || window.generationLiaisonListenings?.size ||
-                !document.getElementById('senior-voice-enabled').checked) return;
-            const screen = document.querySelector('.screen-container.active');
-            if (!screen) return;
-            const allowed = {
-                'screen-senior': '#date-senior, #senior-weather-temp, #senior-weather-status, #senior-weather-days, #senior-next-visit-text',
-                'screen-more': '#senior-journal-list',
-                'screen-senior-pro': '#senior-summary-visit, #senior-summary-messages, #senior-summary-notifications',
-                'screen-messages': '#notification-opened-senior, #notifications-senior, #message-list-senior',
-                'screen-agenda': '#calendar-title, #calendar-week-summary-content, #calendar-grid, #calendar-selected-day'
-            };
-            const selector = allowed[screen.id];
-            const text = selector
-                ? Array.from(screen.querySelectorAll(selector), texteVisibleLectureSenior).filter(Boolean).join('. ')
-                : '';
-            const key = `${seniorVoiceUserId}:${screen.id}:${text}`;
-            if (!text) {
-                window.speechSynthesis.cancel();
-                seniorVoiceLastText = '';
-                return;
-            }
-            if (key === seniorVoiceLastText) return;
-            seniorVoiceLastText = key;
-            window.speechSynthesis.cancel();
-            const voiceId = localStorage.getItem(cleLectureSenior('voice')) || '';
-            const voice = window.speechSynthesis.getVoices().find(item => item.voiceURI === voiceId);
-            const characters = Array.from(text);
-            for (let offset = 0; offset < characters.length; offset += 1000) {
-                const utterance = new SpeechSynthesisUtterance(characters.slice(offset, offset + 1000).join(''));
-                utterance.lang = window.generationLiaisonLocale();
-                if (voice) utterance.voice = voice;
-                utterance.onerror = event => {
-                    if (event.error === 'canceled' || event.error === 'interrupted') return;
-                    if (connectedUser?.id === seniorVoiceUserId) {
-                        document.getElementById('senior-voice-status').textContent =
-                            window.generationLiaisonTranslate('La lecture a échoué. Vérifiez le son et les réglages de votre appareil.');
-                    }
-                };
-                window.speechSynthesis.speak(utterance);
-            }
-        }, 800);
-    }
-
-    function configurerLectureSenior() {
-        const enabled = document.getElementById('senior-voice-enabled');
-        enabled.addEventListener('change', () => {
-            if (!seniorVoiceUserId) return;
-            localStorage.setItem(cleLectureSenior('enabled'), String(enabled.checked));
-            arreterLectureSenior();
-            if (enabled.checked) planifierLectureSenior();
-        });
-        document.getElementById('senior-voice-choice').addEventListener('change', event => {
-            if (!seniorVoiceUserId) return;
-            localStorage.setItem(cleLectureSenior('voice'), event.target.value);
-            arreterLectureSenior();
-            planifierLectureSenior();
-        });
-        document.getElementById('senior-voice-stop').addEventListener('click', event => {
-            event.stopPropagation();
-            const lastText = seniorVoiceLastText;
-            arreterLectureSenior();
-            seniorVoiceLastText = lastText;
-        });
-        window.speechSynthesis?.addEventListener('voiceschanged', actualiserVoixSenior);
-        const observer = new MutationObserver(records => {
-            const screen = document.querySelector('.screen-container.active');
-            if (screen && records.some(record => screen.contains(record.target))) planifierLectureSenior();
-        });
-        document.querySelectorAll('.screen-container').forEach(screen => observer.observe(screen, {
-            childList: true, characterData: true, subtree: true
-        }));
-        document.addEventListener('click', planifierLectureSenior);
-        document.addEventListener('keydown', planifierLectureSenior);
-        document.addEventListener('visibilitychange', () => {
-            if (document.hidden) {
-                annulerDicteeMessage();
-                arreterLectureSenior();
-            }
-            else planifierLectureSenior();
-        });
     }
 
     function dicterMessageSenior() {
@@ -10279,6 +10249,7 @@
         sessionAlreadyRevoked = false,
         successMessage = 'Déconnexion réussie'
     } = {}) {
+        reinitialiserChoixTablette();
         const headers = authHeaders();
         let revocationFailed = false;
         const registeredPush = JSON.parse(localStorage.getItem(PUSH_TOKEN_KEY) || 'null');
@@ -10356,7 +10327,6 @@
         planningLoadId++;
         document.getElementById('pro-journal-list').replaceChildren();
         reinitialiserMeteo();
-        arreterLectureSenior();
         annulerDicteeMessage();
         annulerPropositionMessage();
         reinitialiserAlbumJournal();
@@ -10459,6 +10429,10 @@
         document.getElementById('reg-legal-guardian').checked = false;
         document.getElementById('reg-terms-error').hidden = true;
         document.getElementById('reg-notification-phone').value = '';
+        document.getElementById('reg-tablet-interest').value = '';
+        for (const id of ['reg-postal-address', 'reg-postal-code', 'reg-postal-city', 'reg-postal-country']) {
+            document.getElementById(id).value = '';
+        }
         document.getElementById('reg-email-notifications').checked = false;
         document.getElementById('reg-sms-notifications').checked = false;
         document.querySelectorAll('#professional-registration-fields [type="file"], #professional-verification-documents-form [type="file"], #legal-guardian-registration-fields [type="file"]')
@@ -10520,6 +10494,16 @@
         const submit = document.getElementById('reg-submit');
         const previous = document.getElementById('reg-previous');
         if (registrationStep !== 4 || submit.disabled) return;
+        const tabletInterest = document.getElementById('reg-tablet-interest').value;
+        if (!['none', 'purchase', 'purchase_premium', 'rental_premium'].includes(tabletInterest)) {
+            afficherErreurEtapeInscription({ message: 'Indiquez votre choix concernant la tablette.', field: 'reg-tablet-interest' });
+            return;
+        }
+        if (tabletInterest !== 'none' && !lireAdresseInscription()) {
+            afficherEtapeInscription(3);
+            afficherErreurEtapeInscription({ message: 'Pour une livraison de tablette, complétez toute l’adresse.', field: 'reg-postal-address' });
+            return;
+        }
         submit.disabled = previous.disabled = true;
         try {
             for (const step of [1, 2, 3]) {
@@ -10609,6 +10593,8 @@
                 seniorName: role === 'senior' ? name : role === 'aidant' ? seniorName : '',
                 password,
                 role,
+                postalAddress: lireAdresseInscription(),
+                tabletInterest: document.getElementById('reg-tablet-interest').value,
                 isLegalGuardian,
                 notificationPhone,
                 emailNotificationsEnabled,
@@ -11170,7 +11156,6 @@
         configurerTuilesAidant();
         configurerAlbumJournal();
         configurerDicteeMessagerie();
-        configurerLectureSenior();
         configurerProfil();
         configurerFormulairesCoordination();
         configurerFormulairesInformationsPersonne();
@@ -11403,5 +11388,9 @@
         }
     }
 
+    window.addEventListener('DOMContentLoaded', configurerChoixTablette);
     window.addEventListener('DOMContentLoaded', initApp);
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) annulerDicteeMessage();
+    });
 </script>

@@ -6,6 +6,19 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 
+test('tablet prices appear with each choice in registration and settings', () => {
+  for (const [value, price] of [
+    ['purchase', /299 € TTC/],
+    ['purchase_premium', /299 € TTC.*Premium à venir \(tarif à définir\)/],
+    ['rental_premium', /25 € HT \/ mois sur 12 mois.*Premium à venir \(tarif à définir\)/]
+  ]) {
+    const options = [...source.matchAll(new RegExp(`<option value="${value}">([^<]+)</option>`, 'g'))]
+      .map(match => match[1]).filter(label => label.includes('Premium') || label.includes('Achat seul'));
+    assert.equal(options.length, 2, value);
+    for (const option of options) assert.match(option, price);
+  }
+});
+
 function createRegistration(role = 'aidant') {
   const elements = new Map();
   const get = id => {
@@ -21,7 +34,8 @@ function createRegistration(role = 'aidant') {
   const fields = {
     'reg-role': role, 'reg-first-name': 'Marie', 'reg-last-name': 'Martin',
     'reg-email': 'marie@example.com', 'reg-password': 'un-code-secret',
-    'reg-confirm-password': 'un-code-secret', 'reg-service-radius': '30'
+    'reg-confirm-password': 'un-code-secret', 'reg-service-radius': '30',
+    'reg-tablet-interest': 'none'
   };
   for (const [id, value] of Object.entries(fields)) get(id).value = value;
   get('reg-role').options = [{ text: role }];
@@ -169,4 +183,28 @@ test('the commune lookup cannot be triggered twice while it is pending', async (
   await pending;
   assert.equal(app.get('reg-progress').value, 4);
   assert.equal(app.get('reg-previous').disabled, false);
+});
+
+test('a tablet interest requires a complete address and preserves it when returning', async () => {
+  for (const choice of ['purchase', 'purchase_premium', 'rental_premium']) {
+    const app = createRegistration('establishment');
+    await app.context.etapeSuivanteInscription();
+    await app.context.etapeSuivanteInscription();
+    await app.context.etapeSuivanteInscription();
+    app.get('reg-tablet-interest').value = choice;
+    await app.context.inscrireUtilisateur();
+    assert.equal(app.get('reg-progress').value, 3);
+    assert.equal(app.focused(), 'reg-postal-address');
+    app.get('reg-postal-address').value = '10 rue des Lilas';
+    await app.context.etapeSuivanteInscription();
+    assert.equal(app.focused(), 'reg-postal-code');
+    app.get('reg-postal-code').value = '75001';
+    app.get('reg-postal-city').value = 'Paris';
+    app.get('reg-postal-country').value = 'France';
+    await app.context.etapeSuivanteInscription();
+    assert.equal(app.get('reg-tablet-interest').value, choice);
+    assert.match(app.get('reg-postal-summary').textContent, /75001 Paris/);
+    await app.context.inscrireUtilisateur();
+    assert.equal(app.submissions(), 1);
+  }
 });
