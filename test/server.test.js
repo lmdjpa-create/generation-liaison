@@ -973,10 +973,10 @@ test('reports unavailable password recovery and rejects invalid links', async ()
   assert.equal(confirm.status, 400);
 });
 
-test('shows terms consent near the start of registration for every role', () => {
+test('shows terms consent in the registration review for every role', () => {
   const html = fs.readFileSync(path.join(projectRoot, 'app-mobile.html'), 'utf8');
   const registration = html.slice(html.indexOf('id="register-section"'), html.indexOf('id="legal-guardian-verification-panel"'));
-  assert.match(registration, /id="reg-email"[\s\S]*id="reg-terms-accepted"[^>]*type="checkbox"[^>]*required[\s\S]*id="reg-senior-fields"[\s\S]*id="professional-registration-fields"/);
+  assert.match(registration, /id="reg-email"[\s\S]*id="reg-senior-fields"[\s\S]*id="professional-registration-fields"[\s\S]*id="reg-step-4"[\s\S]*id="reg-terms-accepted"[^>]*type="checkbox"[^>]*required/);
   assert.equal((registration.match(/id="reg-terms-accepted"/g) || []).length, 1);
 });
 

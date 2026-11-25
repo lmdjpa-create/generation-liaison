@@ -1,0 +1,172 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const { test } = require('node:test');
+
+const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+
+function createRegistration(role = 'aidant') {
+  const elements = new Map();
+  const get = id => {
+    if (!elements.has(id)) elements.set(id, {
+      value: '', hidden: false, disabled: false, checked: false, files: [],
+      textContent: '', validity: { valid: true },
+      focus() { focused = id; },
+      querySelector() { return { focus() { focused = id; } }; }
+    });
+    return elements.get(id);
+  };
+  let focused;
+  const fields = {
+    'reg-role': role, 'reg-first-name': 'Marie', 'reg-last-name': 'Martin',
+    'reg-email': 'marie@example.com', 'reg-password': 'un-code-secret',
+    'reg-confirm-password': 'un-code-secret', 'reg-service-radius': '30'
+  };
+  for (const [id, value] of Object.entries(fields)) get(id).value = value;
+  get('reg-role').options = [{ text: role }];
+  get('reg-role').selectedIndex = 0;
+  get('reg-account-city-select').hidden = true;
+  let submissions = 0;
+  const context = {
+    document: { getElementById: get },
+    window: { generationLiaisonTranslate: text => text },
+    registrationHomeCoordinates: { latitude: 48, longitude: 2 },
+    verifierPhotoProfil(file) { if (file.type !== 'image/png') throw new Error('Photo invalide.'); },
+    choisirCommune: async () => ({ name: 'Paris' }),
+    soumettreInscription: async () => { submissions++; }
+  };
+  const start = source.indexOf('    let registrationStep = 1;');
+  const end = source.indexOf('    function messageErreurPosition(', start);
+  const submitStart = source.indexOf('    async function inscrireUtilisateur()');
+  const submitEnd = source.indexOf('    async function soumettreInscription()', submitStart);
+  assert.ok(start >= 0 && end > start && submitEnd > submitStart);
+  vm.runInNewContext(source.slice(start, end) + source.slice(submitStart, submitEnd), context);
+  return { context, get, focused: () => focused, submissions: () => submissions };
+}
+
+test('four steps preserve values and files while navigating back and validate confirmation', async () => {
+  const app = createRegistration('pro');
+  const file = { type: 'application/pdf', size: 10 };
+  app.get('reg-account-photo').files = [{ type: 'image/png', size: 10 }];
+  app.get('reg-identity-document').files = [file];
+  app.get('reg-kbis-document').files = [file];
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 2);
+  app.get('reg-confirm-password').value = 'different';
+  app.context.actualiserConfirmationInscription();
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 2);
+  assert.match(app.get('reg-step-error').textContent, /ne correspondent pas/);
+  assert.equal(app.focused(), 'reg-confirm-password');
+  app.get('reg-confirm-password').value = 'un-code-secret';
+  app.context.actualiserConfirmationInscription();
+  assert.match(app.get('reg-password-status').textContent, /correspondent/);
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 4);
+  assert.doesNotMatch(app.get('reg-summary').textContent, /un-code-secret/);
+  app.context.etapePrecedenteInscription();
+  app.context.etapePrecedenteInscription();
+  assert.equal(app.get('reg-confirm-password').value, 'un-code-secret');
+  assert.equal(app.get('reg-kbis-document').files[0], file);
+  assert.equal(app.get('reg-progress').value, 2);
+});
+
+test('each profile retains its own required information and commune errors stay on step three', async () => {
+  for (const role of ['senior', 'aidant', 'pro', 'establishment']) {
+    const app = createRegistration(role);
+    if (role === 'pro') {
+      app.get('reg-account-photo').files = [{ type: 'image/png' }];
+      app.get('reg-identity-document').files = [{ type: 'application/pdf', size: 10 }];
+      app.get('reg-kbis-document').files = [{ type: 'application/pdf', size: 10 }];
+    }
+    await app.context.etapeSuivanteInscription();
+    await app.context.etapeSuivanteInscription();
+    if (role === 'aidant') {
+      app.get('reg-legal-guardian').checked = true;
+      await app.context.etapeSuivanteInscription();
+      assert.equal(app.get('reg-progress').value, 3);
+      app.get('reg-guardian-identity').files = [{ type: 'application/pdf', size: 10 }];
+      app.get('reg-guardian-proof').files = [{ type: 'application/pdf', size: 10 }];
+    }
+    if (role === 'senior') {
+      app.context.choisirCommune = async () => { throw new Error('Choisissez une commune.'); };
+      await app.context.etapeSuivanteInscription();
+      assert.equal(app.get('reg-progress').value, 3);
+      assert.match(app.get('reg-step-error').textContent, /commune/);
+      app.context.choisirCommune = async () => ({ name: 'Paris' });
+    }
+    await app.context.etapeSuivanteInscription();
+    assert.equal(app.get('reg-progress').value, 4, role);
+  }
+});
+
+test('submission cannot bypass confirmation and rechecks changes before sending', async () => {
+  const app = createRegistration('establishment');
+  await app.context.inscrireUtilisateur();
+  assert.equal(app.submissions(), 0);
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  app.get('reg-password').value = 'different-code';
+  await app.context.inscrireUtilisateur();
+  assert.equal(app.submissions(), 0);
+  assert.equal(app.get('reg-progress').value, 2);
+  assert.equal(app.focused(), 'reg-confirm-password');
+  app.get('reg-confirm-password').value = 'different-code';
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  await app.context.inscrireUtilisateur();
+  assert.equal(app.submissions(), 1);
+});
+
+test('invalid professional and guardian documents are rejected before submission', async () => {
+  for (const role of ['pro', 'aidant']) {
+    const app = createRegistration(role);
+    if (role === 'pro') app.get('reg-account-photo').files = [{ type: 'image/png' }];
+    else app.get('reg-legal-guardian').checked = true;
+    await app.context.etapeSuivanteInscription();
+    await app.context.etapeSuivanteInscription();
+    const ids = role === 'pro' ? ['reg-identity-document', 'reg-kbis-document']
+      : ['reg-guardian-identity', 'reg-guardian-proof'];
+    app.get(ids[0]).files = [{ type: 'application/pdf', size: 10 }];
+    app.get(ids[1]).files = [{ type: 'application/pdf', size: 10 * 1024 * 1024 + 1 }];
+    await app.context.etapeSuivanteInscription();
+    assert.equal(app.get('reg-progress').value, 3);
+    assert.equal(app.focused(), ids[1]);
+    assert.equal(app.submissions(), 0);
+  }
+});
+
+test('invalid email or missing professional photo prevents advancing', async () => {
+  const app = createRegistration('pro');
+  await app.context.etapeSuivanteInscription();
+  app.get('reg-email').validity.valid = false;
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.focused(), 'reg-email');
+  app.get('reg-email').validity.valid = true;
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.focused(), 'reg-account-photo');
+  assert.equal(app.get('reg-progress').value, 2);
+});
+
+test('the commune lookup cannot be triggered twice while it is pending', async () => {
+  const app = createRegistration('senior');
+  let resolveLookup;
+  let calls = 0;
+  app.context.choisirCommune = () => {
+    calls++;
+    return new Promise(resolve => { resolveLookup = resolve; });
+  };
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  const pending = app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  assert.equal(calls, 1);
+  assert.equal(app.get('reg-previous').disabled, true);
+  resolveLookup({ name: 'Paris' });
+  await pending;
+  assert.equal(app.get('reg-progress').value, 4);
+  assert.equal(app.get('reg-previous').disabled, false);
+});

@@ -48,6 +48,10 @@
         input, select, textarea { width: 100%; padding: 15px; margin-bottom: 15px; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
         textarea { height: 100px; resize: none; }
         .btn-submit { background: #3498db; color: white; border: none; padding: 15px; width: 100%; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
+        #reg-progress { width: 100%; max-width: 360px; accent-color: #17684f; }
+        #reg-previous, #reg-next { padding: 12px 20px; margin: 8px 4px; cursor: pointer; }
+        #reg-previous { background: #fff; color: #17684f; border: 1px solid #17684f; }
+        #reg-next { background: #17684f; color: #fff; border: 1px solid #17684f; }
         .register-button { width: 100%; min-height: 50px; margin-bottom: 16px; padding: 12px; border: 2px solid #19785b; border-radius: 14px; background: white; color: #155e48; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
         .btn-gros { display: block; width: 100%; padding: 22px; font-size: 1.8rem; font-weight: bold; color: white; border: none; border-radius: 15px; margin: 15px 0; cursor: pointer; }
         .btn-success { background-color: #2ecc71; }
@@ -895,6 +899,21 @@
         <div id="register-section" style="display: none;">
             <h2 style="color: var(--primary); margin: 0 0 10px 0;">Créer un Compte</h2>
             <p style="font-size: 0.9rem; color: #7f8c8d; margin-bottom: 20px;">Créez votre accès Génération Liaison</p>
+            <p id="reg-step-progress" aria-live="polite">Étape 1 sur 4 : votre profil</p>
+            <progress id="reg-progress" value="1" max="4" aria-label="Progression de l’inscription"></progress>
+            <div id="reg-step-1" class="register-step">
+            <h3 tabindex="-1">Votre profil</h3>
+            <label for="reg-role">Type de compte</label>
+            <select id="reg-role">
+                <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
+                <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>
+                <option value="senior">🧑 Personne accompagnée</option>
+                <option value="establishment">🏢 Entreprise / résidence</option>
+            </select>
+            <p id="reg-establishment-info" class="helper-text" hidden>Un abonnement mensuel payant est prévu pour les établissements, selon le nombre de personnes : 1 à 10 : 29 € HT ; 11 à 25 : 49 € HT ; 26 à 50 : 79 € HT ; 51 à 100 : 129 € HT ; au-delà : devis. Grille indicative ; contactez l’administration pour les conditions. L’activation est manuelle, sans paiement en ligne.</p>
+            </div>
+            <div id="reg-step-2" class="register-step" hidden>
+            <h3 tabindex="-1">Votre identité et votre accès</h3>
             <input type="text" id="reg-first-name" name="given-name" autocomplete="given-name" maxlength="120" placeholder="Prénom" aria-label="Prénom">
             <input type="text" id="reg-last-name" name="family-name" autocomplete="family-name" maxlength="120" placeholder="Nom de famille" aria-label="Nom de famille">
             <label for="reg-civility">Civilité</label>
@@ -907,11 +926,14 @@
             <input id="reg-account-photo" type="file" accept="image/jpeg,image/png">
             <p class="helper-text">JPEG ou PNG, 2 Mo maximum. La photo est partagée par défaut avec les personnes qui vous ont ajouté à leurs contacts. Les intervenants doivent en ajouter une ; les autres peuvent désactiver le partage dans les réglages.</p>
             <input type="email" id="reg-email" name="username" autocomplete="username" placeholder="Adresse e-mail">
-            <label class="terms-consent" for="reg-terms-accepted">
-                <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
-                <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
-            </label>
-            <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
+            <label for="reg-password">Code d’accès (12 caractères minimum)</label>
+            <input type="password" id="reg-password" name="password" autocomplete="new-password" maxlength="256" placeholder="Code d’accès (12 caractères min)" oninput="actualiserConfirmationInscription()">
+            <label for="reg-confirm-password">Confirmez votre code d’accès</label>
+            <input type="password" id="reg-confirm-password" autocomplete="new-password" maxlength="256" aria-describedby="reg-password-status" oninput="actualiserConfirmationInscription()">
+            <p id="reg-password-status" class="helper-text" aria-live="polite"></p>
+            </div>
+            <div id="reg-step-3" class="register-step" hidden>
+            <h3 tabindex="-1">Vos informations</h3>
             <div id="reg-senior-fields">
                 <input type="text" id="reg-senior-name" placeholder="Nom de la personne accompagnée (facultatif)" aria-label="Nom de la personne accompagnée (facultatif)">
                 <p class="helper-text">Vous pouvez créer votre compte même si la personne accompagnée n’est pas encore inscrite. Le suivi apparaîtra lorsqu’elle rejoindra l’application et partagera son profil.</p>
@@ -926,15 +948,6 @@
                     <input id="reg-guardian-proof" type="file" accept="application/pdf,image/jpeg,image/png" data-guardian-document-type="guardianship">
                 </section>
             </div>
-            <input type="password" id="reg-password" name="password" autocomplete="new-password" placeholder="Mot de passe (12 caractères min)">
-            <label for="reg-role">Type de compte</label>
-            <select id="reg-role">
-                <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
-                <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>
-                <option value="senior">🧑 Personne accompagnée</option>
-                <option value="establishment">🏢 Entreprise / résidence</option>
-            </select>
-            <p id="reg-establishment-info" class="helper-text" hidden>Un abonnement mensuel payant est prévu pour les établissements, selon le nombre de personnes : 1 à 10 : 29 € HT ; 11 à 25 : 49 € HT ; 26 à 50 : 79 € HT ; 51 à 100 : 129 € HT ; au-delà : devis. Grille indicative ; contactez l’administration pour les conditions. L’activation est manuelle, sans paiement en ligne.</p>
             <section id="reg-account-commune-fields" class="form-card" style="text-align:left;">
                 <h3>Commune du compte (obligatoire)</h3>
                 <p class="helper-text">Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.</p>
@@ -972,7 +985,20 @@
                 <select id="reg-city-select" hidden></select>
                 <p id="reg-home-location-status" class="helper-text" aria-live="polite">Position du domicile non enregistrée.</p>
             </section>
-            <button class="btn-submit" type="button" onclick="inscrireUtilisateur()">Créer mon compte</button>
+            </div>
+            <div id="reg-step-4" class="register-step" hidden>
+            <h3 tabindex="-1">Vérification et conditions</h3>
+            <p id="reg-summary"></p>
+            <label class="terms-consent" for="reg-terms-accepted">
+                <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
+                <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
+            </label>
+            <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
+            </div>
+            <p id="reg-step-error" class="terms-error" role="alert" hidden></p>
+            <button id="reg-previous" type="button" onclick="etapePrecedenteInscription()" hidden>Précédent</button>
+            <button id="reg-next" type="button" onclick="etapeSuivanteInscription()">Continuer</button>
+            <button id="reg-submit" class="btn-submit" type="button" onclick="inscrireUtilisateur()" hidden>Créer mon compte</button>
             <p style="margin-top: 20px; font-size: 0.95rem; color: #7f8c8d;">Déjà inscrit ? <a href="#" onclick="basculerFormulaire(false)" style="color: #3498db; font-weight: bold; text-decoration: none;">Se connecter</a></p>
         </div>
     </div>
@@ -3242,6 +3268,112 @@
             document.getElementById('reg-legal-guardian').checked;
         document.getElementById('legal-guardian-registration-fields').style.display =
             isGuardian ? 'block' : 'none';
+    }
+
+    let registrationStep = 1;
+
+    function actualiserConfirmationInscription() {
+        const password = document.getElementById('reg-password').value;
+        const confirmation = document.getElementById('reg-confirm-password').value;
+        const status = document.getElementById('reg-password-status');
+        status.textContent = confirmation
+            ? window.generationLiaisonTranslate(password === confirmation
+                ? 'Les codes d’accès correspondent.' : 'Les codes d’accès ne correspondent pas.')
+            : '';
+    }
+
+    function afficherEtapeInscription(step) {
+        registrationStep = step;
+        for (let i = 1; i <= 4; i++) document.getElementById(`reg-step-${i}`).hidden = i !== step;
+        const titles = ['votre profil', 'votre identité et votre accès', 'vos informations', 'vérification et conditions'];
+        document.getElementById('reg-step-progress').textContent =
+            `${window.generationLiaisonTranslate('Étape')} ${step} ${window.generationLiaisonTranslate('sur')} 4 : ${window.generationLiaisonTranslate(titles[step - 1])}`;
+        document.getElementById('reg-progress').value = step;
+        document.getElementById('reg-previous').hidden = step === 1;
+        document.getElementById('reg-next').hidden = step === 4;
+        document.getElementById('reg-submit').hidden = step !== 4;
+        document.getElementById('reg-step-error').hidden = true;
+        if (step === 4) {
+            const role = document.getElementById('reg-role');
+            const name = `${document.getElementById('reg-first-name').value.trim()} ${document.getElementById('reg-last-name').value.trim()}`;
+            const email = document.getElementById('reg-email').value.trim();
+            document.getElementById('reg-summary').textContent = `${role.options[role.selectedIndex].text} — ${name} — ${email}`;
+        }
+        document.getElementById(`reg-step-${step}`).querySelector('h3').focus();
+    }
+
+    async function validerEtapeInscription(step) {
+        const el = id => document.getElementById(id);
+        const fail = (message, field) => ({ message, field });
+        const role = el('reg-role').value;
+        if (step === 1 && !['senior', 'aidant', 'pro', 'establishment'].includes(role)) {
+            return fail('Choisissez un type de compte.', 'reg-role');
+        }
+        if (step === 2) {
+            if (!el('reg-first-name').value.trim()) return fail('Saisissez votre prénom.', 'reg-first-name');
+            if (!el('reg-last-name').value.trim()) return fail('Saisissez votre nom.', 'reg-last-name');
+            if (!el('reg-email').value.trim() || !el('reg-email').validity.valid) return fail('Saisissez une adresse e-mail valide.', 'reg-email');
+            if (el('reg-password').value.length < 12) return fail('Choisissez un code d’accès de 12 caractères minimum.', 'reg-password');
+            if (el('reg-password').value !== el('reg-confirm-password').value) return fail('Les codes d’accès ne correspondent pas.', 'reg-confirm-password');
+            const photo = el('reg-account-photo').files[0];
+            if (role === 'pro' && !photo) return fail('Ajoutez une photo de profil pour créer un compte intervenant.', 'reg-account-photo');
+            if (photo) {
+                try { verifierPhotoProfil(photo); }
+                catch (error) { return fail(error.message, 'reg-account-photo'); }
+            }
+        }
+        if (step === 3) {
+            const documentIds = role === 'pro' ? ['reg-identity-document', 'reg-kbis-document']
+                : role === 'aidant' && el('reg-legal-guardian').checked ? ['reg-guardian-identity', 'reg-guardian-proof'] : [];
+            for (const id of documentIds) {
+                const file = el(id).files[0];
+                if (!file) return fail('Ajoutez les justificatifs demandés.', id);
+                if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+                    return fail('Chaque justificatif doit être un fichier PDF, JPEG ou PNG de 10 Mo maximum.', id);
+                }
+            }
+            if (role === 'pro') {
+                if (el('reg-sms-notifications').checked && !/^\+[1-9]\d{7,14}$/.test(el('reg-notification-phone').value.trim())) {
+                    return fail('Pour recevoir les SMS, saisissez un numéro au format international, par exemple +33612345678.', 'reg-notification-phone');
+                }
+                if (!registrationHomeCoordinates) return fail('Choisissez une commune ou relevez votre position GPS avant de créer le compte intervenant.', 'reg-home-city');
+                const radius = Number(el('reg-service-radius').value);
+                if (!Number.isInteger(radius) || radius < 1 || radius > 500) return fail('Choisissez un rayon compris entre 1 et 500 km.', 'reg-service-radius');
+            }
+            if (['senior', 'aidant'].includes(role)) {
+                try {
+                    await choisirCommune('account', 'reg-account-city', 'reg-account-postcode', 'reg-account-city-select', 'reg-account-city-label');
+                } catch (error) {
+                    return fail(error.message, el('reg-account-city-select').hidden ? 'reg-account-city' : 'reg-account-city-select');
+                }
+            }
+        }
+        return null;
+    }
+
+    function afficherErreurEtapeInscription(error) {
+        const message = document.getElementById('reg-step-error');
+        message.textContent = window.generationLiaisonTranslate(error.message);
+        message.hidden = false;
+        document.getElementById(error.field).focus();
+    }
+
+    function etapePrecedenteInscription() {
+        if (registrationStep > 1) afficherEtapeInscription(registrationStep - 1);
+    }
+
+    async function etapeSuivanteInscription() {
+        const next = document.getElementById('reg-next');
+        const previous = document.getElementById('reg-previous');
+        if (next.disabled || registrationStep >= 4) return;
+        next.disabled = previous.disabled = true;
+        try {
+            const error = await validerEtapeInscription(registrationStep);
+            if (error) afficherErreurEtapeInscription(error);
+            else afficherEtapeInscription(registrationStep + 1);
+        } finally {
+            next.disabled = previous.disabled = false;
+        }
     }
 
     function messageErreurPosition(error) {
@@ -10309,7 +10441,19 @@
         document.getElementById('reg-account-photo').value = '';
         document.getElementById('reg-email').value = '';
         document.getElementById('reg-senior-name').value = '';
-        document.getElementById('reg-password').value = '';
+        for (const id of ['reg-password', 'reg-confirm-password']) {
+            const input = document.getElementById(id);
+            input.value = '';
+            input.type = 'password';
+            const toggle = input.closest('.gl-password-field')?.querySelector('.gl-password-toggle');
+            if (toggle) {
+                toggle.textContent = window.generationLiaisonTranslate('Afficher');
+                toggle.setAttribute('aria-label', window.generationLiaisonTranslate('Afficher le mot de passe'));
+                toggle.setAttribute('aria-pressed', 'false');
+            }
+        }
+        actualiserConfirmationInscription();
+        afficherEtapeInscription(1);
         document.querySelectorAll('[id^="close-account-password-"]').forEach(input => { input.value = ''; });
         document.getElementById('reg-terms-accepted').checked = false;
         document.getElementById('reg-legal-guardian').checked = false;
@@ -10317,7 +10461,7 @@
         document.getElementById('reg-notification-phone').value = '';
         document.getElementById('reg-email-notifications').checked = false;
         document.getElementById('reg-sms-notifications').checked = false;
-        document.querySelectorAll('#professional-registration-fields [type="file"], #professional-verification-documents-form [type="file"]')
+        document.querySelectorAll('#professional-registration-fields [type="file"], #professional-verification-documents-form [type="file"], #legal-guardian-registration-fields [type="file"]')
             .forEach(input => { input.value = ''; });
         document.getElementById('reg-role').value = 'aidant';
         document.getElementById('reg-account-city').value = '';
@@ -10373,6 +10517,26 @@
     }
 
     async function inscrireUtilisateur() {
+        const submit = document.getElementById('reg-submit');
+        const previous = document.getElementById('reg-previous');
+        if (registrationStep !== 4 || submit.disabled) return;
+        submit.disabled = previous.disabled = true;
+        try {
+            for (const step of [1, 2, 3]) {
+                const error = await validerEtapeInscription(step);
+                if (error) {
+                    afficherEtapeInscription(step);
+                    afficherErreurEtapeInscription(error);
+                    return;
+                }
+            }
+            await soumettreInscription();
+        } finally {
+            submit.disabled = previous.disabled = false;
+        }
+    }
+
+    async function soumettreInscription() {
         const termsAccepted = document.getElementById('reg-terms-accepted').checked;
         const termsError = document.getElementById('reg-terms-error');
         if (!termsAccepted) {
