@@ -849,6 +849,15 @@
 
 <div id="toast">✅ Action enregistrée !</div>
 
+<section id="admin-announcements" class="form-card" hidden aria-label="Messages de l’équipe et de l’établissement">
+    <details id="admin-announcements-details">
+        <summary id="admin-announcements-summary">Messages de l’équipe et de l’établissement</summary>
+        <button type="button" onclick="chargerMessagesAdministration()">Actualiser</button>
+        <p id="admin-announcements-status" role="status" aria-live="polite"></p>
+        <div id="admin-announcements-list"></div>
+    </details>
+</section>
+
 <!-- 📱 1. INTERFACE SÉNIOR (Avec Authentification) -->
 <div id="screen-senior" class="screen-container active" style="background-color: var(--senior-bg);">
     <div id="auth-box" class="card">
@@ -1515,6 +1524,7 @@
         <button type="button" data-establishment-panel="establishment-contacts-panel" aria-expanded="false" aria-controls="establishment-contacts-panel" onclick="ouvrirActionEtablissement(this)">Gérer les coordonnées</button>
         <button type="button" data-establishment-panel="establishment-residents-panel" aria-expanded="false" aria-controls="establishment-residents-panel" onclick="ouvrirActionEtablissement(this)">Gérer les accès résidents</button>
         <button type="button" data-establishment-panel="establishment-staff-panel" aria-expanded="false" aria-controls="establishment-staff-panel" onclick="ouvrirActionEtablissement(this)">Gérer les comptes soignants</button>
+        <button type="button" data-establishment-panel="establishment-announcement-panel" aria-expanded="false" aria-controls="establishment-announcement-panel" onclick="ouvrirActionEtablissement(this)">Messages aux inscrits</button>
         <button type="button" data-establishment-panel="establishment-login-panel" aria-expanded="false" aria-controls="establishment-login-panel" onclick="ouvrirActionEtablissement(this)">Connexion résident ou soignant sans e-mail</button>
         <button type="button" data-establishment-panel="establishment-closure-panel" aria-expanded="false" aria-controls="establishment-closure-panel" onclick="ouvrirActionEtablissement(this)">Clôturer mon compte</button>
         <button type="button" onclick="deconnecterUtilisateur()">Déconnexion</button>
@@ -1525,6 +1535,24 @@
             <button type="button" class="simple-view-enable" onclick="changerVueSimplifiee(true)">Activer la vue simplifiée</button>
             <button type="button" class="simple-view-disable" onclick="changerVueSimplifiee(false)">Utiliser l’affichage standard</button>
         </details>
+    </section>
+    <section class="form-card" id="establishment-announcement-panel" hidden>
+        <h3>Messages aux inscrits</h3>
+        <p>La notification est envoyée uniquement aux comptes résidents et soignants actifs créés pour votre établissement. Les contacts ajoutés au répertoire ne sont pas inclus.</p>
+        <form id="establishment-announcement-form" class="form-grid">
+            <label for="establishment-announcement-audience">Destinataires</label>
+            <select id="establishment-announcement-audience">
+                <option value="all">Tous les comptes rattachés</option>
+                <option value="senior">Résidents</option>
+                <option value="staff">Soignants</option>
+            </select>
+            <label for="establishment-announcement-title">Titre</label>
+            <input id="establishment-announcement-title" maxlength="160" required>
+            <label for="establishment-announcement-message">Message</label>
+            <textarea id="establishment-announcement-message" maxlength="500" required></textarea>
+            <button type="submit">Envoyer la notification</button>
+            <p id="establishment-announcement-status" role="status" aria-live="polite"></p>
+        </form>
     </section>
     <section class="form-card" id="establishment-login-panel" hidden>
         <h3>Connexion résident ou soignant sans e-mail</h3>
@@ -1537,6 +1565,18 @@
     <section class="form-card establishment-overview">
         <h3>Tableaux des résidents, soignants et intervenants</h3>
         <p id="establishment-subscription-status" role="status" aria-live="polite"></p>
+        <div class="form-card" style="overflow-x:auto">
+            <h4>Tableau chiffré</h4>
+            <p>Les comptes actifs et les coordonnées saisies sont comptés séparément ; une même personne peut apparaître dans les deux colonnes.</p>
+            <table aria-label="Nombre de comptes actifs et de coordonnées saisies">
+                <thead><tr><th>Catégorie</th><th>Comptes actifs</th><th>Coordonnées saisies</th></tr></thead>
+                <tbody>
+                    <tr><th scope="row">Résidents</th><td id="establishment-count-residents">—</td><td id="establishment-count-resident-contacts">—</td></tr>
+                    <tr><th scope="row">Soignants</th><td id="establishment-count-staff">—</td><td id="establishment-count-caregiver-contacts">—</td></tr>
+                    <tr><th scope="row">Intervenants</th><td>Non disponible</td><td id="establishment-count-intervenant-contacts">—</td></tr>
+                </tbody>
+            </table>
+        </div>
         <details class="senior-disclosure" data-close-on-mouse-leave>
             <summary>Informations sur les tableaux</summary>
             <p>Les comptes et les coordonnées saisies sont distincts : une même personne peut apparaître deux fois. Les intervenants sont les contacts saisis par le directeur et ne reçoivent pas d’accès automatiquement.</p>
@@ -2672,6 +2712,8 @@
     let verificationDocumentsLoadId = 0;
     let planningState = { members: [], recipients: [], servicePartners: [] };
     let planningRefreshTimer = null;
+    let announcementRefreshTimer = null;
+    let announcementLoadId = 0;
     let notificationLoadId = 0;
     let inboxLoadId = 0;
     let associationLoadId = 0;
@@ -3649,6 +3691,11 @@
     }
 
     async function setAuthenticatedView(user) {
+        clearInterval(announcementRefreshTimer);
+        announcementRefreshTimer = null;
+        announcementLoadId++;
+        document.getElementById('admin-announcements').hidden = true;
+        document.getElementById('admin-announcements-list').replaceChildren();
         associationLoadId++;
         document.getElementById('senior-home-links').hidden = true;
         document.getElementById('senior-home-links-status').textContent = '';
@@ -3657,6 +3704,7 @@
         fermerActionsEtablissement();
         establishmentOverviewLoadId++;
         ['resident', 'caregiver', 'intervenant'].forEach(category => document.getElementById(`establishment-overview-${category}`).replaceChildren());
+        reinitialiserChiffresEtablissement();
         document.getElementById('establishment-overview-status').textContent = '';
         reinitialiserMeteo();
         annulerDicteeMessage();
@@ -3694,12 +3742,16 @@
             document.getElementById('screen-resident-password').classList.add('active');
             return;
         }
+        document.getElementById('admin-announcements').hidden = false;
+        void chargerMessagesAdministration();
+        announcementRefreshTimer = setInterval(chargerMessagesAdministration, 60000);
         if (user.role === 'establishment') {
             document.getElementById('auth-box').style.display = 'none';
             document.getElementById('nav-bar').style.display = 'none';
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
             document.getElementById('screen-establishment').classList.add('active');
             await chargerEtablissement();
+            window.handlePendingNotification?.();
             return;
         }
         if (user.role === 'staff') {
@@ -3708,6 +3760,7 @@
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
             document.getElementById('screen-staff').classList.add('active');
             await chargerResidentsSoignant();
+            window.handlePendingNotification?.();
             return;
         }
         if (['senior', 'aidant'].includes(user.role) &&
@@ -3781,6 +3834,7 @@
             document.getElementById('screen-pro').classList.add('active');
             chargerProfessionalVerificationDocuments();
             chargerPreferencesNotification();
+            window.handlePendingNotification?.();
             return;
         }
         if (pendingGuardian) {
@@ -3788,6 +3842,7 @@
             document.querySelectorAll('.screen-container').forEach(screen => screen.classList.remove('active'));
             document.getElementById('screen-senior').classList.add('active');
             chargerLegalGuardianDocuments();
+            window.handlePendingNotification?.();
             return;
         }
 
@@ -6027,6 +6082,56 @@
                 }
             }, 2000);
         });
+    }
+
+    async function chargerMessagesAdministration() {
+        if (!connectedUser || connectedUser.passwordChangeRequired) return;
+        const userId = connectedUser.id;
+        const loadId = ++announcementLoadId;
+        const list = document.getElementById('admin-announcements-list');
+        const status = document.getElementById('admin-announcements-status');
+        try {
+            const result = await seniorLinksRequest('/api/announcements');
+            if (connectedUser?.id !== userId || loadId !== announcementLoadId) return;
+            list.replaceChildren();
+            const unread = result.announcements.filter(item => !item.read).length;
+            document.getElementById('admin-announcements-summary').textContent =
+                unread ? `Messages de l’équipe et de l’établissement (${unread} non lu(s))` : 'Messages de l’équipe et de l’établissement';
+            status.textContent = result.announcements.length ? '' : 'Aucun message pour le moment.';
+            result.announcements.forEach(item => {
+                const card = document.createElement('article');
+                card.className = `notification-card${item.read ? '' : ' unread'}`;
+                card.append(makeTextElement('small', item.type === 'establishment_announcement' ? 'Votre établissement' : 'Administration', 'helper-text'));
+                card.append(makeTextElement('strong', item.title));
+                const message = makeTextElement('p', item.message);
+                message.style.whiteSpace = 'pre-wrap';
+                card.append(message, makeTextElement('small', `${formatDateTime(item.createdAt)} · ${item.read ? 'Lu' : 'Non lu'}`, 'helper-text'));
+                if (!item.read) {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.textContent = 'Marquer comme lu';
+                    button.addEventListener('click', async () => {
+                        button.disabled = true;
+                        try {
+                            await seniorLinksRequest(`/api/announcements/${encodeURIComponent(item.id)}`, {
+                                method: 'PATCH', body: { read: true }
+                            });
+                            await chargerMessagesAdministration();
+                        } catch (error) {
+                            status.textContent = error.message || 'Impossible de marquer le message comme lu.';
+                            button.disabled = false;
+                        }
+                    });
+                    card.append(button);
+                }
+                list.append(card);
+            });
+            return result;
+        } catch (error) {
+            if (connectedUser?.id === userId && loadId === announcementLoadId) {
+                status.textContent = error.message || 'Impossible de charger les messages de l’administration.';
+            }
+        }
     }
 
     async function chargerNotifications() {
@@ -9401,6 +9506,35 @@
     let establishmentContactId = null;
     let establishmentOverviewLoadId = 0;
 
+    document.getElementById('establishment-announcement-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const audience = document.getElementById('establishment-announcement-audience');
+        const title = document.getElementById('establishment-announcement-title').value.trim();
+        const message = document.getElementById('establishment-announcement-message').value.trim();
+        const status = document.getElementById('establishment-announcement-status');
+        if (!title || !message) {
+            status.textContent = 'Renseignez un titre et un message.';
+            return;
+        }
+        if (!confirm(`Envoyer cette notification à : ${audience.options[audience.selectedIndex].text} ?`)) return;
+        const button = form.querySelector('button[type="submit"]');
+        button.disabled = true;
+        status.textContent = 'Envoi en cours…';
+        try {
+            const result = await planningRequest('/api/establishment/announcements', {
+                method: 'POST', body: { audience: audience.value, title, message }
+            });
+            status.textContent = `Notification enregistrée pour ${result.recipients} compte(s).`;
+            document.getElementById('establishment-announcement-title').value = '';
+            document.getElementById('establishment-announcement-message').value = '';
+        } catch (error) {
+            status.textContent = `Envoi non confirmé : ${error.message || 'erreur de connexion'}. Vérifiez avant de réessayer.`;
+        } finally {
+            button.disabled = false;
+        }
+    });
+
     function fermerActionsEtablissement() {
         document.querySelectorAll('[data-establishment-panel]').forEach(button => {
             button.setAttribute('aria-expanded', 'false');
@@ -9419,12 +9553,19 @@
         }
     }
 
+    function reinitialiserChiffresEtablissement() {
+        ['residents', 'staff', 'resident-contacts', 'caregiver-contacts', 'intervenant-contacts'].forEach(id => {
+            document.getElementById(`establishment-count-${id}`).textContent = '—';
+        });
+    }
+
     async function chargerTableauEtablissement() {
         const userId = connectedUser?.id;
         const loadId = ++establishmentOverviewLoadId;
         const categories = ['resident', 'caregiver', 'intervenant'];
         const status = document.getElementById('establishment-overview-status');
         categories.forEach(category => document.getElementById(`establishment-overview-${category}`).replaceChildren());
+        reinitialiserChiffresEtablissement();
         status.textContent = 'Chargement du tableau…';
         try {
             const [contacts, residents, staff] = await Promise.all(
@@ -9432,6 +9573,12 @@
                     .map(async path => readResponse(await fetch(`${SERVER_URL}${path}`, { headers: authHeaders() })))
             );
             if (connectedUser?.id !== userId || loadId !== establishmentOverviewLoadId) return;
+            document.getElementById('establishment-count-residents').textContent = String(residents.residents.length);
+            document.getElementById('establishment-count-staff').textContent = String(staff.staff.length);
+            for (const category of categories) {
+                document.getElementById(`establishment-count-${category}-contacts`).textContent =
+                    String(contacts.contacts.filter(item => item.category === category).length);
+            }
             const rows = [
                 ...residents.residents.map(item => ['resident', `${item.first_name} ${item.last_name}`, 'Compte individuel', '—']),
                 ...staff.staff.map(item => ['caregiver', `${item.first_name} ${item.last_name}`, 'Compte individuel', '—']),
@@ -10041,6 +10188,15 @@
         localStorage.removeItem(USER_KEY);
         clearInterval(planningRefreshTimer);
         planningRefreshTimer = null;
+        clearInterval(announcementRefreshTimer);
+        announcementRefreshTimer = null;
+        announcementLoadId++;
+        document.getElementById('admin-announcements').hidden = true;
+        document.getElementById('admin-announcements-details').open = false;
+        document.getElementById('admin-announcements-list').replaceChildren();
+        document.getElementById('admin-announcements-status').textContent = '';
+        document.getElementById('establishment-announcement-form').reset();
+        document.getElementById('establishment-announcement-status').textContent = '';
         associationLoadId++;
         document.getElementById('senior-home-links').hidden = true;
         document.getElementById('senior-home-links-status').textContent = '';
@@ -10050,6 +10206,7 @@
         fermerActionsEtablissement();
         establishmentOverviewLoadId++;
         ['resident', 'caregiver', 'intervenant'].forEach(category => document.getElementById(`establishment-overview-${category}`).replaceChildren());
+        reinitialiserChiffresEtablissement();
         document.getElementById('establishment-overview-status').textContent = '';
         aidantSummaryLoadId++;
         aidantSummaryContext = '';
@@ -10863,13 +11020,26 @@
         window.handlePendingNotification = async () => {
             const id = window.pendingPushNotificationId || pendingNotificationId;
             if (!id || !connectedUser || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) return;
-            if ((connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
-                (connectedUser.role === 'aidant' && connectedUser.isLegalGuardian &&
-                 connectedUser.guardianVerificationStatus !== 'approved')) return;
             pendingNotificationId = id;
             window.pendingPushNotificationId = '';
+            const userId = connectedUser.id;
             try {
+                const announcements = await chargerMessagesAdministration();
+                if (connectedUser?.id !== userId) return;
+                if (announcements?.announcements.some(item => item.id === id)) {
+                    document.getElementById('admin-announcements-details').open = true;
+                    document.getElementById('admin-announcements').scrollIntoView({ behavior: 'smooth' });
+                    pendingNotificationId = '';
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('notification');
+                    window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+                    return;
+                }
+                if ((connectedUser.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
+                    (connectedUser.role === 'aidant' && connectedUser.isLegalGuardian &&
+                     connectedUser.guardianVerificationStatus !== 'approved')) return;
                 const notification = await seniorLinksRequest(`/api/notifications/open/${encodeURIComponent(id)}`);
+                if (connectedUser?.id !== userId) return;
                 const opened = document.getElementById(`notification-opened-${connectedUser.role}`);
                 const card = document.createElement('article');
                 card.className = 'notification-card';

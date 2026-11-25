@@ -881,6 +881,8 @@ function createView(response) {
     setInterval: () => 1,
     dateInputValue: () => '2026-01-01',
     planningRefreshTimer: null,
+    announcementRefreshTimer: null,
+    announcementLoadId: 0,
     nextVisitLoadId: 0,
     nextVisitEvent: null,
     nextVisitMessage: '',
@@ -900,7 +902,7 @@ function createView(response) {
     chargerPhotoProfil() {},
     updatePlanningDateTitle() {},
     ...Object.fromEntries([
-      'chargerNotifications', 'chargerPreferencesNotification', 'chargerCorrespondants', 'chargerMessagesSecurite', 'chargerBoiteReception', 'chargerLogs', 'chargerSyntheseAidant', 'chargerSyntheseSenior', 'chargerSynthesePro',
+      'chargerNotifications', 'chargerMessagesAdministration', 'chargerPreferencesNotification', 'chargerCorrespondants', 'chargerMessagesSecurite', 'chargerBoiteReception', 'chargerLogs', 'chargerSyntheseAidant', 'chargerSyntheseSenior', 'chargerSynthesePro',
       'demanderNotificationsAutomatiquement',
       'chargerCheckinsPartages', 'chargerSuiviPartage', 'chargerConsentements',
       'chargerServicesFamiliaux', 'chargerAnnuaire', 'chargerDirectoryBookings',
@@ -912,7 +914,7 @@ function createView(response) {
       'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
       'reinitialiserMeteo', 'chargerMeteo', 'actualiserRecetteDuJour',
       'chargerEtablissement',
-      'chargerResidentsSoignant', 'reinitialiserCarnetEtablissement', 'fermerActionsEtablissement',
+      'chargerResidentsSoignant', 'reinitialiserCarnetEtablissement', 'fermerActionsEtablissement', 'reinitialiserChiffresEtablissement',
       'annulerDicteeMessage', 'annulerPropositionMessage', 'initialiserLectureSenior', 'initialiserVueSenior', 'initialiserPresentation', 'planifierLectureSenior'
     ].map(name => [name, () => { calls.push(name); }])),
     dateCheckinBienEtre: () => '2026-01-01',

@@ -137,7 +137,7 @@ test('establishment pricing and subscription use closed controls and preserve th
 
 test('director overview separates categories and distinguishes accounts from contacts', async () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
-  const start = source.indexOf('    async function chargerTableauEtablissement()');
+  const start = source.indexOf('    function reinitialiserChiffresEtablissement()');
   const end = source.indexOf('    async function chargerSoignantsEtablissement()', start);
   assert.ok(start >= 0 && end > start);
   const elements = new Map();
@@ -145,7 +145,10 @@ test('director overview separates categories and distinguishes accounts from con
     return { children: [], textContent: '', replaceChildren() { this.children = []; }, append(...items) { this.children.push(...items); } };
   }
   const values = {
-    '/api/establishment/contacts': { contacts: [{ category: 'intervenant', name: 'Lou', phone: '', email: 'lou@example.test' }] },
+    '/api/establishment/contacts': { contacts: [
+      { category: 'intervenant', name: 'Lou', phone: '', email: 'lou@example.test' },
+      { category: 'resident', name: 'Marie Exemple', phone: '', email: '' }
+    ] },
     '/api/establishment/residents': { residents: [{ first_name: 'Marie', last_name: 'Exemple' }] },
     '/api/establishment/staff': { staff: [{ first_name: 'Alex', last_name: 'Exemple' }] }
   };
@@ -160,9 +163,20 @@ test('director overview separates categories and distinguishes accounts from con
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.load = chargerTableauEtablissement;`, context);
   await context.load();
   const rows = category => elements.get(`establishment-overview-${category}`).children.map(row => row.children.map(cell => cell.textContent));
-  assert.deepEqual(rows('resident'), [['Résident', 'Marie Exemple', 'Compte individuel', '—']]);
+  assert.deepEqual(rows('resident'), [
+    ['Résident', 'Marie Exemple', 'Compte individuel', '—'],
+    ['Résident', 'Marie Exemple', 'Coordonnées saisies', '—']
+  ]);
   assert.deepEqual(rows('caregiver'), [['Soignant', 'Alex Exemple', 'Compte individuel', '—']]);
   assert.deepEqual(rows('intervenant'), [['Intervenant', 'Lou', 'Coordonnées saisies', 'lou@example.test']]);
+  for (const [id, count] of Object.entries({
+    residents: '1', staff: '1', 'resident-contacts': '1', 'caregiver-contacts': '0', 'intervenant-contacts': '1'
+  })) assert.equal(elements.get(`establishment-count-${id}`).textContent, count);
+  context.fetch = async () => { throw new Error('Données indisponibles'); };
+  await context.load();
+  assert.equal(elements.get('establishment-count-residents').textContent, '—');
+  assert.equal(elements.get('establishment-count-intervenant-contacts').textContent, '—');
+  assert.equal(elements.get('establishment-overview-status').textContent, 'Données indisponibles');
 });
 
 test('home explanations for director and staff start closed without hiding actions', () => {

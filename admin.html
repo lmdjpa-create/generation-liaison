@@ -233,6 +233,7 @@
         <nav class="side-nav" id="admin-nav" aria-label="Rubriques de l’administration">
           <button type="button" class="nav-item active" data-target="overview"><span aria-hidden="true">📊</span> Vue d’ensemble</button>
           <button type="button" class="nav-item" data-target="accounts"><span aria-hidden="true">👥</span> Comptes et abonnements</button>
+          <button type="button" class="nav-item" data-target="announcements"><span aria-hidden="true">📣</span> Messages aux inscrits</button>
           <button type="button" class="nav-item" data-target="establishments"><span aria-hidden="true">🏢</span> Entreprises / résidences</button>
           <button type="button" class="nav-item" data-target="services"><span aria-hidden="true">🧰</span> Services du quotidien</button>
           <button type="button" class="nav-item" data-target="care"><span aria-hidden="true">📅</span> Accompagnement</button>
@@ -242,6 +243,26 @@
         <div class="admin-content">
       <section id="stats" class="stats" aria-label="Indicateurs"></section>
       <div class="layout">
+        <section class="panel" data-section="announcements">
+          <div class="panel-head"><div><h2>Messages aux inscrits</h2><p>Envoyez une notification aux comptes actifs de votre choix. Elle sera visible dans leur espace ; les alertes externes dépendent de leurs préférences et de leur configuration.</p></div></div>
+          <form id="admin-announcement-form" class="assistant-settings">
+            <label for="admin-announcement-audience">Destinataires</label>
+            <select id="admin-announcement-audience" required>
+              <option value="all">Tous les comptes actifs</option>
+              <option value="senior">Personnes accompagnées / seniors</option>
+              <option value="aidant">Proches / aidants</option>
+              <option value="pro">Professionnels / intervenants</option>
+              <option value="establishment">Entreprises / résidences</option>
+              <option value="staff">Soignants en établissement</option>
+            </select>
+            <label for="admin-announcement-title">Titre</label>
+            <input id="admin-announcement-title" maxlength="160" required>
+            <label for="admin-announcement-message">Message</label>
+            <textarea id="admin-announcement-message" maxlength="500" required></textarea>
+            <button class="button" type="submit">Envoyer la notification</button>
+            <p id="admin-announcement-status" class="status" role="status" aria-live="polite"></p>
+          </form>
+        </section>
         <section class="panel" data-section="establishments">
           <div class="panel-head"><div><h2>Entreprises / résidences</h2><p>Fiches privées renseignées par les établissements. Leur identité et leurs coordonnées ne sont pas vérifiées automatiquement. L’abonnement est géré manuellement : aucun paiement en ligne ni échéance automatique.</p><p>Nombre de personnes renseigné par l’administration, non compté automatiquement. Grille mensuelle indicative HT : 1–10 : 29 € ; 11–25 : 49 € ; 26–50 : 79 € ; 51–100 : 129 € ; au-delà : devis.</p></div></div>
           <h3>Inviter une entreprise à créer son accès</h3>
@@ -506,6 +527,35 @@
       }
       return readResponse(await fetch(url, init));
     }
+
+    document.getElementById('admin-announcement-form').addEventListener('submit', async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const audience = document.getElementById('admin-announcement-audience');
+      const title = document.getElementById('admin-announcement-title').value.trim();
+      const message = document.getElementById('admin-announcement-message').value.trim();
+      const status = document.getElementById('admin-announcement-status');
+      if (!title || !message) {
+        status.textContent = 'Renseignez un titre et un message.';
+        return;
+      }
+      if (!confirm(`Envoyer cette notification à : ${audience.options[audience.selectedIndex].text} ?`)) return;
+      const button = form.querySelector('button[type="submit"]');
+      button.disabled = true;
+      status.textContent = 'Envoi en cours…';
+      try {
+        const result = await adminRequest('/api/admin/announcements', {
+          method: 'POST', body: { audience: audience.value, title, message }
+        });
+        status.textContent = `Notification enregistrée pour ${result.recipients} compte(s).`;
+        document.getElementById('admin-announcement-title').value = '';
+        document.getElementById('admin-announcement-message').value = '';
+      } catch (error) {
+        status.textContent = `Envoi non confirmé : ${error.message || 'erreur de connexion'}. Vérifiez avant de réessayer.`;
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     function showLoginError(message) {
       document.getElementById('login-error').textContent = message;

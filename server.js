@@ -188,6 +188,11 @@ function canPendingLegalGuardianAccess(req) {
     (req.method === 'PUT' && /^\/api\/legal-guardian\/documents\/(identity|guardianship)$/.test(req.path));
 }
 
+function canAccessAnnouncements(req) {
+  return (req.method === 'GET' && req.path === '/api/announcements') ||
+    (req.method === 'PATCH' && /^\/api\/announcements\/[0-9a-f-]+$/i.test(req.path));
+}
+
 function requireAuth(req, res, next) {
   const authorization = req.get('authorization') || '';
   const match = authorization.match(/^Bearer ([a-f0-9]{64})$/i);
@@ -212,6 +217,7 @@ function requireAuth(req, res, next) {
         (req.method === 'POST' && ['/api/auth/logout', '/api/auth/change-resident-password'].includes(req.path))
       )) return res.status(403).json({ error: 'Changez d’abord votre mot de passe provisoire.' });
       if (user.role === 'establishment' && !(
+        canAccessAnnouncements(req) ||
         (req.method === 'GET' && req.path === '/api/auth/me') ||
         (req.method === 'POST' && ['/api/auth/logout', '/api/account/closure-request'].includes(req.path)) ||
         (['GET', 'PUT'].includes(req.method) && req.path === '/api/establishment') ||
@@ -220,23 +226,25 @@ function requireAuth(req, res, next) {
         (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/residents') ||
         (req.method === 'POST' && /^\/api\/establishment\/residents\/[0-9a-f-]+\/reset-password$/i.test(req.path)) ||
         (['GET', 'POST'].includes(req.method) && req.path === '/api/establishment/staff') ||
+        (req.method === 'POST' && req.path === '/api/establishment/announcements') ||
         (req.method === 'POST' && /^\/api\/establishment\/staff\/[0-9a-f-]+\/(reset-password|disable)$/i.test(req.path))
       )) {
         return res.status(403).json({ error: 'Cette fonction n’est pas disponible dans l’espace établissement.' });
       }
       if (user.role === 'staff' && !(
+        canAccessAnnouncements(req) ||
         (req.method === 'GET' && ['/api/auth/me', '/api/care/residents', '/api/care/entries'].includes(req.path)) ||
         (req.method === 'POST' && ['/api/auth/logout', '/api/auth/change-resident-password', '/api/care/entries'].includes(req.path))
       )) return res.status(403).json({ error: 'Cette fonction n’est pas disponible dans l’espace soignant.' });
       if (user.role === 'aidant' && user.isLegalGuardian &&
-          user.guardianVerificationStatus !== 'approved' && !canPendingLegalGuardianAccess(req)) {
+          user.guardianVerificationStatus !== 'approved' && !canPendingLegalGuardianAccess(req) && !canAccessAnnouncements(req)) {
         return res.status(403).json({
           error: user.guardianVerificationStatus === 'rejected'
             ? 'Votre justificatif de tutelle doit être complété avant l’accès aux profils.'
             : 'Votre tutelle doit être vérifiée par l’administration avant l’accès aux profils.'
         });
       }
-      if (user.role === 'pro' && user.verificationStatus !== 'approved' && !canPendingProfessionalAccess(req)) {
+      if (user.role === 'pro' && user.verificationStatus !== 'approved' && !canPendingProfessionalAccess(req) && !canAccessAnnouncements(req)) {
         return res.status(403).json({
           error: user.verificationStatus === 'rejected'
             ? 'Votre dossier doit être complété avant l’accès à l’espace intervenant.'
@@ -1298,6 +1306,120 @@ async function insertAppNotification(client, userId, type, title, message, entit
   }
   return notificationId;
 }
+
+function validAnnouncement({ audience, title, message }, audiences) {
+  return audiences.includes(audience) &&
+    typeof title === 'string' && Boolean(title.trim()) && title.trim().length <= 160 &&
+    typeof message === 'string' && Boolean(message.trim()) && message.trim().length <= 500;
+}
+
+app.post('/api/admin/announcements', requireAuth, requireAdmin, async (req, res) => {
+  const { audience, title, message } = req.body || {};
+  const roles = ['senior', 'aidant', 'pro', 'establishment', 'staff'];
+  if (!validAnnouncement({ audience, title, message }, ['all', ...roles])) {
+    return res.status(400).json({ error: 'Choisissez les destinataires et renseignez un titre et un message valides.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `SELECT id FROM app_users WHERE is_active = TRUE AND role = ANY($1::varchar[])`,
+      [audience === 'all' ? roles : [audience]]
+    );
+    const announcementId = randomUUID();
+    for (const user of rows) {
+      await insertAppNotification(client, user.id, 'admin_announcement', title.trim(), message.trim(), 'admin_announcement', announcementId);
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ recipients: rows.length });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’envoyer le message de l’administration.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.post('/api/establishment/announcements', requireAuth, async (req, res) => {
+  if (req.authUser.role !== 'establishment') {
+    return res.status(403).json({ error: 'Accès réservé à l’établissement.' });
+  }
+  const { audience, title, message } = req.body || {};
+  if (!validAnnouncement({ audience, title, message }, ['all', 'senior', 'staff'])) {
+    return res.status(400).json({ error: 'Choisissez les destinataires et renseignez un titre et un message valides.' });
+  }
+  let client;
+  try {
+    client = await pool.connect();
+    await client.query('BEGIN');
+    const owner = await client.query(
+      `SELECT id FROM app_users WHERE id = $1 AND role = 'establishment'
+       AND is_active = TRUE AND establishment_subscription_active = TRUE FOR UPDATE`,
+      [req.authUser.id]
+    );
+    if (!owner.rows.length) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'L’abonnement de l’établissement doit être actif.' });
+    }
+    const { rows } = await client.query(
+      `SELECT account.resident_user_id AS id
+       FROM establishment_resident_accounts account
+       JOIN app_users recipient ON recipient.id = account.resident_user_id
+       WHERE account.establishment_user_id = $1 AND recipient.is_active = TRUE
+         AND recipient.role = ANY($2::varchar[])`,
+      [req.authUser.id, audience === 'all' ? ['senior', 'staff'] : [audience]]
+    );
+    const announcementId = randomUUID();
+    for (const user of rows) {
+      await insertAppNotification(client, user.id, 'establishment_announcement', title.trim(), message.trim(), 'establishment_announcement', announcementId);
+    }
+    await client.query('COMMIT');
+    res.status(201).json({ recipients: rows.length });
+  } catch (error) {
+    if (client) await client.query('ROLLBACK');
+    sendApiError(res, error, 'Impossible d’envoyer le message de l’établissement.');
+  } finally {
+    if (client) client.release();
+  }
+});
+
+app.get('/api/announcements', requireAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, message, notification_type, read_at, created_at FROM app_notifications
+       WHERE user_id = $1 AND notification_type IN ('admin_announcement', 'establishment_announcement')
+       ORDER BY (read_at IS NULL) DESC, created_at DESC LIMIT 50`,
+      [req.authUser.id]
+    );
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ announcements: rows.map(row => ({
+      id: row.id, title: row.title, message: row.message, type: row.notification_type,
+      read: Boolean(row.read_at), createdAt: row.created_at
+    })) });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de charger les messages de l’administration.');
+  }
+});
+
+app.patch('/api/announcements/:id', requireAuth, async (req, res) => {
+  if (!isValidUuid(req.params.id) || req.body?.read !== true) {
+    return res.status(400).json({ error: 'Indiquez le message à marquer comme lu.' });
+  }
+  try {
+    const { rows } = await pool.query(
+      `UPDATE app_notifications SET read_at = COALESCE(read_at, CURRENT_TIMESTAMP)
+       WHERE id = $1 AND user_id = $2
+         AND notification_type IN ('admin_announcement', 'establishment_announcement')
+       RETURNING id`,
+      [req.params.id, req.authUser.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Message introuvable.' });
+    res.json({ read: true });
+  } catch (error) {
+    sendApiError(res, error, 'Impossible de modifier ce message.');
+  }
+});
 
 async function notifyEmergencyAidants(client, senior, { type, title, message, checkinId }) {
   const { rows } = await client.query(

@@ -2183,6 +2183,7 @@ test('opening a senior message notification opens the separate page and conversa
       createElement: () => ({ append() {} })
     },
     URL,
+    chargerMessagesAdministration: async () => ({ announcements: [] }),
     switchScreen: screen => calls.push([screen]),
     seniorLinksRequest: async () => ({
       type: 'private_message', senderUserId: 'contact', entityId: 'message',
@@ -2237,6 +2238,7 @@ test('opening a professional notification shows it in today and marks it read', 
     window: { pendingPushNotificationId: '', location: { href: `https://example.test/?notification=${id}` }, history: { replaceState() {} } },
     document: { getElementById: element, createElement: () => ({ append() {} }) },
     URL, switchScreen() {}, makeTextElement: () => ({}), formatDateTime: () => '',
+    chargerMessagesAdministration: async () => ({ announcements: [] }),
     seniorLinksRequest: async (path, options) => {
       requests.push([path, options]);
       return { type: 'other', title: 'Rappel', message: 'Information', createdAt: '2026-01-01' };
@@ -2267,6 +2269,7 @@ test('opening a safety message notification goes to the automatic messages inbox
     window: { pendingPushNotificationId: '', location: { href: `https://example.test/?notification=${id}` }, history: { replaceState() {} } },
     document: { getElementById: element, createElement: () => ({ append() {} }) },
     URL, switchScreen: screen => screens.push(screen), makeTextElement: () => ({}), formatDateTime: () => '',
+    chargerMessagesAdministration: async () => ({ announcements: [] }),
     seniorLinksRequest: async () => ({ type: 'wellbeing_safety_check', safetyMessageId: 'message', title: 'Alerte', message: 'Alerte', createdAt: '2026-01-01' }),
     chargerNotifications: async () => {},
     showToast: message => { throw new Error(message); }
@@ -2277,6 +2280,30 @@ test('opening a safety message notification goes to the automatic messages inbox
   assert.deepEqual(screens, ['messages']);
   assert.equal(element('safety-messages-details').open, true);
   assert.equal(element('safety-messages-details').scrolled, true);
+});
+
+test('opening an announcement notification works in the staff workspace', async () => {
+  const elements = new Map();
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, { open: false, scrollIntoView() { this.scrolled = true; } });
+    return elements.get(id);
+  };
+  const id = '0b4a1f2c-1234-4567-8123-123456789abc';
+  const context = {
+    pendingNotificationId: id,
+    connectedUser: { id: 'staff-1', role: 'staff' },
+    window: { pendingPushNotificationId: '', location: { href: `https://example.test/?notification=${id}` }, history: { replaceState() {} } },
+    document: { getElementById: element },
+    URL,
+    chargerMessagesAdministration: async () => ({ announcements: [{ id }] }),
+    seniorLinksRequest: async () => { throw new Error('Unexpected unrestricted notification request'); },
+    showToast: message => { throw new Error(message); }
+  };
+  vm.runInNewContext(extract('        window.handlePendingNotification = async () => {',
+    "        window.addEventListener('generation-notification-opened'"), context);
+  await context.window.handlePendingNotification();
+  assert.equal(element('admin-announcements-details').open, true);
+  assert.equal(element('admin-announcements').scrolled, true);
 });
 
 test('today inbox shows received messages and opens the selected conversation', async () => {

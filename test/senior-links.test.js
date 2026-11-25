@@ -43,7 +43,7 @@ before(async () => {
     async connect() { return { query: this.query.bind(this), release() {} }; }
   };
   process.env.DATABASE_URL = 'postgresql://isolated-test';
-  process.env.ADMIN_EMAILS = 'admin@example.test,chat-admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test';
+  process.env.ADMIN_EMAILS = 'admin@example.test,chat-admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test,broadcast-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
@@ -98,6 +98,70 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('announcements are authorized, role-targeted and confined to the director’s establishment', async () => {
+  const admin = await register('broadcast-admin@example.test', 'aidant');
+  const senior = await register('broadcast-senior@example.test', 'senior');
+  const caregiver = await register('broadcast-caregiver@example.test', 'aidant');
+  const staff = await register('broadcast-staff@example.test', 'aidant');
+  const otherSenior = await register('broadcast-other-senior@example.test', 'senior');
+  const inactive = await register('broadcast-inactive@example.test', 'senior');
+  const director = await register('broadcast-director@example.test', 'establishment');
+  const otherDirector = await register('broadcast-other-director@example.test', 'establishment');
+  const pendingPro = await register('broadcast-pending-pro@example.test', 'pro');
+  const pendingGuardian = await register('broadcast-pending-guardian@example.test', 'aidant', true);
+  await db.query("UPDATE app_users SET role = 'staff' WHERE id = $1", [staff.user.id]);
+  await db.query('UPDATE app_users SET is_active = FALSE WHERE id = $1', [inactive.user.id]);
+  for (const [user, owner] of [[senior, director], [staff, director], [inactive, director], [otherSenior, otherDirector]]) {
+    await db.query(
+      `INSERT INTO establishment_resident_accounts
+       (resident_user_id, establishment_user_id, identifier, birth_date, password_change_required)
+       VALUES ($1, $2, $3, '1950-01-01', FALSE)`,
+      [user.user.id, owner.user.id, randomUUID().replace(/-/g, '')]
+    );
+  }
+  const payload = { audience: 'senior', title: 'Annonce test senior', message: 'Bonjour aux seniors' };
+  assert.equal((await request('/api/admin/announcements', { body: payload })).status, 401);
+  assert.equal((await request('/api/admin/announcements', { user: caregiver, admin: true, body: payload })).status, 403);
+  assert.equal((await request('/api/admin/announcements', { user: admin, body: payload })).status, 403);
+  assert.equal((await request('/api/admin/announcements', { user: admin, admin: true, body: { ...payload, audience: 'admin' } })).status, 400);
+  assert.equal((await request('/api/admin/announcements', { user: admin, admin: true, body: { ...payload, message: ' ' } })).status, 400);
+  assert.equal((await request('/api/admin/announcements', { user: admin, admin: true, body: payload })).status, 201);
+  const adminRows = await db.query("SELECT user_id FROM app_notifications WHERE title = $1", [payload.title]);
+  assert.ok(adminRows.rows.some(row => row.user_id === senior.user.id));
+  assert.ok(adminRows.rows.some(row => row.user_id === otherSenior.user.id));
+  assert.ok(!adminRows.rows.some(row => [caregiver.user.id, inactive.user.id, staff.user.id].includes(row.user_id)));
+
+  const directorPayload = { audience: 'all', title: 'Annonce établissement test', message: 'Bonjour à notre établissement' };
+  assert.equal((await request('/api/establishment/announcements', { user: caregiver, body: directorPayload })).status, 403);
+  assert.equal((await request('/api/establishment/announcements', { user: director, body: directorPayload })).status, 403);
+  await db.query('UPDATE app_users SET establishment_subscription_active = TRUE WHERE id = $1', [director.user.id]);
+  assert.equal((await request('/api/establishment/announcements', { user: director, body: { ...directorPayload, audience: 'aidant' } })).status, 400);
+  const sent = await request('/api/establishment/announcements', { user: director, body: directorPayload });
+  assert.equal(sent.status, 201);
+  assert.equal(sent.data.recipients, 2);
+  const directorRows = await db.query('SELECT id, user_id FROM app_notifications WHERE title = $1', [directorPayload.title]);
+  assert.deepEqual(new Set(directorRows.rows.map(row => row.user_id)), new Set([senior.user.id, staff.user.id]));
+  const list = await request('/api/announcements', { user: senior });
+  assert.ok(list.data.announcements.some(item => item.title === directorPayload.title && !item.read && item.type === 'establishment_announcement'));
+  assert.ok((await request('/api/announcements', { user: staff })).data.announcements.some(item => item.title === directorPayload.title));
+  assert.equal((await request('/api/announcements', { user: otherDirector })).status, 200);
+  assert.equal((await request('/api/announcements', { user: pendingPro })).status, 200);
+  assert.equal((await request('/api/announcements', { user: pendingGuardian })).status, 200);
+  assert.equal((await request('/api/admin/announcements', { user: admin, admin: true, body: {
+    audience: 'all', title: 'Annonce globale test', message: 'Information générale'
+  } })).status, 201);
+  assert.ok((await request('/api/announcements', { user: pendingPro })).data.announcements.some(item => item.title === 'Annonce globale test'));
+  assert.ok((await request('/api/announcements', { user: pendingGuardian })).data.announcements.some(item => item.title === 'Annonce globale test'));
+  const notification = directorRows.rows.find(row => row.user_id === senior.user.id);
+  const staffNotification = directorRows.rows.find(row => row.user_id === staff.user.id);
+  assert.equal((await request(`/api/announcements/${staffNotification.id}`, { user: staff, method: 'PATCH', body: { read: true } })).status, 200);
+  assert.equal((await request(`/api/announcements/${notification.id}`, { user: caregiver, method: 'PATCH', body: { read: true } })).status, 404);
+  assert.equal((await request(`/api/announcements/${notification.id}`, { user: senior, method: 'PATCH', body: { read: true } })).status, 200);
+  assert.ok((await request('/api/announcements', { user: senior })).data.announcements.some(item => item.id === notification.id && item.read));
+  const staffOnly = await request('/api/establishment/announcements', { user: director, body: { ...directorPayload, audience: 'staff', title: 'Soignants uniquement' } });
+  assert.equal(staffOnly.data.recipients, 1);
+});
 
 test('senior AI chat stays disabled while human handoff and existing messages remain available', async () => {
   const senior = await register('disabled-chat-senior@example.test', 'senior');
