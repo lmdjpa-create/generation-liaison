@@ -1,6 +1,10 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Vos nouvelles modifications ne sont pas encore enregistrées.': 'Your latest changes have not been saved yet.',
+    'Évaluation enregistrée': 'Evaluation saved',
+    'Annuler les modifications': 'Discard changes',
+    'Une intervention n’est plus disponible. Son évaluation non enregistrée a été effacée.': 'A visit is no longer available. Its unsaved evaluation has been cleared.',
     'Changer de personne efface les coordonnées saisies dans ce formulaire après confirmation.': 'Changing the person clears the contact details entered in this form after confirmation.',
     'Changer de personne efface les coordonnées saisies dans ce formulaire. Continuer ?': 'Changing the person clears the contact details entered in this form. Continue?',
     'Le partage de cette personne n’est plus disponible. Les coordonnées saisies dans ce formulaire ont été effacées.': 'Sharing for this person is no longer available. Contact details entered in this form have been cleared.',

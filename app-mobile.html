@@ -3007,6 +3007,8 @@
     let shoppingListLoaded = false;
     let keyContactsLoadId = 0;
     let consentLoadId = 0;
+    let sharedFollowingRevision = 0;
+    let sharedFollowingLoadId = 0;
     let aidantSummaryLoadId = 0;
     let aidantSummaryContext = '';
     let historyLoadId = 0;
@@ -4135,6 +4137,7 @@
     }
 
     async function setAuthenticatedView(user) {
+        reinitialiserSuiviPartage();
         clearInterval(announcementRefreshTimer);
         announcementRefreshTimer = null;
         announcementLoadId++;
@@ -9418,6 +9421,7 @@
     }
 
     async function ouvrirHistoriqueVisite(visitId, card, button) {
+        const revision = professionalSessionRevision;
         const existingPanel = card.querySelector('.visit-notes-panel');
         if (existingPanel) {
             existingPanel.remove();
@@ -9446,6 +9450,7 @@
         try {
             await actualiserHistoriqueVisite(visitId, notesContainer);
         } catch (error) {
+            if (revision !== professionalSessionRevision) return;
             notesContainer.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les transmissions.', 'helper-text'));
         } finally {
             button.disabled = false;
@@ -9453,7 +9458,9 @@
     }
 
     async function actualiserHistoriqueVisite(visitId, container) {
+        const revision = professionalSessionRevision;
         const result = await planningRequest(`/api/planning/visits/${encodeURIComponent(visitId)}/notes`);
+        if (revision !== professionalSessionRevision) return;
         container.replaceChildren();
         renderVisitNotes(container, result.notes);
     }
@@ -9482,6 +9489,8 @@
         form.append(typeSelect, importanceSelect, content, submit);
         form.addEventListener('submit', async event => {
             event.preventDefault();
+            if (submit.disabled) return;
+            const revision = professionalSessionRevision;
             submit.disabled = true;
             try {
                 await planningRequest(`/api/planning/visits/${encodeURIComponent(visitId)}/notes`, {
@@ -9492,9 +9501,11 @@
                         content: content.value.trim()
                     }
                 });
+                if (revision !== professionalSessionRevision) return;
                 showToast('Transmission enregistrée');
                 await afterSave();
             } catch (error) {
+                if (revision !== professionalSessionRevision) return;
                 showToast(error.message || 'Impossible d’enregistrer la transmission.', false);
             } finally {
                 submit.disabled = false;
@@ -9975,32 +9986,51 @@
     }
 
     async function enregistrerEtapeVisite(visitId, stage, noteInput, shareInput, button) {
+        if (button.disabled) return;
+        const revision = professionalSessionRevision;
         button.disabled = true;
         try {
             await planningRequest(`/api/planning/visits/${encodeURIComponent(visitId)}/progress`, {
                 method: 'POST',
                 body: { stage, note: noteInput.value.trim(), shareWithTeam: shareInput.checked }
             });
+            if (revision !== professionalSessionRevision) return;
             showToast(stageLabel(stage));
             await chargerPlanningPro();
         } catch (error) {
+            if (revision !== professionalSessionRevision) return;
             button.disabled = false;
             showToast(error.message || 'Impossible d’enregistrer cette étape.', false);
         }
     }
 
+    function reinitialiserSuiviPartage() {
+        sharedFollowingRevision++;
+        sharedFollowingLoadId++;
+        ['senior', 'aidant'].forEach(role => document.getElementById(`${role}-live-following`).replaceChildren());
+    }
+
     async function chargerSuiviPartage(role) {
         const container = document.getElementById(`${role}-live-following`);
-        if (!container || !connectedUser || connectedUser.role !== role) return;
+        if (!container || !connectedUser || connectedUser.role !== role ||
+            (role === 'aidant' && !activeSeniorProfileId)) return;
+        const drafts = () => Array.from(container.querySelectorAll('[data-following-dirty="true"]'));
 
+        const loadId = ++sharedFollowingLoadId;
+        const revision = sharedFollowingRevision;
+        const userId = connectedUser.id;
+        const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
+        const current = () => loadId === sharedFollowingLoadId && revision === sharedFollowingRevision &&
+            connectedUser?.id === userId && connectedUser?.role === role &&
+            (role !== 'aidant' || activeSeniorProfileId === seniorId);
         try {
             const result = await planningRequest('/api/planning/following');
+            if (!current()) return;
+            const pendingDrafts = new Map(drafts().map(section => [section.dataset.followingVisitId, section]));
             container.replaceChildren();
             if (!result.visits.length) {
                 container.append(makeTextElement('p', 'Aucune intervention partagée pour le moment.', 'helper-text'));
-                return;
-            }
-            result.visits.forEach(visit => {
+            } else result.visits.forEach(visit => {
                 const item = document.createElement('div');
                 item.className = 'progress-item';
                 item.append(makeTextElement('strong', `${formatDateTime(visit.scheduledAt)} · ${visit.visitType}`));
@@ -10013,11 +10043,25 @@
                 item.append(document.createElement('br'), makeTextElement('span', state));
                 renderVisitProgress(item, progress);
                 if (visit.status === 'completed') {
-                    renderVisitEvaluation(item, visit, role);
+                    const draft = pendingDrafts.get(String(visit.id));
+                    if (draft) {
+                        item.append(draft);
+                        pendingDrafts.delete(String(visit.id));
+                    } else {
+                        renderVisitEvaluation(item, visit, role);
+                    }
                 }
                 container.append(item);
             });
+            if (pendingDrafts.size) {
+                showToast(window.generationLiaisonTranslate('Une intervention n’est plus disponible. Son évaluation non enregistrée a été effacée.'), false);
+            }
         } catch (error) {
+            if (!current()) return;
+            if (drafts().length) {
+                showToast(error.message || 'Suivi temporairement indisponible.', false);
+                return;
+            }
             container.replaceChildren(makeTextElement('p', error.message || 'Suivi temporairement indisponible.', 'helper-text'));
         }
     }
@@ -10025,6 +10069,7 @@
     function renderVisitEvaluation(container, visit, role) {
         const section = document.createElement('section');
         section.className = 'visit-evaluation';
+        section.dataset.followingVisitId = String(visit.id);
         section.append(makeTextElement('strong', 'Comment s’est passée cette intervention ?'));
         const pills = document.createElement('div');
         pills.className = 'evaluation-pills';
@@ -10036,15 +10081,29 @@
         const status = makeTextElement('p', '', 'helper-text');
         status.setAttribute('aria-live', 'polite');
         let selectedRating = visit.evaluation?.rating || '';
+        let savedRating = selectedRating;
+        let savedComment = comment.value;
+        let saving = false;
         const save = document.createElement('button');
         save.type = 'button';
         save.textContent = visit.evaluation ? 'Modifier mon évaluation' : 'Enregistrer mon évaluation';
         save.disabled = !selectedRating;
+        const cancel = document.createElement('button');
+        cancel.type = 'button';
+        cancel.textContent = window.generationLiaisonTranslate('Annuler les modifications');
+        cancel.hidden = true;
 
         const updateCommentVisibility = () => {
             comment.hidden = selectedRating !== 'red';
             comment.required = selectedRating === 'red';
         };
+        const updateDraft = () => {
+            const dirty = selectedRating !== savedRating || comment.value !== savedComment;
+            section.dataset.followingDirty = String(dirty || saving);
+            cancel.hidden = !dirty;
+            return dirty;
+        };
+        comment.addEventListener('input', updateDraft);
         [
             { value: 'green', label: '🟢 Satisfaisante' },
             { value: 'orange', label: '🟠 À améliorer' },
@@ -10063,34 +10122,75 @@
                     pill.classList.toggle('selected', selected);
                     pill.setAttribute('aria-pressed', String(selected));
                 });
-                save.disabled = false;
+                save.disabled = saving;
                 updateCommentVisibility();
+                updateDraft();
             });
             pills.append(button);
         });
         updateCommentVisibility();
+        cancel.addEventListener('click', () => {
+            selectedRating = savedRating;
+            comment.value = savedComment;
+            pills.querySelectorAll('.rating-pill').forEach((pill, index) => {
+                const selected = ['green', 'orange', 'red'][index] === selectedRating;
+                pill.classList.toggle('selected', selected);
+                pill.setAttribute('aria-pressed', String(selected));
+            });
+            save.disabled = !selectedRating;
+            status.textContent = '';
+            updateCommentVisibility();
+            updateDraft();
+            chargerSuiviPartage(role);
+        });
         save.addEventListener('click', async () => {
+            if (saving || save.disabled) return;
             if (!selectedRating) return;
             if (selectedRating === 'red' && !comment.value.trim()) {
                 status.textContent = 'Ajoutez un commentaire pour expliquer le problème.';
                 comment.focus();
                 return;
             }
+            saving = true;
             save.disabled = true;
+            cancel.disabled = true;
+            section.dataset.followingDirty = 'true';
             status.textContent = 'Enregistrement…';
+            const submittedRating = selectedRating;
+            const submittedComment = comment.value;
+            const revision = sharedFollowingRevision;
+            const userId = connectedUser?.id;
+            const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser?.seniorId;
+            const current = () => revision === sharedFollowingRevision && connectedUser?.id === userId &&
+                connectedUser?.role === role && (role !== 'aidant' || activeSeniorProfileId === seniorId);
             try {
                 await planningRequest(`/api/planning/visits/${encodeURIComponent(visit.id)}/evaluation`, {
                     method: 'POST',
-                    body: { rating: selectedRating, comment: comment.value.trim() }
+                    body: { rating: submittedRating, comment: submittedComment.trim() }
                 });
+                if (!current()) return;
                 showToast('Évaluation enregistrée');
-                await chargerSuiviPartage(role);
+                savedRating = submittedRating;
+                savedComment = submittedComment;
+                saving = false;
+                cancel.disabled = false;
+                save.disabled = !selectedRating;
+                if (updateDraft()) {
+                    status.textContent = window.generationLiaisonTranslate('Vos nouvelles modifications ne sont pas encore enregistrées.');
+                } else {
+                    status.textContent = window.generationLiaisonTranslate('Évaluation enregistrée');
+                    await chargerSuiviPartage(role);
+                }
             } catch (error) {
+                if (!current()) return;
                 status.textContent = error.message || 'Impossible d’enregistrer votre évaluation.';
+                saving = false;
                 save.disabled = false;
+                cancel.disabled = false;
+                updateDraft();
             }
         });
-        section.append(pills, comment, save, status);
+        section.append(pills, comment, save, cancel, status);
         container.append(section);
     }
 
@@ -10318,6 +10418,7 @@
             switchScreen('settings');
         });
         document.getElementById('aidant-senior-select').addEventListener('change', event => {
+            reinitialiserSuiviPartage();
             reinitialiserCarnetEtablissement();
             historyLoadId++;
             historyContext = '';
@@ -11430,6 +11531,7 @@
         connectedUser = null;
         reinitialiserCalendrier(true);
         reinitialiserPartagesAgenda();
+        reinitialiserSuiviPartage();
         wellbeingLoadedDate = null;
         wellbeingLoadId++;
         currentWellbeingCheckin = null;

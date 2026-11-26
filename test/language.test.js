@@ -936,6 +936,249 @@ test('professional planning reset clears personal data and rejects old service r
   assert.equal(context.planningState.members.length, 0);
 });
 
+test('shared visit tracking discards stale account, profile and refresh results', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    children: ['Private information'],
+    querySelectorAll() { return []; },
+    replaceChildren(...items) { this.children = items; },
+    append(...items) { this.children.push(...items); }
+  };
+  const pending = [];
+  const context = {
+    connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first',
+    sharedFollowingRevision: 0, sharedFollowingLoadId: 0,
+    document: { getElementById: element },
+    planningRequest: () => new Promise((resolve, reject) => pending.push({ resolve, reject })),
+    makeTextElement: (tag, text) => ({ textContent: text })
+  };
+  const start = page.indexOf('    function reinitialiserSuiviPartage()');
+  const end = page.indexOf('    function renderVisitEvaluation(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const older = context.chargerSuiviPartage('aidant');
+  const newer = context.chargerSuiviPartage('aidant');
+  pending[1].resolve({ visits: [] });
+  await newer;
+  pending[0].reject(new Error('Previous request'));
+  await older;
+  assert.match(element('aidant-live-following').children[0].textContent, /Aucune intervention/);
+
+  const previousProfile = context.chargerSuiviPartage('aidant');
+  context.reinitialiserSuiviPartage();
+  context.activeSeniorProfileId = 'second';
+  pending[2].resolve({ visits: [{ visitType: 'Private information' }] });
+  await previousProfile;
+  assert.equal(element('aidant-live-following').children.length, 0);
+
+  const previousSession = context.chargerSuiviPartage('aidant');
+  context.reinitialiserSuiviPartage();
+  context.connectedUser = null;
+  context.connectedUser = { id: 'alice', role: 'aidant' };
+  pending[3].reject(new Error('Previous session'));
+  await previousSession;
+  assert.equal(element('aidant-live-following').children.length, 0);
+});
+
+test('late visit progress cannot notify or refresh a later professional session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  let resolveRequest;
+  let rejectRequest;
+  const effects = [];
+  const context = {
+    professionalSessionRevision: 0,
+    planningRequest: () => new Promise((resolve, reject) => { resolveRequest = resolve; rejectRequest = reject; }),
+    showToast: (...args) => effects.push(args),
+    stageLabel: stage => stage,
+    chargerPlanningPro: async () => effects.push('refresh')
+  };
+  const start = page.indexOf('    async function enregistrerEtapeVisite(');
+  const end = page.indexOf('    function reinitialiserSuiviPartage()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  for (const succeeds of [true, false]) {
+    const button = { disabled: false };
+    const action = context.enregistrerEtapeVisite('visit', 'arrived', { value: '' }, { checked: false }, button);
+    context.professionalSessionRevision++;
+    if (succeeds) resolveRequest({}); else rejectRequest(new Error('Previous session'));
+    await action;
+    assert.deepEqual(effects, []);
+  }
+});
+
+test('visit transmissions from a previous professional session do not update the page', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  let resolveRequest;
+  const container = { children: [], replaceChildren(...items) { this.children = items; } };
+  const context = {
+    professionalSessionRevision: 0,
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; }),
+    renderVisitNotes: (target, notes) => target.children.push(...notes)
+  };
+  const start = page.indexOf('    async function actualiserHistoriqueVisite(');
+  const end = page.indexOf('    function creerFormulaireTransmission(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const loading = context.actualiserHistoriqueVisite('visit', container);
+  context.professionalSessionRevision++;
+  resolveRequest({ notes: ['Previous session'] });
+  await loading;
+  assert.equal(container.children.length, 0);
+});
+
+test('a late transmission save does not notify or reload the next session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const makeElement = tag => ({
+    tag, value: 'text', style: {}, children: [], listeners: {},
+    append(...items) { this.children.push(...items); },
+    add() {}, setAttribute() {}, addEventListener(type, handler) { this.listeners[type] = handler; }
+  });
+  let resolveRequest;
+  const effects = [];
+  const context = {
+    professionalSessionRevision: 0, document: { createElement: makeElement },
+    Option: function(text, value) { this.text = text; this.value = value; },
+    makeTextElement: (tag, text) => Object.assign(makeElement(tag), { textContent: text }),
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; }),
+    showToast: (...args) => effects.push(args)
+  };
+  const start = page.indexOf('    function creerFormulaireTransmission(');
+  const end = page.indexOf('    function afficherJournalIntervenant(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const form = context.creerFormulaireTransmission('visit', async () => effects.push('refresh'));
+  const action = form.listeners.submit({ preventDefault() {} });
+  context.professionalSessionRevision++;
+  resolveRequest({});
+  await action;
+  assert.deepEqual(effects, []);
+});
+
+test('a late visit evaluation does not refresh another accompanied person', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const makeElement = tag => ({
+    tag, children: [], listeners: {}, dataset: {}, classList: { toggle() {} },
+    append(...items) { this.children.push(...items); },
+    setAttribute() {}, addEventListener(type, handler) { this.listeners[type] = handler; },
+    querySelectorAll() { return this.children; }, focus() {}
+  });
+  let resolveRequest;
+  const effects = [];
+  const context = {
+    sharedFollowingRevision: 0, connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first',
+    window: { generationLiaisonTranslate: text => text },
+    document: { createElement: makeElement },
+    makeTextElement: (tag, text) => Object.assign(makeElement(tag), { textContent: text }),
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; }),
+    showToast: (...args) => effects.push(args),
+    chargerSuiviPartage: async () => effects.push('refresh')
+  };
+  const start = page.indexOf('    function renderVisitEvaluation(');
+  const end = page.indexOf('    async function chargerConsentements(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const container = makeElement('div');
+  context.renderVisitEvaluation(container, { id: 'visit' }, 'aidant');
+  const section = container.children[0];
+  const pills = section.children[1];
+  const save = section.children[3];
+  pills.children[0].listeners.click();
+  const action = save.listeners.click();
+  context.activeSeniorProfileId = 'second';
+  context.sharedFollowingRevision++;
+  resolveRequest({});
+  await action;
+  assert.deepEqual(effects, []);
+});
+
+test('visit evaluation drafts survive refreshes and edits made while saving', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const makeElement = tag => ({
+    tag, children: [], listeners: {}, dataset: {}, value: '', classList: { toggle() {} },
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    setAttribute() {}, addEventListener(type, handler) { this.listeners[type] = handler; },
+    querySelectorAll(selector) {
+      if (selector === '.rating-pill') return this.children;
+      const find = node => [
+        ...(node.dataset?.followingDirty === 'true' ? [node] : []),
+        ...(node.children || []).flatMap(find)
+      ];
+      return find(this);
+    },
+    focus() {}
+  });
+  const container = makeElement('div');
+  const requests = [];
+  const toasts = [];
+  const context = {
+    sharedFollowingRevision: 0, sharedFollowingLoadId: 0,
+    connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first',
+    window: { generationLiaisonTranslate: text => text },
+    document: { createElement: makeElement, getElementById: () => container },
+    makeTextElement: (tag, text) => Object.assign(makeElement(tag), { textContent: text }),
+    planningRequest: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })),
+    formatDateTime: value => value, progressArray: () => [], renderVisitProgress() {},
+    showToast: (...args) => toasts.push(args)
+  };
+  const start = page.indexOf('    function reinitialiserSuiviPartage()');
+  const end = page.indexOf('    async function chargerConsentements(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const data = { visits: [{ id: 'visit', visitType: 'Visite', scheduledAt: 'date', status: 'completed' }] };
+  const initial = context.chargerSuiviPartage('aidant');
+  requests[0].resolve(data);
+  await initial;
+  const section = container.children[0].children[3];
+  const pills = section.children[1];
+  const comment = section.children[2];
+  const save = section.children[3];
+  const cancel = section.children[4];
+  const status = section.children[5];
+  const refresh = context.chargerSuiviPartage('aidant');
+  pills.children[2].listeners.click();
+  comment.value = 'Premier texte';
+  comment.listeners.input();
+  requests[1].resolve(data);
+  await refresh;
+  assert.equal(container.children[0].children[3], section);
+  const secondRefresh = context.chargerSuiviPartage('aidant');
+  requests[2].resolve(data);
+  await secondRefresh;
+  assert.equal(container.children[0].children[3], section);
+
+  const action = save.listeners.click();
+  pills.children[0].listeners.click();
+  assert.equal(save.disabled, true);
+  pills.children[2].listeners.click();
+  comment.value = 'Texte modifié pendant l’enregistrement';
+  comment.listeners.input();
+  requests[3].resolve({});
+  await action;
+  assert.equal(comment.value, 'Texte modifié pendant l’enregistrement');
+  assert.equal(section.dataset.followingDirty, 'true');
+  assert.match(status.textContent, /pas encore enregistrées/);
+  assert.equal(cancel.hidden, false);
+  cancel.listeners.click();
+  assert.equal(comment.value, 'Premier texte');
+  assert.equal(section.dataset.followingDirty, 'false');
+  requests[4].resolve(data);
+  await new Promise(resolve => setImmediate(resolve));
+  const nextSection = container.children[0].children[3];
+  nextSection.children[1].children[0].listeners.click();
+  const failedRefresh = context.chargerSuiviPartage('aidant');
+  requests[5].reject(new Error('Connexion indisponible'));
+  await failedRefresh;
+  assert.equal(container.children[0].children[3], nextSection);
+  assert.equal(toasts.at(-1)[0], 'Connexion indisponible');
+  const revoked = context.chargerSuiviPartage('aidant');
+  requests[6].resolve({ visits: [] });
+  await revoked;
+  assert.equal(container.children.length, 1);
+  assert.match(toasts.at(-1)[0], /n’est plus disponible/);
+});
+
 test('outdated coordinator responses cannot repopulate private team information', async () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const elements = {};
