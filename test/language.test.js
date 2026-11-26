@@ -734,7 +734,7 @@ test('English calendar translates dates, empty states and deletion confirmation'
     Intl, Date
   };
   const start = page.indexOf('    function dateInputValue(date)');
-  const end = page.indexOf('    async function chargerPartagesAgenda()', start);
+  const end = page.indexOf('    async function chargerPartagesAgenda(', start);
   assert.ok(start >= 0 && end > start);
   vm.runInNewContext(page.slice(start, end), context);
   context.renderCalendar();
@@ -769,14 +769,21 @@ test('English calendar loading and fallback error do not show stale appointments
   const app = setup('en');
   const elements = {};
   const element = id => elements[id] ||= {
-    hidden: false, textContent: '', children: ['previous appointment'],
+    hidden: false, textContent: '', dataset: {}, children: ['previous appointment'],
+    classList: { contains: () => true },
     replaceChildren() { this.children = []; }
   };
   let rejectRequest;
   const context = {
     window: app.window, connectedUser: { id: 'senior' }, calendarDate: '2026-03-29',
     calendarView: 'week', calendarLoadId: 0,
-    document: { getElementById: element },
+    document: {
+      getElementById: element,
+      querySelectorAll: selector => selector.startsWith('#screen-agenda')
+        ? Object.values(elements).filter(item => item.dataset.agendaFormTranslation)
+        : []
+    },
+    renderCalendar() { throw new Error('The calendar must remain empty during loading or on failure'); },
     planningRequest: () => new Promise((resolve, reject) => { rejectRequest = reject; }), Date
   };
   const extract = (start, end) => {
@@ -788,15 +795,51 @@ test('English calendar loading and fallback error do not show stale appointments
   vm.runInNewContext(
     extract('    function dateInputValue(date)', '    function dateTimeInputValue(date)') +
     extract('    function calendarBounds()', '    function calendarEventDate(value)') +
+    extract('    function actualiserLangueAgenda()', '    async function chargerPartagesAgenda(') +
     extract('    async function chargerCalendrier()', '    async function chargerModificationsGoogle()'), context
   );
   const loading = context.chargerCalendrier();
   assert.equal(element('calendar-message').textContent, 'Loading the calendar…');
   assert.equal(element('calendar-week-summary').hidden, true);
   assert.deepEqual(element('calendar-week-summary-content').children, []);
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueAgenda();
+  assert.equal(element('calendar-message').textContent, 'Chargement de l’agenda…');
   rejectRequest(new Error());
   await loading;
+  assert.equal(element('calendar-message').textContent, 'Impossible de charger l’agenda.');
+  app.window.generationLiaisonSetLanguage('en');
+  context.actualiserLangueAgenda();
   assert.equal(element('calendar-message').textContent, 'Unable to load the calendar.');
+  const secondLoad = context.chargerCalendrier();
+  rejectRequest(new Error('Votre réponse'));
+  await secondLoad;
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueAgenda();
+  assert.equal(element('calendar-message').textContent, 'Votre réponse');
+});
+
+test('Google connection return messages use the selected language and remove the result from the URL', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const start = page.indexOf('        const calendarResult = new URLSearchParams(');
+  const end = page.indexOf("        document.getElementById('planning-previous-day')", start);
+  assert.ok(start >= 0 && end > start);
+  for (const [result, expected, success] of [
+    ['connected', 'Google Calendar connected. You can re-enable schedule synchronization in settings if you wish.', true],
+    ['denied', 'Google Calendar authorization was denied.', false],
+    ['error', 'Google Calendar connection failed.', false]
+  ]) {
+    let toast, replaced;
+    const url = `https://example.test/app-mobile.html?calendar=${result}&other=kept#agenda`;
+    app.window.location = { search: `?calendar=${result}&other=kept`, href: url };
+    app.window.history = { replaceState: (state, title, path) => { replaced = path; } };
+    vm.runInNewContext(page.slice(start, end), {
+      window: app.window, URL, URLSearchParams, showToast: (...args) => { toast = args; }
+    });
+    assert.deepEqual(toast, [expected, success]);
+    assert.equal(replaced, '/app-mobile.html?other=kept#agenda');
+  }
 });
 
 test('calendar sharing translates consent controls without changing names or decisions', async () => {
@@ -807,6 +850,7 @@ test('calendar sharing translates consent controls without changing names or dec
     classList: { contains: () => true },
     append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = items; },
+    querySelectorAll: function () { return this.children.flatMap(child => child.tag === 'button' ? [child] : child.querySelectorAll()); },
     addEventListener(event, callback) { this.listeners[event] = callback; }
   });
   const elements = {};
@@ -819,14 +863,18 @@ test('calendar sharing translates consent controls without changing names or dec
   const requests = [];
   const context = {
     window: app.window, connectedUser: { id: 'senior' }, calendarDate: null,
+    activeSeniorProfileId: '', agendaSharesLoadId: 0, agendaSharesRevision: 0, agendaSharesActionPending: false,
     document: {
-      getElementById: element, createElement: node,
+      getElementById: element, createElement: tag => Object.assign(node(), { tag }),
       querySelectorAll: selector => selector.startsWith('#agenda-shares')
         ? element('agenda-shares').children.flatMap(row =>
           row.children.filter(child => child.dataset.agendaShareTranslation))
         : []
     },
     makeTextElement: (tag, text) => Object.assign(node(), { tag, textContent: text }),
+    definirMessageFormulaireAgenda: (target, text, canTranslate) => {
+      target.textContent = canTranslate ? app.window.generationLiaisonTranslate(text) : text;
+    },
     planningRequest: async (url, options) => {
       requests.push({ url, options });
       return options ? {} : { partners };
@@ -859,6 +907,124 @@ test('calendar sharing translates consent controls without changing names or dec
   await rows[0].children[2].listeners.click();
   assert.equal(requests[1].url, '/api/agenda/shares/incoming');
   assert.equal(requests[1].options.body.decision, 'accept');
+});
+
+function setupCalendarSharing() {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const node = tag => ({
+    tag, children: [], dataset: {}, hidden: false, disabled: false, textContent: '', listeners: {},
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    querySelectorAll() { return this.children.flatMap(child => child.tag === 'button' ? [child] : child.querySelectorAll()); },
+    addEventListener(event, callback) { this.listeners[event] = callback; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node('div');
+  const pending = [];
+  let refreshes = 0;
+  const context = {
+    window: app.window, connectedUser: { id: 'alice' }, activeSeniorProfileId: 'senior-a',
+    agendaSharesLoadId: 0, agendaSharesRevision: 0, agendaSharesActionPending: false,
+    document: { getElementById: element, createElement: node },
+    makeTextElement: (tag, text) => Object.assign(node(tag), { textContent: text }),
+    planningRequest: (url, options) => new Promise((resolve, reject) => {
+      pending.push({ url, options, resolve, reject });
+    }),
+    chargerCalendrier: () => { refreshes++; }
+  };
+  const start = page.indexOf('    function reinitialiserPartagesAgenda()');
+  const end = page.indexOf('    async function chargerCalendrier()', start);
+  const helperStart = page.indexOf('    function definirMessageFormulaireAgenda(');
+  const helperEnd = page.indexOf('    function texteModificationGoogle(', helperStart);
+  assert.ok(start >= 0 && end > start && helperStart >= 0 && helperEnd > helperStart);
+  vm.runInNewContext(page.slice(helperStart, helperEnd) + page.slice(start, end), context);
+  return { context, element, pending, refreshes: () => refreshes };
+}
+
+test('calendar sharing ignores out-of-order loads and clears old account and profile data', async () => {
+  const { context, element, pending } = setupCalendarSharing();
+  const first = context.chargerPartagesAgenda();
+  const second = context.chargerPartagesAgenda();
+  pending[1].resolve({ partners: [{ userId: '2', name: 'Current' }] });
+  await second;
+  pending[0].resolve({ partners: [{ userId: '1', name: 'Stale' }] });
+  await first;
+  assert.equal(element('agenda-shares').children[0].children[0].textContent, 'Current');
+  const staleFailure = context.chargerPartagesAgenda();
+  const latest = context.chargerPartagesAgenda();
+  pending[3].resolve({ partners: [{ userId: '4', name: 'Latest' }] });
+  await latest;
+  pending[2].reject(new Error('Outdated error'));
+  await staleFailure;
+  assert.equal(element('agenda-shares').children[0].children[0].textContent, 'Latest');
+  const third = context.chargerPartagesAgenda();
+  context.reinitialiserPartagesAgenda();
+  context.connectedUser = { id: 'alice' };
+  context.activeSeniorProfileId = 'senior-b';
+  pending[4].resolve({ partners: [{ userId: '3', name: 'Previous profile' }] });
+  await third;
+  assert.equal(element('agenda-shares-card').hidden, true);
+  assert.deepEqual(element('agenda-shares').children, []);
+});
+
+test('calendar sharing is cleared on account and accompanied-profile changes', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const login = page.slice(page.indexOf('    async function setAuthenticatedView(user)'), page.indexOf('        connectedUser = user;'));
+  const logoutStart = page.indexOf('    async function deconnecterUtilisateur(');
+  const logout = page.slice(logoutStart, page.indexOf("        activeSeniorProfileId = '';", logoutStart));
+  const profileStart = page.indexOf("        document.getElementById('aidant-senior-select').addEventListener('change'");
+  const profile = page.slice(profileStart, page.indexOf("        document.getElementById('aidant-refresh-seniors')", profileStart));
+  assert.match(login, /if \(connectedUser\?\.id !== user\.id\) \{\s*reinitialiserPartagesAgenda\(\)/);
+  assert.match(logout, /connectedUser = null;\s*reinitialiserPartagesAgenda\(\)/);
+  assert.match(profile, /reinitialiserPartagesAgenda\(\)/);
+});
+
+test('calendar sharing exposes load and action failures without losing the error during refresh', async () => {
+  const { context, element, pending, refreshes } = setupCalendarSharing();
+  const loading = context.chargerPartagesAgenda();
+  pending[0].reject(new Error());
+  await loading;
+  assert.equal(element('agenda-shares-card').hidden, false);
+  assert.equal(element('agenda-shares').children[0].textContent, 'Unable to load calendar shares.');
+  assert.equal(element('agenda-shares').children[1].textContent, 'Try again');
+  const retry = element('agenda-shares').children[1].listeners.click();
+  pending[1].resolve({ partners: [{ userId: 'other', name: 'Anne',
+    incoming: { id: 'request', status: 'pending' } }] });
+  await retry;
+  const row = element('agenda-shares').children[0];
+  const accept = row.children[2];
+  const action = accept.listeners.click();
+  assert.equal(accept.disabled, true);
+  assert.equal(row.children[3].disabled, true);
+  await context.chargerPartagesAgenda();
+  await row.children[3].listeners.click();
+  assert.equal(pending.length, 3);
+  pending[2].reject(new Error('Connexion indisponible'));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(pending[3].url, '/api/agenda/shares');
+  pending[3].resolve({ partners: [] });
+  await action;
+  assert.equal(element('agenda-shares-card').hidden, false);
+  assert.equal(element('agenda-shares-status').textContent, 'Connexion indisponible');
+  assert.equal(refreshes(), 1);
+  assert.equal(accept.disabled, false);
+});
+
+test('an unfinished sharing action does not refresh or reveal an old account', async () => {
+  const { context, element, pending, refreshes } = setupCalendarSharing();
+  const load = context.chargerPartagesAgenda();
+  pending[0].resolve({ partners: [{ userId: 'other', name: 'Anne',
+    incoming: { id: 'request', status: 'pending' } }] });
+  await load;
+  const action = element('agenda-shares').children[0].children[2].listeners.click();
+  context.reinitialiserPartagesAgenda();
+  context.connectedUser = { id: 'other-user' };
+  pending[1].reject(new Error('Old account error'));
+  await action;
+  assert.equal(element('agenda-shares-status').textContent, '');
+  assert.equal(pending.length, 2);
+  assert.equal(refreshes(), 0);
 });
 
 test('Google calendar changes translate dates and consent actions without changing errors', async () => {
@@ -1133,7 +1299,7 @@ test('appointment and birthday messages translate without altering entered detai
     return page.slice(from, to);
   };
   vm.runInNewContext(
-    extract('    function actualiserLangueAgenda()', '    async function chargerPartagesAgenda()') +
+    extract('    function actualiserLangueAgenda()', '    async function chargerPartagesAgenda(') +
     extract('    function definirMessageFormulaireAgenda(', '    function texteModificationGoogle(') +
     extract("        document.getElementById('personal-event-form').addEventListener", "        document.getElementById('planning-next-day')"),
     context

@@ -1318,7 +1318,7 @@ test('day view displays only the selected day and preserves week and month views
     Date, Intl
   };
   vm.runInNewContext(
-    `${extract('    function dateInputValue(date)', '    async function chargerPartagesAgenda()')}\n` +
+    `${extract('    function dateInputValue(date)', '    async function chargerPartagesAgenda(')}\n` +
     'globalThis.render = renderCalendar; globalThis.setView = definirVueCalendrier;', context
   );
   context.setView('day');
@@ -1379,7 +1379,7 @@ test('weekly summary orders authorized events by Paris day and time', () => {
     Date, Intl
   };
   vm.runInNewContext(
-    `${extract('    function dateInputValue(date)', '    async function chargerPartagesAgenda()')}\n` +
+    `${extract('    function dateInputValue(date)', '    async function chargerPartagesAgenda(')}\n` +
     'globalThis.render = renderCalendar;', context
   );
   context.render();
@@ -1397,7 +1397,7 @@ test('weekly summary is cleared while the agenda reloads and remains hidden on f
   const elements = new Map();
   const element = id => {
     if (!elements.has(id)) elements.set(id, {
-      hidden: false, textContent: '', children: ['Ancien rendez-vous'],
+      hidden: false, textContent: '', dataset: {}, children: ['Ancien rendez-vous'],
       replaceChildren() { this.children = []; }
     });
     return elements.get(id);

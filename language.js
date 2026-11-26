@@ -1321,6 +1321,8 @@
     'Demande envoyée, en attente de réponse.': 'Request sent, awaiting a response.',
     'Annuler ma demande': 'Cancel my request',
     'Demander à comparer nos agendas': 'Request to compare our calendars',
+    'Impossible de modifier le partage de l’agenda.': 'Unable to change calendar sharing.',
+    'Impossible de charger les partages de l’agenda.': 'Unable to load calendar shares.',
     'Aucune modification en attente.': 'No changes pending.',
     'Les horaires sont affichés à l’heure de Paris.': 'Times are shown in Paris time.',
     'Synchronisation mise en pause par l’intervenant.': 'Synchronization paused by the professional.',
@@ -1354,6 +1356,10 @@
     'Voir mon planning détaillé': 'View my detailed schedule',
     'Chargement de l’agenda…': 'Loading the calendar…',
     'Impossible de charger l’agenda.': 'Unable to load the calendar.',
+    'Agenda Google connecté. Réactivez la synchronisation du planning dans les réglages si vous le souhaitez.':
+      'Google Calendar connected. You can re-enable schedule synchronization in settings if you wish.',
+    'L’autorisation Google Calendar a été refusée.': 'Google Calendar authorization was denied.',
+    'La connexion Google Calendar a échoué.': 'Google Calendar connection failed.',
     'Aucun rendez-vous pour cette semaine.': 'No appointments this week.',
     'Consultez les rendez-vous et les disponibilités correspondant à votre compte.':
       'View appointments and availability for your account.',

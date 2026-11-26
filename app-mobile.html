@@ -2806,6 +2806,7 @@
     <section class="form-card" id="agenda-shares-card" hidden>
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e8f1fb;">👥</span>Comparer avec un agenda associé</summary>
+        <p id="agenda-shares-status" class="helper-text" role="status" aria-live="polite"></p>
         <div id="agenda-shares" aria-live="polite"></div>
       </details>
         <details class="senior-disclosure senior-explanation" data-help-for="#agenda-shares-card > .senior-tab-disclosure > summary">
@@ -2986,6 +2987,9 @@
     let calendarDate = '';
     let calendarEvents = [];
     let calendarLoadId = 0;
+    let agendaSharesLoadId = 0;
+    let agendaSharesRevision = 0;
+    let agendaSharesActionPending = false;
     let nextVisitLoadId = 0;
     let nextVisitEvent = null;
     let nextVisitMessage = 'Chargement du prochain rendez-vous…';
@@ -4156,6 +4160,7 @@
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
         if (connectedUser?.id !== user.id) {
+            reinitialiserPartagesAgenda();
             reinitialiserChoixTablette();
             wellbeingLoadedDate = null;
             wellbeingLoadId++;
@@ -8798,7 +8803,7 @@
                         await planningRequest(`/api/agenda/events/${event.id}`, { method: 'DELETE' });
                         chargerCalendrier();
                     } catch (error) {
-                        document.getElementById('calendar-message').textContent = error.message;
+                        definirMessageFormulaireAgenda(document.getElementById('calendar-message'), error.message, false);
                     }
                 });
                 details.append(remove);
@@ -8836,26 +8841,60 @@
         renderCalendar();
     }
 
-    async function chargerPartagesAgenda() {
-        if (!connectedUser) return;
+    function reinitialiserPartagesAgenda() {
+        agendaSharesLoadId++;
+        agendaSharesRevision++;
+        agendaSharesActionPending = false;
+        document.getElementById('agenda-shares-card').hidden = true;
+        document.getElementById('agenda-shares').replaceChildren();
+        definirMessageFormulaireAgenda(document.getElementById('agenda-shares-status'), '', false);
+    }
+
+    async function chargerPartagesAgenda(duringAction = false) {
+        if (!connectedUser || (agendaSharesActionPending && !duringAction)) return;
         const card = document.getElementById('agenda-shares-card');
         const container = document.getElementById('agenda-shares');
+        const status = document.getElementById('agenda-shares-status');
+        const userId = connectedUser.id;
+        const profileId = activeSeniorProfileId;
+        const revision = agendaSharesRevision;
+        const loadId = ++agendaSharesLoadId;
+        const isCurrent = () => revision === agendaSharesRevision && connectedUser?.id === userId &&
+            activeSeniorProfileId === profileId;
         try {
             const { partners } = await planningRequest('/api/agenda/shares');
-            card.hidden = !partners.length;
+            if (!isCurrent() || loadId !== agendaSharesLoadId) return;
+            card.hidden = !partners.length && !status.textContent;
             container.replaceChildren();
             const act = (path, options) => async () => {
+                if (!isCurrent() || agendaSharesActionPending) return;
+                agendaSharesActionPending = true;
+                agendaSharesLoadId++;
+                const buttons = container.querySelectorAll('button');
+                buttons.forEach(button => { button.disabled = true; });
+                definirMessageFormulaireAgenda(status, '', false);
                 try {
-                    await planningRequest(path, options);
-                } catch (error) {
-                    document.getElementById('calendar-message').textContent = error.message;
+                    try {
+                        await planningRequest(path, options);
+                    } catch (error) {
+                        if (!isCurrent()) return;
+                        definirMessageFormulaireAgenda(status, error.message || 'Impossible de modifier le partage de l’agenda.', !error.message);
+                    }
+                    if (isCurrent()) {
+                        await Promise.all([chargerPartagesAgenda(true), chargerCalendrier()]);
+                    }
+                } finally {
+                    if (isCurrent()) {
+                        agendaSharesActionPending = false;
+                        container.querySelectorAll('button').forEach(button => { button.disabled = false; });
+                    }
+                    buttons.forEach(button => { button.disabled = false; });
                 }
-                chargerPartagesAgenda();
-                chargerCalendrier();
             };
             const addButton = (parent, label, handler) => {
                 const button = document.createElement('button');
                 button.type = 'button';
+                button.disabled = agendaSharesActionPending;
                 button.dataset.agendaShareTranslation = label;
                 button.textContent = window.generationLiaisonTranslate(label);
                 button.addEventListener('click', handler);
@@ -8890,7 +8929,17 @@
                 container.append(row);
             });
         } catch (error) {
-            card.hidden = true;
+            if (!isCurrent() || loadId !== agendaSharesLoadId) return;
+            card.hidden = false;
+            const message = makeTextElement('p', '', 'helper-text');
+            definirMessageFormulaireAgenda(message, error.message || 'Impossible de charger les partages de l’agenda.', !error.message);
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.disabled = agendaSharesActionPending;
+            retry.dataset.agendaShareTranslation = 'Réessayer';
+            retry.textContent = window.generationLiaisonTranslate('Réessayer');
+            retry.addEventListener('click', () => chargerPartagesAgenda());
+            container.replaceChildren(message, retry);
         }
     }
 
@@ -8901,7 +8950,7 @@
         const loadId = ++calendarLoadId;
         const userId = connectedUser.id;
         const message = document.getElementById('calendar-message');
-        message.textContent = window.generationLiaisonTranslate('Chargement de l’agenda…');
+        definirMessageFormulaireAgenda(message, 'Chargement de l’agenda…', true);
         document.getElementById('calendar-grid').replaceChildren();
         document.getElementById('calendar-selected-day').replaceChildren();
         document.getElementById('calendar-week-summary').hidden = true;
@@ -8910,11 +8959,11 @@
             const result = await planningRequest(`/api/planning/calendar?start=${dateInputValue(start)}&end=${dateInputValue(end)}`);
             if (loadId !== calendarLoadId || connectedUser?.id !== userId) return;
             calendarEvents = result.events;
-            message.textContent = '';
+            definirMessageFormulaireAgenda(message, '', false);
             renderCalendar();
         } catch (error) {
             if (loadId !== calendarLoadId || connectedUser?.id !== userId) return;
-            message.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger l’agenda.');
+            definirMessageFormulaireAgenda(message, error.message || 'Impossible de charger l’agenda.', !error.message);
         }
     }
 
@@ -10149,6 +10198,7 @@
             directoryLoadId++;
             document.getElementById('directory-results').replaceChildren();
             calendarLoadId++;
+            reinitialiserPartagesAgenda();
             calendarRequestsLoadId++;
             directoryBookingsLoadId++;
             calendarEvents = [];
@@ -11217,6 +11267,7 @@
         document.getElementById('senior-home-links-status').textContent = '';
         document.getElementById('aidant-home-links').hidden = true;
         connectedUser = null;
+        reinitialiserPartagesAgenda();
         wellbeingLoadedDate = null;
         wellbeingLoadId++;
         currentWellbeingCheckin = null;
@@ -12224,7 +12275,7 @@
                 error: 'La connexion Google Calendar a échoué.'
             };
             if (calendarMessages[calendarResult]) {
-                showToast(calendarMessages[calendarResult], calendarResult === 'connected');
+                showToast(window.generationLiaisonTranslate(calendarMessages[calendarResult]), calendarResult === 'connected');
             }
             const url = new URL(window.location.href);
             url.searchParams.delete('calendar');
