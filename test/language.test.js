@@ -898,6 +898,221 @@ test('professional planning uses the Paris date and time when the browser is on 
     'Appointment dates and times in the schedule are shown in Paris time.');
 });
 
+test('professional planning reset clears personal data and rejects old service results', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: 'Private information', textContent: 'Private information', children: ['Private information'],
+    replaceChildren(...items) { this.children = items; },
+    reset() { this.resetCount = (this.resetCount || 0) + 1; },
+    querySelector() { return this.submit ||= { disabled: true }; }
+  };
+  let resolveRequest;
+  const context = {
+    connectedUser: { id: 'alice', role: 'pro' }, planningLoadId: 0, servicePlanningLoadId: 0,
+    recipientLocationRevision: 0, professionalLocationRevision: 0, professionalSessionRevision: 0,
+    recipientHomeCoordinates: { latitude: 48, longitude: 2 }, professionalHomeCoordinates: { latitude: 48, longitude: 2 },
+    planningState: { members: ['Private information'], recipients: ['Private information'], servicePartners: [] },
+    document: { getElementById: element },
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; })
+  };
+  const start = page.indexOf('    function reinitialiserPlanningProfessionnel()');
+  const end = page.indexOf('    function serviceBookingStatus(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const loading = context.chargerPlanningServices();
+  context.reinitialiserPlanningProfessionnel();
+  context.connectedUser = { id: 'alice', role: 'pro' };
+  resolveRequest({ bookings: [{ recipient: { name: 'Previous session' } }] });
+  await loading;
+  assert.deepEqual(element('pro-service-planning').children, []);
+  assert.deepEqual(element('pro-planning').children, []);
+  assert.deepEqual(element('coordinator-visit-history').children, []);
+  assert.deepEqual(element('contact-recipient').children, []);
+  assert.equal(element('contact-form').resetCount, 1);
+  assert.equal(context.recipientHomeCoordinates, null);
+  assert.equal(context.professionalHomeCoordinates, null);
+  assert.equal(element('professional-location-form').submit.disabled, false);
+  assert.equal(context.planningState.members.length, 0);
+});
+
+test('outdated coordinator responses cannot repopulate private team information', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '2026-03-29', textContent: '', children: [],
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; }
+  };
+  let resolveCoordinator;
+  let populateCount = 0;
+  const context = {
+    connectedUser: { id: 'alice', role: 'pro', isCoordinator: true }, planningLoadId: 0,
+    planningState: { members: [] }, document: { getElementById: element },
+    planningRequest: async url => url.includes('/today?')
+      ? { visits: [] } : new Promise(resolve => { resolveCoordinator = resolve; }),
+    updatePlanningDateTitle() {}, afficherJournalIntervenant() {},
+    makeTextElement: (tag, text) => ({ textContent: text }),
+    remplirSelecteursCoordination() { populateCount++; },
+    afficherHistoriqueCoordinateur() { populateCount++; },
+    afficherPartenairesServices() { populateCount++; }
+  };
+  const start = page.indexOf('    async function chargerPlanningPro()');
+  const end = page.indexOf('    async function chargerPlanningServices()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const loading = context.chargerPlanningPro();
+  await new Promise(resolve => setImmediate(resolve));
+  context.connectedUser = { id: 'alice', role: 'pro', isCoordinator: false };
+  resolveCoordinator({ members: ['Private information'], recipients: [], visits: [], servicePartners: [] });
+  await loading;
+  assert.equal(populateCount, 0);
+  assert.equal(context.planningState.members.length, 0);
+  assert.equal(element('coordinator-summary').textContent, '');
+});
+
+test('withdrawing consent or switching recipient invalidates an in-flight home location', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '', checked: false, textContent: '', listeners: {},
+    addEventListener(type, handler) { this.listeners[type] = handler; }
+  };
+  element('contact-recipient').value = 'first';
+  element('contact-location-consent').checked = true;
+  let resolveLocation;
+  const context = {
+    recipientLocationRevision: 0, recipientHomeCoordinates: null,
+    document: { getElementById: element },
+    obtenirPositionActuelle: () => new Promise(resolve => { resolveLocation = resolve; }),
+    messagePositionEnregistree: () => 'Position saved', showToast() {}
+  };
+  const start = page.indexOf("        document.getElementById('contact-recipient').addEventListener('change'");
+  const end = page.indexOf("        document.getElementById('member-form').addEventListener('submit'", start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const first = element('contact-home-location-button').listeners.click();
+  element('contact-location-consent').checked = false;
+  element('contact-location-consent').listeners.change({ currentTarget: element('contact-location-consent') });
+  resolveLocation({ latitude: 48, longitude: 2 });
+  await first;
+  assert.equal(context.recipientHomeCoordinates, null);
+  assert.equal(element('contact-home-location-status').textContent, 'Position GPS non relevée.');
+  element('contact-location-consent').checked = true;
+  const second = element('contact-home-location-button').listeners.click();
+  element('contact-recipient').value = 'second';
+  element('contact-recipient').listeners.change();
+  resolveLocation({ latitude: 48, longitude: 2 });
+  await second;
+  assert.equal(context.recipientHomeCoordinates, null);
+  assert.equal(element('contact-location-consent').checked, false);
+});
+
+test('late coordination submissions cannot change the next session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: id === 'visit-datetime' ? '2026-03-29T10:00' : 'value',
+    checked: true, listeners: {}, resetCount: 0,
+    addEventListener(type, handler) { this.listeners[type] = handler; },
+    reset() { this.resetCount++; }
+  };
+  let resolveRequest;
+  let rejectRequest;
+  const effects = [];
+  const context = {
+    professionalSessionRevision: 0, recipientHomeCoordinates: null,
+    document: { getElementById: element },
+    planningRequest: () => new Promise((resolve, reject) => { resolveRequest = resolve; rejectRequest = reject; }),
+    showToast: (...args) => effects.push(args),
+    chargerPlanningPro: async () => effects.push('planning'),
+    chargerPlanningServices: async () => effects.push('services')
+  };
+  const start = page.indexOf("        document.getElementById('member-form').addEventListener('submit'");
+  const end = page.lastIndexOf('\n    }', page.indexOf("    document.getElementById('resident-login-section')", start));
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  for (const id of ['member-form', 'service-partner-form', 'recipient-form', 'contact-form', 'visit-form']) {
+    for (const succeeds of [true, false]) {
+      const form = element(id);
+      const pending = form.listeners.submit({ preventDefault() {}, currentTarget: form });
+      context.professionalSessionRevision++;
+      if (succeeds) resolveRequest({}); else rejectRequest(new Error('Previous session'));
+      await pending;
+      assert.equal(form.resetCount, 0, id);
+      assert.deepEqual(effects, [], id);
+    }
+  }
+});
+
+test('professional location requests cannot update a later session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const button = { disabled: false };
+  const element = id => elements[id] ||= {
+    value: '30', textContent: '', listeners: {},
+    addEventListener(type, handler) { this.listeners[type] = handler; },
+    querySelector() { return button; }
+  };
+  let resolveLocation;
+  let resolveSave;
+  const toasts = [];
+  const context = {
+    document: { getElementById: element },
+    window: { generationLiaisonTranslate: text => text },
+    professionalLocationRevision: 0, professionalSessionRevision: 0,
+    professionalHomeCoordinates: null, connectedUser: { id: 'alice', hasHomeLocation: true },
+    obtenirPositionActuelle: () => new Promise(resolve => { resolveLocation = resolve; }),
+    planningRequest: () => new Promise(resolve => { resolveSave = resolve; }),
+    showToast: (...args) => toasts.push(args),
+    messagePositionEnregistree: () => 'Position saved'
+  };
+  const start = page.indexOf("        document.getElementById('pro-home-location-button').addEventListener");
+  const end = page.indexOf("        document.getElementById('contact-recipient').addEventListener", start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const location = element('pro-home-location-button').listeners.click();
+  context.professionalLocationRevision++;
+  resolveLocation({ latitude: 48, longitude: 2 });
+  await location;
+  assert.equal(context.professionalHomeCoordinates, null);
+  const save = element('professional-location-form').listeners.submit({
+    preventDefault() {}, currentTarget: element('professional-location-form')
+  });
+  context.professionalSessionRevision++;
+  context.connectedUser = { id: 'bob' };
+  resolveSave({ serviceRadiusKm: 30 });
+  await save;
+  assert.equal(context.connectedUser.id, 'bob');
+  assert.equal(context.connectedUser.serviceRadiusKm, undefined);
+  assert.deepEqual(toasts, []);
+});
+
+test('refreshing coordination choices discards the former recipient location and consent', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    id, checked: true, textContent: '', children: [],
+    replaceChildren(...children) { this.children = children; },
+    add(child) { this.children.push(child); }
+  };
+  const context = {
+    document: { getElementById: element },
+    Option: function(text, value) { this.text = text; this.value = value; },
+    planningState: { members: [], recipients: [{ id: 'bob', name: 'Bob', consented: true }] },
+    recipientLocationRevision: 0, recipientHomeCoordinates: { latitude: 48, longitude: 2 }
+  };
+  const start = page.indexOf('    function remplirSelecteursCoordination()');
+  const end = page.indexOf('    async function enregistrerEtapeVisite(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  context.remplirSelecteursCoordination();
+  assert.equal(context.recipientHomeCoordinates, null);
+  assert.equal(context.recipientLocationRevision, 1);
+  assert.equal(element('contact-location-consent').checked, false);
+  assert.equal(element('contact-recipient').children[0].value, '');
+});
+
 test('calendar reset removes private data and invalidates a request from a previous session', async () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const app = setup('en');
@@ -1667,7 +1882,7 @@ test('English professional location messages preserve locations and report error
   const toasts = [];
   const context = {
     window: app.window, document: { getElementById: element },
-    registrationHomeCoordinates: null, professionalHomeCoordinates: null,
+    registrationHomeCoordinates: null, professionalHomeCoordinates: null, professionalLocationRevision: 0,
     connectedUser: { hasHomeLocation: true },
     obtenirPositionActuelle: async () => ({ latitude: 48, longitude: 2, accuracy: 34.6 }),
     choisirCommune: async () => ({ latitude: 48, longitude: 2, name: 'Paris' }),

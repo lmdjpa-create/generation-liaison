@@ -914,7 +914,7 @@ function createView(response) {
       'chargerPlanningPro', 'chargerPlanningServices', 'chargerLegalGuardianDocuments',
       'chargerProfessionalVerificationDocuments', 'chargerCheckinBienEtre',
       'chargerAssistantConversation', 'chargerProchainRendezVous', 'afficherProchainRendezVous', 'chargerCalendrier', 'chargerPartagesAgenda', 'chargerModificationsGoogle',
-      'chargerParametresGooglePlanning', 'reinitialiserCalendrier', 'reinitialiserPartagesAgenda', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage', 'chargerContactsUtiles', 'chargerTachesPartagees',
+      'chargerParametresGooglePlanning', 'reinitialiserPlanningProfessionnel', 'reinitialiserCalendrier', 'reinitialiserPartagesAgenda', 'reinitialiserTachesPartagees', 'reinitialiserAnnuairePartage', 'chargerAnnuairePartage', 'chargerContactsUtiles', 'chargerTachesPartagees',
       'reinitialiserAlbumJournal', 'chargerAlbumFamilial', 'chargerJournalQuotidien',
       'reinitialiserMeteo', 'chargerMeteo', 'actualiserRecetteDuJour', 'reinitialiserCentresInteret',
       'chargerCentresInteret', 'afficherDecouvertesDuJour',

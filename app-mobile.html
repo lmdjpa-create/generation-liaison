@@ -2971,7 +2971,10 @@
     let wellbeingSafetyTimer = null;
     let registrationHomeCoordinates = null;
     let professionalHomeCoordinates = null;
+    let professionalLocationRevision = 0;
     let recipientHomeCoordinates = null;
+    let recipientLocationRevision = 0;
+    let professionalSessionRevision = 0;
     let verificationDocumentsLoadId = 0;
     let planningState = { members: [], recipients: [], servicePartners: [] };
     let planningRefreshTimer = null;
@@ -4161,6 +4164,10 @@
         reinitialiserAnnuairePartage();
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
+        if (connectedUser?.id !== user.id || connectedUser?.role !== user.role ||
+            Boolean(connectedUser?.isCoordinator) !== Boolean(user.isCoordinator)) {
+            reinitialiserPlanningProfessionnel();
+        }
         if (connectedUser?.id !== user.id) {
             reinitialiserCalendrier(true);
             reinitialiserPartagesAgenda();
@@ -9506,6 +9513,29 @@
         if (!entries.length) container.append(makeTextElement('p', 'Aucune étape pour les visites de cette date.', 'helper-text'));
     }
 
+    function reinitialiserPlanningProfessionnel() {
+        planningLoadId++;
+        servicePlanningLoadId++;
+        professionalSessionRevision++;
+        professionalLocationRevision++;
+        recipientLocationRevision++;
+        professionalHomeCoordinates = null;
+        recipientHomeCoordinates = null;
+        planningState = { members: [], recipients: [], servicePartners: [] };
+        ['pro-planning', 'pro-service-planning', 'pro-journal-list', 'service-partner-list', 'coordinator-visit-history']
+            .forEach(id => document.getElementById(id).replaceChildren());
+        document.getElementById('coordinator-summary').textContent = '';
+        document.getElementById('planning-date').value = '';
+        ['member-form', 'service-partner-form', 'recipient-form', 'contact-form', 'visit-form']
+            .forEach(id => document.getElementById(id).reset());
+        document.getElementById('professional-location-form').reset();
+        document.getElementById('professional-location-form').querySelector('button[type="submit"]').disabled = false;
+        document.getElementById('pro-home-location-status').textContent = 'Position du domicile non enregistrée.';
+        ['visit-member', 'service-partner-member', 'contact-recipient', 'visit-recipient']
+            .forEach(id => document.getElementById(id).replaceChildren());
+        document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+    }
+
     async function chargerPlanningPro() {
         const container = document.getElementById('pro-planning');
         if (!container || !connectedUser || connectedUser.role !== 'pro') return;
@@ -9598,12 +9628,16 @@
                 const summary = document.getElementById('coordinator-summary');
                 try {
                     const team = await planningRequest('/api/planning/coordinator');
+                    if (loadId !== planningLoadId || connectedUser?.id !== userId ||
+                        connectedUser?.role !== 'pro' || !connectedUser.isCoordinator) return;
                     planningState = team;
                     remplirSelecteursCoordination();
                     afficherHistoriqueCoordinateur(team.visits);
                     afficherPartenairesServices(team.servicePartners);
                     summary.textContent = `${team.members.length} intervenant(s) · ${team.recipients.length} personne(s) suivie(s). Les personnes sans consentement actif ne sont pas affectables.`;
                 } catch (error) {
+                    if (loadId !== planningLoadId || connectedUser?.id !== userId ||
+                        connectedUser?.role !== 'pro' || !connectedUser.isCoordinator) return;
                     summary.textContent = error.message || 'Impossible de charger les outils de coordination.';
                 }
             }
@@ -9621,12 +9655,13 @@
         if (!container || !connectedUser || connectedUser.role !== 'pro') return;
 
         const loadId = ++servicePlanningLoadId;
+        const userId = connectedUser.id;
         try {
             const dateValue = document.getElementById('planning-date').value || dateCheckinBienEtre();
             const result = await planningRequest(
                 `/api/planning/services/bookings?date=${encodeURIComponent(dateValue)}`
             );
-            if (loadId !== servicePlanningLoadId) return;
+            if (loadId !== servicePlanningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
             container.replaceChildren();
             if (!result.bookings.length) {
                 container.append(makeTextElement('p', 'Aucun rendez-vous de service ne vous est affecté à cette date.', 'helper-text'));
@@ -9686,7 +9721,7 @@
                 container.append(card);
             });
         } catch (error) {
-            if (loadId !== servicePlanningLoadId) return;
+            if (loadId !== servicePlanningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
             container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger votre agenda de services.', 'helper-text'));
         }
     }
@@ -9884,6 +9919,10 @@
     }
 
     function remplirSelecteursCoordination() {
+        recipientLocationRevision++;
+        recipientHomeCoordinates = null;
+        document.getElementById('contact-location-consent').checked = false;
+        document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
         const memberSelect = document.getElementById('visit-member');
         const serviceMemberSelect = document.getElementById('service-partner-member');
         const recipientSelects = [
@@ -10351,12 +10390,16 @@
         document.getElementById('reg-city-select').addEventListener('change', choisirCommuneInscription);
         document.getElementById('pro-home-location-button').addEventListener('click', async () => {
             const status = document.getElementById('pro-home-location-status');
+            const revision = ++professionalLocationRevision;
             professionalHomeCoordinates = null;
             status.textContent = window.generationLiaisonTranslate('Localisation en cours…');
             try {
-                professionalHomeCoordinates = await obtenirPositionActuelle();
+                const coordinates = await obtenirPositionActuelle();
+                if (revision !== professionalLocationRevision) return;
+                professionalHomeCoordinates = coordinates;
                 status.textContent = messagePositionEnregistree(professionalHomeCoordinates);
             } catch (error) {
+                if (revision !== professionalLocationRevision) return;
                 status.textContent = window.generationLiaisonTranslate(connectedUser?.hasHomeLocation
                     ? 'La position enregistrée reste inchangée.'
                     : 'Position du domicile non enregistrée.');
@@ -10372,6 +10415,8 @@
                 return;
             }
             const submit = form.querySelector('button[type="submit"]');
+            const revision = professionalSessionRevision;
+            professionalLocationRevision++;
             submit.disabled = true;
             try {
                 const result = await planningRequest('/api/planning/professional-location', {
@@ -10382,23 +10427,27 @@
                         serviceRadiusKm
                     }
                 });
+                if (revision !== professionalSessionRevision) return;
                 connectedUser = { ...connectedUser, ...result };
                 professionalHomeCoordinates = null;
                 document.getElementById('pro-home-location-status').textContent = window.generationLiaisonTranslate('Rayon et position du domicile enregistrés.');
                 showToast(window.generationLiaisonTranslate('Zone d’intervention enregistrée'));
             } catch (error) {
+                if (revision !== professionalSessionRevision) return;
                 showToast(window.generationLiaisonTranslate(error.message || 'Impossible d’enregistrer votre zone d’intervention.'), false);
             } finally {
-                submit.disabled = false;
+                if (revision === professionalSessionRevision) submit.disabled = false;
             }
         });
         document.getElementById('contact-recipient').addEventListener('change', () => {
+            recipientLocationRevision++;
             recipientHomeCoordinates = null;
             document.getElementById('contact-location-consent').checked = false;
             document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
         });
         document.getElementById('contact-location-consent').addEventListener('change', event => {
             if (!event.currentTarget.checked) {
+                recipientLocationRevision++;
                 recipientHomeCoordinates = null;
                 document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
             }
@@ -10412,10 +10461,14 @@
             }
             recipientHomeCoordinates = null;
             status.textContent = 'Localisation en cours…';
+            const revision = ++recipientLocationRevision;
             try {
-                recipientHomeCoordinates = await obtenirPositionActuelle();
+                const coordinates = await obtenirPositionActuelle();
+                if (revision !== recipientLocationRevision) return;
+                recipientHomeCoordinates = coordinates;
                 status.textContent = messagePositionEnregistree(recipientHomeCoordinates);
             } catch (error) {
+                if (revision !== recipientLocationRevision) return;
                 status.textContent = 'Position GPS non relevée.';
                 showToast(error.message, false);
             }
@@ -10423,21 +10476,25 @@
         document.getElementById('member-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
+            const revision = professionalSessionRevision;
             try {
                 await planningRequest('/api/planning/members', {
                     method: 'POST',
                     body: { email: document.getElementById('member-email').value.trim() }
                 });
+                if (revision !== professionalSessionRevision) return;
                 form.reset();
                 showToast('Intervenant ajouté à l’équipe');
                 await chargerPlanningPro();
             } catch (error) {
+                if (revision !== professionalSessionRevision) return;
                 showToast(error.message || 'Impossible d’ajouter cet intervenant.', false);
             }
         });
         document.getElementById('service-partner-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
+            const revision = professionalSessionRevision;
             try {
                 await planningRequest('/api/planning/services/partners', {
                     method: 'POST',
@@ -10449,17 +10506,21 @@
                         serviceArea: document.getElementById('service-partner-area').value.trim()
                     }
                 });
+                if (revision !== professionalSessionRevision) return;
                 form.reset();
                 showToast('Partenaire ajouté au catalogue');
                 await chargerPlanningPro();
+                if (revision !== professionalSessionRevision) return;
                 await chargerPlanningServices();
             } catch (error) {
+                if (revision !== professionalSessionRevision) return;
                 showToast(error.message || 'Impossible de référencer ce partenaire.', false);
             }
         });
         document.getElementById('recipient-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
+            const revision = professionalSessionRevision;
             try {
                 await planningRequest('/api/planning/recipients', {
                     method: 'POST',
@@ -10468,16 +10529,19 @@
                         seniorEmail: document.getElementById('recipient-email').value.trim()
                     }
                 });
+                if (revision !== professionalSessionRevision) return;
                 form.reset();
                 showToast('Demande de partage créée');
                 await chargerPlanningPro();
             } catch (error) {
+                if (revision !== professionalSessionRevision) return;
                 showToast(error.message || 'Impossible de créer la demande.', false);
             }
         });
         document.getElementById('contact-form').addEventListener('submit', async event => {
             event.preventDefault();
             const recipientId = document.getElementById('contact-recipient').value;
+            const revision = professionalSessionRevision;
             try {
                 await planningRequest(`/api/planning/recipients/${encodeURIComponent(recipientId)}/contact`, {
                     method: 'PUT',
@@ -10492,15 +10556,18 @@
                         accessInstructions: document.getElementById('contact-instructions').value.trim()
                     }
                 });
+                if (revision !== professionalSessionRevision) return;
                 showToast('Coordonnées enregistrées');
                 await chargerPlanningPro();
             } catch (error) {
+                if (revision !== professionalSessionRevision) return;
                 showToast(error.message || 'Impossible d’enregistrer les coordonnées.', false);
             }
         });
         document.getElementById('visit-form').addEventListener('submit', async event => {
             event.preventDefault();
             const form = event.currentTarget;
+            const revision = professionalSessionRevision;
             try {
                 await planningRequest('/api/planning/visits', {
                     method: 'POST',
@@ -10512,11 +10579,13 @@
                         visitType: document.getElementById('visit-type').value.trim()
                     }
                 });
+                if (revision !== professionalSessionRevision) return;
                 form.reset();
                 document.getElementById('visit-duration').value = '30';
                 showToast('Visite planifiée');
                 await chargerPlanningPro();
             } catch (error) {
+                if (revision !== professionalSessionRevision) return;
                 showToast(error.message || 'Impossible de planifier cette visite.', false);
             }
         });
@@ -11350,8 +11419,7 @@
             notificationDetails.textContent = '';
             notificationDetails.hidden = true;
         });
-        planningLoadId++;
-        document.getElementById('pro-journal-list').replaceChildren();
+        reinitialiserPlanningProfessionnel();
         reinitialiserMeteo();
         annulerDicteeMessage();
         annulerPropositionMessage();
