@@ -63,7 +63,7 @@ test('each audience has a linked, accessible presentation with closed explanatio
   }
   const residence = fs.readFileSync(path.join(__dirname, '..', 'presentation-residences.html'), 'utf8');
   assert.match(residence, /direction ne consulte ni les carnets ni les messages privés/);
-  assert.match(residence, /grille mensuelle indicative[\s\S]*Aucun paiement en ligne ni facturation automatique/);
+  assert.match(residence, /L’application est gratuite\. La partie médicale est payante[\s\S]*Aucun paiement en ligne ni facturation automatique/);
 });
 
 test('homepage proposals are individually collapsed and retain their descriptions', () => {
@@ -84,7 +84,7 @@ test('homepage explanations start closed while direct access and emergency infor
     'À qui s’adresse Génération Liaison ?', 'Voir les aperçus de l’interface senior',
     'Exemple de carnet de liaison', 'Vos échanges restent privés et sécurisés',
     'Entreprises et résidences : un espace pour la direction', 'Informations sur les prestataires',
-    'Profitez gratuitement de toutes les fonctionnalités', 'Comment accéder à l’application ?',
+    'Une application gratuite', 'Comment accéder à l’application ?',
     'Aide et informations légales'
   ]) {
     const escaped = summary.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -162,9 +162,12 @@ test('privacy and health data information remains available near the top without
 
 test('homepage metadata and reassurance match the updated presentation', () => {
   assert.match(source, /<title>Génération Liaison : carnet de liaison pour tous<\/title>/);
-  assert.match(source, /<meta name="description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
-  assert.match(source, /<meta property="og:description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement/);
-  assert.match(source, /Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation/);
+  assert.match(source, /<meta name="description" content="Un carnet de liaison gratuit pour les seniors et les personnes ayant besoin d'accompagnement/);
+  assert.match(source, /<meta property="og:description" content="Un carnet de liaison gratuit pour les seniors et les personnes ayant besoin d'accompagnement/);
+  assert.match(source, /Application gratuite · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation/);
+  const header = source.slice(source.indexOf('<header class="audience-header">'), source.indexOf('</header>'));
+  assert.match(header, /L’application est gratuite\. La partie médicale est payante/);
+  assert.match(header, /Aucun paiement n’est actuellement activé dans l’application/);
   assert.match(source, /Bon à savoir :[\s\S]*?15 ou le 112/);
   assert.match(source, /href="mailto:mail@generation-liaison\.fr"/);
   assert.match(source, /id="analytics-settings">Gestion des cookies/);
@@ -180,7 +183,10 @@ test('updated homepage copy remains available in English', () => {
     'Entreprises et résidences : un espace pour la direction',
     'Lors de l’inscription, choisissez « Entreprise / résidence ».',
     'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.',
-    '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation',
+    '✓ Application gratuite · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation',
+    'Une tablette : achat ou location',
+    'Achat envisagé à 299 € TTC, ou location envisagée à 25 € HT par mois sur 12 mois, avec Premium en supplément. Le tarif Premium reste à définir.',
+    'L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.',
     'Faut-il télécharger une application sur téléphone ?',
     'Comment sont sélectionnés les prestataires à domicile ?',
     'Gestion des cookies'
@@ -197,7 +203,7 @@ test('homepage presents the organization workspace and the actual registration a
   for (const title of ['Résidents', 'Soignants', 'Intervenants']) assert.match(block, new RegExp(`<h3>${title}</h3>`));
   assert.match(block, /résident ou son représentant légal vérifié choisit le partage/);
   assert.match(block, /direction ne consulte pas les carnets ni les messages privés/);
-  assert.match(block, /activé manuellement[\s\S]*abonnement est envisagé[\s\S]*aucun paiement en ligne/);
+  assert.match(block, /activé manuellement[\s\S]*options de tablettes sont indicatives[\s\S]*aucun paiement en ligne/);
   assert.match(block, /href="\/app-mobile\.html#inscription">Créer un compte établissement/);
   assert.match(block, /choisissez « Entreprise \/ résidence »/);
   assert.match(mobileSource, /<option value="establishment">🏢 Entreprise \/ résidence<\/option>/);
@@ -249,31 +255,44 @@ test('homepage visibly explains service verification limits without promising in
   assert.match(block, /L’assurance et la qualité des prestations ne sont pas vérifiées/);
 });
 
-test('homepage pricing explains free launch access and external services', () => {
+test('homepage pricing distinguishes the free app, medical section and external services', () => {
   const start = source.indexOf('<section class="landing-info" aria-labelledby="pricing-title">');
   assert.ok(start > 0);
   const pricing = source.slice(start, source.indexOf('</section>', start));
-  assert.match(pricing, /toutes les fonctionnalités disponibles dans l’application sont gratuites/);
-  assert.match(pricing, /Aucun abonnement ni paiement n’est proposé/);
+  assert.match(pricing, /L’application est gratuite\. La partie médicale est payante/);
+  assert.match(pricing, /tarifs et modalités restent à préciser/);
+  assert.match(pricing, /Aucun paiement n’est actuellement activé dans l’application/);
   assert.doesNotMatch(pricing, /disponibilité et des autorisations nécessaires/);
   assert.doesNotMatch(pricing, /nécessitent un accès Premium/);
   assert.match(pricing, /prestations à domicile sont indépendantes.*peuvent être facturées par le prestataire/);
-  assert.match(pricing, /tarifs futurs sont à l’étude et ne sont pas appliqués/);
+  assert.doesNotMatch(pricing, /phase de lancement/);
   assert.match(pricing, /href="\/cgv\.html"/);
 });
 
-test('proposed partner pricing is consistent and does not present payments as active', () => {
+test('sales terms and partner settings do not present payments as active', () => {
   assert.match(salesTerms, /Compte famille\/senior<\/td><td>Gratuit/);
-  assert.match(salesTerms, /1 € HT par prestation réalisée/);
-  assert.match(salesTerms, /15 € HT \/ mois/);
-  assert.match(salesTerms, /Un abonnement par compte professionnel pour tous ses services/);
-  assert.match(salesTerms, /commissions regroupées sur une facture mensuelle/);
+  assert.match(salesTerms, /Partie médicale<\/td><td>À préciser/);
   assert.match(salesTerms, /aucun paiement par carte ou PayPal ne sont actuellement activés/);
-  assert.doesNotMatch(salesTerms, /4,99 €|9,90 €|1,50 €|2,50 €/);
+  assert.doesNotMatch(salesTerms, /1 € HT par prestation réalisée|15 € HT \/ mois/);
   for (const html of [mobileSource, fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8')]) {
-    assert.match(html, /15 € HT par mois ou 1 € HT par prestation réalisée/);
-    assert.match(html, /Aucun paiement n’est activé/);
+    assert.match(html, /paramètres techniques ; aucun paiement n’est activé/);
   }
+});
+
+test('tablet purchase and rental are visible without opening further information', () => {
+  assert.match(source, /<a class="tablet-highlight" href="#tablettes">Découvrir l’achat ou la location d’une tablette<\/a>/);
+  const start = source.indexOf('<section class="landing-info" id="tablettes"');
+  const end = source.indexOf('</section>', start);
+  assert.ok(start > 0 && end < source.indexOf('<details class="landing-more">'));
+  const section = source.slice(start, end);
+  assert.match(section, /achat ou location/i);
+  assert.match(section, /299 € TTC/);
+  assert.match(section, /25 € HT par mois sur 12 mois/);
+  assert.match(section, /Premium en supplément/);
+  assert.match(section, /sous réserve de devis et de disponibilité/);
+  assert.match(section, /Aucun partenaire de location n’est confirmé/);
+  assert.match(section, /ne constitue ni une commande ni un paiement/);
+  assert.match(section, /href="\/app-mobile\.html#inscription"/);
 });
 
 test('homepage preview uses scalable text instead of image-baked captions', () => {

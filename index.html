@@ -4,11 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="referrer" content="no-referrer" />
-  <meta name="description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement, leurs proches et les intervenants. Gratuit au lancement." />
+  <meta name="description" content="Un carnet de liaison gratuit pour les seniors et les personnes ayant besoin d'accompagnement, leurs proches et les intervenants." />
   <link rel="canonical" href="https://generation-liaison.fr/" />
   <meta property="og:type" content="website" />
   <meta property="og:title" content="Génération Liaison : carnet de liaison pour tous" />
-  <meta property="og:description" content="Un carnet de liaison pour les seniors et les personnes ayant besoin d'accompagnement, leurs proches et les intervenants. Gratuit au lancement." />
+  <meta property="og:description" content="Un carnet de liaison gratuit pour les seniors et les personnes ayant besoin d'accompagnement, leurs proches et les intervenants." />
   <meta property="og:url" content="https://generation-liaison.fr/" />
   <title>Génération Liaison : carnet de liaison pour tous</title>
   <script src="/language.js" defer></script>
@@ -1199,9 +1199,10 @@
       display: inline-flex;
       justify-content: center;
       flex-wrap: wrap;
+      width: 100%;
       max-width: 100%;
       gap: 16px;
-      padding: 16px;
+      padding: clamp(28px, 5vw, 48px);
       border: 2px solid #a9d2bc;
       border-radius: 22px;
       background: #f5fbf7;
@@ -1213,7 +1214,25 @@
       border-radius: 16px;
     }
     .audience-header .landing-brand > span { line-height: 1.1; }
-    .audience-header h1 { margin: 0; }
+    .audience-header h1 {
+      margin: 0 auto;
+      font-size: clamp(1.35rem, 3vw, 2rem);
+    }
+    .tablet-highlight {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: min(100%, 960px);
+      min-height: 48px;
+      padding: 10px 18px;
+      border: 1px solid #9fcdb7;
+      border-radius: 14px;
+      background: #e6f4ee;
+      color: #155e48;
+      font-weight: 700;
+      text-align: center;
+      text-decoration: none;
+    }
     .audience-list { display: grid; gap: 20px; }
     .audience-card {
       display: grid;
@@ -1305,8 +1324,10 @@
     <header class="audience-header">
       <div class="landing-brand"><img src="/logo-generation-liaison.jpg" width="600" height="600" alt="" /><span>Génération<br>Liaison</span></div>
       <h1>Le lien au quotidien entre générations</h1>
+      <p>L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.</p>
     </header>
 
+    <a class="tablet-highlight" href="#tablettes">Découvrir l’achat ou la location d’une tablette</a>
     <section class="audience-list" aria-label="Choisissez votre espace">
       <article class="audience-card">
         <img src="/homepage-images/senior-portrait.jpg" width="1100" height="1650" alt="Une femme âgée souriante, assise à table." />
@@ -1401,6 +1422,12 @@
       </article>
     </section>
     <p class="audience-safety">Génération Liaison ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.</p>
+    <section class="landing-info" id="tablettes" aria-labelledby="tablettes-title">
+      <h2 id="tablettes-title">Une tablette : achat ou location</h2>
+      <p>Achat envisagé à 299 € TTC, ou location envisagée à 25 € HT par mois sur 12 mois, avec Premium en supplément. Le tarif Premium reste à définir.</p>
+      <p>Ces prix sont indicatifs, sous réserve de devis et de disponibilité. Aucun partenaire de location n’est confirmé. Indiquer votre intérêt ne constitue ni une commande ni un paiement.</p>
+      <a class="landing-login" href="/app-mobile.html#inscription">Indiquer mon intérêt pour une tablette <span aria-hidden="true">→</span></a>
+    </section>
     <details class="landing-more">
       <summary>Toutes les informations sur Génération Liaison</summary>
     <section class="landing-card" aria-labelledby="landing-title">
@@ -1415,7 +1442,7 @@
           <details class="landing-disclosure">
             <summary>À qui s’adresse Génération Liaison ?</summary>
             <p class="landing-description">Pour les seniors et toute personne ayant besoin d’accompagnement au quotidien, notamment en situation de handicap : partagez les nouvelles et organisez les visites avec les personnes autorisées, à domicile comme en résidence.</p>
-            <p class="landing-reassurance">✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation</p>
+            <p class="landing-reassurance">✓ Application gratuite · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation</p>
           </details>
           <a class="landing-login" href="/app-mobile.html#inscription">Créer un espace gratuitement <span aria-hidden="true">→</span></a>
           <a class="landing-app-link" href="#exemple-carnet" onclick="ouvrirRubriqueAccueil('exemple-carnet-details')">Voir un exemple de carnet</a>
@@ -1517,7 +1544,7 @@
         <article><h3>Intervenants</h3><p>Retrouvez leurs coordonnées dans un tableau distinct.</p></article>
       </div>
       <p>Le résident ou son représentant légal vérifié choisit le partage du carnet de liaison avec les soignants. La direction ne consulte pas les carnets ni les messages privés. Le carnet est réservé aux nouvelles du quotidien, sans données de santé.</p>
-      <p>L’accès de l’établissement est activé manuellement par l’administration. Un abonnement est envisagé, avec une grille tarifaire et des options de tablettes indicatives ; aucun paiement en ligne n’est effectué.</p>
+      <p>L’accès de l’établissement est activé manuellement par l’administration. Les options de tablettes sont indicatives ; aucun paiement en ligne n’est effectué.</p>
       </details>
       <div class="establishment-access">
         <a class="landing-login" href="/app-mobile.html#inscription">Créer un compte établissement</a>
@@ -1595,10 +1622,10 @@
 
     <section class="landing-info" aria-labelledby="pricing-title">
       <details class="landing-disclosure">
-      <summary id="pricing-title">Profitez gratuitement de toutes les fonctionnalités</summary>
-      <p>Pendant notre phase de lancement, toutes les fonctionnalités disponibles dans l’application sont gratuites. Aucun abonnement ni paiement n’est proposé.</p>
+      <summary id="pricing-title">Une application gratuite</summary>
+      <p>L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.</p>
       <p>Les prestations à domicile sont indépendantes de l’application et peuvent être facturées par le prestataire.</p>
-      <p>Les tarifs futurs sont à l’étude et ne sont pas appliqués. Toute formule payante future fera l’objet d’une information claire et préalable. <a href="/cgv.html">Consulter le projet de tarifs et les conditions de vente</a>.</p>
+      <p>Toute formule payante fera l’objet d’une information claire et préalable. <a href="/cgv.html">Consulter le projet de tarifs et les conditions de vente</a>.</p>
       </details>
       <a class="landing-login" href="/app-mobile.html">Ouvrir l’application en ligne <span aria-hidden="true">→</span></a>
     </section>

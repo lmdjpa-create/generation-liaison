@@ -84,7 +84,8 @@
     'Un carnet partagé avec accord': 'A journal shared with consent',
     'Le résident ou son représentant légal vérifié décide du partage avec les soignants de l’établissement. La direction ne consulte ni les carnets ni les messages privés. Le carnet concerne les nouvelles du quotidien, pas les données de santé.': 'The resident or their verified legal representative decides whether to share with the residence’s care staff. Management cannot read journals or private messages. The journal is for daily updates, not health data.',
     'Abonnement et tarifs': 'Subscription and pricing',
-    'L’activation de l’abonnement est manuelle. La grille mensuelle indicative est de 29 € HT pour 1 à 10 personnes, 49 € pour 11 à 25, 79 € pour 26 à 50, 129 € pour 51 à 100, puis sur devis. Aucun paiement en ligne ni facturation automatique n’est actuellement proposé.': 'Subscriptions are activated manually. Indicative monthly prices excluding tax are €29 for 1–10 people, €49 for 11–25, €79 for 26–50, €129 for 51–100, and by quote above that. Online payments and automatic invoicing are not currently available.',
+    'Accès et tarifs': 'Access and pricing',
+    'L’accès de l’établissement est activé manuellement. L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement en ligne ni facturation automatique n’est actuellement proposé.': 'Organization access is activated manually. The app is free. The medical section is paid; its prices and terms remain to be determined. Online payments and automatic invoicing are not currently available.',
     'Créer un compte': 'Create an account',
     'Avec l’accord de la personne, créez un nouveau compte. Elle reçoit un e-mail pour choisir elle-même son mot de passe et accepter les conditions. Cette création ne donne pas accès à ses contenus privés.': 'With the person’s agreement, create a new account. They receive an email to choose their own password and accept the terms. Creating the account does not grant access to their private content.',
     'Type de compte': 'Account type',
@@ -162,8 +163,8 @@
     'Retrouvez leurs coordonnées dans un tableau distinct.': 'Find their contact details in a separate table.',
     'Le résident ou son représentant légal vérifié choisit le partage du carnet de liaison avec les soignants. La direction ne consulte pas les carnets ni les messages privés. Le carnet est réservé aux nouvelles du quotidien, sans données de santé.':
       'The resident or their verified legal representative decides whether to share the journal with care staff. Management cannot view journals or private messages. The journal is for daily updates, not health data.',
-    'L’accès de l’établissement est activé manuellement par l’administration. Un abonnement est envisagé, avec une grille tarifaire et des options de tablettes indicatives ; aucun paiement en ligne n’est effectué.':
-      'Organization access is activated manually by the administration. A subscription is being considered, with indicative prices and tablet options; no online payment is taken.',
+    'L’accès de l’établissement est activé manuellement par l’administration. Les options de tablettes sont indicatives ; aucun paiement en ligne n’est effectué.':
+      'Organization access is activated manually by the administration. Tablet options are indicative; no online payment is taken.',
     'Créer un compte établissement': 'Create an organization account',
     'Lors de l’inscription, choisissez « Entreprise / résidence ».': 'When registering, choose “Business / residence”.',
     '🏢 Entreprise / résidence': '🏢 Business / residence',
@@ -274,8 +275,15 @@
       'The simple, reassuring digital journal for older adults and their loved ones',
     'Coordonnez les visites, partagez les nouvelles du quotidien et retrouvez les services à domicile au même endroit. Une interface pensée pour la sérénité des familles et l’autonomie des aînés, même à distance.':
       'Coordinate visits, share daily updates and find home services in one place. An interface designed for families’ peace of mind and older adults’ independence, even from a distance.',
-    '✓ Gratuit pendant le lancement · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation':
-      '✓ Free during launch · ✓ No analytics tracking in signed-in areas · ✓ Accessible without installation',
+    '✓ Application gratuite · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation':
+      '✓ Free app · ✓ No analytics tracking in signed-in areas · ✓ Accessible without installation',
+    'Une tablette : achat ou location': 'A tablet: purchase or rental',
+    'Découvrir l’achat ou la location d’une tablette': 'Discover tablet purchase or rental',
+    'Achat envisagé à 299 € TTC, ou location envisagée à 25 € HT par mois sur 12 mois, avec Premium en supplément. Le tarif Premium reste à définir.':
+      'Proposed purchase for €299 including tax, or rental for €25 excluding tax per month over 12 months, with Premium at an additional cost. Premium pricing is yet to be determined.',
+    'Ces prix sont indicatifs, sous réserve de devis et de disponibilité. Aucun partenaire de location n’est confirmé. Indiquer votre intérêt ne constitue ni une commande ni un paiement.':
+      'These prices are indicative, subject to a quote and availability. No rental partner has been confirmed. Expressing interest does not place an order or make a payment.',
+    'Indiquer mon intérêt pour une tablette': 'Express interest in a tablet',
     'Vos échanges restent privés et sécurisés': 'Your conversations remain private and secure',
     'Aucun outil statistique ou publicitaire n’est installé dans les espaces connectés. Avant validation d’un compte professionnel, l’administration examine la pièce d’identité et le Kbis.':
       'No analytics or advertising tools are installed in signed-in areas. Before approving a professional account, the administration reviews identification and the Kbis business registration document.',
@@ -298,7 +306,7 @@
       'See upcoming appointments and discover home comfort services, such as hairdressing, to make everyday life easier.',
     'Choisissez les alertes qui comptent pour vous et laissez-vous guider dans l’application grâce à l’assistant intégré.':
       'Choose the alerts that matter to you and let the built-in assistant guide you through the app.',
-    'Profitez gratuitement de toutes les fonctionnalités': 'Enjoy all features for free',
+    'Une application gratuite': 'A free application',
     'Les tarifs futurs sont à l’étude et ne sont pas appliqués. Toute formule payante future fera l’objet d’une information claire et préalable.':
       'Future prices are under consideration and are not currently applied. Any future paid plan will be clearly communicated in advance.',
     'Vos questions, nos réponses': 'Your questions, our answers',
@@ -427,15 +435,16 @@
     'Partagez des nouvelles et organisez les visites avec vos proches et les intervenants concernés.':
       'Share updates and organize visits with your loved ones and the professionals involved.',
     'Questions fréquentes': 'Frequently asked questions',
-    'Pendant notre phase de lancement, toutes les fonctionnalités disponibles dans l’application sont gratuites. Aucun abonnement ni paiement n’est proposé.':
-      'During our launch phase, all features available in the app are free. No subscription or payment is offered.',
+    'L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.':
+      'The app is free. The medical section is paid; its prices and terms remain to be determined. No payment is currently enabled in the app.',
     'Les prestations à domicile sont indépendantes de l’application et peuvent être facturées par le prestataire.':
       'Home services are independent of the app and may be charged by the provider.',
-    'La messagerie est gratuite pendant le lancement. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.':
-      'Messaging is free during launch. To exchange messages with a contact, add each other unless you are already linked as senior and caregiver. In an emergency, call the emergency services.',
-    'La visio est accessible gratuitement pendant le lancement, sous réserve de disponibilité du service.':
-      'Video calls are free during launch, subject to service availability.',
-    'La visio est gratuite pendant le lancement.': 'Video calls are free during launch.',
+    'La messagerie est gratuite. Pour échanger avec un contact, ajoutez-vous mutuellement, sauf si vous êtes déjà associés comme senior et aidant. Pour une urgence, appelez les secours.':
+      'Messaging is free. To exchange messages with a contact, add each other unless you are already linked as senior and caregiver. In an emergency, call the emergency services.',
+    'La visio est gratuite, sous réserve de disponibilité du service.': 'Video calls are free, subject to service availability.',
+    'La visio est gratuite.': 'Video calls are free.',
+    'Gratuité et partie médicale': 'Free access and the medical section',
+    'Toute formule payante fera l’objet d’une information claire et préalable.': 'Any paid plan will be clearly explained in advance.',
     'D’autres jeux pourront être ajoutés ultérieurement.': 'More games may be added later.',
     'Pour échanger des messages, ajoutez-vous mutuellement dans vos contacts, sauf si vous êtes déjà associés comme senior et aidant.':
       'To exchange messages, add each other as contacts unless you are already linked as senior and caregiver.',
@@ -695,13 +704,6 @@
       'View appointments and availability for your account.',
     'Accéder à mon agenda': 'Open my calendar',
     'Gérer mes profils seniors': 'Manage my senior profiles',
-    'Options payantes envisagées': 'Proposed paid options',
-    'Visio : cette fonction nécessite actuellement un accès premium actif.':
-      'Video calls currently require active premium access.',
-    'Pour l’agenda, il est envisagé d’inclure gratuitement un intervenant par catégorie de service ; des intervenants supplémentaires pourraient devenir payants.':
-      'For the calendar, one professional per service category is proposed to be included free of charge; additional professionals may become paid options.',
-    'Projet uniquement : aucune limite n’est appliquée, les tarifs ne sont pas définis et aucun paiement ni abonnement ne peut être souscrit actuellement.':
-      'Proposal only: no limit is enforced, prices have not been set, and no payment or subscription is currently available.',
     'Français': 'French',
     'Nom du senior suivi (facultatif)': 'Name of the senior you support (optional)',
     'Vous pouvez créer votre compte même si aucun senior n’est encore inscrit. Le suivi apparaîtra lorsqu’un senior rejoindra l’application et partagera son profil.':
@@ -878,7 +880,7 @@
     'Votre profil': 'Your profile',
     'L’accès de base à l’application est gratuit.': 'Basic access to the application is free.',
     'Une option Premium payante pour un futur carnet de soins est envisagée ; elle n’est pas encore disponible. Le carnet actuel concerne le quotidien et ne doit pas contenir de données de santé.': 'A paid Premium option for a future care record is planned but not yet available. The current record is for everyday updates and must not contain health data.',
-    'Un abonnement spécifique aux établissements est envisagé. L’activation est manuelle, sans paiement en ligne ; contactez l’administration pour les conditions.': 'A separate establishment subscription is planned. Activation is manual, without online payment; contact the administration for details.',
+    'L’activation de l’espace établissement est manuelle, sans paiement en ligne ; contactez l’administration pour les conditions.': 'Organization access is activated manually, without online payment; contact the administration for details.',
     'Adresse pour une livraison de tablette': 'Address for tablet delivery',
     'Facultative pour créer un compte, cette adresse complète sera nécessaire pour recevoir une tablette. La renseigner ne constitue pas une commande.': 'Optional when creating an account, this complete address will be needed to receive a tablet. Providing it does not place an order.',
     'Adresse postale': 'Street address',
@@ -1174,10 +1176,8 @@
     'Ajouter un intervenant déjà inscrit': 'Add a registered professional',
     'Ajouter à l’équipe': 'Add to team',
     'Référencer un partenaire de services': 'Add a service partner',
-    'Inscrivez d’abord son compte professionnel dans l’équipe. Tarifs envisagés : 15 € HT par mois ou 1 € HT par prestation réalisée, avec facturation mensuelle des commissions. Aucun paiement n’est activé ; les conditions définitives restent à valider.':
-      'First add their professional account to the team. Proposed prices: €15 excluding VAT per month or €1 excluding VAT per completed service, with commissions billed monthly. Payments are not enabled; final terms remain to be approved.',
-    'L’abonnement envisagé couvre tous les services d’un même compte professionnel.':
-      'The proposed subscription covers all services offered by the same professional account.',
+    'Inscrivez d’abord son compte professionnel dans l’équipe. Les modèles ci-dessous sont des paramètres techniques ; aucun paiement n’est activé.':
+      'First add their professional account to the team. The models below are technical settings; no payment is enabled.',
     'Choisir un intervenant de l’équipe': 'Choose a team professional',
     'Choisir un service': 'Choose a service',
     'Livraison de repas': 'Meal delivery',
@@ -1368,8 +1368,12 @@
       'this area does not display care notes, medical updates, emergency contacts, or client addresses or phone numbers. For account-closure requests, AI receives only the role, subscription category, and record counts; it provides an indicative preliminary assessment, never a decision. An administrator reviews the actual records and makes the final decision.',
     'Indicateurs': 'Statistics',
     'Partenaires des services du quotidien': 'Everyday service partners',
-    'Tarifs envisagés : 15 € HT par mois ou 1 € HT par prestation réalisée, avec facturation mensuelle des commissions. Aucun paiement n’est activé ; les conditions définitives restent à valider.':
-      'Proposed prices: €15 excluding VAT per month or €1 excluding VAT per completed service, with commissions billed monthly. Payments are not enabled; final terms remain to be approved.',
+    'Fiches privées renseignées par les établissements. Leur identité et leurs coordonnées ne sont pas vérifiées automatiquement. L’accès est géré manuellement : aucun paiement en ligne ni échéance automatique.':
+      'Private profiles provided by organizations. Their identity and contact details are not automatically verified. Access is managed manually: no online payment or automatic renewal.',
+    'Nombre de personnes renseigné par l’administration, non compté automatiquement. La grille affichée correspond à une ancienne proposition, non appliquée ; les tarifs de la partie médicale restent à préciser.':
+      'The number of people is entered by the administration, not counted automatically. The displayed scale is an old proposal and is not applied; medical-section prices remain to be determined.',
+    'Les modèles de rémunération sont des paramètres techniques ; aucun paiement n’est activé.':
+      'The payment models are technical settings; no payment is enabled.',
     'Partenaire': 'Partner',
     'Service': 'Service',
     'Équipe': 'Team',
