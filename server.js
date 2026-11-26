@@ -5513,6 +5513,28 @@ app.get('/api/messages/unread-count', requireAuth, async (req, res) => {
 
 app.get('/api/messages/inbox', requireAuth, async (req, res) => {
   try {
+    if (req.query.view === 'conversations') {
+      const { rows } = await pool.query(
+        `SELECT * FROM (
+           SELECT message.id, message.body, message.created_at, message.read_at,
+                  sender.id AS sender_id, sender.name AS sender_name,
+                  row_number() OVER (PARTITION BY sender.id ORDER BY message.created_at DESC, message.id DESC) AS position,
+                  count(*) FILTER (WHERE message.read_at IS NULL) OVER (PARTITION BY sender.id)::integer AS unread_count
+           ${accessibleIncomingMessages}
+         ) conversations WHERE position = 1
+         ORDER BY created_at DESC, id DESC LIMIT 21`,
+        [req.authUser.id]
+      );
+      res.set('Cache-Control', 'private, no-store');
+      return res.json({
+        hasMore: rows.length > 20,
+        messages: rows.slice(0, 20).map(row => ({
+          id: row.id, body: row.body, createdAt: row.created_at, read: Boolean(row.read_at),
+          readAt: row.read_at, unreadCount: row.unread_count,
+          senderUserId: row.sender_id, senderName: row.sender_name
+        }))
+      });
+    }
     const { rows } = await pool.query(
       `SELECT message.id, message.body, message.created_at, message.read_at,
               sender.id AS sender_id, sender.name AS sender_name

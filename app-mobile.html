@@ -1027,6 +1027,7 @@
             <p class="helper-text">Une option Premium payante pour un futur carnet de soins est envisagée ; elle n’est pas encore disponible. Le carnet actuel concerne le quotidien et ne doit pas contenir de données de santé.</p>
             <label for="reg-role">Type de compte</label>
             <select id="reg-role">
+                <option value="">Choisissez votre profil</option>
                 <option value="aidant">👨‍👩‍👧 Proche / Aidant Familial</option>
                 <option value="pro">👥 Intervenant ou partenaire (soins/services)</option>
                 <option value="senior">🧑 Personne accompagnée</option>
@@ -1056,6 +1057,15 @@
             </div>
             <div id="reg-step-3" class="register-step" hidden>
             <h3 tabindex="-1">Vos informations</h3>
+            <label for="reg-tablet-interest" class="registration-highlight">Une tablette vous intéresse-t-elle ?</label>
+            <select id="reg-tablet-interest">
+                <option value="">Choisissez une réponse</option>
+                <option value="none">Non</option>
+                <option value="purchase">Achat seul : 299 € TTC (prix indicatif)</option>
+                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir (tarif à définir)</option>
+                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir (tarif à définir)</option>
+            </select>
+            <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et service Premium en supplément. Le tarif Premium reste à définir et l’option n’est pas encore disponible. Votre réponse indique uniquement un intérêt : elle ne crée ni commande, ni paiement, ni engagement. L’administration pourra consulter votre réponse et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
             <section class="form-card" style="text-align:left;">
                 <h3>Adresse pour une livraison de tablette</h3>
                 <p class="helper-text">Facultative pour créer un compte, cette adresse complète sera nécessaire pour recevoir une tablette. La renseigner ne constitue pas une commande.</p>
@@ -1124,16 +1134,8 @@
             <div id="reg-step-4" class="register-step" hidden>
             <h3 tabindex="-1">Vérification et conditions</h3>
             <p id="reg-summary"></p>
+            <p id="reg-tablet-summary"></p>
             <p id="reg-postal-summary"></p>
-            <label for="reg-tablet-interest" class="registration-highlight">Une tablette vous intéresse-t-elle ?</label>
-            <select id="reg-tablet-interest">
-                <option value="">Choisissez une réponse</option>
-                <option value="none">Non</option>
-                <option value="purchase">Achat seul : 299 € TTC (prix indicatif)</option>
-                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir (tarif à définir)</option>
-                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir (tarif à définir)</option>
-            </select>
-            <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et service Premium en supplément. Le tarif Premium reste à définir et l’option n’est pas encore disponible. Votre réponse indique uniquement un intérêt : elle ne crée ni commande, ni paiement, ni engagement. L’administration pourra consulter votre réponse et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
             <label class="terms-consent" for="reg-terms-accepted">
                 <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
                 <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
@@ -3505,6 +3507,9 @@
             const name = `${document.getElementById('reg-first-name').value.trim()} ${document.getElementById('reg-last-name').value.trim()}`;
             const email = document.getElementById('reg-email').value.trim();
             document.getElementById('reg-summary').textContent = `${role.options[role.selectedIndex].text} — ${name} — ${email}`;
+            const tablet = document.getElementById('reg-tablet-interest');
+            document.getElementById('reg-tablet-summary').textContent =
+                `${window.generationLiaisonTranslate('Intérêt pour une tablette')} : ${tablet.options[tablet.selectedIndex].text}`;
             const address = lireAdresseInscription();
             document.getElementById('reg-postal-summary').textContent = address
                 ? `${window.generationLiaisonTranslate('Adresse de livraison')} : ${address.street}, ${address.postalCode} ${address.city}, ${address.country}`
@@ -3534,8 +3539,12 @@
             }
         }
         if (step === 3) {
+            const tabletInterest = el('reg-tablet-interest').value;
+            if (!['none', 'purchase', 'purchase_premium', 'rental_premium'].includes(tabletInterest)) {
+                return fail('Indiquez votre choix concernant la tablette.', 'reg-tablet-interest');
+            }
             const addressFields = ['reg-postal-address', 'reg-postal-code', 'reg-postal-city', 'reg-postal-country'];
-            if (addressFields.some(id => el(id).value.trim())) {
+            if (tabletInterest !== 'none' || addressFields.some(id => el(id).value.trim())) {
                 const missing = addressFields.find(id => !el(id).value.trim());
                 if (missing) return fail('Pour une livraison de tablette, complétez toute l’adresse.', missing);
             }
@@ -6993,7 +7002,7 @@
         if (!container.children.length) container.textContent = 'Chargement des messages…';
         try {
             const [inbox, safety] = await Promise.allSettled([
-                planningRequest('/api/messages/inbox'),
+                planningRequest('/api/messages/inbox?view=conversations'),
                 ...(role === 'aidant' ? [planningRequest('/api/messages/safety-alerts')] : [])
             ]);
             if (connectedUser?.id !== userId || connectedUser?.role !== role || loadId !== inboxLoadId) return;
@@ -7007,25 +7016,26 @@
                 container.append(makeTextElement('p', 'Aucun message reçu pour le moment.', 'helper-text'));
                 return;
             }
-            const correspondantsAffiches = new Set();
-            messages.slice(0, 20).forEach(message => {
-                if (!message.safety) {
-                    if (correspondantsAffiches.has(message.senderUserId)) return;
-                    correspondantsAffiches.add(message.senderUserId);
-                }
+            messages.forEach(message => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.className = `today-inbox-item${!message.safety && !message.read ? ' unread' : ''}`;
+                button.className = `today-inbox-item${!message.safety && message.unreadCount > 0 ? ' unread' : ''}`;
                 button.append(makeTextElement('strong', message.safety ? `Message automatique pour ${message.seniorName}` : message.senderName));
                 button.append(makeTextElement('span', message.body));
                 const timestamp = formatDateTime(message.createdAt);
                 const readStatus = message.safety ? '' : message.readAt
                     ? ` · Ouvert le ${formatDateTime(message.readAt)}`
                     : ` · ${message.read ? 'Lu' : 'Non lu'}`;
-                button.append(makeTextElement('small', `${timestamp}${readStatus}`));
+                const unreadStatus = message.unreadCount > 0 && message.read
+                    ? ` · ${message.unreadCount} ${window.generationLiaisonTranslate(message.unreadCount > 1 ? 'messages non lus dans cette conversation' : 'message non lu dans cette conversation')}`
+                    : '';
+                button.append(makeTextElement('small', `${timestamp}${readStatus}${unreadStatus}`));
                 button.addEventListener('click', () => ouvrirMessageDepuisBoite(role, message));
                 container.append(button);
             });
+            if (inbox.status === 'fulfilled' && inbox.value.hasMore) {
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Les 20 conversations les plus récentes sont affichées. Retrouvez les autres dans Messages en choisissant un correspondant.'), 'helper-text'));
+            }
             if (inbox.status === 'rejected' || safety?.status === 'rejected') {
                 container.append(makeTextElement('p', 'Certains messages n’ont pas pu être chargés.', 'helper-text'));
             }
@@ -11019,7 +11029,7 @@
         document.getElementById('reg-sms-notifications').checked = false;
         document.querySelectorAll('#professional-registration-fields [type="file"], #professional-verification-documents-form [type="file"], #legal-guardian-registration-fields [type="file"]')
             .forEach(input => { input.value = ''; });
-        document.getElementById('reg-role').value = 'aidant';
+        document.getElementById('reg-role').value = '';
         document.getElementById('reg-account-city').value = '';
         document.getElementById('reg-account-postcode').value = '';
         document.getElementById('reg-account-city-select').replaceChildren();
@@ -11076,16 +11086,6 @@
         const submit = document.getElementById('reg-submit');
         const previous = document.getElementById('reg-previous');
         if (registrationStep !== 4 || submit.disabled) return;
-        const tabletInterest = document.getElementById('reg-tablet-interest').value;
-        if (!['none', 'purchase', 'purchase_premium', 'rental_premium'].includes(tabletInterest)) {
-            afficherErreurEtapeInscription({ message: 'Indiquez votre choix concernant la tablette.', field: 'reg-tablet-interest' });
-            return;
-        }
-        if (tabletInterest !== 'none' && !lireAdresseInscription()) {
-            afficherEtapeInscription(3);
-            afficherErreurEtapeInscription({ message: 'Pour une livraison de tablette, complétez toute l’adresse.', field: 'reg-postal-address' });
-            return;
-        }
         submit.disabled = previous.disabled = true;
         try {
             for (const step of [1, 2, 3]) {

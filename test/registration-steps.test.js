@@ -40,6 +40,8 @@ function createRegistration(role = 'aidant') {
   for (const [id, value] of Object.entries(fields)) get(id).value = value;
   get('reg-role').options = [{ text: role }];
   get('reg-role').selectedIndex = 0;
+  get('reg-tablet-interest').options = [{ text: 'Choix de tablette' }];
+  get('reg-tablet-interest').selectedIndex = 0;
   get('reg-account-city-select').hidden = true;
   let submissions = 0;
   const context = {
@@ -58,6 +60,19 @@ function createRegistration(role = 'aidant') {
   vm.runInNewContext(source.slice(start, end) + source.slice(submitStart, submitEnd), context);
   return { context, get, focused: () => focused, submissions: () => submissions };
 }
+
+test('a profile must be selected when registration is not opened from a profile link', async () => {
+  assert.match(source, /<select id="reg-role">\s*<option value="">Choisissez votre profil<\/option>/);
+  const app = createRegistration('');
+  await app.context.etapeSuivanteInscription();
+  assert.notEqual(app.get('reg-progress').value, 2);
+  assert.equal(app.focused(), 'reg-role');
+  assert.match(app.get('reg-step-error').textContent, /Choisissez un type de compte/);
+  app.get('reg-role').value = 'senior';
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 2);
+  assert.match(source, /document\.getElementById\('reg-role'\)\.value = '';/);
+});
 
 test('four steps preserve values and files while navigating back and validate confirmation', async () => {
   const app = createRegistration('pro');
@@ -190,9 +205,8 @@ test('a tablet interest requires a complete address and preserves it when return
     const app = createRegistration('establishment');
     await app.context.etapeSuivanteInscription();
     await app.context.etapeSuivanteInscription();
-    await app.context.etapeSuivanteInscription();
     app.get('reg-tablet-interest').value = choice;
-    await app.context.inscrireUtilisateur();
+    await app.context.etapeSuivanteInscription();
     assert.equal(app.get('reg-progress').value, 3);
     assert.equal(app.focused(), 'reg-postal-address');
     app.get('reg-postal-address').value = '10 rue des Lilas';
@@ -207,4 +221,25 @@ test('a tablet interest requires a complete address and preserves it when return
     await app.context.inscrireUtilisateur();
     assert.equal(app.submissions(), 1);
   }
+});
+
+test('tablet choice and delivery address are requested together before the review', async () => {
+  const step3 = source.slice(source.indexOf('id="reg-step-3"'), source.indexOf('id="reg-step-4"'));
+  assert.ok(step3.indexOf('id="reg-tablet-interest"') < step3.indexOf('id="reg-postal-address"'));
+  const app = createRegistration('establishment');
+  app.get('reg-tablet-interest').value = '';
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 3);
+  assert.equal(app.focused(), 'reg-tablet-interest');
+  app.get('reg-tablet-interest').value = 'none';
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 4);
+  assert.match(app.get('reg-tablet-summary').textContent, /Choix de tablette/);
+  app.get('reg-tablet-interest').value = 'purchase';
+  await app.context.inscrireUtilisateur();
+  assert.equal(app.submissions(), 0);
+  assert.equal(app.get('reg-progress').value, 3);
+  assert.equal(app.focused(), 'reg-postal-address');
 });

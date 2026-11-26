@@ -2433,16 +2433,15 @@ test('today inbox shows received messages and opens the selected conversation', 
   const opened = [];
   const context = {
     connectedUser: { id: 'aidant', role: 'aidant' }, inboxLoadId: 0,
+    window: { generationLiaisonTranslate: value => value },
     document: { getElementById: element, createElement: node },
     planningRequest: async path => path.endsWith('safety-alerts')
       ? { messages: [{ id: 'safety', seniorName: 'Marie', body: 'Alerte', createdAt: '2026-01-02' }] }
-      : { messages: [
+      : { hasMore: true, messages: [
         { id: 'latest', senderUserId: 'contact', senderName: 'Camille', body: 'Le plus récent',
-          read: true, readAt: '2026-01-03T13:15:00.000Z', createdAt: '2026-01-03T13:00:00.000Z' },
-        { id: 'previous', senderUserId: 'contact', senderName: 'Camille', body: 'Ancien message',
-          read: true, readAt: '2026-01-02T09:00:00.000Z', createdAt: '2026-01-01T10:00:00.000Z' },
+          read: true, readAt: '2026-01-03T13:15:00.000Z', unreadCount: 2, createdAt: '2026-01-03T13:00:00.000Z' },
         { id: 'other', senderUserId: 'other-contact', senderName: 'Alex', body: 'Un autre échange',
-          read: false, readAt: null, createdAt: '2025-12-31T10:00:00.000Z' }
+          read: false, readAt: null, unreadCount: 1, createdAt: '2025-12-31T10:00:00.000Z' }
       ] },
     makeTextElement: (tag, text) => ({ tag, textContent: text }),
     formatDateTime: value => `date:${value}`,
@@ -2453,7 +2452,7 @@ test('today inbox shows received messages and opens the selected conversation', 
   };
   vm.runInNewContext(extract('    async function ouvrirMessageDepuisBoite(role, message)', '    async function chargerCorrespondants(role)'), context);
   await context.chargerBoiteReception('aidant');
-  const [card, safety, other] = element('aidant-today-inbox').children;
+  const [card, safety, other, limitNotice] = element('aidant-today-inbox').children;
   assert.equal(safety.children[0].textContent, 'Message automatique pour Marie');
   await safety.listeners.click();
   assert.equal(element('safety-messages-details').open, true);
@@ -2462,9 +2461,11 @@ test('today inbox shows received messages and opens the selected conversation', 
   assert.equal(card.children[0].textContent, 'Camille');
   assert.equal(card.children[1].textContent, 'Le plus récent');
   assert.match(card.children[2].textContent, /Ouvert le date:2026-01-03T13:15:00\.000Z/);
+  assert.match(card.children[2].textContent, /2 messages non lus dans cette conversation/);
+  assert.match(card.className, /unread/);
   assert.equal(other.children[0].textContent, 'Alex');
   assert.match(other.className, /unread/);
-  assert.equal(element('aidant-today-inbox').children.length, 3);
+  assert.match(limitNotice.textContent, /20 conversations les plus récentes/);
   await card.listeners.click();
   assert.deepEqual(opened, ['messages', ['aidant', 'latest']]);
   const load = context.planningRequest;
@@ -2490,12 +2491,11 @@ test('SMS-style inbox groups private messages by correspondent for every messagi
     };
     const context = {
       connectedUser: { id: role, role }, inboxLoadId: 0,
+      window: { generationLiaisonTranslate: value => value },
       document: { getElementById: element, createElement: node },
       planningRequest: async path => path.endsWith('safety-alerts') ? { messages: [] } : { messages: [
           { id: 'latest', senderUserId: 'contact', senderName: 'Camille', body: 'Réponse récente',
-            read: true, readAt: '2026-02-02T12:15:00.000Z', createdAt: '2026-02-02T12:00:00.000Z' },
-          { id: 'previous', senderUserId: 'contact', senderName: 'Camille', body: 'Message précédent',
-            read: true, readAt: '2026-02-01T12:10:00.000Z', createdAt: '2026-02-01T12:00:00.000Z' }
+            read: true, readAt: '2026-02-02T12:15:00.000Z', unreadCount: 0, createdAt: '2026-02-02T12:00:00.000Z' }
         ] },
       makeTextElement: (tag, text) => ({ tag, textContent: text }),
       formatDateTime: value => `date:${value}`,

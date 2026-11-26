@@ -1315,8 +1315,23 @@ test('unread message counts exclude inaccessible contacts and other accounts', a
   assert.equal(recent.length, 20);
   assert.equal(recent[0].body, 'Message 20');
   assert.equal(recent[19].body, 'Message 1');
+  const secondSenior = await register('summary-second-senior@example.test', 'senior');
+  await db.query(`INSERT INTO app_aidant_senior_links (aidant_user_id, senior_profile_id, linked_by)
+    VALUES ($1, $2, $1)`, [aidant.user.id, secondSenior.user.seniorId]);
+  await db.query(`INSERT INTO app_private_messages (id, sender_id, recipient_id, body, created_at, read_at)
+    VALUES ($1, $2, $3, 'Conversation précédente', CURRENT_TIMESTAMP - INTERVAL '1 day', NULL),
+           ($4, $2, $3, 'Réponse lue', CURRENT_TIMESTAMP - INTERVAL '1 hour', CURRENT_TIMESTAMP)`,
+  [randomUUID(), secondSenior.user.id, aidant.user.id, randomUUID()]);
+  const conversations = await request('/api/messages/inbox?view=conversations', { user: aidant });
+  assert.equal(conversations.status, 200);
+  assert.equal(conversations.data.hasMore, false);
+  assert.deepEqual(conversations.data.messages.map(message => message.body), ['Message 20', 'Réponse lue']);
+  assert.equal(conversations.data.messages[0].unreadCount, 21);
+  assert.equal(conversations.data.messages[1].read, true);
+  assert.equal(conversations.data.messages[1].unreadCount, 1);
+  assert.deepEqual((await request('/api/messages/inbox?view=conversations', { user: other })).data.messages, []);
   await db.query(`UPDATE app_aidant_senior_links SET suspended_at = CURRENT_TIMESTAMP
-    WHERE aidant_user_id = $1 AND senior_profile_id = $2`, [aidant.user.id, senior.user.seniorId]);
+    WHERE aidant_user_id = $1`, [aidant.user.id]);
   assert.equal((await request(path, { user: aidant })).data.count, 0);
   assert.deepEqual((await request('/api/messages/inbox', { user: aidant })).data.messages, []);
 });
