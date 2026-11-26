@@ -927,7 +927,7 @@ function createView(response) {
     calendarView: 'week',
     calendarDate: ''
   };
-  const screenStart = source.indexOf('    function switchScreen(screenName)');
+  const screenStart = source.indexOf('    function switchScreen(');
   const screenEnd = source.indexOf('    function basculerFormulaire', screenStart);
   const viewStart = source.indexOf('    async function setAuthenticatedView(user)');
   const viewEnd = source.indexOf('    function afficherAccueilSenior(user)', viewStart);

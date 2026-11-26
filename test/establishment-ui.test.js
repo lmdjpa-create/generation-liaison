@@ -21,6 +21,7 @@ test('administrator creates associated accounts only through the explicit form',
   const requests = [];
   const context = {
     document: { createElement: element },
+    window: { generationLiaisonTranslate: text => text },
     adminRequest: async (...args) => { requests.push(args); return { identifier: 'abc123' }; }
   };
   vm.runInNewContext(`${source.slice(start, end)}\nglobalThis.create = createEstablishmentAccountForm;`, context);

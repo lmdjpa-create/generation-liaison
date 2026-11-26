@@ -129,6 +129,7 @@ test('message contacts show availability per contact rather than a premium requi
   const list = { children: [], replaceChildren() { this.children = []; }, append(...items) { this.children.push(...items); } };
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
+    window: { generationLiaisonTranslate: text => text },
     document: {
       getElementById: id => id.startsWith('message-contact-') ? select : id === 'message-multiple-contacts' ? list : status,
       createElement: () => ({ append(...items) { this.children = items; } }),
@@ -258,6 +259,15 @@ test('quick replies send only to the selected contact, keep the draft, and repor
   assert.match(nodes['message-status-senior'].textContent, /Message envoyé.*Impossible de rafraîchir/);
   await context.envoyerReponseRapide('Autre texte');
   assert.equal(calls.length, 3);
+  context.window.generationLiaisonTranslate = text => ({
+    'Bien reçu': 'Received', 'Message envoyé.': 'Message sent.'
+  })[text] || text;
+  canRefresh = true;
+  const english = context.envoyerReponseRapide('Bien reçu');
+  assert.equal(calls[3].options.body.message, 'Received');
+  resolve.done();
+  await english;
+  assert.equal(nodes['message-status-senior'].textContent, 'Message sent.');
 });
 
 test('senior conversation loading is cleared safely when a newer request replaces it', async () => {
@@ -424,7 +434,7 @@ test('simplified journal shortcut opens the senior journal without hiding safety
     switchScreen: screen => calls.push(screen),
     ouvrirSectionSenior: (details, target) => calls.push([details, target])
   };
-  vm.runInNewContext(extract('    function ouvrirJournalSenior()', '    function switchScreen(screenName)'), context);
+  vm.runInNewContext(extract('    function ouvrirJournalSenior()', '    function switchScreen('), context);
   context.ouvrirJournalSenior();
   assert.deepEqual(calls, ['more', ['senior-journal-details', 'senior-journal-details']]);
   assert.doesNotMatch(source, /body\.senior-simple #wellbeing-checkin-details\s*\{/);
@@ -513,6 +523,7 @@ test('the optional color game can be played locally without sending data', () =>
   };
   const context = {
     document: { getElementById: id => elements[id] },
+    window: { generationLiaisonTranslate: text => text },
     Math: { random: () => 0, floor: Math.floor }
   };
   vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
@@ -534,6 +545,7 @@ test('arithmetic and riddles allow retries and start a different round', () => {
   const element = id => elements[id] ||= { textContent: '' };
   const context = {
     document: { getElementById: element },
+    window: { generationLiaisonTranslate: text => text },
     Math: { random: () => 0, floor: Math.floor }
   };
   vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
@@ -607,6 +619,7 @@ test('tic-tac-toe handles moves, wins, a draw and restarting without losing acce
   };
   const context = {
     document: { getElementById: element },
+    window: { generationLiaisonTranslate: text => text },
     Math: { random: () => 0, floor: Math.floor }
   };
   vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
@@ -658,6 +671,7 @@ test('matching pairs stay visible until the next choice and restart with four pa
   const element = id => elements[id] ||= node();
   const context = {
     document: { getElementById: element, createElementNS: () => node() },
+    window: { generationLiaisonTranslate: text => text },
     Math: { random: () => 0, floor: Math.floor }
   };
   vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
@@ -698,6 +712,7 @@ test('number guessing gives higher and lower hints, stops after success and rest
   };
   const context = {
     document: { getElementById: element },
+    window: { generationLiaisonTranslate: text => text },
     Math: { random: () => 0.4, floor: Math.floor }
   };
   vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
@@ -725,6 +740,7 @@ test('sudoku generates solvable unique grids, validates entries and starts a fre
     append(child) { this.children.push(child); }
   };
   const context = {
+    window: { generationLiaisonTranslate: text => text },
     document: {
       getElementById: element,
       createElement: () => ({ value: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } })
@@ -787,6 +803,7 @@ test('9x9 sudoku provides a unique puzzle, validates entries and keeps both grid
     append(child) { this.children.push(child); }
   };
   const context = {
+    window: { generationLiaisonTranslate: text => text },
     document: {
       getElementById: element,
       createElement: () => ({ value: '', attributes: {}, setAttribute(name, value) { this.attributes[name] = value; } })
@@ -862,6 +879,7 @@ test('logical sequences accept retries, reject invalid answers and generate both
   const element = id => elements[id] ||= { value: '', textContent: '' };
   const context = {
     document: { getElementById: element },
+    window: { generationLiaisonTranslate: text => text },
     Math: { random: () => 0, floor: Math.floor }
   };
   vm.runInNewContext(extract("    let couleurJeu = 'Rouge';", '    function annulerDicteeMessage()'), context);
@@ -896,6 +914,7 @@ test('word search finds words in both directions, reports errors and restarts', 
     append(child) { this.children.push(child); }
   };
   const context = {
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
     document: {
       getElementById: element,
       createElement: tag => ({
@@ -963,6 +982,7 @@ test('crosswords render intersecting clues, check answers and restart with a dif
   const elements = {};
   const element = id => elements[id] ||= createNode('div');
   const context = {
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
     document: { getElementById: element, createElement: createNode },
     Math: { random: () => 0, floor: Math.floor }
   };
@@ -1152,7 +1172,7 @@ test('senior feature sections retain their content and can open programmatically
   };
   const context = { document: { getElementById: element } };
   vm.runInNewContext(
-    `${extract('    function ouvrirSectionSenior(detailsId, targetId)', '    function switchScreen(screenName)')}\n` +
+    `${extract('    function ouvrirSectionSenior(detailsId, targetId)', '    function switchScreen(')}\n` +
     'globalThis.openSection = ouvrirSectionSenior;', context
   );
   assert.match(source, /<summary><span class="tile-icon"[^>]*>💬<\/span><span>Envoyer à l’équipe<\/span><\/summary>/);
@@ -1500,7 +1520,7 @@ test('mood is submitted only on confirmation, with the optional text', async () 
       return { checkin: { response: options.body.message }, sharedWithCount: 0 };
     },
     afficherCheckinBienEtre: checkin => { context.currentWellbeingCheckin = checkin; },
-    window: { generationLiaisonTranslate: text => text }
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' }
   };
   vm.runInNewContext(extract("    document.getElementById('wellbeing-checkin-form').addEventListener('submit'",
     '    async function chargerAssistantConversation()'), context);
@@ -1526,6 +1546,7 @@ test('check-in loading retries failures and ignores another account’s late res
   const context = {
     connectedUser: { id: 'alice', role: 'senior' },
     wellbeingLoadedDate: null, wellbeingLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: id => elements[id], querySelectorAll: () => choices },
     dateCheckinBienEtre: () => 'today',
     reinitialiserHumeurBienEtre: () => choices.forEach(choice => { choice.disabled = true; }),
@@ -1575,6 +1596,7 @@ test('safety follow-up is rendered separately from the collapsed check-in', () =
   const context = {
     document: { getElementById: id => elements[id], createElement: nodes },
     wellbeingSafetyTimer: null,
+    window: { generationLiaisonTranslate: text => text },
     makeTextElement: nodes,
     afficherSuiviSecuriteBienEtre: (container, value) => container.append(value)
   };
@@ -1605,7 +1627,7 @@ test('safety actions remain visible outside the closed check-in and retain the r
   let timeout;
   const context = {
     document: { getElementById: id => elements[id], createElement: node },
-    window: { setTimeout: (callback, delay) => { timeout = { callback, delay }; return 1; }, clearTimeout() {} },
+    window: { setTimeout: (callback, delay) => { timeout = { callback, delay }; return 1; }, clearTimeout() {}, generationLiaisonTranslate: text => text },
     wellbeingSafetyTimer: null,
     makeTextElement: (tag, text) => ({ ...node(), textContent: text }),
     enregistrerReponseSecurite: (id, response) => { context.response = { id, response }; }
@@ -1623,6 +1645,9 @@ test('safety actions remain visible outside the closed check-in and retain the r
   assert.equal(context.response.response, 'no_response');
   context.showCheckin({ ...checkin, safetyCheckStatus: 'needs_help' });
   assert.equal(elements['wellbeing-safety-result'].children[0].children[2].children.length, 2);
+  assert.match(elements['wellbeing-safety-result'].children[0].children[1].textContent, /En France.*Dans un autre pays, contactez les secours locaux/);
+  context.showCheckin({ ...checkin, safetyCheckStatus: 'no_response', safetyNotifiedAidants: 2 });
+  assert.match(elements['wellbeing-safety-result'].children[0].children[1].textContent, /2 aidant\(s\).*secours locaux/);
   context.showCheckin({ ...checkin, safetyConcern: false });
   assert.equal(elements['wellbeing-safety-result'].children.length, 0);
 });
@@ -1803,6 +1828,7 @@ test('opening a conversation marks received messages read and displays the sende
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
     openMessageConversations: {},
+    window: { generationLiaisonTranslate: text => text },
     accountPhotoObjectUrl: null, messagePhotoObjectUrl: null, messagePhotoLoadId: 0,
     SERVER_URL: '', authHeaders: () => ({}), fetch: async () => ({ status: 404 }),
     document: {
@@ -1885,6 +1911,7 @@ test('message bubbles distinguish participants and keep contact colours when opt
     const context = {
       connectedUser: { id: 'user', role },
       openMessageConversations: {},
+      window: { generationLiaisonTranslate: text => text },
       accountPhotoObjectUrl: null, messagePhotoObjectUrl: null, messagePhotoLoadId: 0,
       SERVER_URL: '', authHeaders: () => ({}), fetch: async () => ({ status: 404 }),
       document: {
@@ -2197,6 +2224,7 @@ test('removing a legacy iOS push registration leaves activation disabled', async
 test('emergency details are optional while numbers, confirmation and status stay accessible', () => {
   const emergency = extract('<section class="form-card emergency-call-card"', '<section class="form-card" id="notifications-panel-senior"');
   assert.match(emergency, /<details class="senior-disclosure senior-explanation" data-help-for="\[data-emergency-number\]">\s*<summary>Explications sur l’appel<\/summary>/);
+  assert.match(emergency, /<\/details>\s*<p class="helper-text">En France, utilisez ces numéros\. Dans un autre pays, contactez les secours locaux\.<\/p>\s*<div class="emergency-call-actions">/);
   assert.match(emergency, /<button type="button" data-emergency-number="15">/);
   assert.match(emergency, /<button type="button" data-emergency-number="112">/);
   assert.match(emergency, /<\/details>\s*<div class="emergency-call-actions">\s*<button type="button" id="emergency-call-confirm-click">/);
@@ -2223,7 +2251,7 @@ test('emergency calls require confirmation and can be confirmed again after a co
       getElementById: element,
       querySelectorAll: selector => selector === '[data-emergency-number]' ? numbers : []
     },
-    window: { location: { href: '' }, setTimeout() {} },
+    window: { location: { href: '' }, setTimeout() {}, generationLiaisonTranslate: text => text },
     planningRequest: async (url, options) => {
       requests.push({ url, number: options.body.number, confirmed: options.body.confirmed });
       return { notificationsQueued: 0 };
@@ -2244,12 +2272,29 @@ test('emergency calls require confirmation and can be confirmed again after a co
   numbers[0].listeners.click();
   assert.equal(element('emergency-call-confirmation').hidden, false);
   assert.equal(element('emergency-call-confirm-click').disabled, false);
+  let recognition;
+  context.window.generationLiaisonLocale = () => 'en-US';
+  context.window.SpeechRecognition = class {
+    constructor() { recognition = this; }
+    start() {}
+  };
+  element('emergency-call-confirm-voice').listeners.click({ currentTarget: element('emergency-call-confirm-voice') });
+  assert.equal(recognition.lang, 'fr-FR');
+  recognition.onresult({ results: [[{ transcript: 'Je confirme l’appel d’urgence' }]] });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(requests[1], { url: '/api/emergency-alert', number: '15', confirmed: false });
+  assert.equal(context.window.location.href, 'tel:15');
 });
 
 test('professional messages shortcut stays separate from today', () => {
   assert.match(source, /#pro-notifications-tile\s*\{\s*width:\s*100%;\s*\}/);
   assert.match(source, /id="home-informations-pro"/);
   assert.doesNotMatch(source, /id="home-notification-count-pro"/);
+});
+
+test('focus indicators cover form fields and controls across account screens', () => {
+  assert.match(source, /input:focus, select:focus, textarea:focus\s*\{\s*outline:\s*3px solid #163b72/);
+  assert.match(source, /\.screen-container :is\(button, a, summary\):focus-visible\s*\{\s*outline:\s*3px solid #163b72/);
 });
 
 test('the notification shortcut opens the separate page', () => {
@@ -2260,11 +2305,55 @@ test('the notification shortcut opens the separate page', () => {
     document: { getElementById: () => ({ open: false }) }
   };
   vm.runInNewContext(
-    `${extract('    function ouvrirNotifications()', '    function ouvrirAgenda()')}\n` +
+    `${extract('    function ouvrirNotifications(', '    function ouvrirAgenda()')}\n` +
     'globalThis.openNotifications = ouvrirNotifications;', context
   );
   context.openNotifications();
   assert.deepEqual(calls, ['messages']);
+});
+
+test('opening an inbox message loads correspondents only once while regular navigation still loads them', async () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    const elements = new Map();
+    const element = id => {
+      if (!elements.has(id)) elements.set(id, {
+        value: '', open: false, classList: { add() {} },
+        scrollIntoView() {}
+      });
+      return elements.get(id);
+    };
+    let contactLoads = 0;
+    const context = {
+      connectedUser: { id: role, role, verificationStatus: 'approved' },
+      document: { getElementById: element, querySelectorAll: () => [] },
+      annulerDicteeMessage() {},
+      annulerPropositionMessage() {},
+      reinitialiserChargementConversationSenior() {},
+      chargerNotifications() {},
+      chargerMessagesSecurite() {},
+      chargerCorrespondants: async () => { contactLoads++; return true; },
+      ouvrirConversation: async () => true,
+      showToast: message => { throw new Error(message); }
+    };
+    vm.runInNewContext(
+      extract('    function switchScreen(', '    function ouvrirAgenda()') +
+      extract('    async function ouvrirMessageDepuisBoite(role, message)', '    async function chargerBoiteReception(role)'),
+      context
+    );
+    context.ouvrirNotifications();
+    assert.equal(contactLoads, 1);
+    contactLoads = 0;
+    await context.ouvrirMessageDepuisBoite(role, { id: 'message', senderUserId: 'contact' });
+    assert.equal(contactLoads, 1);
+    assert.equal(element(`message-contact-${role}`).value, 'contact');
+    assert.equal(element(`message-details-${role}`).open, true);
+    if (role === 'aidant') {
+      contactLoads = 0;
+      await context.ouvrirMessageDepuisBoite(role, { safety: true });
+      assert.equal(contactLoads, 1);
+      assert.equal(element('safety-messages-details').open, true);
+    }
+  }
 });
 
 test('opening a senior message notification opens the separate page and conversation', async () => {
@@ -2519,6 +2608,38 @@ test('today inbox distinguishes failed conversations from automatic messages', a
   assert.equal(children[0].textContent, 'Les conversations n’ont pas pu être chargées.');
   assert.equal(children[1].textContent, 'Réessayer');
   assert.equal(children.some(child => /Aucun message/.test(child.textContent)), false);
+});
+
+test('English inbox translates interface text without changing message content', async () => {
+  const nodes = new Map();
+  const node = () => ({
+    children: [], textContent: '', listeners: {},
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+    addEventListener(name, callback) { this.listeners[name] = callback; }
+  });
+  const element = id => {
+    if (!nodes.has(id)) nodes.set(id, node());
+    return nodes.get(id);
+  };
+  const labels = { 'Non lu': 'Unread', 'Message automatique pour': 'Automatic message for' };
+  const context = {
+    connectedUser: { id: 'caregiver', role: 'aidant' }, inboxLoadId: 0,
+    window: { generationLiaisonTranslate: value => labels[value] || value },
+    document: { getElementById: element, createElement: node },
+    planningRequest: async path => path.endsWith('safety-alerts')
+      ? { messages: [{ seniorName: 'Marie', body: 'Bonjour', createdAt: '2026-01-02' }] }
+      : { messages: [{ senderName: 'Camille', body: 'Bonjour', read: false, unreadCount: 1, createdAt: '2026-01-03' }] },
+    makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    formatDateTime: value => value
+  };
+  vm.runInNewContext(extract('    async function ouvrirMessageDepuisBoite(role, message)', '    async function chargerCorrespondants(role)'), context);
+  await context.chargerBoiteReception('aidant');
+  const [conversation, automatic] = element('aidant-today-inbox').children;
+  assert.equal(conversation.children[1].textContent, 'Bonjour');
+  assert.match(conversation.children[2].textContent, /Unread/);
+  assert.equal(automatic.children[0].textContent, 'Automatic message for Marie');
+  assert.equal(automatic.children[1].textContent, 'Bonjour');
 });
 
 test('SMS-style inbox groups private messages by correspondent for every messaging role', async () => {

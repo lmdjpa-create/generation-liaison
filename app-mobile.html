@@ -459,7 +459,8 @@
             background: #edf0f3;
         }
         input, select, textarea { border: 1.5px solid #d9e7e1; border-radius: 14px; background: #fbfdfc; }
-        input:focus, select:focus, textarea:focus { outline: none; border-color: var(--brand); box-shadow: 0 0 0 3px rgba(42, 157, 120, 0.15); }
+        input:focus, select:focus, textarea:focus { outline: 3px solid #163b72; outline-offset: 2px; border-color: var(--brand); }
+        .screen-container :is(button, a, summary):focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
         .btn-submit { background: linear-gradient(135deg, #34b087, var(--brand-dark)); border-radius: 14px; }
         .btn-order { background: var(--brand); border-radius: 12px; }
         .form-card button, .visit-progress button { background: var(--brand); border-radius: 12px; }
@@ -1099,7 +1100,14 @@
                 </section>
             </div>
             <section id="reg-account-commune-fields" class="form-card" style="text-align:left;">
-                <h3>Commune du compte (obligatoire)</h3>
+                <h3>Lieu pour la météo</h3>
+                <label for="reg-account-location">Votre situation</label>
+                <select id="reg-account-location" onchange="actualiserLieuInscription()">
+                    <option value="france">J’utilise une commune française</option>
+                    <option value="other">Je n’ai pas de commune française</option>
+                </select>
+                <p id="reg-account-location-other" class="helper-text" hidden>Vous pouvez créer votre compte sans commune française. La météo n’aura pas de lieu par défaut ; la recherche de commune est actuellement limitée à la France. L’agenda reste à l’heure de Paris et les numéros de secours affichés concernent la France. Les conditions sont en français.</p>
+                <div id="reg-account-france-fields">
                 <p class="helper-text">Cette commune française de référence pour la météo est distincte de l’adresse de livraison.</p>
                 <p class="helper-text">Cette commune sera utilisée par défaut pour la météo. Sa recherche utilise le service public des communes et son centre approximatif sera transmis à Visual Crossing pour les prévisions. Aucun GPS n’est utilisé. Vous pourrez choisir une autre commune ou désactiver la météo sur votre appareil.</p>
                 <p class="helper-text">Saisissez au moins la ville ou le code postal.</p>
@@ -1109,10 +1117,12 @@
                 <input id="reg-account-postcode" type="text" inputmode="numeric" maxlength="5" autocomplete="postal-code" oninput="reinitialiserCommuneCompte()">
                 <label id="reg-account-city-label" for="reg-account-city-select" hidden>Choisissez votre commune</label>
                 <select id="reg-account-city-select" hidden></select>
+                </div>
             </section>
             <section id="professional-registration-fields" class="form-card" style="display:none; text-align:left;">
                 <h3>Justificatifs professionnels</h3>
                 <p class="helper-text">Le compte intervenant reste en attente jusqu’à la vérification manuelle de la pièce d’identité et du Kbis. Fichiers acceptés : PDF, JPEG ou PNG (10 Mo maximum par pièce). Seul l’administrateur peut les consulter.</p>
+                <p class="helper-text">Le Kbis est un justificatif français. Pour une activité à l’étranger, contactez l’équipe avant l’inscription.</p>
                 <label for="reg-identity-document">Pièce d’identité</label>
                 <input id="reg-identity-document" type="file" accept="application/pdf,image/jpeg,image/png" data-document-type="identity">
                 <label for="reg-kbis-document">Kbis</label>
@@ -1146,6 +1156,7 @@
                 <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
                 <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
             </label>
+            <p class="helper-text">Les conditions et la politique de confidentialité sont actuellement en français.</p>
             <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
             </div>
             <p id="reg-step-status" class="helper-text" role="status" aria-live="polite"></p>
@@ -1229,7 +1240,7 @@
                 <p class="helper-text">Vous pouvez écrire votre réponse ou la dicter. L’assistant IA vous répondra par écrit.</p>
                 </div>
             </details>
-            <div class="schedule-notice" role="note">Cette fonction n’est pas un service d’urgence et ne surveille pas votre sécurité. En cas de danger immédiat, appelez le 112 ou le 15.</div>
+            <div class="schedule-notice" role="note">Cette fonction n’est pas un service d’urgence et ne surveille pas votre sécurité. En cas de danger immédiat en France, appelez le 112 ou le 15. Dans un autre pays, contactez les secours locaux.</div>
             <form id="wellbeing-checkin-form" class="form-grid">
                 <p id="wellbeing-mood-prompt" aria-live="polite">Bonjour. Comment allez-vous aujourd’hui ?</p>
                 <p id="wellbeing-mood-status" class="helper-text" aria-live="polite"></p>
@@ -1282,6 +1293,7 @@
                 <p>En cas de danger immédiat en France, vous pouvez appeler le 15 ou le 112. Après votre choix, une deuxième confirmation est obligatoire. Les aidants actifs enregistrés seront informés ; les SMS et e-mails dépendent de leurs préférences. L’application ouvre le composeur du téléphone, mais ne peut pas vérifier que l’appel a été passé ou abouti.</p>
                 </div>
             </details>
+            <p class="helper-text">En France, utilisez ces numéros. Dans un autre pays, contactez les secours locaux.</p>
             <div class="emergency-call-actions">
                 <button type="button" data-emergency-number="15">Appeler le 15</button>
                 <button type="button" data-emergency-number="112">Appeler le 112</button>
@@ -1311,7 +1323,7 @@
         <section class="form-card" style="text-align:left;">
           <details class="senior-disclosure" id="senior-key-contacts-details">
             <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🧑‍⚕️</span><span>Contacts utiles</span></summary>
-            <p class="helper-text">Ces contacts sont visibles et modifiables par vous et tous vos aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.</p>
+            <p class="helper-text">Ces contacts sont visibles et modifiables par vous et tous vos aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence en France, appelez le 15 ou le 112. Dans un autre pays, contactez les secours locaux.</p>
             <form id="senior-key-contacts-form" class="form-grid">
               <label for="senior-key-contact-name">Nom</label>
               <input id="senior-key-contact-name" maxlength="120" required>
@@ -1529,6 +1541,7 @@
               <summary>Mots mêlés</summary>
               <p>Retrouvez les mots sans accents, à l’horizontale, à la verticale ou en diagonale, dans les deux sens. Choisissez la première puis la dernière lettre du mot.</p>
               <p id="word-theme"></p>
+              <p id="word-language" class="helper-text"></p>
               <p id="word-list"></p>
               <div class="word-grid-scroll"><div id="word-grid" class="word-grid" role="group" aria-label="Grille de mots mêlés"></div></div>
               <p id="word-status" role="status" aria-live="polite"></p>
@@ -1541,6 +1554,7 @@
               <summary>Mots croisés</summary>
               <p>Complétez la grille à l’aide des définitions. Écrivez une lettre par case, sans accent. Les numéros indiquent le début de chaque mot. Sur un petit écran, faites défiler la grille de gauche à droite.</p>
               <p id="crossword-theme"></p>
+              <p id="crossword-language" class="helper-text"></p>
               <div id="crossword-clues"></div>
               <div class="crossword-scroll"><div id="crossword-grid" class="crossword-grid" role="group" aria-label="Grille de mots croisés"></div></div>
               <p id="crossword-status" role="status" aria-live="polite"></p>
@@ -1957,9 +1971,9 @@
       <details class="senior-disclosure">
         <summary>💚 Soutien et répit pour les aidants</summary>
         <p>Vous pouvez demander un relais pour prendre du temps pour vous. Parlez-en à une personne de confiance ou à un professionnel ; les solutions et leurs conditions dépendent de votre situation.</p>
-        <p>Pour trouver une plateforme près de chez vous, consultez l’annuaire public :</p>
+        <p>Pour trouver une plateforme en France, consultez l’annuaire public français :</p>
         <a href="https://www.pour-les-personnes-agees.gouv.fr/annuaire-points-dinformation-et-plateformes-de-repit" target="_blank" rel="noopener noreferrer">Trouver une plateforme d’accompagnement et de répit</a>
-        <p>Si vous accompagnez une personne en situation de handicap, le <a href="tel:0800360360">0 800 360 360</a> peut vous orienter. En cas d’urgence, appelez le 15 ou le 112.</p>
+        <p>En France, si vous accompagnez une personne en situation de handicap, le <a href="tel:0800360360">0 800 360 360</a> peut vous orienter. En cas d’urgence en France, appelez le 15 ou le 112. Dans un autre pays, contactez les secours locaux.</p>
       </details>
     </section>
     <section class="form-card" id="aidant-no-senior-panel" style="display:none;">
@@ -1999,7 +2013,7 @@
     <section class="form-card">
       <details class="senior-disclosure" id="aidant-key-contacts-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🧑‍⚕️</span><span>Contacts utiles</span></summary>
-        <p class="helper-text">Ces contacts sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence, appelez le 15 ou le 112.</p>
+        <p class="helper-text">Ces contacts sont visibles et modifiables par la personne accompagnée et tous ses aidants associés. Vérifiez régulièrement les numéros. En cas d’urgence en France, appelez le 15 ou le 112. Dans un autre pays, contactez les secours locaux.</p>
         <form id="aidant-key-contacts-form" class="form-grid">
           <label for="aidant-key-contact-name">Nom</label>
           <input id="aidant-key-contact-name" maxlength="120" required>
@@ -3313,7 +3327,7 @@
         ouvrirSectionSenior('senior-journal-details', 'senior-journal-details');
     }
 
-    function switchScreen(screenName) {
+    function switchScreen(screenName, skipContacts = false) {
         if (connectedUser && screenName === `informations-${connectedUser.role}` &&
             ['senior', 'aidant', 'pro'].includes(connectedUser.role)) {
             screenName = connectedUser.role;
@@ -3383,7 +3397,7 @@
         }
         if (screenName === 'messages') {
             document.getElementById('screen-messages').scrollTop = 0;
-            chargerCorrespondants(connectedUser.role);
+            if (!skipContacts) chargerCorrespondants(connectedUser.role);
             if (connectedUser.role === 'aidant') chargerMessagesSecurite();
         }
         if (screenName === 'aidant' && activeSeniorProfileId) {
@@ -3439,9 +3453,9 @@
         }
     }
 
-    function ouvrirNotifications() {
+    function ouvrirNotifications(skipContacts = false) {
         if (!connectedUser || !['senior', 'aidant', 'pro'].includes(connectedUser.role)) return;
-        switchScreen('messages');
+        switchScreen('messages', skipContacts);
         document.getElementById(`message-details-${connectedUser.role}`).open = true;
     }
 
@@ -3484,6 +3498,12 @@
             document.getElementById('reg-legal-guardian').checked;
         document.getElementById('legal-guardian-registration-fields').style.display =
             isGuardian ? 'block' : 'none';
+    }
+
+    function actualiserLieuInscription() {
+        const frenchLocation = document.getElementById('reg-account-location').value === 'france';
+        document.getElementById('reg-account-france-fields').hidden = !frenchLocation;
+        document.getElementById('reg-account-location-other').hidden = frenchLocation;
     }
 
     let registrationStep = 1;
@@ -3573,6 +3593,10 @@
                 if (!Number.isInteger(radius) || radius < 1 || radius > 500) return fail('Choisissez un rayon compris entre 1 et 500 km.', 'reg-service-radius');
             }
             if (['senior', 'aidant'].includes(role)) {
+                if (!['france', 'other'].includes(el('reg-account-location').value)) {
+                    return fail('Choisissez votre situation pour la météo.', 'reg-account-location');
+                }
+                if (el('reg-account-location').value === 'other') return null;
                 const status = el('reg-step-status');
                 status.textContent = window.generationLiaisonTranslate('Recherche de la commune…');
                 try {
@@ -5375,7 +5399,7 @@
             emergencyNumberSelected = button.dataset.emergencyNumber;
             emergencyCheckinId = null;
             document.getElementById('emergency-call-confirmation-title').textContent =
-                `Confirmer la demande d’appel au ${emergencyNumberSelected} ?`;
+                window.generationLiaisonTranslate('Confirmer la demande d’appel au {number} ?').replace('{number}', emergencyNumberSelected);
             document.getElementById('emergency-call-confirmation').hidden = false;
             document.getElementById('emergency-call-next-action').hidden = true;
             document.getElementById('emergency-call-status').textContent = '';
@@ -5386,7 +5410,7 @@
         emergencyNumberSelected = null;
         emergencyCheckinId = null;
         document.getElementById('emergency-call-confirmation').hidden = true;
-        document.getElementById('emergency-call-status').textContent = 'Demande annulée. Aucun aidant n’a été notifié.';
+        document.getElementById('emergency-call-status').textContent = window.generationLiaisonTranslate('Demande annulée. Aucun aidant n’a été notifié.');
     });
 
     async function confirmerAppelUrgence(confirmationMethod) {
@@ -5400,7 +5424,7 @@
         const checkinId = emergencyCheckinId;
         const voicePhrase = confirmationMethod === 'voice' ? 'Je confirme l’appel d’urgence' : undefined;
         confirmation.querySelectorAll('button').forEach(button => { button.disabled = true; });
-        status.textContent = 'Préparation des notifications aux aidants…';
+        status.textContent = window.generationLiaisonTranslate('Préparation des notifications aux aidants…');
         const requestPath = checkinId
             ? `/api/wellbeing/check-in/${encodeURIComponent(checkinId)}/emergency-alert`
             : '/api/emergency-alert';
@@ -5420,18 +5444,18 @@
         ]);
 
         callLink.href = `tel:${number}`;
-        callLink.textContent = `Continuer vers l’appel au ${number}`;
+        callLink.textContent = window.generationLiaisonTranslate('Continuer vers l’appel au {number}').replace('{number}', number);
         confirmation.hidden = true;
         confirmation.querySelectorAll('button').forEach(button => { button.disabled = false; });
         nextAction.hidden = false;
         if (!outcome) {
-            status.textContent = 'La demande d’alerte est encore en cours. Vous pouvez ouvrir le composeur sans attendre ; l’application poursuit l’envoi.';
+            status.textContent = window.generationLiaisonTranslate('La demande d’alerte est encore en cours. Vous pouvez ouvrir le composeur sans attendre ; l’application poursuit l’envoi.');
             request.then(result => {
                 status.textContent = result.error
-                    ? `L’alerte aux aidants a échoué : ${result.error.message} Vous pouvez néanmoins appeler le ${number}.`
+                    ? window.generationLiaisonTranslate('L’alerte aux aidants a échoué : {error} Vous pouvez néanmoins appeler le {number}.').replace('{error}', result.error.message).replace('{number}', number)
                     : result.data.notificationsQueued
-                        ? `Notifications préparées pour ${result.data.notificationsQueued} aidant(s), selon leurs préférences. L’application ne confirme pas leur réception.`
-                        : 'Aucun contact aidant actif n’est enregistré. Vous pouvez appeler les secours directement.';
+                        ? window.generationLiaisonTranslate('Notifications préparées pour {count} aidant(s), selon leurs préférences. L’application ne confirme pas leur réception.').replace('{count}', result.data.notificationsQueued)
+                        : window.generationLiaisonTranslate('Aucun contact aidant actif n’est enregistré. Vous pouvez appeler les secours directement.');
                 if (!result.error && checkinId && currentWellbeingCheckin?.id === checkinId) {
                     currentWellbeingCheckin.safetyCheckStatus = 'emergency_confirmed';
                     currentWellbeingCheckin.emergencyNumber = number;
@@ -5441,10 +5465,10 @@
                 emergencyAlertStarted = false;
             });
         } else if (outcome.error) {
-            status.textContent = `L’alerte aux aidants a échoué : ${outcome.error.message} Vous pouvez néanmoins appeler le ${number}.`;
+            status.textContent = window.generationLiaisonTranslate('L’alerte aux aidants a échoué : {error} Vous pouvez néanmoins appeler le {number}.').replace('{error}', outcome.error.message).replace('{number}', number);
             emergencyAlertStarted = false;
         } else if (outcome.data.notificationsQueued) {
-            status.textContent = `Notifications préparées pour ${outcome.data.notificationsQueued} aidant(s), selon leurs préférences. L’application ne confirme pas leur réception.`;
+            status.textContent = window.generationLiaisonTranslate('Notifications préparées pour {count} aidant(s), selon leurs préférences. L’application ne confirme pas leur réception.').replace('{count}', outcome.data.notificationsQueued);
             if (checkinId && currentWellbeingCheckin?.id === checkinId) {
                 currentWellbeingCheckin.safetyCheckStatus = 'emergency_confirmed';
                 currentWellbeingCheckin.emergencyNumber = number;
@@ -5453,7 +5477,7 @@
             }
             emergencyAlertStarted = false;
         } else {
-            status.textContent = 'Aucun contact aidant actif n’est enregistré. Vous pouvez appeler les secours directement.';
+            status.textContent = window.generationLiaisonTranslate('Aucun contact aidant actif n’est enregistré. Vous pouvez appeler les secours directement.');
             if (checkinId && currentWellbeingCheckin?.id === checkinId) {
                 currentWellbeingCheckin.safetyCheckStatus = 'emergency_confirmed';
                 currentWellbeingCheckin.emergencyNumber = number;
@@ -5462,7 +5486,7 @@
             }
             emergencyAlertStarted = false;
         }
-        status.textContent += ' Le composeur du téléphone va s’ouvrir ; si rien ne se passe, utilisez le bouton ci-dessous.';
+        status.textContent += window.generationLiaisonTranslate(' Le composeur du téléphone va s’ouvrir ; si rien ne se passe, utilisez le bouton ci-dessous.');
         window.location.href = `tel:${number}`;
     }
 
@@ -5475,17 +5499,17 @@
         const button = event.currentTarget;
         const status = document.getElementById('emergency-call-status');
         if (!Recognition) {
-            status.textContent = 'La confirmation vocale n’est pas disponible. Utilisez le bouton de confirmation.';
+            status.textContent = window.generationLiaisonTranslate('La confirmation vocale n’est pas disponible. Utilisez le bouton de confirmation.');
             return;
         }
         let recognition;
         try {
             recognition = new Recognition();
-            recognition.lang = window.generationLiaisonLocale();
+            recognition.lang = 'fr-FR';
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
             button.disabled = true;
-            status.textContent = 'Dites : « Je confirme l’appel d’urgence ». Aucun composeur ne sera ouvert si la phrase n’est pas reconnue.';
+            status.textContent = window.generationLiaisonTranslate('Dites : « Je confirme l’appel d’urgence ». Aucun composeur ne sera ouvert si la phrase n’est pas reconnue.');
             recognition.onresult = resultEvent => {
                 const phrase = resultEvent.results[0][0].transcript
                     .normalize('NFD')
@@ -5497,14 +5521,14 @@
                 if (phrase.includes('je confirme l appel d urgence')) {
                     confirmerAppelUrgence('voice');
                 } else {
-                    status.textContent = 'La phrase n’a pas été reconnue. Aucun appel ni alerte n’a été envoyé ; réessayez ou confirmez avec le bouton.';
+                    status.textContent = window.generationLiaisonTranslate('La phrase n’a pas été reconnue. Aucun appel ni alerte n’a été envoyé ; réessayez ou confirmez avec le bouton.');
                 }
             };
             recognition.onerror = errorEvent => {
                 window.generationLiaisonListenings?.delete(recognition);
                 status.textContent = errorEvent.error === 'not-allowed'
-                    ? 'L’accès au microphone a été refusé. Confirmez avec le bouton.'
-                    : 'La confirmation vocale a échoué. Confirmez avec le bouton.';
+                    ? window.generationLiaisonTranslate('L’accès au microphone a été refusé. Confirmez avec le bouton.')
+                    : window.generationLiaisonTranslate('La confirmation vocale a échoué. Confirmez avec le bouton.');
             };
             recognition.onend = () => {
                 window.generationLiaisonListenings?.delete(recognition);
@@ -5516,14 +5540,14 @@
         } catch (error) {
             window.generationLiaisonListenings?.delete(recognition);
             button.disabled = false;
-            status.textContent = 'Impossible de démarrer la confirmation vocale. Confirmez avec le bouton.';
+            status.textContent = window.generationLiaisonTranslate('Impossible de démarrer la confirmation vocale. Confirmez avec le bouton.');
         }
     });
 
     const humeursBienEtre = {
         bien: { message: 'Je me sens bien.', prompt: 'Vous allez bien. Souhaitez-vous ajouter quelque chose ?' },
         moyen: { message: 'Je me sens moyennement bien.', prompt: 'Vous pouvez préciser comment vous vous sentez.' },
-        mal: { message: 'Je ne me sens pas bien.', prompt: 'Vous pouvez expliquer ce qui ne va pas. En cas d’urgence, appelez le 15 ou le 112.' }
+        mal: { message: 'Je ne me sens pas bien.', prompt: 'Vous pouvez expliquer ce qui ne va pas. En cas d’urgence en France, appelez le 15 ou le 112. Dans un autre pays, contactez les secours locaux.' }
     };
 
     function reinitialiserHumeurBienEtre() {
@@ -5594,12 +5618,12 @@
         result.hidden = false;
         result.append(makeTextElement(
             'p',
-            'Votre réponse du jour est enregistrée. Elle sera supprimée automatiquement après 30 jours.',
+            window.generationLiaisonTranslate('Votre réponse du jour est enregistrée. Elle sera supprimée automatiquement après 30 jours.'),
             'helper-text'
         ));
-        result.append(makeTextElement('h4', 'Votre réponse'));
+        result.append(makeTextElement('h4', window.generationLiaisonTranslate('Votre réponse')));
         result.append(makeTextElement('p', checkin.response));
-        result.append(makeTextElement('h4', 'La réponse de votre assistant IA'));
+        result.append(makeTextElement('h4', window.generationLiaisonTranslate('La réponse de votre assistant IA')));
         result.append(makeTextElement('p', checkin.assistantReply));
         afficherSuiviSecuriteBienEtre(safetyResult, checkin);
     }
@@ -5608,22 +5632,22 @@
         if (!checkin.safetyConcern) return;
         const section = document.createElement('section');
         section.className = 'emergency-confirmation';
-        section.append(makeTextElement('h3', 'Vérifions que vous êtes en sécurité'));
+        section.append(makeTextElement('h3', window.generationLiaisonTranslate('Vérifions que vous êtes en sécurité')));
         const status = makeTextElement('p', '', 'helper-text');
         status.setAttribute('aria-live', 'polite');
 
         if (checkin.safetyCheckStatus === 'awaiting_response') {
-            status.textContent = 'Est-ce que tout va bien ? Avez-vous besoin d’aide ? Aucun appel ne sera passé automatiquement. Si vous ne répondez pas sous 60 secondes pendant que l’application est ouverte, vos aidants actifs seront informés.';
+            status.textContent = window.generationLiaisonTranslate('Est-ce que tout va bien ? Avez-vous besoin d’aide ? Aucun appel ne sera passé automatiquement. Si vous ne répondez pas sous 60 secondes pendant que l’application est ouverte, vos aidants actifs seront informés.');
             const actions = document.createElement('div');
             actions.className = 'emergency-call-actions';
             const safeButton = document.createElement('button');
             safeButton.type = 'button';
-            safeButton.textContent = 'Oui, je suis en sécurité';
+            safeButton.textContent = window.generationLiaisonTranslate('Oui, je suis en sécurité');
             safeButton.addEventListener('click', () =>
                 enregistrerReponseSecurite(checkin.id, 'safe', status));
             const helpButton = document.createElement('button');
             helpButton.type = 'button';
-            helpButton.textContent = 'J’ai besoin d’aide';
+            helpButton.textContent = window.generationLiaisonTranslate('J’ai besoin d’aide');
             helpButton.addEventListener('click', () =>
                 enregistrerReponseSecurite(checkin.id, 'needs_help', status));
             actions.append(safeButton, helpButton);
@@ -5637,7 +5661,7 @@
         }
 
         if (checkin.safetyCheckStatus === 'needs_help') {
-            status.textContent = 'Vous avez indiqué avoir besoin d’aide. Choisissez le 112 ou, en cas d’incendie, le 18. Une seconde confirmation sera demandée avant l’alerte aux aidants et l’ouverture du composeur.';
+            status.textContent = window.generationLiaisonTranslate('Vous avez indiqué avoir besoin d’aide. En France, choisissez le 112 ou, en cas d’incendie, le 18. Dans un autre pays, contactez les secours locaux. Une seconde confirmation sera demandée avant l’alerte aux aidants et l’ouverture du composeur.');
             const actions = document.createElement('div');
             actions.className = 'emergency-call-actions';
             [
@@ -5646,12 +5670,12 @@
             ].forEach(option => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.textContent = option.label;
+                button.textContent = window.generationLiaisonTranslate(option.label);
                 button.addEventListener('click', () => {
                     emergencyNumberSelected = option.number;
                     emergencyCheckinId = checkin.id;
                     document.getElementById('emergency-call-confirmation-title').textContent =
-                        `Confirmer la demande d’appel au ${option.number} ?`;
+                        window.generationLiaisonTranslate('Confirmer la demande d’appel au {number} ?').replace('{number}', option.number);
                     document.getElementById('emergency-call-confirmation').hidden = false;
                     document.getElementById('emergency-call-next-action').hidden = true;
                     document.getElementById('emergency-call-status').textContent = '';
@@ -5663,18 +5687,19 @@
             section.append(status, actions);
         } else if (checkin.safetyCheckStatus === 'no_response') {
             status.textContent = checkin.safetyNotifiedAidants
-                ? `Vous n’avez pas répondu à la vérification. Une alerte a été préparée pour ${checkin.safetyNotifiedAidants} aidant(s), selon leurs préférences. Aucun appel n’a été passé. Si vous êtes en danger, appelez directement le 112.`
-                : 'Vous n’avez pas répondu à la vérification. Aucun aidant actif n’est enregistré ; aucun appel n’a été passé. Si vous êtes en danger, appelez directement le 112.';
+                ? window.generationLiaisonTranslate('Vous n’avez pas répondu à la vérification. Une alerte a été préparée pour {count} aidant(s), selon leurs préférences. Aucun appel n’a été passé. En cas de danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.').replace('{count}', checkin.safetyNotifiedAidants)
+                : window.generationLiaisonTranslate('Vous n’avez pas répondu à la vérification. Aucun aidant actif n’est enregistré ; aucun appel n’a été passé. En cas de danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.');
             section.append(status);
         } else if (checkin.safetyCheckStatus === 'emergency_confirmed') {
-            status.textContent = `Votre demande d’appel au ${checkin.emergencyNumber || 'numéro choisi'} a été confirmée. ${
-                checkin.safetyNotifiedAidants
-                    ? `Une notification a été préparée pour ${checkin.safetyNotifiedAidants} aidant(s), selon leurs préférences.`
-                    : 'Aucun aidant actif n’est enregistré.'
-            } L’application ne peut pas vérifier la réception de la notification ni l’aboutissement de l’appel.`;
+            status.textContent = window.generationLiaisonTranslate('Votre demande d’appel au {number} a été confirmée.')
+                .replace('{number}', checkin.emergencyNumber || window.generationLiaisonTranslate('numéro choisi')) + ' ' +
+                (checkin.safetyNotifiedAidants
+                    ? window.generationLiaisonTranslate('Une notification a été préparée pour {count} aidant(s), selon leurs préférences.').replace('{count}', checkin.safetyNotifiedAidants)
+                    : window.generationLiaisonTranslate('Aucun aidant actif n’est enregistré.')) + ' ' +
+                window.generationLiaisonTranslate('L’application ne peut pas vérifier la réception de la notification ni l’aboutissement de l’appel.');
             section.append(status);
         } else if (checkin.safetyCheckStatus === 'safe') {
-            status.textContent = 'Merci de nous avoir répondu. Si votre situation change ou si vous êtes en danger, appelez directement le 112.';
+            status.textContent = window.generationLiaisonTranslate('Merci de nous avoir répondu. Si votre situation change ou si vous êtes en danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.');
             section.append(status);
         }
         container.append(section);
@@ -5696,7 +5721,7 @@
                 afficherCheckinBienEtre(currentWellbeingCheckin);
             }
         } catch (error) {
-            statusElement.textContent = error.message || 'Impossible d’enregistrer votre réponse.';
+            statusElement.textContent = error.message || window.generationLiaisonTranslate('Impossible d’enregistrer votre réponse.');
         }
     }
 
@@ -5711,7 +5736,7 @@
         document.getElementById('wellbeing-checkin-result').hidden = true;
         const status = document.getElementById('wellbeing-checkin-status');
         const contacts = document.getElementById('wellbeing-aidant-contacts');
-        status.textContent = 'Chargement de votre vérification de bien-être…';
+        status.textContent = window.generationLiaisonTranslate('Chargement de votre vérification de bien-être…');
         try {
             const result = await planningRequest('/api/wellbeing/check-in');
             if (loadId !== wellbeingLoadId || connectedUser?.id !== userId ||
@@ -5719,11 +5744,11 @@
             wellbeingLoadedDate = today;
             afficherCheckinBienEtre(result.checkin);
             document.querySelectorAll('[data-wellbeing-mood]').forEach(button => { button.disabled = Boolean(result.checkin); });
-            status.textContent = result.checkin ? 'Votre vérification de bien-être du jour est déjà enregistrée.' : '';
+            status.textContent = result.checkin ? window.generationLiaisonTranslate('Votre vérification de bien-être du jour est déjà enregistrée.') : '';
             if (result.checkin) return;
         } catch (error) {
             if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
-            status.textContent = error.message || 'Impossible de charger votre vérification de bien-être.';
+            status.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger votre vérification de bien-être.');
             document.getElementById('wellbeing-checkin-retry').hidden = false;
             document.getElementById('wellbeing-checkin-details').open = true;
             return;
@@ -5738,7 +5763,7 @@
             if (!aidants.length) {
                 contacts.append(makeTextElement(
                     'p',
-                    'Aucun contact aidant actif n’est enregistré. Vous pouvez envoyer votre réponse sans la partager.',
+                    window.generationLiaisonTranslate('Aucun contact aidant actif n’est enregistré. Vous pouvez envoyer votre réponse sans la partager.'),
                     'helper-text'
                 ));
                 return;
@@ -5757,7 +5782,7 @@
             if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
             contacts.replaceChildren(makeTextElement(
                 'p',
-                error.message || 'Impossible de charger vos contacts aidants.',
+                error.message || window.generationLiaisonTranslate('Impossible de charger vos contacts aidants.'),
                 'helper-text'
             ));
         }
@@ -5772,7 +5797,7 @@
             if (!result.checkins.length) {
                 container.append(makeTextElement(
                     'p',
-                    'Aucune vérification de bien-être ne vous a été partagée pour le moment.',
+                    window.generationLiaisonTranslate('Aucune vérification de bien-être ne vous a été partagée pour le moment.'),
                     'helper-text'
                 ));
                 return;
@@ -5788,7 +5813,7 @@
         } catch (error) {
             container.replaceChildren(makeTextElement(
                 'p',
-                error.message || 'Impossible de charger les vérifications de bien-être partagées.',
+                error.message || window.generationLiaisonTranslate('Impossible de charger les vérifications de bien-être partagées.'),
                 'helper-text'
             ));
         }
@@ -5806,7 +5831,7 @@
         const input = document.getElementById('wellbeing-checkin-response');
         const button = event.currentTarget;
         if (!Recognition) {
-            status.textContent = 'La dictée n’est pas disponible sur cet appareil. Vous pouvez écrire votre réponse.';
+            status.textContent = window.generationLiaisonTranslate('La dictée n’est pas disponible sur cet appareil. Vous pouvez écrire votre réponse.');
             button.disabled = true;
             return;
         }
@@ -5817,18 +5842,18 @@
             recognition.interimResults = false;
             recognition.maxAlternatives = 1;
             button.disabled = true;
-            status.textContent = 'Écoute en cours. Vous pouvez aussi écrire votre réponse.';
+            status.textContent = window.generationLiaisonTranslate('Écoute en cours. Vous pouvez aussi écrire votre réponse.');
             recognition.onresult = resultEvent => {
                 const spokenText = resultEvent.results[0][0].transcript.trim();
                 input.value = `${input.value.trim()}${input.value.trim() ? ' ' : ''}${spokenText}`.slice(0, 1200);
-                status.textContent = 'Votre dictée a été ajoutée au texte. Vérifiez-la avant de l’envoyer.';
+                status.textContent = window.generationLiaisonTranslate('Votre dictée a été ajoutée au texte. Vérifiez-la avant de l’envoyer.');
                 input.focus();
             };
             recognition.onerror = errorEvent => {
                 window.generationLiaisonListenings?.delete(recognition);
-                status.textContent = errorEvent.error === 'not-allowed'
+                status.textContent = window.generationLiaisonTranslate(errorEvent.error === 'not-allowed'
                     ? 'L’accès au microphone a été refusé. Vous pouvez écrire votre réponse.'
-                    : 'La dictée a échoué. Vous pouvez écrire votre réponse.';
+                    : 'La dictée a échoué. Vous pouvez écrire votre réponse.');
             };
             recognition.onend = () => {
                 window.generationLiaisonListenings?.delete(recognition);
@@ -5840,7 +5865,7 @@
         } catch (error) {
             window.generationLiaisonListenings?.delete(recognition);
             button.disabled = false;
-            status.textContent = 'Impossible de démarrer la dictée. Vous pouvez écrire votre réponse.';
+            status.textContent = window.generationLiaisonTranslate('Impossible de démarrer la dictée. Vous pouvez écrire votre réponse.');
         }
     });
 
@@ -5857,23 +5882,24 @@
         const userId = connectedUser.id;
         const loadId = wellbeingLoadId;
         const today = wellbeingLoadedDate;
-        const message = [humeurBienEtre ? humeursBienEtre[humeurBienEtre].message : '', input.value.trim()].filter(Boolean).join(' ');
+        const message = [humeurBienEtre ? window.generationLiaisonTranslate(humeursBienEtre[humeurBienEtre].message) : '', input.value.trim()].filter(Boolean).join(' ');
         if (!message || message.length > 1200) {
             status.textContent = window.generationLiaisonTranslate('Votre réponse doit contenir au maximum 1 200 caractères, choix compris.');
             return;
         }
         if (selectedAidants.length && !shareConfirmed) {
-            status.textContent = 'Cochez la confirmation pour partager votre réponse avec les aidants sélectionnés.';
+            status.textContent = window.generationLiaisonTranslate('Cochez la confirmation pour partager votre réponse avec les aidants sélectionnés.');
             document.getElementById('wellbeing-share-confirmation').focus();
             return;
         }
         button.disabled = true;
-        status.textContent = 'Votre assistant prépare une réponse…';
+        status.textContent = window.generationLiaisonTranslate('Votre assistant prépare une réponse…');
         try {
             const result = await planningRequest('/api/wellbeing/check-in', {
                 method: 'POST',
                 body: {
                     message,
+                    language: window.generationLiaisonLocale() === 'en-US' ? 'en' : 'fr',
                     recipientUserIds: selectedAidants,
                     shareConfirmed: selectedAidants.length > 0 && shareConfirmed
                 }
@@ -5882,11 +5908,11 @@
             afficherCheckinBienEtre(result.checkin);
             document.querySelectorAll('[data-wellbeing-mood]').forEach(choice => { choice.disabled = true; });
             status.textContent = result.sharedWithCount
-                ? `Votre réponse a été enregistrée et partagée avec ${result.sharedWithCount} aidant(s).`
-                : 'Votre réponse a été enregistrée. Elle n’a pas été partagée.';
+                ? window.generationLiaisonTranslate('Votre réponse a été enregistrée et partagée avec {count} aidant(s).').replace('{count}', result.sharedWithCount)
+                : window.generationLiaisonTranslate('Votre réponse a été enregistrée. Elle n’a pas été partagée.');
         } catch (error) {
             if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
-            status.textContent = error.message || 'Impossible d’enregistrer votre vérification de bien-être.';
+            status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’enregistrer votre vérification de bien-être.');
             button.disabled = false;
         }
     });
@@ -5902,16 +5928,16 @@
             result.messages.forEach(message => {
                 const item = document.createElement('div');
                 item.className = `assistant-message ${message.role}`;
-                const label = message.role === 'user'
+                const label = window.generationLiaisonTranslate(message.role === 'user'
                     ? 'Vous'
-                    : message.role === 'team' ? 'Équipe' : 'Assistant IA';
+                    : message.role === 'team' ? 'Équipe' : 'Assistant IA');
                 item.append(makeTextElement('strong', `${label} : `), document.createTextNode(message.content));
                 messages.append(item);
             });
             if (result.status === 'human_requested') {
-                status.textContent = 'Votre demande a été transmise. L’équipe vous répondra ici.';
+                status.textContent = window.generationLiaisonTranslate('Votre demande a été transmise. L’équipe vous répondra ici.');
             } else {
-                status.textContent = 'Vous pouvez demander l’aide de l’équipe. En cas d’urgence, appelez le 112 ou le 15.';
+                status.textContent = window.generationLiaisonTranslate('Vous pouvez demander l’aide de l’équipe. En cas d’urgence en France, appelez le 112 ou le 15. Dans un autre pays, contactez les secours locaux.');
             }
             handoffButton.disabled = result.status === 'human_requested';
         } catch (error) {
@@ -6985,7 +7011,7 @@
     async function ouvrirMessageDepuisBoite(role, message) {
         if (connectedUser?.role !== role) return;
         const userId = connectedUser.id;
-        ouvrirNotifications();
+        ouvrirNotifications(!message.safety);
         if (message.safety) {
             const details = document.getElementById('safety-messages-details');
             details.open = true;
@@ -7041,19 +7067,19 @@
             }
             messages.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
             if (!messages.length && inbox.status === 'fulfilled' && (!safety || safety.status === 'fulfilled')) {
-                container.append(makeTextElement('p', 'Aucun message reçu pour le moment.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun message reçu pour le moment.'), 'helper-text'));
                 return;
             }
             messages.forEach(message => {
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `today-inbox-item${!message.safety && message.unreadCount > 0 ? ' unread' : ''}`;
-                button.append(makeTextElement('strong', message.safety ? `Message automatique pour ${message.seniorName}` : message.senderName));
+                button.append(makeTextElement('strong', message.safety ? `${window.generationLiaisonTranslate('Message automatique pour')} ${message.seniorName}` : message.senderName));
                 button.append(makeTextElement('span', message.body));
                 const timestamp = formatDateTime(message.createdAt);
                 const readStatus = message.safety ? '' : message.readAt
-                    ? ` · Ouvert le ${formatDateTime(message.readAt)}`
-                    : ` · ${message.read ? 'Lu' : 'Non lu'}`;
+                    ? ` · ${window.generationLiaisonTranslate('Ouvert le')} ${formatDateTime(message.readAt)}`
+                    : ` · ${window.generationLiaisonTranslate(message.read ? 'Lu' : 'Non lu')}`;
                 const unreadStatus = message.unreadCount > 0 && message.read
                     ? ` · ${message.unreadCount} ${window.generationLiaisonTranslate(message.unreadCount > 1 ? 'messages non lus dans cette conversation' : 'message non lu dans cette conversation')}`
                     : '';
@@ -7089,9 +7115,9 @@
             const result = await seniorLinksRequest('/api/messages/contacts');
             if (connectedUser?.id !== userId || connectedUser?.role !== role) return false;
             const previous = select.value;
-            select.replaceChildren(new Option('Choisissez un correspondant', ''));
+            select.replaceChildren(new Option(window.generationLiaisonTranslate('Choisissez un correspondant'), ''));
             result.contacts.forEach(contact => select.add(new Option(
-                `${contact.name}${contact.canSend ? '' : ' · envoi indisponible'}`, contact.id
+                `${contact.name}${contact.canSend ? '' : ` · ${window.generationLiaisonTranslate('envoi indisponible')}`}`, contact.id
             )));
             if (role === 'senior') {
                 const list = document.getElementById('message-multiple-contacts');
@@ -7103,16 +7129,16 @@
                     input.value = contact.id;
                     input.disabled = !contact.canSend;
                     label.append(input, document.createTextNode(
-                        ` ${contact.name}${contact.canSend ? '' : ' · envoi indisponible'}`
+                        ` ${contact.name}${contact.canSend ? '' : ` · ${window.generationLiaisonTranslate('envoi indisponible')}`}`
                     ));
                     list.append(label, document.createElement('br'));
                 });
             }
             if (result.contacts.some(contact => contact.id === previous)) select.value = previous;
-            status.textContent = result.contacts.length ? '' : 'Aucun contact pour le moment. Ajoutez-en dans Contacts.';
+            status.textContent = result.contacts.length ? '' : window.generationLiaisonTranslate('Aucun contact pour le moment. Ajoutez-en dans Contacts.');
             return true;
         } catch (error) {
-            status.textContent = error.message || 'Impossible de charger les correspondants.';
+            status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de charger les correspondants.');
             return false;
         }
     }
@@ -7150,7 +7176,7 @@
         const container = document.getElementById(`message-list-${role}`);
         const status = document.getElementById(`message-status-${role}`);
         if (!contactId) {
-            status.textContent = 'Choisissez un correspondant.';
+            status.textContent = window.generationLiaisonTranslate('Choisissez un correspondant.');
             return false;
         }
         const userId = connectedUser?.id;
@@ -7159,12 +7185,12 @@
             const result = await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}${focus}`);
             if (connectedUser?.id !== userId || connectedUser?.role !== role || select.value !== contactId) return false;
             if (focusId && !result.messages.some(message => message.id === focusId && !message.mine)) {
-                status.textContent = 'Ce message n’est plus disponible.';
+                status.textContent = window.generationLiaisonTranslate('Ce message n’est plus disponible.');
                 return false;
             }
             reinitialiserPhotoMessages();
             container.replaceChildren();
-            if (!result.messages.length) container.append(makeTextElement('p', 'Aucun message pour le moment.', 'helper-text'));
+            if (!result.messages.length) container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun message pour le moment.'), 'helper-text'));
             const contactIds = Array.from(select.options, option => option.value).filter(Boolean).sort();
             const contactHue = (contactIds.indexOf(contactId) * 137.5) % 360;
             const contactAvatars = [];
@@ -7186,10 +7212,10 @@
                     image.src = accountPhotoObjectUrl;
                     avatar.replaceChildren(image);
                 } else if (!message.mine) contactAvatars.push(avatar);
-                author.append(avatar, makeTextElement('strong', message.mine ? 'Vous' : select.selectedOptions[0].text));
+                author.append(avatar, makeTextElement('strong', message.mine ? window.generationLiaisonTranslate('Vous') : select.selectedOptions[0].text));
                 item.append(author);
                 item.append(makeTextElement('p', message.body));
-                item.append(makeTextElement('small', `${formatDateTime(message.createdAt)}${message.mine ? (message.readAt ? ' · Lu' : ' · Non lu') : ''}`, 'helper-text'));
+                item.append(makeTextElement('small', `${formatDateTime(message.createdAt)}${message.mine ? ` · ${window.generationLiaisonTranslate(message.readAt ? 'Lu' : 'Non lu')}` : ''}`, 'helper-text'));
                 container.append(item);
             });
             const filter = document.getElementById(`message-filter-${role}`);
@@ -7277,17 +7303,41 @@
 
     let couleurJeu = 'Rouge';
 
+    const textesJeuxDynamiques = new Map();
+    function traduireModeleJeu(texte, valeurs = {}) {
+        let resultat = window.generationLiaisonTranslate(texte);
+        for (const [cle, valeur] of Object.entries(valeurs)) {
+            resultat = resultat.replace(`{${cle}}`, window.generationLiaisonTranslate(String(valeur)));
+        }
+        return resultat;
+    }
+
+    function afficherTexteJeu(id, texte, valeurs = {}) {
+        textesJeuxDynamiques.set(id, { texte, valeurs });
+        document.getElementById(id).textContent = traduireModeleJeu(texte, valeurs);
+    }
+
+    function traduireTextesJeux() {
+        for (const [id, { texte, valeurs }] of textesJeuxDynamiques) afficherTexteJeu(id, texte, valeurs);
+        actualiserEtiquettesMorpion();
+        actualiserEtiquettesPaires();
+        actualiserEtiquettesSudoku(sudokuCases, 6);
+        actualiserEtiquettesSudoku(sudoku9Cases, 9);
+        if (themeMotsMeles !== -1) actualiserAffichageMotsMeles();
+        if (grilleMotsCroisesCourante !== -1) actualiserAffichageMotsCroises();
+    }
+
     function nouvelleCouleur() {
         const couleurs = ['Rouge', 'Bleu', 'Vert', 'Jaune'];
         const autres = couleurs.filter(couleur => couleur !== couleurJeu);
         couleurJeu = autres[Math.floor(Math.random() * autres.length)];
-        document.getElementById('color-game-question').textContent = `Choisissez le mot : ${couleurJeu}`;
-        document.getElementById('color-game-status').textContent = '';
+        afficherTexteJeu('color-game-question', 'Choisissez le mot : {couleur}', { couleur: couleurJeu });
+        afficherTexteJeu('color-game-status', '');
     }
 
     function repondreJeuCouleur(couleur) {
-        document.getElementById('color-game-status').textContent = couleur === couleurJeu
-            ? 'Bravo ! Vous pouvez choisir une autre couleur.' : 'Ce n’est pas ce mot. Vous pouvez réessayer.';
+        afficherTexteJeu('color-game-status', couleur === couleurJeu
+            ? 'Bravo ! Vous pouvez choisir une autre couleur.' : 'Ce n’est pas ce mot. Vous pouvez réessayer.');
     }
 
     let resultatCalcul = 5;
@@ -7324,33 +7374,33 @@
         const choix = [resultatCalcul - 1, resultatCalcul, resultatCalcul + 1];
         const rotation = Math.floor(Math.random() * choix.length);
         choixCalcul = choix.slice(rotation).concat(choix.slice(0, rotation));
-        document.getElementById('math-game-question').textContent = `Combien font ${premier} + ${second} ?`;
+        afficherTexteJeu('math-game-question', 'Combien font {premier} + {second} ?', { premier, second });
         choixCalcul.forEach((choix, index) => {
             document.getElementById(`math-game-choice-${index}`).textContent = choix;
         });
-        document.getElementById('math-game-status').textContent = '';
+        afficherTexteJeu('math-game-status', '');
     }
 
     function repondreJeuCalcul(index) {
-        document.getElementById('math-game-status').textContent = choixCalcul[index] === resultatCalcul
-            ? 'Bravo ! Vous pouvez choisir un autre calcul.' : 'Ce n’est pas le bon résultat. Vous pouvez réessayer.';
+        afficherTexteJeu('math-game-status', choixCalcul[index] === resultatCalcul
+            ? 'Bravo ! Vous pouvez choisir un autre calcul.' : 'Ce n’est pas le bon résultat. Vous pouvez réessayer.');
     }
 
     function nouvelleDevinette() {
         const saut = 1 + Math.floor(Math.random() * (devinettesJeu.length - 1));
         devinetteCourante = (devinetteCourante + saut) % devinettesJeu.length;
         const devinette = devinettesJeu[devinetteCourante];
-        document.getElementById('riddle-game-question').textContent = devinette.question;
+        afficherTexteJeu('riddle-game-question', devinette.question);
         devinette.choix.forEach((choix, index) => {
-            document.getElementById(`riddle-game-label-${index}`).textContent = choix.texte;
+            afficherTexteJeu(`riddle-game-label-${index}`, choix.texte);
             document.getElementById(`riddle-game-image-${index}`).src = `riddle-images/${choix.image}.jpg`;
         });
-        document.getElementById('riddle-game-status').textContent = '';
+        afficherTexteJeu('riddle-game-status', '');
     }
 
     function repondreDevinette(index) {
-        document.getElementById('riddle-game-status').textContent = index === devinettesJeu[devinetteCourante].reponse
-            ? 'Bravo ! Vous pouvez choisir une autre devinette.' : 'Ce n’est pas la bonne réponse. Vous pouvez réessayer.';
+        afficherTexteJeu('riddle-game-status', index === devinettesJeu[devinetteCourante].reponse
+            ? 'Bravo ! Vous pouvez choisir une autre devinette.' : 'Ce n’est pas la bonne réponse. Vous pouvez réessayer.');
     }
 
     let grilleMorpion = Array(9).fill('');
@@ -7360,16 +7410,25 @@
         [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]
     ];
 
-    function afficherMorpion(message) {
+    function actualiserEtiquettesMorpion() {
+        grilleMorpion.forEach((valeur, index) => {
+            const contenu = valeur === 'X' ? 'croix' : valeur === 'O' ? 'rond' : 'vide';
+            document.getElementById(`morpion-${index}`).setAttribute('aria-label',
+                traduireModeleJeu('Ligne {ligne}, colonne {colonne} : {contenu}', {
+                    ligne: Math.floor(index / 3) + 1, colonne: index % 3 + 1, contenu
+                }));
+        });
+    }
+
+    function afficherMorpion(message, valeurs = {}) {
         grilleMorpion.forEach((valeur, index) => {
             const bouton = document.getElementById(`morpion-${index}`);
             bouton.textContent = valeur;
             bouton.setAttribute('data-symbol', valeur);
-            const contenu = valeur === 'X' ? 'croix' : valeur === 'O' ? 'rond' : 'vide';
-            bouton.setAttribute('aria-label', `Ligne ${Math.floor(index / 3) + 1}, colonne ${index % 3 + 1} : ${contenu}`);
             bouton.setAttribute('aria-disabled', String(morpionTermine || Boolean(valeur)));
         });
-        document.getElementById('morpion-status').textContent = message;
+        actualiserEtiquettesMorpion();
+        afficherTexteJeu('morpion-status', message, valeurs);
     }
 
     function nouveauMorpion() {
@@ -7399,8 +7458,11 @@
             const choix = libres[Math.floor(Math.random() * libres.length)];
             grilleMorpion[choix] = 'O';
             const resultat = finMorpion('O');
-            const position = `ligne ${Math.floor(choix / 3) + 1}, colonne ${choix % 3 + 1}`;
-            message = `L’ordinateur a joué ${position}. ${resultat || 'À vous de jouer.'}`;
+            afficherMorpion('L’ordinateur a joué ligne {ligne}, colonne {colonne}. {resultat}', {
+                ligne: Math.floor(choix / 3) + 1, colonne: choix % 3 + 1,
+                resultat: resultat || 'À vous de jouer.'
+            });
+            return;
         }
         afficherMorpion(message);
     }
@@ -7410,7 +7472,17 @@
     let cartesTrouvees = [];
     const imagesPaires = { Pomme: 'pomme', Chat: 'chat', Fleur: 'fleur', Soleil: 'soleil' };
 
-    function afficherJeuPaires(message) {
+    function actualiserEtiquettesPaires() {
+        cartesPaires.forEach((mot, index) => {
+            const trouvee = cartesTrouvees.includes(index);
+            const visible = trouvee || cartesRetournees.includes(index);
+            const modele = trouvee ? 'Carte {numero} : {mot}, paire trouvée' : 'Carte {numero} : {mot}';
+            document.getElementById(`memory-${index}`).setAttribute('aria-label',
+                traduireModeleJeu(modele, { numero: index + 1, mot: visible ? mot : 'cachée' }));
+        });
+    }
+
+    function afficherJeuPaires(message, valeurs = {}) {
         cartesPaires.forEach((mot, index) => {
             const bouton = document.getElementById(`memory-${index}`);
             const trouvee = cartesTrouvees.includes(index);
@@ -7426,10 +7498,10 @@
                 image.appendChild(dessin);
                 bouton.appendChild(image);
             }
-            bouton.setAttribute('aria-label', `Carte ${index + 1} : ${visible ? mot : 'cachée'}${trouvee ? ', paire trouvée' : ''}`);
             bouton.setAttribute('aria-disabled', String(visible));
         });
-        document.getElementById('memory-status').textContent = message;
+        actualiserEtiquettesPaires();
+        afficherTexteJeu('memory-status', message, valeurs);
     }
 
     function nouveauJeuPaires() {
@@ -7449,19 +7521,20 @@
         if (cartesRetournees.length === 2) cartesRetournees = [];
         cartesRetournees.push(index);
         const mot = cartesPaires[index];
-        let message = `Carte ${index + 1} : ${mot}. Choisissez une deuxième carte.`;
+        let message = 'Carte {numero} : {mot}. Choisissez une deuxième carte.';
+        const valeurs = { numero: index + 1, mot };
         if (cartesRetournees.length === 2) {
             if (cartesPaires[cartesRetournees[0]] === mot) {
                 cartesTrouvees.push(...cartesRetournees);
                 cartesRetournees = [];
                 message = cartesTrouvees.length === cartesPaires.length
                     ? 'Bravo, vous avez retrouvé toutes les paires !'
-                    : `Paire trouvée : ${mot}. Choisissez une autre carte.`;
+                    : 'Paire trouvée : {mot}. Choisissez une autre carte.';
             } else {
-                message = `Carte ${index + 1} : ${mot}. Les images sont différentes. Choisissez une autre carte pour continuer.`;
+                message = 'Carte {numero} : {mot}. Les images sont différentes. Choisissez une autre carte pour continuer.';
             }
         }
-        afficherJeuPaires(message);
+        afficherJeuPaires(message, valeurs);
     }
 
     let nombreSecret = 1 + Math.floor(Math.random() * 10);
@@ -7473,7 +7546,7 @@
         for (let nombre = 1; nombre <= 10; nombre++) {
             document.getElementById(`number-${nombre}`).setAttribute('aria-disabled', 'false');
         }
-        document.getElementById('number-game-status').textContent = 'Choisissez un nombre.';
+        afficherTexteJeu('number-game-status', 'Choisissez un nombre.');
     }
 
     function devinerNombre(nombre) {
@@ -7483,10 +7556,10 @@
             for (let choix = 1; choix <= 10; choix++) {
                 document.getElementById(`number-${choix}`).setAttribute('aria-disabled', 'true');
             }
-            document.getElementById('number-game-status').textContent = `Bravo, le nombre était ${nombre} !`;
+            afficherTexteJeu('number-game-status', 'Bravo, le nombre était {nombre} !', { nombre });
         } else {
-            document.getElementById('number-game-status').textContent = nombre < nombreSecret
-                ? `Le nombre est plus grand que ${nombre}.` : `Le nombre est plus petit que ${nombre}.`;
+            afficherTexteJeu('number-game-status', nombre < nombreSecret
+                ? 'Le nombre est plus grand que {nombre}.' : 'Le nombre est plus petit que {nombre}.', { nombre });
         }
     }
 
@@ -7561,13 +7634,24 @@
         }
         sudokuCases = afficherGrilleSudoku(grille, 6, 2, 'sudoku-grid');
         sudokuInitialise = true;
-        document.getElementById('sudoku-status').textContent = 'Complétez les cases blanches, puis vérifiez votre grille.';
+        afficherTexteJeu('sudoku-status', 'Complétez les cases blanches, puis vérifiez votre grille.');
+    }
+
+    function actualiserEtiquettesSudoku(cases, taille) {
+        cases.forEach((input, index) => {
+            const modele = input.readOnly
+                ? 'Ligne {ligne}, colonne {colonne} : chiffre donné'
+                : 'Ligne {ligne}, colonne {colonne} : à compléter';
+            input.setAttribute('aria-label', traduireModeleJeu(modele, {
+                ligne: Math.floor(index / taille) + 1, colonne: index % taille + 1
+            }));
+        });
     }
 
     function afficherGrilleSudoku(grille, taille, hauteurBloc, id) {
         const conteneur = document.getElementById(id);
         conteneur.replaceChildren();
-        return grille.map((chiffre, index) => {
+        const cases = grille.map((chiffre, index) => {
             const input = document.createElement('input');
             input.type = 'text';
             input.inputMode = 'numeric';
@@ -7576,10 +7660,11 @@
             input.readOnly = Boolean(chiffre);
             const ligne = Math.floor(index / taille), colonne = index % taille;
             input.className = `sudoku-cell${colonne % 3 === 2 && colonne < taille - 1 ? ' block-right' : ''}${ligne % hauteurBloc === hauteurBloc - 1 && ligne < taille - 1 ? ' block-bottom' : ''}`;
-            input.setAttribute('aria-label', `Ligne ${ligne + 1}, colonne ${colonne + 1}${chiffre ? ' : chiffre donné' : ' : à compléter'}`);
             conteneur.append(input);
             return input;
         });
+        actualiserEtiquettesSudoku(cases, taille);
+        return cases;
     }
 
     function verifierSudoku() {
@@ -7606,7 +7691,7 @@
             return chiffre ? chiffres[chiffre - 1] : 0;
         }));
         sudoku9Cases = afficherGrilleSudoku(grille, 9, 3, 'sudoku-9-grid');
-        document.getElementById('sudoku-9-status').textContent = 'Complétez les cases blanches, puis vérifiez votre grille.';
+        afficherTexteJeu('sudoku-9-status', 'Complétez les cases blanches, puis vérifiez votre grille.');
     }
 
     function verifierSudoku9() {
@@ -7616,9 +7701,8 @@
 
     function verifierGrilleSudoku(cases, taille, hauteurBloc, idStatus) {
         const valeurs = cases.map(input => input.value.trim());
-        const status = document.getElementById(idStatus);
         if (valeurs.some(valeur => !/^[1-9]$/.test(valeur) || Number(valeur) > taille)) {
-            status.textContent = `Complétez chaque case avec un chiffre de 1 à ${taille}.`;
+            afficherTexteJeu(idStatus, 'Complétez chaque case avec un chiffre de 1 à {taille}.', { taille });
             return;
         }
         const grille = valeurs.map(Number);
@@ -7628,8 +7712,8 @@
             grille[position] = chiffre;
             return possible;
         });
-        status.textContent = correcte ? 'Bravo, la grille est complète et correcte !'
-            : 'Il y a une répétition dans une ligne, une colonne ou un bloc. Vous pouvez réessayer.';
+        afficherTexteJeu(idStatus, correcte ? 'Bravo, la grille est complète et correcte !'
+            : 'Il y a une répétition dans une ligne, une colonne ou un bloc. Vous pouvez réessayer.');
     }
 
     let suiteReponse = 64;
@@ -7645,19 +7729,19 @@
         }
         suiteReponse = nombres.pop();
         document.getElementById('sequence-question').textContent = `${nombres.join(', ')}, …`;
-        document.getElementById('sequence-hint').textContent = multiplication
+        afficherTexteJeu('sequence-hint', multiplication
             ? 'Indice : chaque nombre est multiplié par le même nombre.'
-            : 'Indice : l’écart entre les nombres augmente toujours de la même valeur.';
+            : 'Indice : l’écart entre les nombres augmente toujours de la même valeur.');
         document.getElementById('sequence-answer').value = '';
-        document.getElementById('sequence-status').textContent = '';
+        afficherTexteJeu('sequence-status', '');
     }
 
     function verifierSuite() {
         const valeur = document.getElementById('sequence-answer').value.trim();
-        document.getElementById('sequence-status').textContent = !/^\d+$/.test(valeur)
+        afficherTexteJeu('sequence-status', !/^\d+$/.test(valeur)
             ? 'Saisissez un nombre entier.'
             : Number(valeur) === suiteReponse ? 'Bravo, c’est la bonne réponse !'
-                : 'Ce n’est pas encore la bonne réponse. Vous pouvez réessayer.';
+                : 'Ce n’est pas encore la bonne réponse. Vous pouvez réessayer.');
     }
 
     const themesMotsMeles = [
@@ -7665,6 +7749,13 @@
         { nom: 'À la mer', mots: ['PLAGE', 'VAGUE', 'SABLE', 'BATEAU', 'PHARE', 'OCEAN'] },
         { nom: 'À table', mots: ['POMME', 'POIRE', 'PAIN', 'FROMAGE', 'SOUPE', 'RAISIN'] }
     ];
+    const themesMotsMelesEn = [
+        { nom: 'Au jardin', mots: ['ROSE', 'TULIP', 'GARDEN', 'FLOWER', 'TREE', 'SEED'] },
+        { nom: 'À la mer', mots: ['BEACH', 'WAVE', 'SAND', 'BOAT', 'SHELL', 'OCEAN'] },
+        { nom: 'À table', mots: ['APPLE', 'PEAR', 'BREAD', 'CHEESE', 'SOUP', 'GRAPES'] }
+    ];
+    let themesMotsMelesActifs = themesMotsMeles;
+    let langueMotsMeles = 'fr';
     let themeMotsMeles = -1;
     let grilleMotsMeles = [];
     let motsTrouves = [];
@@ -7676,9 +7767,11 @@
     }
 
     function nouveauxMotsMeles() {
-        const saut = 1 + Math.floor(Math.random() * (themesMotsMeles.length - 1));
-        themeMotsMeles = (themeMotsMeles + saut) % themesMotsMeles.length;
-        const mots = themesMotsMeles[themeMotsMeles].mots;
+        langueMotsMeles = window.generationLiaisonLocale() === 'en-US' ? 'en' : 'fr';
+        themesMotsMelesActifs = langueMotsMeles === 'en' ? themesMotsMelesEn : themesMotsMeles;
+        const saut = 1 + Math.floor(Math.random() * (themesMotsMelesActifs.length - 1));
+        themeMotsMeles = (themeMotsMeles + saut) % themesMotsMelesActifs.length;
+        const mots = themesMotsMelesActifs[themeMotsMeles].mots;
         grilleMotsMeles = Array(64).fill('');
         const directions = [[0, 1], [1, 0], [1, 1], [1, -1], [0, -1], [-1, 0], [-1, -1], [-1, 1]];
         let placementReussi = true;
@@ -7719,20 +7812,23 @@
             bouton.type = 'button';
             bouton.className = 'word-cell';
             bouton.textContent = lettre;
-            bouton.setAttribute('aria-label', `Ligne ${Math.floor(index / 8) + 1}, colonne ${index % 8 + 1} : ${lettre}`);
             bouton.setAttribute('aria-pressed', 'false');
             bouton.addEventListener('click', () => choisirLettreMot(index));
             conteneur.append(bouton);
         });
-        document.getElementById('word-theme').textContent = `Thème : ${themesMotsMeles[themeMotsMeles].nom}`;
         afficherMotsMeles('Choisissez la première lettre d’un mot.');
     }
 
-    function afficherMotsMeles(message) {
-        const mots = themesMotsMeles[themeMotsMeles].mots;
+    function actualiserAffichageMotsMeles() {
+        const mots = themesMotsMelesActifs[themeMotsMeles].mots;
+        document.getElementById('word-theme').textContent = traduireModeleJeu('Thème : {theme}', {
+            theme: themesMotsMelesActifs[themeMotsMeles].nom
+        });
+        document.getElementById('word-language').textContent = window.generationLiaisonTranslate(
+            langueMotsMeles === 'en' ? 'Les mots de cette grille sont en anglais.' : 'Les mots de cette grille sont en français.');
         const liste = document.getElementById('word-list');
         liste.replaceChildren();
-        liste.append('Mots à trouver : ');
+        liste.append(window.generationLiaisonTranslate('Mots à trouver : '));
         mots.forEach((mot, index) => {
             if (index) liste.append(', ');
             const trouve = motsTrouves.includes(mot);
@@ -7742,22 +7838,29 @@
             if (trouve) {
                 const indication = document.createElement('span');
                 indication.className = 'word-found-sr';
-                indication.textContent = ' (trouvé)';
+                indication.textContent = window.generationLiaisonTranslate(' (trouvé)');
                 liste.append(indication);
             }
         });
         Array.from(document.getElementById('word-grid').children).forEach((bouton, index) => {
             bouton.className = `word-cell${casesMotsTrouves.has(index) ? ' found' : ''}`;
             bouton.setAttribute('aria-pressed', String(index === debutMot));
+            bouton.setAttribute('aria-label', traduireModeleJeu('Ligne {ligne}, colonne {colonne} : {contenu}', {
+                ligne: Math.floor(index / 8) + 1, colonne: index % 8 + 1, contenu: grilleMotsMeles[index]
+            }));
         });
-        document.getElementById('word-status').textContent = message;
+    }
+
+    function afficherMotsMeles(message, valeurs = {}) {
+        actualiserAffichageMotsMeles();
+        afficherTexteJeu('word-status', message, valeurs);
     }
 
     function choisirLettreMot(index) {
-        if (themeMotsMeles === -1 || motsTrouves.length === themesMotsMeles[themeMotsMeles].mots.length) return;
+        if (themeMotsMeles === -1 || motsTrouves.length === themesMotsMelesActifs[themeMotsMeles].mots.length) return;
         if (debutMot === null) {
             debutMot = index;
-            afficherMotsMeles(`Première lettre ${grilleMotsMeles[index]} choisie. Choisissez la dernière lettre.`);
+            afficherMotsMeles('Première lettre {lettre} choisie. Choisissez la dernière lettre.', { lettre: grilleMotsMeles[index] });
             return;
         }
         const ligne = Math.floor(debutMot / 8), colonne = debutMot % 8;
@@ -7772,15 +7875,15 @@
         const cases = Array.from({ length: longueur + 1 }, (_, i) => (ligne + dl * i) * 8 + colonne + dc * i);
         const mot = cases.map(position => grilleMotsMeles[position]).join('');
         debutMot = null;
-        if (!themesMotsMeles[themeMotsMeles].mots.includes(mot)) {
+        if (!themesMotsMelesActifs[themeMotsMeles].mots.includes(mot)) {
             afficherMotsMeles('Ce mot ne figure pas dans la liste. Vous pouvez réessayer.');
         } else if (motsTrouves.includes(mot)) {
-            afficherMotsMeles(`${mot} a déjà été trouvé. Choisissez un autre mot.`);
+            afficherMotsMeles('{mot} a déjà été trouvé. Choisissez un autre mot.', { mot });
         } else {
             motsTrouves.push(mot);
             cases.forEach(position => casesMotsTrouves.add(position));
-            afficherMotsMeles(motsTrouves.length === themesMotsMeles[themeMotsMeles].mots.length
-                ? 'Bravo, vous avez trouvé tous les mots !' : `Bravo, ${mot} est trouvé. Choisissez un autre mot.`);
+            afficherMotsMeles(motsTrouves.length === themesMotsMelesActifs[themeMotsMeles].mots.length
+                ? 'Bravo, vous avez trouvé tous les mots !' : 'Bravo, {mot} est trouvé. Choisissez un autre mot.', { mot });
         }
     }
 
@@ -7812,6 +7915,35 @@
             { mot: 'GENEALOGIE', ligne: 12, colonne: 3, direction: 'horizontal', indice: 'Recherche des liens de parenté et des ancêtres d’une famille.' }
         ] }
     ];
+    const grillesMotsCroisesEn = [
+        { theme: 'Le ciel et ses mystères', mots: [
+            { mot: 'SPACE', ligne: 7, colonne: 6, direction: 'horizontal', indice: 'The vast region beyond Earth’s atmosphere.' },
+            { mot: 'CLOUD', ligne: 7, colonne: 9, direction: 'vertical', indice: 'A visible mass of water droplets in the sky.' },
+            { mot: 'COMET', ligne: 9, colonne: 8, direction: 'horizontal', indice: 'An icy body that may form a tail near the Sun.' },
+            { mot: 'STAR', ligne: 7, colonne: 6, direction: 'vertical', indice: 'A luminous ball of gas, like the Sun.' },
+            { mot: 'ECLIPSE', ligne: 1, colonne: 10, direction: 'vertical', indice: 'An event in which one celestial body hides another.' },
+            { mot: 'ORBIT', ligne: 4, colonne: 7, direction: 'horizontal', indice: 'The path of a body moving around another in space.' },
+            { mot: 'LIGHT', ligne: 5, colonne: 12, direction: 'vertical', indice: 'The radiation that makes things visible.' },
+            { mot: 'MOON', ligne: 2, colonne: 7, direction: 'vertical', indice: 'Earth’s natural satellite.' },
+            { mot: 'PLANET', ligne: 8, colonne: 1, direction: 'horizontal', indice: 'A large body that travels around a star.' },
+            { mot: 'GALAXY', ligne: 6, colonne: 2, direction: 'vertical', indice: 'A vast collection of stars, gas and dust.' }
+        ] },
+        { theme: 'Mémoire et patrimoine', mots: [
+            { mot: 'PAST', ligne: 5, colonne: 0, direction: 'horizontal', indice: 'The time before the present.' },
+            { mot: 'PHOTO', ligne: 2, colonne: 3, direction: 'vertical', indice: 'An image made with a camera.' },
+            { mot: 'HISTORY', ligne: 3, colonne: 3, direction: 'horizontal', indice: 'The study or record of past events.' },
+            { mot: 'MUSEUM', ligne: 1, colonne: 5, direction: 'vertical', indice: 'A place where objects of interest are displayed.' },
+            { mot: 'FAMILY', ligne: 4, colonne: 1, direction: 'vertical', indice: 'People related to one another.' },
+            { mot: 'MEMORY', ligne: 6, colonne: 5, direction: 'horizontal', indice: 'The ability to remember, or something remembered.' },
+            { mot: 'LETTER', ligne: 8, colonne: 1, direction: 'horizontal', indice: 'A written message sent to someone.' },
+            { mot: 'BOOK', ligne: 5, colonne: 8, direction: 'vertical', indice: 'A collection of written or printed pages.' },
+            { mot: 'STORY', ligne: 7, colonne: 4, direction: 'vertical', indice: 'An account of real or imagined events.' },
+            { mot: 'RECORD', ligne: 10, colonne: 4, direction: 'horizontal', indice: 'Information kept as evidence of something.' }
+        ] }
+    ];
+    let grillesMotsCroisesActives = grillesMotsCroises;
+    let langueMotsCroises = 'fr';
+    let motsCroisesNumerotes = [];
     let grilleMotsCroisesCourante = -1;
     let casesMotsCroises = [];
 
@@ -7820,20 +7952,22 @@
     }
 
     function nouveauxMotsCroises() {
-        grilleMotsCroisesCourante = (grilleMotsCroisesCourante + 1) % grillesMotsCroises.length;
-        const grille = grillesMotsCroises[grilleMotsCroisesCourante];
+        langueMotsCroises = window.generationLiaisonLocale() === 'en-US' ? 'en' : 'fr';
+        grillesMotsCroisesActives = langueMotsCroises === 'en' ? grillesMotsCroisesEn : grillesMotsCroises;
+        grilleMotsCroisesCourante = (grilleMotsCroisesCourante + 1) % grillesMotsCroisesActives.length;
+        const grille = grillesMotsCroisesActives[grilleMotsCroisesCourante];
         const debuts = [...new Set(grille.mots.map(mot => mot.ligne * 13 + mot.colonne))].sort((a, b) => a - b);
         const cases = Array(13 * 13).fill(null);
-        const motsNumerotes = grille.mots.map(mot => ({
+        motsCroisesNumerotes = grille.mots.map(mot => ({
             ...mot, numero: debuts.indexOf(mot.ligne * 13 + mot.colonne) + 1
         }));
-        motsNumerotes.forEach(mot => {
+        motsCroisesNumerotes.forEach(mot => {
             for (let index = 0; index < mot.mot.length; index++) {
                 const ligne = mot.ligne + (mot.direction === 'vertical' ? index : 0);
                 const colonne = mot.colonne + (mot.direction === 'horizontal' ? index : 0);
                 const position = ligne * 13 + colonne;
                 if (!cases[position]) cases[position] = { lettre: mot.mot[index], indications: [] };
-                cases[position].indications.push(`${mot.direction === 'horizontal' ? 'Horizontal' : 'Vertical'} ${mot.numero}`);
+                cases[position].indications.push({ direction: mot.direction, numero: mot.numero });
             }
         });
         const conteneur = document.getElementById('crossword-grid');
@@ -7857,42 +7991,54 @@
                 input.autocomplete = 'off';
                 input.autocapitalize = 'characters';
                 input.spellcheck = false;
-                input.setAttribute('aria-label', `Ligne ${Math.floor(index / 13) + 1}, colonne ${index % 13 + 1}. ${caseJeu.indications.join(', ')}`);
                 input.addEventListener('input', () => {
                     input.value = input.value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 1);
                 });
                 cellule.append(input);
-                casesMotsCroises.push({ input, lettre: caseJeu.lettre });
+                casesMotsCroises.push({ input, lettre: caseJeu.lettre, position: index, indications: caseJeu.indications });
             } else {
                 cellule.setAttribute('aria-hidden', 'true');
             }
             conteneur.append(cellule);
         });
+        actualiserAffichageMotsCroises();
+        afficherTexteJeu('crossword-status', 'Complétez la grille, puis vérifiez vos réponses.');
+    }
+
+    function actualiserAffichageMotsCroises() {
+        const grille = grillesMotsCroisesActives[grilleMotsCroisesCourante];
+        casesMotsCroises.forEach(({ input, position, indications }) => {
+            const directions = indications.map(({ direction, numero }) =>
+                `${window.generationLiaisonTranslate(direction === 'horizontal' ? 'Horizontal' : 'Vertical')} ${numero}`).join(', ');
+            input.setAttribute('aria-label', traduireModeleJeu('Ligne {ligne}, colonne {colonne}. {directions}', {
+                ligne: Math.floor(position / 13) + 1, colonne: position % 13 + 1, directions
+            }));
+        });
         const indices = document.getElementById('crossword-clues');
         indices.replaceChildren();
         for (const direction of ['horizontal', 'vertical']) {
             const titre = document.createElement('h4');
-            titre.textContent = direction === 'horizontal' ? 'Horizontal' : 'Vertical';
+            titre.textContent = window.generationLiaisonTranslate(direction === 'horizontal' ? 'Horizontal' : 'Vertical');
             indices.append(titre);
-            motsNumerotes.filter(mot => mot.direction === direction).sort((a, b) => a.numero - b.numero).forEach(mot => {
+            motsCroisesNumerotes.filter(mot => mot.direction === direction).sort((a, b) => a.numero - b.numero).forEach(mot => {
                 const indice = document.createElement('p');
                 indice.textContent = `${mot.numero}. ${mot.indice}`;
                 indices.append(indice);
             });
         }
-        document.getElementById('crossword-theme').textContent = `Thème : ${grille.theme}`;
-        document.getElementById('crossword-status').textContent = 'Complétez la grille, puis vérifiez vos réponses.';
+        document.getElementById('crossword-theme').textContent = traduireModeleJeu('Thème : {theme}', { theme: grille.theme });
+        document.getElementById('crossword-language').textContent = window.generationLiaisonTranslate(
+            langueMotsCroises === 'en' ? 'Les mots de cette grille sont en anglais.' : 'Les mots de cette grille sont en français.');
     }
 
     function verifierMotsCroises() {
         if (!casesMotsCroises.length) return;
-        const status = document.getElementById('crossword-status');
         if (casesMotsCroises.some(caseJeu => !caseJeu.input.value)) {
-            status.textContent = 'Complétez toutes les cases blanches avant de vérifier.';
+            afficherTexteJeu('crossword-status', 'Complétez toutes les cases blanches avant de vérifier.');
         } else if (casesMotsCroises.some(caseJeu => caseJeu.input.value !== caseJeu.lettre)) {
-            status.textContent = 'Certaines lettres ne correspondent pas aux définitions. Vous pouvez réessayer.';
+            afficherTexteJeu('crossword-status', 'Certaines lettres ne correspondent pas aux définitions. Vous pouvez réessayer.');
         } else {
-            status.textContent = 'Bravo, vous avez complété les mots croisés !';
+            afficherTexteJeu('crossword-status', 'Bravo, vous avez complété les mots croisés !');
         }
     }
 
@@ -8066,7 +8212,7 @@
         const selected = role === 'senior' && !document.body.classList.contains('senior-simple')
             ? Array.from(document.querySelectorAll('#message-multiple-contacts input:checked:not(:disabled)')) : [];
         if (!selected.length && !select.value) {
-            status.textContent = 'Choisissez un correspondant.';
+            status.textContent = window.generationLiaisonTranslate('Choisissez un correspondant.');
             return;
         }
         const contactId = select.value;
@@ -8111,13 +8257,13 @@
                 refreshed = await ouvrirConversation(role);
             }
             if (connectedUser?.id === userId && connectedUser?.role === role) {
-                status.textContent = role === 'senior' && !refreshed
+                status.textContent = window.generationLiaisonTranslate(role === 'senior' && !refreshed
                     ? 'Message envoyé. Impossible de rafraîchir la conversation.'
-                    : selected.length ? 'Messages envoyés séparément.' : 'Message envoyé.';
+                    : selected.length ? 'Messages envoyés séparément.' : 'Message envoyé.');
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role) {
-                status.textContent = error.message || 'Impossible d’envoyer le message.';
+                status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’envoyer le message.');
             }
         } finally {
             button.disabled = false;
@@ -8132,7 +8278,7 @@
         const submit = document.querySelector('#message-form-senior button[type="submit"]');
         if (submit.disabled) return;
         if (!select.value) {
-            status.textContent = 'Choisissez un correspondant.';
+            status.textContent = window.generationLiaisonTranslate('Choisissez un correspondant.');
             return;
         }
         const contactId = select.value;
@@ -8142,16 +8288,16 @@
         status.textContent = window.generationLiaisonTranslate('Envoi du message…');
         try {
             await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
-                method: 'POST', body: { message }
+                method: 'POST', body: { message: window.generationLiaisonTranslate(message) }
             });
             if (connectedUser?.id !== userId || connectedUser?.role !== 'senior') return;
             const refreshed = select.value !== contactId || await ouvrirConversation('senior');
             if (connectedUser?.id === userId && connectedUser?.role === 'senior') {
-                status.textContent = refreshed ? 'Message envoyé.' : 'Message envoyé. Impossible de rafraîchir la conversation.';
+                status.textContent = window.generationLiaisonTranslate(refreshed ? 'Message envoyé.' : 'Message envoyé. Impossible de rafraîchir la conversation.');
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === 'senior') {
-                status.textContent = error.message || 'Impossible d’envoyer le message.';
+                status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’envoyer le message.');
             }
         } finally {
             buttons.forEach(button => { button.disabled = false; });
@@ -10423,22 +10569,22 @@
                 document.getElementById(`care-${role}-nonmedical`).checked = false;
             }
         }
-        document.getElementById('care-staff-resident').replaceChildren(new Option('Choisir un résident', ''));
+        document.getElementById('care-staff-resident').replaceChildren(new Option(window.generationLiaisonTranslate('Choisir un résident'), ''));
     }
     async function chargerResidentsSoignant() {
         const userId = connectedUser?.id;
         const select = document.getElementById('care-staff-resident');
         const status = document.getElementById('care-staff-status');
         document.getElementById('care-staff-entries').replaceChildren();
-        select.replaceChildren(new Option('Choisir un résident', ''));
-        status.textContent = 'Chargement des résidents autorisés…';
+        select.replaceChildren(new Option(window.generationLiaisonTranslate('Choisir un résident'), ''));
+        status.textContent = window.generationLiaisonTranslate('Chargement des résidents autorisés…');
         try {
             const result = await readResponse(await fetch(`${SERVER_URL}/api/care/residents`, { headers: authHeaders() }));
             if (connectedUser?.id !== userId || connectedUser?.role !== 'staff') return;
             for (const resident of result.residents) select.add(new Option(resident.name, resident.id));
-            status.textContent = result.residents.length ? 'Choisissez un résident.' : 'Aucun résident autorisé ou abonnement inactif.';
+            status.textContent = window.generationLiaisonTranslate(result.residents.length ? 'Choisissez un résident.' : 'Aucun résident autorisé ou abonnement inactif.');
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement impossible.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslate(error.message || 'Chargement impossible.');
         }
     }
 
@@ -10468,24 +10614,24 @@
             }
         }
         if (consentBox && !before) consentBox.replaceChildren();
-        if (role === 'staff' && !residentId) { status.textContent = 'Choisissez un résident.'; return; }
-        status.textContent = 'Chargement…';
+        if (role === 'staff' && !residentId) { status.textContent = window.generationLiaisonTranslate('Choisissez un résident.'); return; }
+        status.textContent = window.generationLiaisonTranslate('Chargement…');
         try {
             if (consentBox && !before) {
                 const response = await readResponse(await fetch(`${SERVER_URL}/api/care/consent`, { headers: authHeaders() }));
                 if (!current()) return;
                 const establishment = response.establishment;
-                if (!establishment) { status.textContent = 'Aucun établissement associé à ce compte.'; return; }
+                if (!establishment) { status.textContent = window.generationLiaisonTranslate('Aucun établissement associé à ce compte.'); return; }
                 const label = document.createElement('p');
-                label.textContent = `${establishment.establishment_name} : ${establishment.consented ? 'partage autorisé' : 'partage non autorisé'}.`;
+                label.textContent = `${establishment.establishment_name} : ${window.generationLiaisonTranslate(establishment.consented ? 'partage autorisé' : 'partage non autorisé')}.`;
                 consentBox.append(label);
                 if (role === 'senior' || (connectedUser.isLegalGuardian && connectedUser.guardianVerificationStatus === 'approved')) {
                     const button = document.createElement('button');
                     button.type = 'button';
-                    button.textContent = establishment.consented ? 'Retirer cet accord' : 'Autoriser le partage';
+                    button.textContent = window.generationLiaisonTranslate(establishment.consented ? 'Retirer cet accord' : 'Autoriser le partage');
                     button.addEventListener('click', async () => {
-                        if (!confirm(establishment.consented ? 'Retirer l’accès au carnet de l’établissement ?' :
-                            'Autoriser les soignants de cet établissement à accéder aux transmissions et les échanges privés entre proches et soignants ?')) return;
+                        if (!confirm(window.generationLiaisonTranslate(establishment.consented ? 'Retirer l’accès au carnet de l’établissement ?' :
+                            'Autoriser les soignants de cet établissement à accéder aux transmissions et les échanges privés entre proches et soignants ?'))) return;
                         button.disabled = true;
                         try {
                             await readResponse(await fetch(`${SERVER_URL}/api/care/consent`, {
@@ -10494,12 +10640,12 @@
                             }));
                             if (current()) await chargerCarnetEtablissement(role);
                         } catch (error) {
-                            if (current()) { status.textContent = error.message || 'Décision non enregistrée.'; button.disabled = false; }
+                            if (current()) { status.textContent = window.generationLiaisonTranslate(error.message || 'Décision non enregistrée.'); button.disabled = false; }
                         }
                     });
                     consentBox.append(button);
                 }
-                if (!establishment.consented) { status.textContent = 'Le carnet n’est pas partagé.'; return; }
+                if (!establishment.consented) { status.textContent = window.generationLiaisonTranslate('Le carnet n’est pas partagé.'); return; }
             }
             const params = new URLSearchParams();
             if (residentId) params.set('residentId', residentId);
@@ -10510,7 +10656,7 @@
             entries.querySelector('[data-care-more]')?.remove();
             for (const entry of response.entries) {
                 const item = document.createElement('p');
-                item.textContent = `${entry.kind === 'message' ? 'Message' : 'Transmission'} · ${entry.author_name} · ${new Date(entry.created_at).toLocaleString('fr-FR')} : ${entry.content}`;
+                item.textContent = `${window.generationLiaisonTranslate(entry.kind === 'message' ? 'Message' : 'Transmission')} · ${entry.author_name} · ${new Date(entry.created_at).toLocaleString(window.generationLiaisonLocale())} : ${entry.content}`;
                 if (entry.kind === 'message') item.setAttribute('data-message-direction', entry.mine ? 'sent' : 'received');
                 entries.append(item);
             }
@@ -10520,13 +10666,13 @@
             }
             if (response.nextCursor) {
                 const more = document.createElement('button');
-                more.type = 'button'; more.dataset.careMore = 'true'; more.textContent = 'Afficher les messages précédents';
+                more.type = 'button'; more.dataset.careMore = 'true'; more.textContent = window.generationLiaisonTranslate('Afficher les messages précédents');
                 more.addEventListener('click', () => chargerCarnetEtablissement(role, response.nextCursor));
                 entries.append(more);
             }
-            status.textContent = response.entries.length ? '' : 'Aucune transmission ou message.';
+            status.textContent = response.entries.length ? '' : window.generationLiaisonTranslate('Aucune transmission ou message.');
         } catch (error) {
-            if (current()) status.textContent = error.message || 'Chargement impossible.';
+            if (current()) status.textContent = window.generationLiaisonTranslate(error.message || 'Chargement impossible.');
         }
     }
 
@@ -11065,6 +11211,8 @@
         document.querySelectorAll('#professional-registration-fields [type="file"], #professional-verification-documents-form [type="file"], #legal-guardian-registration-fields [type="file"]')
             .forEach(input => { input.value = ''; });
         document.getElementById('reg-role').value = '';
+        document.getElementById('reg-account-location').value = 'france';
+        actualiserLieuInscription();
         document.getElementById('reg-account-city').value = '';
         document.getElementById('reg-account-postcode').value = '';
         document.getElementById('reg-account-city-select').replaceChildren();
@@ -11218,9 +11366,10 @@
                 smsNotificationsEnabled,
                 acceptedTerms: true,
                 acceptedTermsVersion: '2026-11-03.1',
-                requireAccountCommune: ['senior', 'aidant'].includes(role)
+                requireAccountCommune: ['senior', 'aidant'].includes(role) &&
+                    document.getElementById('reg-account-location').value === 'france'
             };
-            if (['senior', 'aidant'].includes(role)) {
+            if (credentials.requireAccountCommune) {
                 const commune = await choisirCommune(
                     'account', 'reg-account-city', 'reg-account-postcode', 'reg-account-city-select', 'reg-account-city-label'
                 );
@@ -11782,6 +11931,8 @@
         document.addEventListener('visibilitychange', surveillerNotificationsVisibles);
         window.addEventListener('resize', surveillerNotificationsVisibles);
         window.addEventListener('generationliaisonlanguagechange', afficherProchainRendezVous);
+        window.addEventListener('generationliaisonlanguagechange', traduireTextesJeux);
+        traduireTextesJeux();
         let pendingNotificationId = new URLSearchParams(window.location.search).get('notification') || '';
         window.handlePendingNotification = async () => {
             const id = window.pendingPushNotificationId || pendingNotificationId;
@@ -11816,7 +11967,7 @@
                 if (notification.type === 'private_message' && notification.senderUserId &&
                     ['senior', 'aidant', 'pro'].includes(connectedUser.role)) {
                     const role = connectedUser.role;
-                    switchScreen('messages');
+                    switchScreen('messages', true);
                     if (!await chargerCorrespondants(role)) return;
                     const select = document.getElementById(`message-contact-${role}`);
                     if (role === 'senior') {

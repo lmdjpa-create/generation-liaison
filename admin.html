@@ -553,7 +553,7 @@
       const status = document.getElementById('admin-tablet-status');
       const body = document.getElementById('admin-tablet-body');
       button.disabled = true;
-      status.textContent = 'Chargement...';
+      status.textContent = window.generationLiaisonTranslate('Chargement...');
       try {
         const result = await adminRequest('/api/admin/tablet-interests');
         if (revision !== tabletInterestsRevision) return;
@@ -567,14 +567,15 @@
             purchase_premium: 'Achat de la tablette avec option Premium à venir',
             rental_premium: 'Location de la tablette avec option Premium à venir'
           };
-          addCell(row, labels[interest.tabletInterest]);
+          const label = labels[interest.tabletInterest];
+          addCell(row, label ? window.generationLiaisonTranslate(label) : label);
           const address = interest.postalAddress;
           addCell(row, `${address.street}, ${address.postalCode} ${address.city}, ${address.country}`);
           body.append(row);
         }
-        status.textContent = result.interests.length ? '' : 'Aucun intérêt enregistré.';
+        status.textContent = result.interests.length ? '' : window.generationLiaisonTranslate('Aucun intérêt enregistré.');
       } catch (error) {
-        if (revision === tabletInterestsRevision) status.textContent = error.message || 'Impossible de charger les intérêts.';
+        if (revision === tabletInterestsRevision) status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de charger les intérêts.');
       } finally {
         button.disabled = false;
       }
@@ -588,22 +589,23 @@
       const message = document.getElementById('admin-announcement-message').value.trim();
       const status = document.getElementById('admin-announcement-status');
       if (!title || !message) {
-        status.textContent = 'Renseignez un titre et un message.';
+        status.textContent = window.generationLiaisonTranslate('Renseignez un titre et un message.');
         return;
       }
-      if (!confirm(`Envoyer cette notification à : ${audience.options[audience.selectedIndex].text} ?`)) return;
+      if (!confirm(window.generationLiaisonTranslate('Envoyer cette notification à : {audience} ?').replace('{audience}', audience.options[audience.selectedIndex].text))) return;
       const button = form.querySelector('button[type="submit"]');
       button.disabled = true;
-      status.textContent = 'Envoi en cours…';
+      status.textContent = window.generationLiaisonTranslate('Envoi en cours…');
       try {
         const result = await adminRequest('/api/admin/announcements', {
           method: 'POST', body: { audience: audience.value, title, message }
         });
-        status.textContent = `Notification enregistrée pour ${result.recipients} compte(s).`;
+        status.textContent = window.generationLiaisonTranslate('Notification enregistrée pour {count} compte(s).').replace('{count}', result.recipients);
         document.getElementById('admin-announcement-title').value = '';
         document.getElementById('admin-announcement-message').value = '';
       } catch (error) {
-        status.textContent = `Envoi non confirmé : ${error.message || 'erreur de connexion'}. Vérifiez avant de réessayer.`;
+        status.textContent = window.generationLiaisonTranslate('Envoi non confirmé : {error}. Vérifiez avant de réessayer.')
+          .replace('{error}', window.generationLiaisonTranslate(error.message || 'erreur de connexion'));
       } finally {
         button.disabled = false;
       }
@@ -619,7 +621,7 @@
       }
       loginView.hidden = true;
       adminView.hidden = false;
-      document.getElementById('admin-name').textContent = `${user.name} · Administrateur`;
+      document.getElementById('admin-name').textContent = `${user.name} · ${window.generationLiaisonTranslate('Administrateur')}`;
       clearInterval(overviewRefreshTimer);
       overviewRefreshTimer = setInterval(() => {
         if (!document.hidden) loadOverview();
@@ -684,7 +686,7 @@
       const cell = document.createElement('td');
       cell.className = 'table-empty';
       cell.colSpan = columns;
-      cell.textContent = message;
+      cell.textContent = window.generationLiaisonTranslate(message);
       row.append(cell);
       tbody.replaceChildren(row);
     }
@@ -715,17 +717,17 @@
     }
 
     document.getElementById('site-monitor-review').addEventListener('click', async event => {
-      if (!window.confirm('Envoyer uniquement les compteurs anonymes à OpenAI pour obtenir des pistes de vérification ?')) return;
+      if (!window.confirm(window.generationLiaisonTranslate('Envoyer uniquement les compteurs anonymes à OpenAI pour obtenir des pistes de vérification ?'))) return;
       const status = document.getElementById('site-monitor-review-status');
       event.currentTarget.disabled = true;
-      status.textContent = 'Analyse en cours…';
+      status.textContent = window.generationLiaisonTranslate('Analyse en cours…');
       try {
         const result = await adminRequest('/api/admin/site-monitor/review', {
           method: 'POST', body: { confirmed: true }
         });
         status.textContent = result.review;
       } catch (error) {
-        status.textContent = error.message || 'Impossible d’analyser les compteurs.';
+        status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’analyser les compteurs.');
       } finally {
         event.currentTarget.disabled = false;
       }
@@ -735,16 +737,16 @@
       const button = document.getElementById('assistant-settings-save');
       const status = document.getElementById('assistant-settings-status');
       button.disabled = true;
-      status.textContent = 'Enregistrement…';
+      status.textContent = window.generationLiaisonTranslate('Enregistrement…');
       try {
         const result = await adminRequest('/api/admin/assistant/settings', {
           method: 'PATCH',
           body: { customInstructions: document.getElementById('assistant-custom-instructions').value }
         });
         document.getElementById('assistant-custom-instructions').value = result.customInstructions;
-        status.textContent = 'Réglages de l’IA enregistrés.';
+        status.textContent = window.generationLiaisonTranslate('Réglages de l’IA enregistrés.');
       } catch (error) {
-        status.textContent = error.message || 'Impossible d’enregistrer les réglages de l’IA.';
+        status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’enregistrer les réglages de l’IA.');
       } finally {
         button.disabled = false;
       }
@@ -768,7 +770,7 @@
       appendMessage('user', message);
       input.value = '';
       button.disabled = true;
-      status.textContent = 'L’IA prépare une réponse…';
+      status.textContent = window.generationLiaisonTranslate('L’IA prépare une réponse…');
       try {
         const result = await adminRequest('/api/admin/assistant/chat', {
           method: 'POST',
@@ -778,7 +780,7 @@
         appendMessage('assistant', result.reply);
         status.textContent = '';
       } catch (error) {
-        status.textContent = error.message || 'Impossible de joindre l’assistant IA.';
+        status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de joindre l’assistant IA.');
       } finally {
         button.disabled = false;
         input.focus();
@@ -795,23 +797,23 @@
         ]);
         const toggle = document.getElementById('assistant-toggle-button');
         toggle.dataset.enabled = String(settings.enabled);
-        toggle.textContent = settings.enabled ? 'Désactiver l’assistant IA' : 'Activer l’assistant IA';
+        toggle.textContent = window.generationLiaisonTranslate(settings.enabled ? 'Désactiver l’assistant IA' : 'Activer l’assistant IA');
         toggle.disabled = false;
         document.getElementById('assistant-custom-instructions').value = settings.customInstructions || '';
-        document.getElementById('assistant-config-status').textContent = settings.configured
+        document.getElementById('assistant-config-status').textContent = window.generationLiaisonTranslate(settings.configured
           ? 'IA connectée à OpenAI. Les consignes ci-dessous personnalisent ses réponses sans remplacer ses règles de sécurité.'
-          : 'Clé OpenAI non configurée : l’assistant ne répondra pas tant que OPENAI_API_KEY n’est pas définie sur le serveur.';
+          : 'Clé OpenAI non configurée : l’assistant ne répondra pas tant que OPENAI_API_KEY n’est pas définie sur le serveur.');
         const container = document.getElementById('assistant-handoffs');
         container.replaceChildren();
         if (!result.handoffs.length) {
-          container.textContent = 'Aucune demande de contact en attente.';
+          container.textContent = window.generationLiaisonTranslate('Aucune demande de contact en attente.');
           return;
         }
         result.handoffs.forEach(handoff => {
           const article = document.createElement('article');
           article.className = 'assistant-handoff';
           const heading = document.createElement('h3');
-          heading.textContent = `${handoff.seniorName} · demande du ${formatDate(handoff.updatedAt)}`;
+          heading.textContent = `${handoff.seniorName} · ${window.generationLiaisonTranslate('Demande du')} ${formatDate(handoff.updatedAt)}`;
           article.append(heading);
           const thread = document.createElement('div');
           thread.className = 'assistant-thread';
@@ -819,7 +821,7 @@
             const item = document.createElement('div');
             item.className = 'assistant-thread-message';
             const role = document.createElement('strong');
-            role.textContent = `${message.role === 'user' ? handoff.seniorName : message.role === 'admin' ? 'Équipe' : 'Assistant IA'} : `;
+            role.textContent = `${message.role === 'user' ? handoff.seniorName : window.generationLiaisonTranslate(message.role === 'admin' ? 'Équipe' : 'Assistant IA')} : `;
             item.append(role, document.createTextNode(message.content));
             thread.append(item);
           });
@@ -829,11 +831,11 @@
           const input = document.createElement('textarea');
           input.maxLength = 1200;
           input.required = true;
-          input.setAttribute('aria-label', `Répondre à ${handoff.seniorName}`);
+          input.setAttribute('aria-label', window.generationLiaisonTranslate('Répondre à {name}').replace('{name}', handoff.seniorName));
           const submit = document.createElement('button');
           submit.className = 'button';
           submit.type = 'submit';
-          submit.textContent = 'Répondre';
+          submit.textContent = window.generationLiaisonTranslate('Répondre');
           form.append(input, submit);
           form.addEventListener('submit', async event => {
             event.preventDefault();
@@ -854,7 +856,7 @@
         });
       } catch (error) {
         document.getElementById('assistant-handoffs').textContent =
-          error.message || 'Impossible de charger les demandes de contact.';
+          window.generationLiaisonTranslate(error.message || 'Impossible de charger les demandes de contact.');
       }
     }
 
@@ -873,7 +875,7 @@
         const card = document.createElement('article');
         card.className = 'stat-card';
         const title = document.createElement('span');
-        title.textContent = label;
+        title.textContent = window.generationLiaisonTranslate(label);
         const count = document.createElement('strong');
         count.textContent = String(value);
         card.append(title, count);
@@ -1337,7 +1339,7 @@
         const emailCell = document.createElement('td');
         emailCell.append(emailNode(account.email));
         row.append(emailCell);
-        addCell(row, `${roleLabels[account.role] || account.role}${account.administrator ? ' · Admin' : ''}`);
+        addCell(row, `${roleLabels[account.role] ? window.generationLiaisonTranslate(roleLabels[account.role]) : account.role}${account.administrator ? ' · Admin' : ''}`);
         addCell(row, account.profileName);
         addCell(row, String(account.teamCount));
         addCell(row, new Date(account.createdAt).toLocaleDateString(window.generationLiaisonLocale()));
@@ -1345,9 +1347,9 @@
         if (account.role === 'pro') {
           const verificationState = document.createElement('span');
           verificationState.className = `badge${account.verificationStatus === 'approved' ? '' : ' off'}`;
-          verificationState.textContent = account.verificationStatus === 'approved'
+          verificationState.textContent = window.generationLiaisonTranslate(account.verificationStatus === 'approved'
             ? 'Validé'
-            : account.verificationStatus === 'rejected' ? 'À compléter' : 'En attente';
+            : account.verificationStatus === 'rejected' ? 'À compléter' : 'En attente');
           verification.append(verificationState);
           const documents = account.verificationDocuments || {};
           for (const [type, label] of [['identity', 'Identité'], ['kbis', 'Kbis']]) {
@@ -1374,7 +1376,7 @@
             approve.className = 'button';
             approve.style.margin = '6px 4px 0 0';
             approve.type = 'button';
-            approve.textContent = 'Valider';
+            approve.textContent = window.generationLiaisonTranslate('Valider');
             approve.disabled = !documents.identity || !documents.kbis;
             approve.addEventListener('click', () => reviewProfessional(account, 'approved', approve));
             verification.append(approve);
@@ -1383,7 +1385,7 @@
             reject.className = 'button secondary';
             reject.style.marginTop = '6px';
             reject.type = 'button';
-            reject.textContent = 'Refuser';
+            reject.textContent = window.generationLiaisonTranslate('Refuser');
             reject.addEventListener('click', () => reviewProfessional(account, 'rejected', reject));
             verification.append(reject);
           }
@@ -1403,7 +1405,7 @@
               button.className = 'button secondary';
               button.style.margin = '4px';
               button.type = 'button';
-              button.textContent = `${documents[type] ? 'Télécharger' : 'Manquant'} · ${label}`;
+              button.textContent = `${window.generationLiaisonTranslate(documents[type] ? 'Télécharger' : 'Manquant')} · ${window.generationLiaisonTranslate(label)}`;
               button.disabled = !documents[type];
               button.addEventListener('click', async () => {
                 button.disabled = true;
@@ -1490,21 +1492,21 @@
         action.className = 'establishment-access';
         const state = document.createElement('span');
         state.className = `badge${account.active ? '' : ' off'}`;
-        state.textContent = account.active ? 'Actif' : 'Suspendu';
+        state.textContent = window.generationLiaisonTranslate(account.active ? 'Actif' : 'Suspendu');
         action.append(state);
         if (!account.administrator) {
           const accessDetails = document.createElement('details');
           const accessSummary = document.createElement('summary');
-          accessSummary.textContent = 'Gérer l’accès au compte';
+          accessSummary.textContent = window.generationLiaisonTranslate('Gérer l’accès au compte');
           const button = document.createElement('button');
           button.className = 'button secondary';
           button.type = 'button';
-          button.textContent = account.active ? 'Suspendre' : 'Réactiver';
+          button.textContent = window.generationLiaisonTranslate(account.active ? 'Suspendre' : 'Réactiver');
           button.addEventListener('click', () => updateAccount(account, button));
           const close = document.createElement('button');
           close.className = 'button secondary';
           close.type = 'button';
-          close.textContent = 'Lancer la clôture';
+          close.textContent = window.generationLiaisonTranslate('Lancer la clôture');
           close.addEventListener('click', () => initiateAccountClosure(account, close));
           accessDetails.append(accessSummary, button, close);
           action.append(accessDetails);
@@ -1515,27 +1517,27 @@
           const premiumBadge = document.createElement('span');
           premiumBadge.className = `badge${account.premiumActive ? '' : ' off'}`;
           premiumBadge.textContent = account.premiumActive
-            ? `${account.premiumStatus === 'trial' ? 'Essai' : 'Premium'}${account.premiumUntil ? ` jusqu’au ${new Date(account.premiumUntil).toLocaleDateString('fr-FR')}` : ''}`
-            : 'Sans abonnement';
+            ? `${window.generationLiaisonTranslate(account.premiumStatus === 'trial' ? 'Essai' : 'Premium')}${account.premiumUntil ? ` ${window.generationLiaisonTranslate('jusqu’au')} ${new Date(account.premiumUntil).toLocaleDateString(window.generationLiaisonLocale())}` : ''}`
+            : window.generationLiaisonTranslate('Sans abonnement');
           const premiumDetails = document.createElement('details');
           const premiumSummary = document.createElement('summary');
-          premiumSummary.textContent = 'Gérer l’abonnement';
+          premiumSummary.textContent = window.generationLiaisonTranslate('Gérer l’abonnement');
           const premiumControls = document.createElement('div');
           premiumControls.className = 'establishment-account-form';
           const premiumChoice = document.createElement('select');
-          premiumChoice.setAttribute('aria-label', 'Abonnement du compte');
+          premiumChoice.setAttribute('aria-label', window.generationLiaisonTranslate('Abonnement du compte'));
           [['', 'Choisir…'], ['month', 'Premium 1 mois'], ['quarter', 'Premium 3 mois'],
             ['year', 'Premium 12 mois'], ['forever', 'Premium sans fin'],
             ['trial', 'Essai 14 jours'], ['none', 'Retirer l’abonnement']].forEach(([value, label]) => {
             const option = document.createElement('option');
             option.value = value;
-            option.textContent = label;
+            option.textContent = window.generationLiaisonTranslate(label);
             premiumChoice.append(option);
           });
           const premiumButton = document.createElement('button');
           premiumButton.className = 'button secondary';
           premiumButton.type = 'button';
-          premiumButton.textContent = 'Appliquer';
+          premiumButton.textContent = window.generationLiaisonTranslate('Appliquer');
           premiumButton.addEventListener('click', () => updatePremium(account, premiumChoice.value, premiumButton));
           premiumControls.append(premiumChoice, premiumButton);
           premiumDetails.append(premiumSummary, premiumControls);
@@ -1544,7 +1546,7 @@
         } else if (account.role === 'establishment') {
           const hint = document.createElement('p');
           hint.className = 'hint';
-          hint.textContent = 'Abonnement dans Entreprises / résidences.';
+          hint.textContent = window.generationLiaisonTranslate('Abonnement dans Entreprises / résidences.');
           action.append(hint);
         }
         row.append(action);
@@ -1902,16 +1904,16 @@
     function createEstablishmentAccountForm(item) {
       const details = document.createElement('details');
       const summary = document.createElement('summary');
-      summary.textContent = 'Créer un compte rattaché';
+      summary.textContent = window.generationLiaisonTranslate('Créer un compte rattaché');
       details.append(summary);
       const help = document.createElement('p');
-      help.textContent = 'Avec l’accord de la personne, créez un nouveau compte résident ou soignant. Remettez l’identifiant et le mot de passe provisoire en privé. Toute personne connaissant ce mot de passe peut activer le compte. Le partage du carnet nécessite un accord distinct du résident ou de son représentant légal vérifié.';
+      help.textContent = window.generationLiaisonTranslate('Avec l’accord de la personne, créez un nouveau compte résident ou soignant. Remettez l’identifiant et le mot de passe provisoire en privé. Toute personne connaissant ce mot de passe peut activer le compte. Le partage du carnet nécessite un accord distinct du résident ou de son représentant légal vérifié.');
       details.append(help);
       const form = document.createElement('form');
       form.className = 'establishment-account-form';
       function field(labelText, input) {
         const label = document.createElement('label');
-        label.textContent = labelText;
+        label.textContent = window.generationLiaisonTranslate(labelText);
         label.append(input);
         form.append(label);
         return input;
@@ -1920,7 +1922,7 @@
       for (const [value, text] of [['senior', 'Résident'], ['staff', 'Soignant']]) {
         const option = document.createElement('option');
         option.value = value;
-        option.textContent = text;
+        option.textContent = window.generationLiaisonTranslate(text);
         role.append(option);
       }
       field('Type de compte ', role);
@@ -1941,12 +1943,12 @@
       const confirmed = input('J’ai obtenu l’accord de la personne pour créer ce compte ', 'checkbox');
       const submit = document.createElement('button');
       submit.type = 'submit';
-      submit.textContent = 'Créer et rattacher le compte';
+      submit.textContent = window.generationLiaisonTranslate('Créer et rattacher le compte');
       submit.disabled = !item.account_active || !item.active;
       const status = document.createElement('p');
       status.setAttribute('role', 'status');
       status.setAttribute('aria-live', 'polite');
-      if (submit.disabled) status.textContent = 'Le compte entreprise et son abonnement doivent être actifs.';
+      if (submit.disabled) status.textContent = window.generationLiaisonTranslate('Le compte entreprise et son abonnement doivent être actifs.');
       form.append(submit, status);
       form.addEventListener('submit', async event => {
         event.preventDefault();
@@ -1959,9 +1961,9 @@
               birthDate: birthDate.value, password: password.value, confirmed: confirmed.checked }
           });
           form.reset();
-          status.textContent = `Compte créé. Identifiant à remettre en privé : ${account.identifier}. Transmettez aussi le mot de passe provisoire séparément.`;
+          status.textContent = window.generationLiaisonTranslate('Compte créé. Identifiant à remettre en privé : {identifier}. Transmettez aussi le mot de passe provisoire séparément.').replace('{identifier}', account.identifier);
         } catch (error) {
-          status.textContent = error.message || 'Impossible de créer le compte.';
+          status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de créer le compte.');
         } finally {
           submit.disabled = false;
         }

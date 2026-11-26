@@ -169,6 +169,8 @@ test('sends only the submitted wellbeing text to OpenAI without storing the resp
     assert.match(body.instructions, /sans diagnostic/);
     assert.match(body.instructions, /112/);
     assert.match(body.instructions, /18 pour les pompiers/);
+    assert.match(body.instructions, /Ne suppose pas la localisation/);
+    assert.match(body.instructions, /secours locaux/);
     assert.deepEqual(body.input, [{ role: 'user', content: 'Je me sens bien ce matin.' }]);
     assert.equal(reply, 'Merci de me l’avoir dit.');
   } finally {
@@ -210,6 +212,27 @@ test('returns a structured, indicative safety signal with the wellbeing response
       reply: 'Est-ce que vous êtes en sécurité et avez-vous besoin d’aide ?',
       safetyConcern: true
     });
+  } finally {
+    global.fetch = originalFetch;
+  }
+});
+
+test('wellbeing assessment uses the requested language without assuming a location', async () => {
+  const originalFetch = global.fetch;
+  let payload;
+  global.fetch = async (url, options) => {
+    payload = JSON.parse(options.body);
+    return new Response(JSON.stringify({
+      output_text: JSON.stringify({ reply: 'Please contact local emergency services.', safetyConcern: true })
+    }), { status: 200 });
+  };
+  try {
+    await generateWellbeingAssessment({ message: 'I need help.', apiKey: 'test-key', language: 'en' });
+    assert.match(payload.instructions, /Réponds en anglais/);
+    assert.match(payload.instructions, /Ne suppose pas la localisation/);
+    assert.match(payload.instructions, /que si la personne précise être en France/);
+    assert.deepEqual(payload.input, [{ role: 'user', content: 'I need help.' }]);
+    await assert.rejects(generateWellbeingAssessment({ message: 'Hello', apiKey: 'test-key', language: 'xx' }), TypeError);
   } finally {
     global.fetch = originalFetch;
   }

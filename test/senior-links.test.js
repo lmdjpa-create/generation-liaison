@@ -828,6 +828,22 @@ test('account municipality is required, private, validated and cleared on accoun
   assert.equal(legacy.data.user.accountCommune, null);
 });
 
+test('senior and caregiver accounts can register without a French municipality', async () => {
+  for (const role of ['senior', 'aidant']) {
+    const email = `without-municipality-${role}@example.test`;
+    const body = {
+      name: 'Compte sans commune', email, password: 'a-test-password-123',
+      role, acceptedTerms: true, acceptedTermsVersion: TERMS_VERSION, requireAccountCommune: false
+    };
+    const created = await request('/api/auth/register', { body });
+    assert.equal(created.status, 201);
+    assert.equal(created.data.user.accountCommune, null);
+    const login = await request('/api/auth/login', { body: { email, password: body.password } });
+    assert.equal(login.status, 200);
+    assert.equal(login.data.user.accountCommune, null);
+  }
+});
+
 test('tablet interest requires an address, is private, editable and cleared on closure', async () => {
   const base = {
     name: 'Client tablette', email: 'tablet-buyer@example.test', password: 'a-test-password-123',
@@ -951,6 +967,42 @@ test('site diagnostics are restricted to administrators and share only anonymous
     global.fetch = originalFetch;
     if (oldKey === undefined) delete process.env.OPENAI_API_KEY;
     else process.env.OPENAI_API_KEY = oldKey;
+  }
+});
+
+test('wellbeing check-in validates language and sends the selected language to the assistant', async () => {
+  const senior = await register('english-wellbeing@example.test', 'senior');
+  const legacySenior = await register('legacy-wellbeing@example.test', 'senior');
+  const originalFetch = global.fetch;
+  const oldKey = process.env.OPENAI_API_KEY;
+  const originalEnabled = (await db.query('SELECT enabled FROM app_ai_settings WHERE id = 1')).rows[0].enabled;
+  let payload;
+  global.fetch = async (url, options) => {
+    if (url === 'https://api.openai.com/v1/responses') {
+      payload = JSON.parse(options.body);
+      return new Response(JSON.stringify({ output_text: JSON.stringify({ reply: 'I hear you.', safetyConcern: false }) }), { status: 200 });
+    }
+    return originalFetch(url, options);
+  };
+  process.env.OPENAI_API_KEY = 'test-key';
+  try {
+    const body = { message: 'I feel okay.', recipientUserIds: [], shareConfirmed: false };
+    const invalid = await request('/api/wellbeing/check-in', { user: senior, body: { ...body, language: 'xx' } });
+    assert.equal(invalid.status, 400);
+    await db.query('UPDATE app_ai_settings SET enabled = TRUE WHERE id = 1');
+    const result = await request('/api/wellbeing/check-in', { user: senior, body: { ...body, language: 'en' } });
+    assert.equal(result.status, 201);
+    assert.equal(result.data.checkin.assistantReply, 'I hear you.');
+    assert.match(payload.instructions, /Réponds en anglais/);
+    assert.deepEqual(payload.input, [{ role: 'user', content: 'I feel okay.' }]);
+    const legacy = await request('/api/wellbeing/check-in', { user: legacySenior, body });
+    assert.equal(legacy.status, 201);
+    assert.match(payload.instructions, /Réponds en français/);
+  } finally {
+    global.fetch = originalFetch;
+    if (oldKey === undefined) delete process.env.OPENAI_API_KEY;
+    else process.env.OPENAI_API_KEY = oldKey;
+    await db.query('UPDATE app_ai_settings SET enabled = $1 WHERE id = 1', [originalEnabled]);
   }
 });
 

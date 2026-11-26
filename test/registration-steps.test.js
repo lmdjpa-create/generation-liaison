@@ -15,6 +15,11 @@ test('login and registration identity fields have persistent visible labels', ()
   }
 });
 
+test('registration discloses the current language of the terms and privacy policy', () => {
+  const step = source.slice(source.indexOf('id="reg-step-4"'), source.indexOf('id="reg-step-error"'));
+  assert.match(step, /Les conditions et la politique de confidentialité sont actuellement en français\./);
+});
+
 test('tablet prices appear with each choice in registration and settings', () => {
   for (const [value, price] of [
     ['purchase', /299 € TTC/],
@@ -44,7 +49,7 @@ function createRegistration(role = 'aidant') {
     'reg-role': role, 'reg-first-name': 'Marie', 'reg-last-name': 'Martin',
     'reg-email': 'marie@example.com', 'reg-password': 'un-code-secret',
     'reg-confirm-password': 'un-code-secret', 'reg-service-radius': '30',
-    'reg-tablet-interest': 'none'
+    'reg-tablet-interest': 'none', 'reg-account-location': 'france'
   };
   for (const [id, value] of Object.entries(fields)) get(id).value = value;
   get('reg-role').options = [{ text: role }];
@@ -159,6 +164,71 @@ test('multiple account communes explain how to continue without hiding other err
   app.context.choisirCommune = async () => ({ name: 'Paris' });
   await app.context.etapeSuivanteInscription();
   assert.equal(app.get('reg-progress').value, 4);
+});
+
+test('senior and caregiver registration can proceed without a French municipality', async () => {
+  for (const role of ['senior', 'aidant']) {
+    const app = createRegistration(role);
+    let lookups = 0;
+    app.context.choisirCommune = async () => { lookups++; return { name: 'Paris' }; };
+    app.get('reg-account-location').value = 'other';
+    await app.context.etapeSuivanteInscription();
+    await app.context.etapeSuivanteInscription();
+    await app.context.etapeSuivanteInscription();
+    assert.equal(app.get('reg-progress').value, 4);
+    assert.equal(lookups, 0);
+
+    app.context.etapePrecedenteInscription();
+    app.get('reg-account-location').value = 'invalid';
+    await app.context.etapeSuivanteInscription();
+    assert.equal(app.get('reg-progress').value, 3);
+    assert.equal(app.focused(), 'reg-account-location');
+    app.get('reg-account-location').value = 'france';
+    await app.context.etapeSuivanteInscription();
+    assert.equal(app.get('reg-progress').value, 4);
+    assert.equal(lookups, 1);
+  }
+});
+
+test('the weather location choice reveals its limitations and can be changed back', () => {
+  const app = createRegistration('senior');
+  const start = source.indexOf('    function actualiserLieuInscription()');
+  const end = source.indexOf('    let registrationStep = 1;', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(source.slice(start, end), app.context);
+  app.get('reg-account-location').value = 'other';
+  app.context.actualiserLieuInscription();
+  assert.equal(app.get('reg-account-france-fields').hidden, true);
+  assert.equal(app.get('reg-account-location-other').hidden, false);
+  app.get('reg-account-location').value = 'france';
+  app.context.actualiserLieuInscription();
+  assert.equal(app.get('reg-account-france-fields').hidden, false);
+  assert.equal(app.get('reg-account-location-other').hidden, true);
+});
+
+test('registration sends a municipality only when the French option is chosen', async () => {
+  for (const location of ['france', 'other']) {
+    const app = createRegistration('senior');
+    app.get('reg-account-location').value = location;
+    app.get('reg-terms-accepted').checked = true;
+    let credentials;
+    let lookups = 0;
+    app.context.choisirCommune = async () => {
+      lookups++;
+      return { name: 'Paris', communeCode: '75056', latitude: 48.86, longitude: 2.35 };
+    };
+    app.context.requestSession = async (path, body) => { credentials = body; };
+    app.context.showToast = () => {};
+    const start = source.indexOf('    async function soumettreInscription()');
+    const end = source.indexOf('    function reinitialiserAlbumJournal()', start);
+    assert.ok(start >= 0 && end > start);
+    vm.runInNewContext(source.slice(start, end), app.context);
+    await app.context.soumettreInscription();
+    assert.equal(credentials.requireAccountCommune, location === 'france');
+    assert.equal(lookups, location === 'france' ? 1 : 0);
+    if (location === 'france') assert.equal(credentials.accountCommune.code, '75056');
+    else assert.equal(credentials.accountCommune, undefined);
+  }
 });
 
 test('submission cannot bypass confirmation and rechecks changes before sending', async () => {

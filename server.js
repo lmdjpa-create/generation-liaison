@@ -496,6 +496,10 @@ app.post('/api/wellbeing/check-in', requireAuth, async (req, res) => {
   if (!response) {
     return res.status(400).json({ error: 'Écrivez une réponse de 1 à 1 200 caractères.' });
   }
+  const language = req.body?.language === undefined ? 'fr' : req.body.language;
+  if (language !== 'fr' && language !== 'en') {
+    return res.status(400).json({ error: 'Choisissez une langue prise en charge.' });
+  }
 
   const recipientUserIds = req.body?.recipientUserIds;
   if (!Array.isArray(recipientUserIds) || recipientUserIds.length > 10 ||
@@ -545,6 +549,7 @@ app.post('/api/wellbeing/check-in', requireAuth, async (req, res) => {
     }
     const assessment = await generateWellbeingAssessment({
       message: response,
+      language,
       apiKey: process.env.OPENAI_API_KEY,
       model: process.env.OPENAI_MODEL || 'gpt-4.1-mini'
     });
