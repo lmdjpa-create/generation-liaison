@@ -2270,6 +2270,7 @@
         <form id="contact-form" class="form-grid" style="margin-top:20px;">
             <h4>Coordonnées — partage consenti uniquement</h4>
             <select id="contact-recipient" required><option value="">Choisir une personne autorisée</option></select>
+            <p class="helper-text">Changer de personne efface les coordonnées saisies dans ce formulaire après confirmation.</p>
             <input id="contact-phone" type="tel" placeholder="Téléphone de la personne" required>
             <input id="contact-address" type="text" maxlength="500" placeholder="Adresse" required>
             <p class="helper-text">La position GPS sera conservée sur le serveur de l’application pour calculer les distances des intervenants affectés. Elle n’est pas envoyée à un service cartographique et sera effacée si le partage est retiré.</p>
@@ -2288,7 +2289,9 @@
             <h4>Planifier une visite</h4>
             <select id="visit-recipient" required><option value="">Choisir une personne autorisée</option></select>
             <select id="visit-member" required><option value="">Choisir un intervenant</option></select>
+            <label for="visit-datetime">Date et heure de Paris</label>
             <input id="visit-datetime" type="datetime-local" required>
+            <p class="helper-text">Saisissez l’heure de Paris, même si vous vous trouvez dans un autre fuseau horaire.</p>
             <input id="visit-duration" type="number" min="15" max="480" step="15" value="30" required>
             <input id="visit-type" type="text" maxlength="120" placeholder="Type de visite" required>
             <button type="submit">Créer la visite</button>
@@ -2974,6 +2977,7 @@
     let professionalLocationRevision = 0;
     let recipientHomeCoordinates = null;
     let recipientLocationRevision = 0;
+    let contactDraftRecipientId = '';
     let professionalSessionRevision = 0;
     let verificationDocumentsLoadId = 0;
     let planningState = { members: [], recipients: [], servicePartners: [] };
@@ -9521,6 +9525,7 @@
         recipientLocationRevision++;
         professionalHomeCoordinates = null;
         recipientHomeCoordinates = null;
+        contactDraftRecipientId = '';
         planningState = { members: [], recipients: [], servicePartners: [] };
         ['pro-planning', 'pro-service-planning', 'pro-journal-list', 'service-partner-list', 'coordinator-visit-history']
             .forEach(id => document.getElementById(id).replaceChildren());
@@ -9906,7 +9911,7 @@
             card.className = 'visit-card';
             card.dataset.visitId = visit.id;
             card.append(makeTextElement('strong', visit.recipientName));
-            card.append(makeTextElement('p', `${formatDateTime(visit.scheduledAt)} · ${visit.visitType}`, 'visit-kind'));
+            card.append(makeTextElement('p', `${formatDateTime(visit.scheduledAt, 'Europe/Paris')} · ${visit.visitType}`, 'visit-kind'));
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'visit-notes-button';
@@ -9918,32 +9923,55 @@
         });
     }
 
-    function remplirSelecteursCoordination() {
+    function effacerBrouillonCoordonnees() {
+        ['contact-phone', 'contact-address', 'contact-emergency-name', 'contact-emergency-phone', 'contact-instructions']
+            .forEach(id => { document.getElementById(id).value = ''; });
         recipientLocationRevision++;
         recipientHomeCoordinates = null;
         document.getElementById('contact-location-consent').checked = false;
         document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+    }
+
+    function remplirSelecteursCoordination() {
         const memberSelect = document.getElementById('visit-member');
         const serviceMemberSelect = document.getElementById('service-partner-member');
         const recipientSelects = [
             document.getElementById('contact-recipient'),
             document.getElementById('visit-recipient')
         ];
+        const memberChoices = [memberSelect.value, serviceMemberSelect.value];
+        const recipientChoices = recipientSelects.map(select => select.value);
+        const memberIds = new Set(planningState.members.map(member => String(member.id)));
+        const recipients = planningState.recipients.filter(recipient => recipient.consented);
+        const recipientIds = new Set(recipients.map(recipient => String(recipient.id)));
         memberSelect.replaceChildren(new Option('Choisir un intervenant', ''));
         serviceMemberSelect.replaceChildren(new Option('Choisir un intervenant de l’équipe', ''));
         planningState.members.forEach(member => {
             memberSelect.add(new Option(`${member.name} (${member.email})`, member.id));
             serviceMemberSelect.add(new Option(`${member.name} (${member.email})`, member.id));
         });
-        recipientSelects.forEach(select => {
-            const label = select.id === 'contact-recipient'
-                ? 'Choisir une personne autorisée'
-                : 'Choisir une personne autorisée';
-            select.replaceChildren(new Option(label, ''));
-            planningState.recipients.filter(recipient => recipient.consented).forEach(recipient => {
+        [memberSelect, serviceMemberSelect].forEach((select, index) => {
+            select.value = memberIds.has(memberChoices[index]) ? memberChoices[index] : '';
+        });
+        recipientSelects.forEach((select, index) => {
+            select.replaceChildren(new Option('Choisir une personne autorisée', ''));
+            recipients.forEach(recipient => {
                 select.add(new Option(recipient.name, recipient.id));
             });
+            select.value = recipientIds.has(recipientChoices[index]) ? recipientChoices[index] : '';
         });
+        if (!recipientChoices[0] || !recipientIds.has(recipientChoices[0])) {
+            if (recipientChoices[0]) {
+                effacerBrouillonCoordonnees();
+                contactDraftRecipientId = '';
+                showToast(window.generationLiaisonTranslate('Le partage de cette personne n’est plus disponible. Les coordonnées saisies dans ce formulaire ont été effacées.'), false);
+            } else {
+                recipientLocationRevision++;
+                recipientHomeCoordinates = null;
+                document.getElementById('contact-location-consent').checked = false;
+                document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+            }
+        }
     }
 
     async function enregistrerEtapeVisite(visitId, stage, noteInput, shareInput, button) {
@@ -10439,11 +10467,18 @@
                 if (revision === professionalSessionRevision) submit.disabled = false;
             }
         });
-        document.getElementById('contact-recipient').addEventListener('change', () => {
-            recipientLocationRevision++;
-            recipientHomeCoordinates = null;
-            document.getElementById('contact-location-consent').checked = false;
-            document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+        document.getElementById('contact-recipient').addEventListener('change', event => {
+            const select = event.currentTarget;
+            if (select.value === contactDraftRecipientId) return;
+            const hasDraft = ['contact-phone', 'contact-address', 'contact-emergency-name', 'contact-emergency-phone', 'contact-instructions']
+                .some(id => document.getElementById(id).value.trim()) ||
+                recipientHomeCoordinates || document.getElementById('contact-location-consent').checked;
+            if (hasDraft && !window.confirm(window.generationLiaisonTranslate('Changer de personne efface les coordonnées saisies dans ce formulaire. Continuer ?'))) {
+                select.value = contactDraftRecipientId;
+                return;
+            }
+            effacerBrouillonCoordonnees();
+            contactDraftRecipientId = select.value;
         });
         document.getElementById('contact-location-consent').addEventListener('change', event => {
             if (!event.currentTarget.checked) {
@@ -10574,7 +10609,7 @@
                     body: {
                         recipientId: document.getElementById('visit-recipient').value,
                         assignedUserId: document.getElementById('visit-member').value,
-                        scheduledAt: new Date(document.getElementById('visit-datetime').value).toISOString(),
+                        scheduledAt: document.getElementById('visit-datetime').value,
                         durationMinutes: Number(document.getElementById('visit-duration').value),
                         visitType: document.getElementById('visit-type').value.trim()
                     }
@@ -10586,7 +10621,7 @@
                 await chargerPlanningPro();
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(error.message || 'Impossible de planifier cette visite.', false);
+                showToast(window.generationLiaisonTranslate(error.message || 'Impossible de planifier cette visite.'), false);
             }
         });
     }

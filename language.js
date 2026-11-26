@@ -1,6 +1,12 @@
 (() => {
   const storageKey = 'generation-liaison-language';
   const translations = {
+    'Changer de personne efface les coordonnées saisies dans ce formulaire après confirmation.': 'Changing the person clears the contact details entered in this form after confirmation.',
+    'Changer de personne efface les coordonnées saisies dans ce formulaire. Continuer ?': 'Changing the person clears the contact details entered in this form. Continue?',
+    'Le partage de cette personne n’est plus disponible. Les coordonnées saisies dans ce formulaire ont été effacées.': 'Sharing for this person is no longer available. Contact details entered in this form have been cleared.',
+    'Cette heure existe deux fois à Paris lors du changement d’heure. Choisissez une autre heure.': 'This time occurs twice in Paris when the clocks change. Choose another time.',
+    'Choisissez une date et une heure futures valides (heure de Paris).': 'Choose a valid future date and time in Paris.',
+    'Impossible de planifier cette visite.': 'Unable to schedule this visit.',
     'Lieu pour la météo': 'Weather location',
     'Votre situation': 'Your situation',
     'J’utilise une commune française': 'I use a French municipality',

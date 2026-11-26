@@ -6985,10 +6985,28 @@ app.post('/api/planning/visits', requireAuth, requireCoordinator, async (req, re
         typeof assignedUserId !== 'string' || !uuidPattern.test(assignedUserId)) {
       throw new AuthError(400, 'Sélectionnez une personne et un intervenant valides.');
     }
-    if (typeof scheduledAt !== 'string' ||
-        !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(scheduledAt) ||
-        !Number.isFinite(Date.parse(scheduledAt)) || Date.parse(scheduledAt) <= Date.now()) {
-      throw new AuthError(400, 'Choisissez une date future avec son fuseau horaire.');
+    const localStart = typeof scheduledAt === 'string' &&
+      /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)$/.exec(scheduledAt);
+    const zonedStart = typeof scheduledAt === 'string' &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(scheduledAt);
+    const startsAt = localStart && isValidIsoDate(localStart[1])
+      ? zonedDateTimeToUtc(localStart[1], `${localStart[2]}:${localStart[3]}`, 'Europe/Paris')
+      : zonedStart ? new Date(scheduledAt) : null;
+    if (!startsAt || !Number.isFinite(startsAt.getTime()) || startsAt.getTime() <= Date.now()) {
+      throw new AuthError(400, 'Choisissez une date et une heure futures valides (heure de Paris).');
+    }
+    if (localStart) {
+      const timeFormatter = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', hourCycle: 'h23'
+      });
+      const ambiguous = [-3600000, 3600000].some(offset => {
+        const other = new Date(startsAt.getTime() + offset);
+        return dateInTimeZone(other, 'Europe/Paris') === localStart[1] &&
+          timeFormatter.format(other) === `${localStart[2]}:${localStart[3]}`;
+      });
+      if (ambiguous) {
+        throw new AuthError(400, 'Cette heure existe deux fois à Paris lors du changement d’heure. Choisissez une autre heure.');
+      }
     }
     if (!Number.isInteger(durationMinutes) || durationMinutes < 15 || durationMinutes > 480) {
       throw new AuthError(400, 'La durée doit être comprise entre 15 minutes et 8 heures.');
@@ -7025,7 +7043,7 @@ app.post('/api/planning/visits', requireAuth, requireCoordinator, async (req, re
         recipientId,
         req.planningOrganizationId,
         assignedUserId,
-        scheduledAt,
+        startsAt.toISOString(),
         durationMinutes,
         type,
         req.authUser.id
@@ -7040,7 +7058,7 @@ app.post('/api/planning/visits', requireAuth, requireCoordinator, async (req, re
       rows[0].assigned_user_id,
       'care_visit_invite',
       'Demande de rendez-vous à accepter',
-      `Une visite « ${type} » pour ${rows[0].recipient_name} est proposée le ${new Date(scheduledAt).toLocaleString('fr-FR')}. Acceptez-la pour l’ajouter aux agendas.`,
+      `Une visite « ${type} » pour ${rows[0].recipient_name} est proposée le ${startsAt.toLocaleString('fr-FR', { timeZone: 'Europe/Paris' })} (heure de Paris). Acceptez-la pour l’ajouter aux agendas.`,
       'care_visit',
       rows[0].id
     );

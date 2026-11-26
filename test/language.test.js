@@ -982,15 +982,18 @@ test('withdrawing consent or switching recipient invalidates an in-flight home l
   element('contact-location-consent').checked = true;
   let resolveLocation;
   const context = {
-    recipientLocationRevision: 0, recipientHomeCoordinates: null,
+    recipientLocationRevision: 0, recipientHomeCoordinates: null, contactDraftRecipientId: 'first',
     document: { getElementById: element },
+    window: { generationLiaisonTranslate: text => text, confirm: () => true },
     obtenirPositionActuelle: () => new Promise(resolve => { resolveLocation = resolve; }),
     messagePositionEnregistree: () => 'Position saved', showToast() {}
   };
   const start = page.indexOf("        document.getElementById('contact-recipient').addEventListener('change'");
   const end = page.indexOf("        document.getElementById('member-form').addEventListener('submit'", start);
   assert.ok(start >= 0 && end > start);
-  vm.runInNewContext(page.slice(start, end), context);
+  const helperStart = page.indexOf('    function effacerBrouillonCoordonnees()');
+  const helperEnd = page.indexOf('    function remplirSelecteursCoordination()', helperStart);
+  vm.runInNewContext(page.slice(helperStart, helperEnd) + page.slice(start, end), context);
   const first = element('contact-home-location-button').listeners.click();
   element('contact-location-consent').checked = false;
   element('contact-location-consent').listeners.change({ currentTarget: element('contact-location-consent') });
@@ -1000,12 +1003,20 @@ test('withdrawing consent or switching recipient invalidates an in-flight home l
   assert.equal(element('contact-home-location-status').textContent, 'Position GPS non relevée.');
   element('contact-location-consent').checked = true;
   const second = element('contact-home-location-button').listeners.click();
+  element('contact-phone').value = '12345';
   element('contact-recipient').value = 'second';
-  element('contact-recipient').listeners.change();
+  context.window.confirm = () => false;
+  element('contact-recipient').listeners.change({ currentTarget: element('contact-recipient') });
+  assert.equal(element('contact-recipient').value, 'first');
+  assert.equal(element('contact-phone').value, '12345');
+  context.window.confirm = () => true;
+  element('contact-recipient').value = 'second';
+  element('contact-recipient').listeners.change({ currentTarget: element('contact-recipient') });
   resolveLocation({ latitude: 48, longitude: 2 });
   await second;
   assert.equal(context.recipientHomeCoordinates, null);
   assert.equal(element('contact-location-consent').checked, false);
+  assert.equal(element('contact-phone').value, '');
 });
 
 test('late coordination submissions cannot change the next session', async () => {
@@ -1019,11 +1030,15 @@ test('late coordination submissions cannot change the next session', async () =>
   };
   let resolveRequest;
   let rejectRequest;
+  let requestBody;
   const effects = [];
   const context = {
     professionalSessionRevision: 0, recipientHomeCoordinates: null,
     document: { getElementById: element },
-    planningRequest: () => new Promise((resolve, reject) => { resolveRequest = resolve; rejectRequest = reject; }),
+    planningRequest: (url, options) => {
+      requestBody = options.body;
+      return new Promise((resolve, reject) => { resolveRequest = resolve; rejectRequest = reject; });
+    },
     showToast: (...args) => effects.push(args),
     chargerPlanningPro: async () => effects.push('planning'),
     chargerPlanningServices: async () => effects.push('services')
@@ -1036,6 +1051,7 @@ test('late coordination submissions cannot change the next session', async () =>
     for (const succeeds of [true, false]) {
       const form = element(id);
       const pending = form.listeners.submit({ preventDefault() {}, currentTarget: form });
+      if (id === 'visit-form') assert.equal(requestBody.scheduledAt, '2026-03-29T10:00');
       context.professionalSessionRevision++;
       if (succeeds) resolveRequest({}); else rejectRequest(new Error('Previous session'));
       await pending;
@@ -1088,29 +1104,54 @@ test('professional location requests cannot update a later session', async () =>
   assert.deepEqual(toasts, []);
 });
 
-test('refreshing coordination choices discards the former recipient location and consent', () => {
+test('refreshing coordination choices preserves valid selections and invalidates revoked recipients', () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const elements = {};
   const element = id => elements[id] ||= {
-    id, checked: true, textContent: '', children: [],
+    id, value: '', checked: true, textContent: '', children: [],
     replaceChildren(...children) { this.children = children; },
     add(child) { this.children.push(child); }
   };
   const context = {
     document: { getElementById: element },
     Option: function(text, value) { this.text = text; this.value = value; },
-    planningState: { members: [], recipients: [{ id: 'bob', name: 'Bob', consented: true }] },
-    recipientLocationRevision: 0, recipientHomeCoordinates: { latitude: 48, longitude: 2 }
+    planningState: {
+      members: [{ id: 1, name: 'Alice', email: 'alice@example.test' }],
+      recipients: [{ id: 'bob', name: 'Bob', consented: true }]
+    },
+    recipientLocationRevision: 0, recipientHomeCoordinates: { latitude: 48, longitude: 2 },
+    contactDraftRecipientId: 'bob', window: { generationLiaisonTranslate: text => text }, showToast() {}
   };
-  const start = page.indexOf('    function remplirSelecteursCoordination()');
+  const start = page.indexOf('    function effacerBrouillonCoordonnees()');
   const end = page.indexOf('    async function enregistrerEtapeVisite(', start);
   assert.ok(start >= 0 && end > start);
   vm.runInNewContext(page.slice(start, end), context);
+  element('contact-recipient').value = 'bob';
+  element('visit-recipient').value = 'bob';
+  element('visit-member').value = '1';
+  element('service-partner-member').value = '1';
+  element('contact-phone').value = '12345';
+  context.remplirSelecteursCoordination();
+  assert.equal(element('contact-recipient').value, 'bob');
+  assert.equal(element('visit-recipient').value, 'bob');
+  assert.equal(element('visit-member').value, '1');
+  assert.equal(element('service-partner-member').value, '1');
+  assert.equal(context.recipientHomeCoordinates.latitude, 48);
+  assert.equal(context.recipientLocationRevision, 0);
+  assert.equal(element('contact-location-consent').checked, true);
+  assert.equal(element('contact-phone').value, '12345');
+
+  context.planningState.recipients[0].consented = false;
+  context.planningState.members = [];
   context.remplirSelecteursCoordination();
   assert.equal(context.recipientHomeCoordinates, null);
   assert.equal(context.recipientLocationRevision, 1);
   assert.equal(element('contact-location-consent').checked, false);
-  assert.equal(element('contact-recipient').children[0].value, '');
+  assert.equal(element('contact-recipient').value, '');
+  assert.equal(element('visit-recipient').value, '');
+  assert.equal(element('visit-member').value, '');
+  assert.equal(element('service-partner-member').value, '');
+  assert.equal(element('contact-phone').value, '');
 });
 
 test('calendar reset removes private data and invalidates a request from a previous session', async () => {

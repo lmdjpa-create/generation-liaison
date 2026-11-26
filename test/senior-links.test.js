@@ -45,6 +45,7 @@ before(async () => {
   process.env.DATABASE_URL = 'postgresql://isolated-test';
   process.env.ADMIN_EMAILS = 'admin@example.test,chat-admin@example.test,photo-admin@example.test,monitor-admin@example.test,establishment-admin@example.test,establishment-admin-2@example.test,care-admin@example.test,closure-admin@example.test,access-admin@example.test,provision-admin@example.test,overview-admin@example.test,broadcast-admin@example.test,tablet-admin@example.test';
   process.env.ADMIN_ACCESS_CODE = adminCode;
+  process.env.PLANNING_COORDINATOR_EMAILS = 'paris-coordinator@example.test';
   process.env.VISUAL_CROSSING_API_KEY = '';
   delivery.isConfigured = () => ({ email: emailConfigured });
   delivery.sendSeniorUnlinkCode = async (email, code) => {
@@ -98,6 +99,55 @@ async function register(email, role, isLegalGuardian = false) {
   assert.equal(result.status, 201, JSON.stringify(result.data));
   return result.data;
 }
+
+test('coordinator visits interpret local input in Paris and preserve explicit offsets', async () => {
+  const coordinator = await register('paris-coordinator@example.test', 'pro');
+  const professional = await register('paris-professional@example.test', 'pro');
+  const senior = await register('paris-recipient@example.test', 'senior');
+  await db.query("UPDATE app_users SET verification_status = 'approved' WHERE id = ANY($1::uuid[])",
+    [[coordinator.user.id, professional.user.id]]);
+  const organization = randomUUID();
+  const recipient = randomUUID();
+  await db.query('INSERT INTO planning_organizations (id, name, coordinator_user_id) VALUES ($1, $2, $3)',
+    [organization, 'Équipe', coordinator.user.id]);
+  await db.query("INSERT INTO planning_org_members (organization_id, user_id, role) VALUES ($1, $2, 'professional')",
+    [organization, professional.user.id]);
+  await db.query(`INSERT INTO planning_recipients (id, organization_id, senior_id, name, consent_at, created_by)
+    VALUES ($1, $2, $3, 'Personne', CURRENT_TIMESTAMP, $4)`,
+  [recipient, organization, senior.user.seniorId, coordinator.user.id]);
+  const year = new Date().getUTCFullYear() + 2;
+  const body = scheduledAt => ({ recipientId: recipient, assignedUserId: professional.user.id,
+    scheduledAt, durationMinutes: 30, visitType: 'Visite' });
+  for (const [input, expected] of [
+    [`${year}-01-15T10:00`, `${year}-01-15T09:00:00.000Z`],
+    [`${year}-07-15T10:00`, `${year}-07-15T08:00:00.000Z`],
+    [`${year}-07-15T10:00:00+05:00`, `${year}-07-15T05:00:00.000Z`]
+  ]) {
+    const result = await request('/api/planning/visits', { user: coordinator, body: body(input) });
+    assert.equal(result.status, 201, JSON.stringify(result.data));
+    const row = (await db.query('SELECT scheduled_at FROM planning_visits WHERE id = $1', [result.data.visitId])).rows[0];
+    assert.equal(new Date(row.scheduled_at).toISOString(), expected);
+    const notification = (await db.query('SELECT message FROM app_notifications WHERE entity_id = $1', [result.data.visitId])).rows[0];
+    assert.match(notification.message, /heure de Paris/);
+  }
+  const march31 = new Date(Date.UTC(year, 2, 31));
+  const lastSunday = 31 - march31.getUTCDay();
+  for (const invalid of [`${year}-03-${lastSunday}T02:30`, `${year}-02-30T10:00`, `${year}-01-15T25:00`]) {
+    const result = await request('/api/planning/visits', { user: coordinator, body: body(invalid) });
+    assert.equal(result.status, 400, invalid);
+  }
+  const october31 = new Date(Date.UTC(year, 9, 31));
+  const octoberSunday = 31 - october31.getUTCDay();
+  const ambiguous = await request('/api/planning/visits', {
+    user: coordinator, body: body(`${year}-10-${octoberSunday}T02:30`)
+  });
+  assert.equal(ambiguous.status, 400);
+  assert.match(ambiguous.data.error, /existe deux fois/);
+  const explicit = await request('/api/planning/visits', {
+    user: coordinator, body: body(`${year}-10-${octoberSunday}T02:30:00+02:00`)
+  });
+  assert.equal(explicit.status, 201);
+});
 
 test('daily interests are private, validated, optional and cleared on account closure', async () => {
   const senior = await register('interests-senior@example.test', 'senior');
