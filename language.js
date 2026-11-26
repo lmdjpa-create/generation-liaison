@@ -1325,6 +1325,8 @@
     'Impossible de charger les partages de l’agenda.': 'Unable to load calendar shares.',
     'Aucune modification en attente.': 'No changes pending.',
     'Les horaires sont affichés à l’heure de Paris.': 'Times are shown in Paris time.',
+    'Les dates et heures des rendez-vous du planning sont indiquées à l’heure de Paris.':
+      'Appointment dates and times in the schedule are shown in Paris time.',
     'Synchronisation mise en pause par l’intervenant.': 'Synchronization paused by the professional.',
     'Modification refusée : restauration de Google en cours.': 'Change rejected: restoring the Google event.',
     'Annulation demandée depuis Google.': 'Cancellation requested from Google.',

@@ -2202,6 +2202,7 @@
       </details>
     </section>
     <div class="schedule-notice"><strong>Suivi de visite uniquement.</strong><br>Les étapes et notes pratiques ne constituent pas un dossier médical. N’y saisissez aucune donnée clinique ni information d’urgence.</div>
+    <p class="helper-text">Les dates et heures des rendez-vous du planning sont indiquées à l’heure de Paris.</p>
     <div class="schedule-controls" aria-label="Navigation dans l’agenda">
         <button id="planning-previous-day" type="button" aria-label="Jour précédent">← Précédent</button>
         <input id="planning-date" type="date" aria-label="Date de l’agenda">
@@ -4395,7 +4396,7 @@
             chargerNotifications();
         }, 30000);
         const planningDate = document.getElementById('planning-date');
-        if (!planningDate.value) planningDate.value = dateInputValue(new Date());
+        if (!planningDate.value) planningDate.value = dateCheckinBienEtre();
         updatePlanningDateTitle();
     }
 
@@ -8407,13 +8408,14 @@
         }
     }
 
-    function formatDateTime(value) {
+    function formatDateTime(value, timeZone) {
         return new Date(value).toLocaleString(window.generationLiaisonLocale(), {
             weekday: 'short',
             day: 'numeric',
             month: 'short',
             hour: '2-digit',
-            minute: '2-digit'
+            minute: '2-digit',
+            ...(timeZone ? { timeZone } : {})
         });
     }
 
@@ -9287,8 +9289,8 @@
     function updatePlanningDateTitle() {
         const dateValue = document.getElementById('planning-date').value;
         const selectedDate = new Date(`${dateValue}T12:00:00`);
-        const title = dateValue === dateInputValue(new Date())
-            ? 'Visites du jour'
+        const title = dateValue === dateCheckinBienEtre()
+            ? window.generationLiaisonTranslate('Visites du jour')
             : `${window.generationLiaisonTranslate('Agenda du')} ${selectedDate.toLocaleDateString(window.generationLiaisonLocale(), {
                 weekday: 'long',
                 day: 'numeric',
@@ -9497,7 +9499,7 @@
         entries.forEach(event => {
             const item = document.createElement('div');
             item.className = 'progress-item';
-            item.append(makeTextElement('strong', `${event.scheduled ? 'Prévue le ' : ''}${formatDateTime(event.createdAt)}`), document.createElement('br'),
+            item.append(makeTextElement('strong', `${event.scheduled ? 'Prévue le ' : ''}${formatDateTime(event.createdAt, 'Europe/Paris')}`), document.createElement('br'),
                 makeTextElement('span', `Visite ${event.visitNumber} · ${event.colleague ? 'Collègue' : 'Moi'} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`));
             container.append(item);
         });
@@ -9512,7 +9514,7 @@
         const userId = connectedUser.id;
         try {
             const dateInput = document.getElementById('planning-date');
-            if (!dateInput.value) dateInput.value = dateInputValue(new Date());
+            if (!dateInput.value) dateInput.value = dateCheckinBienEtre();
             updatePlanningDateTitle();
             const result = await planningRequest(`/api/planning/today?date=${encodeURIComponent(dateInput.value)}`);
             if (loadId !== planningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
@@ -9527,7 +9529,7 @@
                     const heading = document.createElement('div');
                     heading.className = 'visit-heading';
                     heading.append(makeTextElement('strong', `Visite ${index + 1} · ${visit.recipient.name}`));
-                    heading.append(makeTextElement('span', formatDateTime(visit.scheduledAt), 'visit-time'));
+                    heading.append(makeTextElement('span', formatDateTime(visit.scheduledAt, 'Europe/Paris'), 'visit-time'));
                     card.append(heading);
                     card.append(makeTextElement('p', `${visit.visitType} · durée prévue ${visit.durationMinutes} min`, 'visit-kind'));
                     ajouterDistanceAuRendezVous(card, visit.distanceKm, visit.outsideServiceRadius);
@@ -9620,7 +9622,7 @@
 
         const loadId = ++servicePlanningLoadId;
         try {
-            const dateValue = document.getElementById('planning-date').value || dateInputValue(new Date());
+            const dateValue = document.getElementById('planning-date').value || dateCheckinBienEtre();
             const result = await planningRequest(
                 `/api/planning/services/bookings?date=${encodeURIComponent(dateValue)}`
             );
@@ -9637,7 +9639,7 @@
                 const heading = document.createElement('div');
                 heading.className = 'visit-heading';
                 heading.append(makeTextElement('strong', booking.recipient.name));
-                heading.append(makeTextElement('span', formatDateTime(booking.scheduledAt), 'visit-time'));
+                heading.append(makeTextElement('span', formatDateTime(booking.scheduledAt, 'Europe/Paris'), 'visit-time'));
                 card.append(heading);
                 card.append(makeTextElement(
                     'p',
@@ -12404,7 +12406,7 @@
         });
         document.getElementById('planning-next-day').addEventListener('click', () => decalerJourPlanning(1));
         document.getElementById('planning-today').addEventListener('click', () => {
-            document.getElementById('planning-date').value = dateInputValue(new Date());
+            document.getElementById('planning-date').value = dateCheckinBienEtre();
             updatePlanningDateTitle();
             chargerPlanningPro();
             chargerPlanningServices();

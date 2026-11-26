@@ -819,6 +819,85 @@ test('English calendar loading and fallback error do not show stale appointments
   assert.equal(element('calendar-message').textContent, 'Votre réponse');
 });
 
+test('professional planning uses the Paris date and time when the browser is on a different day', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const instant = '2026-03-29T00:30:00Z';
+  class BrowserDate extends Date {
+    constructor(...args) { super(...(args.length ? args : [instant])); }
+    getFullYear() { return this.getTime() === Date.parse(instant) ? 2026 : super.getFullYear(); }
+    getMonth() { return this.getTime() === Date.parse(instant) ? 2 : super.getMonth(); }
+    getDate() { return this.getTime() === Date.parse(instant) ? 28 : super.getDate(); }
+  }
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '', textContent: '', children: [], listeners: {},
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    addEventListener(type, handler) { this.listeners[type] = handler; }
+  };
+  const urls = [];
+  const context = {
+    window: app.window, document: {
+      getElementById: element,
+      createElement: () => ({
+        children: [], classList: { add() {} },
+        append(...items) { this.children.push(...items); },
+        addEventListener() {}, setAttribute() {}
+      })
+    },
+    Date: BrowserDate, Intl, connectedUser: { id: 'professional', role: 'pro' },
+    planningLoadId: 0, servicePlanningLoadId: 0,
+    planningRequest: async url => { urls.push(url); return url.includes('/today?') ? { visits: [] } : { bookings: [] }; },
+    makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    afficherJournalIntervenant() {}
+  };
+  const extract = (start, end) => {
+    const from = page.indexOf(start);
+    const to = page.indexOf(end, from);
+    assert.ok(from >= 0 && to > from);
+    return page.slice(from, to);
+  };
+  vm.runInNewContext(
+    extract('    function dateCheckinBienEtre()', '    let dateRecetteAffichee') +
+    extract('    function formatDateTime(', '    function dateTimeInputValue(') +
+    extract('    function updatePlanningDateTitle()', '    function progressArray(') +
+    extract('    async function chargerPlanningPro()', '    function serviceBookingStatus(') +
+    extract("        document.getElementById('planning-today').addEventListener", "        document.getElementById('planning-date').addEventListener"), context
+  );
+  assert.equal(context.dateInputValue(new BrowserDate()), '2026-03-28');
+  assert.equal(context.dateCheckinBienEtre(), '2026-03-29');
+  await context.chargerPlanningPro();
+  await context.chargerPlanningServices();
+  assert.equal(element('planning-date').value, '2026-03-29');
+  assert.equal(element('schedule-day-title').textContent, 'Today’s visits');
+  assert.deepEqual(urls, ['/api/planning/today?date=2026-03-29', '/api/planning/services/bookings?date=2026-03-29']);
+  assert.match(context.formatDateTime(instant, 'Europe/Paris'), /01:30 AM/);
+  context.planningRequest = async url => url.includes('/today?')
+    ? { visits: [{ recipient: { name: 'Votre réponse' }, scheduledAt: instant, status: 'completed',
+      visitType: 'Visit', durationMinutes: 30, progress: [] }] }
+    : { bookings: [{ recipient: { name: 'Votre réponse' }, scheduledAt: instant, status: 'completed', partnerName: 'Partner' }] };
+  context.ajouterDistanceAuRendezVous = () => {};
+  context.progressArray = () => [];
+  context.nextVisitStage = () => null;
+  context.renderVisitProgress = () => {};
+  context.serviceLabels = {};
+  context.serviceBookingStatus = () => 'Completed';
+  await context.chargerPlanningPro();
+  await context.chargerPlanningServices();
+  for (const id of ['pro-planning', 'pro-service-planning']) {
+    const heading = element(id).children[0].children[0];
+    assert.match(heading.children[0].textContent, /Votre réponse/);
+    assert.match(heading.children[1].textContent, /01:30 AM/);
+  }
+  element('planning-date').value = '2026-03-28';
+  element('planning-today').listeners.click();
+  assert.equal(element('planning-date').value, '2026-03-29');
+  assert.match(page, /Les dates et heures des rendez-vous du planning sont indiquées à l’heure de Paris\./);
+  assert.equal(app.window.generationLiaisonTranslate('Les dates et heures des rendez-vous du planning sont indiquées à l’heure de Paris.'),
+    'Appointment dates and times in the schedule are shown in Paris time.');
+});
+
 test('calendar reset removes private data and invalidates a request from a previous session', async () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const app = setup('en');
