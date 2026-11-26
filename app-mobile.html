@@ -8828,6 +8828,9 @@
         document.querySelectorAll('#calendar-google-requests time[data-google-date]').forEach(element => {
             element.textContent = formaterDateModificationGoogle(element.dataset.googleDate);
         });
+        document.querySelectorAll('#screen-agenda [data-agenda-form-translation]').forEach(element => {
+            element.textContent = window.generationLiaisonTranslate(element.dataset.agendaFormTranslation);
+        });
         if (!calendarDate ||
             document.getElementById('calendar-message').textContent) return;
         renderCalendar();
@@ -8921,6 +8924,21 @@
         }).format(new Date(date));
     }
 
+    function definirMessageFormulaireAgenda(element, text, canTranslate) {
+        if (canTranslate) {
+            element.dataset.agendaFormTranslation = text;
+            element.textContent = window.generationLiaisonTranslate(text);
+        } else {
+            delete element.dataset.agendaFormTranslation;
+            element.textContent = text;
+        }
+    }
+
+    function afficherErreurFormulaireAgenda(element, error, fallback, knownErrors) {
+        const text = error.message || fallback;
+        definirMessageFormulaireAgenda(element, text, !error.message || knownErrors.includes(text));
+    }
+
     function texteModificationGoogle(tag, text, className) {
         const element = makeTextElement(tag, window.generationLiaisonTranslate(text), className);
         element.dataset.googleTranslation = text;
@@ -9011,6 +9029,17 @@
         }
     }
 
+    function definirTexteReglageGoogle(element, texte) {
+        element.dataset.googleSettingsTranslation = texte;
+        element.textContent = window.generationLiaisonTranslate(texte);
+    }
+
+    function actualiserLangueReglagesGoogle() {
+        document.querySelectorAll('#calendar-google-settings [data-google-settings-translation]').forEach(element => {
+            element.textContent = window.generationLiaisonTranslate(element.dataset.googleSettingsTranslation);
+        });
+    }
+
     async function chargerParametresGooglePlanning() {
         const panel = document.getElementById('calendar-google-settings');
         panel.hidden = !connectedUser || connectedUser.role !== 'pro';
@@ -9023,25 +9052,35 @@
         const different = document.getElementById('calendar-google-new');
         if (panel.dataset.owner !== userId) {
             panel.dataset.owner = userId;
-            status.textContent = 'Vérification de la synchronisation…';
+            definirTexteReglageGoogle(status, 'Vérification de la synchronisation…');
             toggle.disabled = true;
             same.hidden = different.hidden = true;
         }
         try {
             const result = await planningRequest('/api/calendar/planning/status');
             if (loadId !== calendarSettingsLoadId || connectedUser?.id !== userId) return;
-            status.textContent = result.workerError || (result.needsReconnect
-                ? 'La connexion a changé. Mettez en pause puis précisez si vous avez reconnecté le même agenda ou un autre.'
-                : !result.connected
-                ? 'Connectez d’abord Google dans votre espace intervenant.'
-                : result.enabled ? 'Synchronisation du planning activée.' : 'Synchronisation du planning en pause.');
+            if (result.workerError) {
+                delete status.dataset.googleSettingsTranslation;
+                status.textContent = result.workerError;
+            } else {
+                definirTexteReglageGoogle(status, result.needsReconnect
+                    ? 'La connexion a changé. Mettez en pause puis précisez si vous avez reconnecté le même agenda ou un autre.'
+                    : !result.connected
+                    ? 'Connectez d’abord Google dans votre espace intervenant.'
+                    : result.enabled ? 'Synchronisation du planning activée.' : 'Synchronisation du planning en pause.');
+            }
             toggle.disabled = (!result.connected && !result.enabled) || (result.needsReconnect && !result.enabled);
             toggle.dataset.enabled = String(result.enabled);
-            toggle.textContent = result.enabled ? 'Mettre en pause' : 'Activer la synchronisation';
+            definirTexteReglageGoogle(toggle, result.enabled ? 'Mettre en pause' : 'Activer la synchronisation');
             same.hidden = different.hidden = !result.needsReconnect || result.enabled;
         } catch (error) {
             if (loadId !== calendarSettingsLoadId || connectedUser?.id !== userId) return;
-            status.textContent = error.message || 'Impossible de vérifier la synchronisation.';
+            if (error.message) {
+                delete status.dataset.googleSettingsTranslation;
+                status.textContent = error.message;
+            } else {
+                definirTexteReglageGoogle(status, 'Impossible de vérifier la synchronisation.');
+            }
             toggle.disabled = true;
             same.hidden = different.hidden = true;
         }
@@ -9053,14 +9092,14 @@
         const message = enabled
             ? 'Autoriser la copie des dates et durées de vos prochains rendez-vous confirmés dans Google, avec un titre générique sans nom ?'
             : 'Mettre en pause la synchronisation ? Les événements déjà copiés resteront dans Google.';
-        if (!window.confirm(message)) return;
+        if (!window.confirm(window.generationLiaisonTranslate(message))) return;
         button.disabled = true;
         try {
             await planningRequest('/api/calendar/planning/status', { method: 'POST', body: { enabled } });
-            showToast(enabled ? 'Synchronisation activée.' : 'Synchronisation mise en pause.');
+            showToast(window.generationLiaisonTranslate(enabled ? 'Synchronisation activée.' : 'Synchronisation mise en pause.'));
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
-            showToast(error.message || 'Impossible de modifier la synchronisation.', false);
+            showToast(error.message || window.generationLiaisonTranslate('Impossible de modifier la synchronisation.'), false);
             await chargerParametresGooglePlanning();
         }
     }
@@ -9089,32 +9128,32 @@
     }
 
     async function confirmerReconnexionGoogle(button) {
-        if (!window.confirm('Confirmez uniquement si vous avez reconnecté exactement le même compte et le même agenda Google. Sinon, les changements ne correspondent pas aux rendez-vous enregistrés.')) return;
+        if (!window.confirm(window.generationLiaisonTranslate('Confirmez uniquement si vous avez reconnecté exactement le même compte et le même agenda Google. Sinon, les changements ne correspondent pas aux rendez-vous enregistrés.'))) return;
         button.disabled = true;
         try {
             await planningRequest('/api/calendar/planning/confirm-reconnect', {
                 method: 'POST', body: { sameCalendar: true }
             });
-            showToast('Connexion confirmée. Vous pouvez réactiver la synchronisation.');
+            showToast(window.generationLiaisonTranslate('Connexion confirmée. Vous pouvez réactiver la synchronisation.'));
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
-            showToast(error.message || 'Impossible de confirmer la connexion.', false);
+            showToast(error.message || window.generationLiaisonTranslate('Impossible de confirmer la connexion.'), false);
         } finally {
             button.disabled = false;
         }
     }
 
     async function changerAgendaGoogle(button) {
-        if (!window.confirm('Confirmez-vous avoir connecté un autre agenda ? Les événements copiés dans l’ancien agenda y resteront. Les demandes Google en attente seront abandonnées, sans changer les rendez-vous de l’application.')) return;
+        if (!window.confirm(window.generationLiaisonTranslate('Confirmez-vous avoir connecté un autre agenda ? Les événements copiés dans l’ancien agenda y resteront. Les demandes Google en attente seront abandonnées, sans changer les rendez-vous de l’application.'))) return;
         button.disabled = true;
         try {
             await planningRequest('/api/calendar/planning/change-calendar', {
                 method: 'POST', body: { newCalendar: true }
             });
-            showToast('Nouvel agenda confirmé. Vous pouvez activer la synchronisation.');
+            showToast(window.generationLiaisonTranslate('Nouvel agenda confirmé. Vous pouvez activer la synchronisation.'));
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
-            showToast(error.message || 'Impossible de changer d’agenda Google.', false);
+            showToast(error.message || window.generationLiaisonTranslate('Impossible de changer d’agenda Google.'), false);
         } finally {
             button.disabled = false;
         }
@@ -12042,6 +12081,7 @@
         window.addEventListener('generationliaisonlanguagechange', actualiserTextesEtapeInscription);
         window.addEventListener('generationliaisonlanguagechange', actualiserLangueBienEtre);
         window.addEventListener('generationliaisonlanguagechange', actualiserLangueAgenda);
+        window.addEventListener('generationliaisonlanguagechange', actualiserLangueReglagesGoogle);
         traduireTextesJeux();
         let pendingNotificationId = new URLSearchParams(window.location.search).get('notification') || '';
         window.handlePendingNotification = async () => {
@@ -12202,12 +12242,16 @@
                     durationMinutes: Number(document.getElementById('personal-event-duration').value),
                     recurrence: document.getElementById('personal-event-recurrence').value
                 } });
-                message.textContent = 'Rendez-vous ajouté.';
+                definirMessageFormulaireAgenda(message, 'Rendez-vous ajouté.', true);
                 document.getElementById('personal-event-title').value = '';
                 calendarDate = startValue.slice(0, 10);
                 chargerCalendrier();
             } catch (error) {
-                message.textContent = error.message || 'Impossible d’ajouter le rendez-vous.';
+                afficherErreurFormulaireAgenda(message, error, 'Impossible d’ajouter le rendez-vous.', [
+                    'Accès à l’agenda non autorisé.', 'Indiquez un titre de 120 caractères maximum.',
+                    'Choisissez une date et une heure valides.', 'Choisissez une durée entre 5 minutes et 24 heures.',
+                    'Choisissez une répétition valide.', 'Impossible d’enregistrer le rendez-vous.'
+                ]);
             }
         });
         document.getElementById('birthday-form').addEventListener('submit', async event => {
@@ -12218,11 +12262,14 @@
                     name: document.getElementById('birthday-name').value,
                     birthDate: document.getElementById('birthday-date').value
                 } });
-                message.textContent = 'Anniversaire ajouté. Un rappel sera créé le jour même.';
+                definirMessageFormulaireAgenda(message, 'Anniversaire ajouté. Un rappel est prévu le jour même si le service est disponible.', true);
                 document.getElementById('birthday-form').reset();
                 chargerCalendrier();
             } catch (error) {
-                message.textContent = error.message || 'Impossible d’ajouter l’anniversaire.';
+                afficherErreurFormulaireAgenda(message, error, 'Impossible d’ajouter l’anniversaire.', [
+                    'Accès à l’agenda non autorisé.', 'Indiquez un nom de 100 caractères maximum.',
+                    'Choisissez une date de naissance valide, pas dans le futur.', 'Impossible d’enregistrer l’anniversaire.'
+                ]);
             }
         });
         document.getElementById('planning-next-day').addEventListener('click', () => decalerJourPlanning(1));

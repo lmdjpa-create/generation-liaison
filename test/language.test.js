@@ -983,6 +983,193 @@ test('Google change loading and fallback errors follow the selected language', a
   assert.equal(container.children[0].dataset.googleTranslation, 'Impossible de charger les modifications Google.');
 });
 
+test('Google synchronization settings translate live without changing server errors or controls', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const elements = {};
+  const element = id => elements[id] ||= { dataset: {}, hidden: false, disabled: false, textContent: '' };
+  let resolveRequest;
+  const context = {
+    window: app.window, connectedUser: { id: 'professional', role: 'pro' }, calendarSettingsLoadId: 0,
+    document: {
+      getElementById: element,
+      querySelectorAll: () => Object.values(elements).filter(item => item.dataset.googleSettingsTranslation)
+    },
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; })
+  };
+  const start = page.indexOf('    function definirTexteReglageGoogle(');
+  const end = page.indexOf('    async function modifierSynchronisationGoogle()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const loading = context.chargerParametresGooglePlanning();
+  assert.equal(element('calendar-google-sync-status').textContent, 'Checking synchronization…');
+  assert.equal(element('calendar-google-sync-toggle').disabled, true);
+  resolveRequest({ connected: true, enabled: true, needsReconnect: false });
+  await loading;
+  const status = element('calendar-google-sync-status');
+  const toggle = element('calendar-google-sync-toggle');
+  assert.equal(status.textContent, 'Schedule synchronization is on.');
+  assert.equal(toggle.textContent, 'Pause');
+  assert.equal(toggle.dataset.enabled, 'true');
+  assert.equal(toggle.disabled, false);
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueReglagesGoogle();
+  assert.equal(status.textContent, 'Synchronisation du planning activée.');
+  assert.equal(toggle.textContent, 'Mettre en pause');
+  assert.equal(toggle.dataset.enabled, 'true');
+  app.window.generationLiaisonSetLanguage('en');
+  const errorLoad = context.chargerParametresGooglePlanning();
+  resolveRequest({ connected: true, enabled: false, needsReconnect: true,
+    workerError: 'Synchronisation du planning activée.' });
+  await errorLoad;
+  assert.equal(status.textContent, 'Synchronisation du planning activée.');
+  assert.equal(toggle.disabled, true);
+  assert.equal(element('calendar-google-same').hidden, false);
+  assert.equal(element('calendar-google-new').hidden, false);
+  context.actualiserLangueReglagesGoogle();
+  assert.equal(status.textContent, 'Synchronisation du planning activée.');
+  const staleLoad = context.chargerParametresGooglePlanning();
+  context.connectedUser = { id: 'other', role: 'pro' };
+  resolveRequest({ connected: true, enabled: true });
+  await staleLoad;
+  assert.equal(toggle.disabled, true);
+});
+
+test('Google synchronization confirmations explain consequences before changing settings', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const button = { dataset: { enabled: 'false' }, disabled: false };
+  const confirmations = [];
+  app.window.confirm = text => { confirmations.push(text); return false; };
+  const context = {
+    window: app.window, document: { getElementById: () => button },
+    planningRequest() { throw new Error('Rejected confirmation must not make a request'); }
+  };
+  const start = page.indexOf('    async function modifierSynchronisationGoogle()');
+  const end = page.indexOf('    function decalerCalendrier(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.modifierSynchronisationGoogle();
+  assert.match(confirmations[0], /dates and durations.*generic title and no name/);
+  button.dataset.enabled = 'true';
+  await context.modifierSynchronisationGoogle();
+  assert.match(confirmations[1], /already copied will remain in Google/);
+  await context.confirmerReconnexionGoogle(button);
+  assert.match(confirmations[2], /exactly the same Google account and calendar/);
+  await context.changerAgendaGoogle(button);
+  assert.match(confirmations[3], /Pending Google requests will be abandoned without changing appointments/);
+  assert.equal(button.disabled, false);
+});
+
+test('confirmed Google synchronization actions retain their request semantics', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const button = { dataset: { enabled: 'false' }, disabled: false };
+  app.window.confirm = () => true;
+  const calls = [];
+  const messages = [];
+  const context = {
+    window: app.window, document: { getElementById: () => button },
+    planningRequest: async (url, options) => { calls.push({ url, options }); return {}; },
+    chargerParametresGooglePlanning: async () => {},
+    chargerModificationsGoogle: async () => {},
+    showToast: message => messages.push(message)
+  };
+  const start = page.indexOf('    async function modifierSynchronisationGoogle()');
+  const end = page.indexOf('    function decalerCalendrier(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.modifierSynchronisationGoogle();
+  assert.equal(calls[0].url, '/api/calendar/planning/status');
+  assert.equal(calls[0].options.body.enabled, true);
+  assert.equal(messages[0], 'Synchronization enabled.');
+  await context.confirmerReconnexionGoogle(button);
+  assert.equal(calls[1].url, '/api/calendar/planning/confirm-reconnect');
+  assert.equal(calls[1].options.body.sameCalendar, true);
+  assert.equal(button.disabled, false);
+  await context.changerAgendaGoogle(button);
+  assert.equal(calls[2].url, '/api/calendar/planning/change-calendar');
+  assert.equal(calls[2].options.body.newCalendar, true);
+  assert.equal(button.disabled, false);
+});
+
+test('appointment and birthday messages translate without altering entered details or unknown errors', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    dataset: {}, value: '', textContent: '', handlers: {},
+    classList: { contains: () => true },
+    addEventListener(type, handler) { this.handlers[type] = handler; },
+    reset() { this.resetCount = (this.resetCount || 0) + 1; }
+  };
+  element('personal-event-title').value = 'Votre réponse';
+  element('personal-event-start').value = '2026-03-29T03:30';
+  element('personal-event-duration').value = '30';
+  element('personal-event-recurrence').value = 'weekly';
+  element('birthday-name').value = 'Votre réponse';
+  element('birthday-date').value = '1950-02-28';
+  let failure;
+  const requests = [];
+  let refreshes = 0;
+  const context = {
+    window: app.window, connectedUser: { id: 'senior' }, calendarDate: null,
+    document: {
+      getElementById: element,
+      querySelectorAll: selector => selector.startsWith('#screen-agenda')
+        ? Object.values(elements).filter(item => item.dataset.agendaFormTranslation)
+        : []
+    },
+    planningRequest: async (url, options) => {
+      requests.push({ url, options });
+      if (failure) throw failure;
+    },
+    chargerCalendrier: () => { refreshes++; }, renderCalendar() {}
+  };
+  const extract = (start, end) => {
+    const from = page.indexOf(start);
+    const to = page.indexOf(end, from);
+    assert.ok(from >= 0 && to > from);
+    return page.slice(from, to);
+  };
+  vm.runInNewContext(
+    extract('    function actualiserLangueAgenda()', '    async function chargerPartagesAgenda()') +
+    extract('    function definirMessageFormulaireAgenda(', '    function texteModificationGoogle(') +
+    extract("        document.getElementById('personal-event-form').addEventListener", "        document.getElementById('planning-next-day')"),
+    context
+  );
+  const submit = id => element(id).handlers.submit({ preventDefault() {} });
+  await submit('personal-event-form');
+  assert.equal(requests[0].url, '/api/agenda/events');
+  assert.equal(requests[0].options.body.title, 'Votre réponse');
+  assert.equal(requests[0].options.body.start, '2026-03-29T03:30');
+  assert.equal(requests[0].options.body.recurrence, 'weekly');
+  assert.equal(context.calendarDate, '2026-03-29');
+  assert.equal(element('personal-event-message').textContent, 'Appointment added.');
+  await submit('birthday-form');
+  assert.equal(requests[1].options.body.name, 'Votre réponse');
+  assert.equal(requests[1].options.body.birthDate, '1950-02-28');
+  assert.match(element('birthday-message').textContent, /if the service is available/);
+  assert.equal(element('birthday-form').resetCount, 1);
+  assert.equal(refreshes, 2);
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueAgenda();
+  assert.equal(element('personal-event-message').textContent, 'Rendez-vous ajouté.');
+  assert.match(element('birthday-message').textContent, /si le service est disponible/);
+  app.window.generationLiaisonSetLanguage('en');
+  failure = new Error('Choisissez une date de naissance valide, pas dans le futur.');
+  await submit('birthday-form');
+  assert.equal(element('birthday-message').textContent, 'Choose a valid date of birth that is not in the future.');
+  assert.equal(element('birthday-form').resetCount, 1);
+  failure = new Error('Votre réponse');
+  await submit('birthday-form');
+  assert.equal(element('birthday-message').textContent, 'Votre réponse');
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueAgenda();
+  assert.equal(element('birthday-message').textContent, 'Votre réponse');
+  assert.equal(refreshes, 2);
+});
+
 test('English wellbeing loading and empty caregiver states use the selected language', async () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const app = setup('en');

@@ -1081,6 +1081,8 @@ test('birthday form submits the birth date and keeps it when saving fails', asyn
       submitted = { url, options };
       if (fail) throw new Error('Erreur de sauvegarde');
     },
+    definirMessageFormulaireAgenda: (element, text) => { element.textContent = text; },
+    afficherErreurFormulaireAgenda: (element, error, fallback) => { element.textContent = error.message || fallback; },
     chargerCalendrier: () => { refreshCount++; }
   };
   vm.runInNewContext(extract("        document.getElementById('birthday-form').addEventListener", "        document.getElementById('planning-next-day')"), context);
