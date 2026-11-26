@@ -728,7 +728,7 @@ test('English calendar translates dates, empty states and deletion confirmation'
     calendarEvents: [{ id: 'series', kind: 'personal', title: 'Votre réponse',
       scheduledAt: '2026-03-29T01:30:00Z', durationMinutes: 30, recurrence: 'weekly' }],
     connectedUser: { role: 'senior' },
-    document: { getElementById: element, createElement: node },
+    document: { getElementById: element, createElement: node, querySelectorAll: () => [] },
     makeTextElement: (tag, text, className) => ({ tag, textContent: text, className }),
     planningRequest() { throw new Error('Deletion was not confirmed'); },
     Intl, Date
@@ -797,6 +797,190 @@ test('English calendar loading and fallback error do not show stale appointments
   rejectRequest(new Error());
   await loading;
   assert.equal(element('calendar-message').textContent, 'Unable to load the calendar.');
+});
+
+test('calendar sharing translates consent controls without changing names or decisions', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const node = () => ({
+    children: [], dataset: {}, hidden: false, textContent: '', listeners: {},
+    classList: { contains: () => true },
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    addEventListener(event, callback) { this.listeners[event] = callback; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node();
+  const partners = [
+    { userId: '1', name: 'Accepter', incoming: { id: 'incoming', status: 'pending' }, outgoing: { id: 'outgoing', status: 'pending' } },
+    { userId: '2', name: 'Anne', incoming: { id: 'shared', status: 'accepted' }, outgoing: { id: 'other', status: 'accepted' } },
+    { userId: '3', name: 'Marie' }
+  ];
+  const requests = [];
+  const context = {
+    window: app.window, connectedUser: { id: 'senior' }, calendarDate: null,
+    document: {
+      getElementById: element, createElement: node,
+      querySelectorAll: selector => selector.startsWith('#agenda-shares')
+        ? element('agenda-shares').children.flatMap(row =>
+          row.children.filter(child => child.dataset.agendaShareTranslation))
+        : []
+    },
+    makeTextElement: (tag, text) => Object.assign(node(), { tag, textContent: text }),
+    planningRequest: async (url, options) => {
+      requests.push({ url, options });
+      return options ? {} : { partners };
+    },
+    chargerCalendrier() {}, renderCalendar() { throw new Error('Calendar should not render without a date'); }
+  };
+  const start = page.indexOf('    function actualiserLangueAgenda()');
+  const end = page.indexOf('    async function chargerCalendrier()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.chargerPartagesAgenda();
+  const rows = element('agenda-shares').children;
+  assert.equal(element('agenda-shares-card').hidden, false);
+  assert.deepEqual(rows[0].children.map(child => child.textContent), [
+    'Accepter', 'This person has requested access to your calendar.', 'Accept', 'Reject',
+    'Request sent, awaiting a response.', 'Cancel my request'
+  ]);
+  assert.deepEqual(rows[1].children.map(child => child.textContent), [
+    'Anne', 'This person can view your calendar.', 'Remove access',
+    'Their calendar is displayed in yours.', 'Stop comparing'
+  ]);
+  assert.equal(rows[2].children[1].textContent, 'Request to compare our calendars');
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueAgenda();
+  assert.equal(rows[0].children[0].textContent, 'Accepter');
+  assert.equal(rows[0].children[1].textContent, 'Cette personne demande à voir votre agenda.');
+  assert.equal(rows[0].children[2].textContent, 'Accepter');
+  app.window.generationLiaisonSetLanguage('en');
+  context.actualiserLangueAgenda();
+  await rows[0].children[2].listeners.click();
+  assert.equal(requests[1].url, '/api/agenda/shares/incoming');
+  assert.equal(requests[1].options.body.decision, 'accept');
+});
+
+test('Google calendar changes translate dates and consent actions without changing errors', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const node = () => ({
+    children: [], dataset: {}, hidden: false, textContent: '', listeners: {},
+    classList: { contains: () => true },
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    addEventListener(event, callback) { this.listeners[event] = callback; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node();
+  const descendants = parent => parent.children.flatMap(child => [child, ...descendants(child)]);
+  let resolveRequest;
+  const responses = [];
+  const context = {
+    window: app.window, connectedUser: { id: 'senior', role: 'senior' },
+    calendarDate: null, calendarRequestsLoadId: 0, Intl, Date,
+    document: {
+      getElementById: element, createElement: node,
+      createTextNode: text => Object.assign(node(), { textContent: text }),
+      querySelectorAll: selector => selector.startsWith('#calendar-google-requests')
+        ? descendants(element('calendar-google-requests')).filter(child =>
+          selector.includes('data-google-date') ? child.dataset.googleDate : child.dataset.googleTranslation)
+        : []
+    },
+    makeTextElement: (tag, text, className) => Object.assign(node(), { tag, textContent: text, className }),
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; }),
+    repondreModificationGoogle: (...args) => responses.push(args)
+  };
+  const start = page.indexOf('    function actualiserLangueAgenda()');
+  const end = page.indexOf('    async function chargerParametresGooglePlanning()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const loading = context.chargerModificationsGoogle();
+  assert.equal(element('calendar-google-requests').children[0].textContent, 'Loading requests…');
+  resolveRequest({ requests: [{
+    id: 'request', kind: 'visit', scheduledAt: '2026-03-29T01:30:00Z', error: 'Votre réponse',
+    proposal: { action: 'move', start: '2026-03-29T02:30:00Z', duration: 30,
+      professionalApproved: true, familyApproved: false }
+  }, {
+    id: 'cancel', kind: 'service', scheduledAt: '2026-03-29T01:30:00Z',
+    proposal: { action: 'cancel', professionalApproved: false, familyApproved: true }
+  }, {
+    id: 'paused', kind: 'visit', scheduledAt: '2026-03-29T01:30:00Z', paused: true
+  }, {
+    id: 'restore', kind: 'visit', scheduledAt: '2026-03-29T01:30:00Z', state: 'restore'
+  }] });
+  await loading;
+  const card = element('calendar-google-requests').children[0];
+  assert.equal(card.children[0].children[0].textContent, 'Visit');
+  assert.match(card.children[0].children[2].textContent, /3:30 AM/);
+  assert.equal(card.children[1].textContent, 'Votre réponse');
+  assert.equal(card.children[2].children[0].textContent, 'Rescheduling requested:');
+  assert.match(card.children[2].children[2].textContent, /4:30 AM/);
+  assert.equal(card.children[3].children[2].textContent, 'approved');
+  assert.equal(card.children[3].children[6].textContent, 'pending');
+  const approve = card.children[4].children[0];
+  assert.equal(approve.textContent, 'Approve');
+  assert.equal(card.children[4].children[1].textContent, 'Reject');
+  const cards = element('calendar-google-requests').children;
+  assert.equal(cards[1].children[1].textContent, 'Cancellation requested from Google.');
+  assert.equal(cards[1].children[3].children.length, 1);
+  assert.equal(cards[2].children[1].textContent, 'Synchronization paused by the professional.');
+  assert.equal(cards[3].children[1].textContent, 'Change rejected: restoring the Google event.');
+  assert.match(page, /Les horaires sont affichés à l’heure de Paris\./);
+  assert.equal(app.window.generationLiaisonTranslate('Les horaires sont affichés à l’heure de Paris.'), 'Times are shown in Paris time.');
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueAgenda();
+  assert.equal(card.children[0].children[0].textContent, 'Visite');
+  assert.match(card.children[0].children[2].textContent, /03:30/);
+  assert.equal(card.children[1].textContent, 'Votre réponse');
+  assert.equal(approve.textContent, 'Valider');
+  approve.listeners.click();
+  assert.equal(responses[0][0], 'request');
+  assert.equal(responses[0][1], 'approve');
+  assert.equal(responses[0][2], approve);
+});
+
+test('Google change confirmation explains both approvals in English', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  let confirmation;
+  app.window.confirm = text => { confirmation = text; return false; };
+  const context = { window: app.window };
+  const start = page.indexOf('    async function repondreModificationGoogle(');
+  const end = page.indexOf('    async function confirmerReconnexionGoogle(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.repondreModificationGoogle('request', 'approve', {});
+  assert.equal(confirmation, 'Confirm your approval of this change? The appointment will change only after both parties approve.');
+  await context.repondreModificationGoogle('request', 'reject', {});
+  assert.equal(confirmation, 'Reject this change and keep the current appointment?');
+});
+
+test('Google change loading and fallback errors follow the selected language', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const container = {
+    dataset: {}, children: [],
+    replaceChildren(...items) { this.children = items; },
+    append(...items) { this.children.push(...items); }
+  };
+  let rejectRequest;
+  const context = {
+    window: app.window, connectedUser: { id: 'senior' }, calendarRequestsLoadId: 0,
+    document: { getElementById: () => container },
+    makeTextElement: (tag, text) => ({ dataset: {}, textContent: text }),
+    planningRequest: () => new Promise((resolve, reject) => { rejectRequest = reject; })
+  };
+  const start = page.indexOf('    function formaterDateModificationGoogle(');
+  const end = page.indexOf('    async function chargerParametresGooglePlanning()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const loading = context.chargerModificationsGoogle();
+  assert.equal(container.children[0].textContent, 'Loading requests…');
+  rejectRequest(new Error());
+  await loading;
+  assert.equal(container.children[0].textContent, 'Unable to load Google changes.');
+  assert.equal(container.children[0].dataset.googleTranslation, 'Impossible de charger les modifications Google.');
 });
 
 test('English wellbeing loading and empty caregiver states use the selected language', async () => {

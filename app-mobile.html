@@ -2818,6 +2818,7 @@
     <section class="form-card">
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">🔄</span>Modifications depuis Google</summary>
+        <p class="helper-text">Les horaires sont affichés à l’heure de Paris.</p>
         <div id="calendar-google-requests" aria-live="polite">Chargement des demandes…</div>
       </details>
     </section>
@@ -8817,8 +8818,17 @@
     }
 
     function actualiserLangueAgenda() {
-        if (!connectedUser || !calendarDate ||
-            !document.getElementById('screen-agenda').classList.contains('active') ||
+        if (!connectedUser || !document.getElementById('screen-agenda').classList.contains('active')) return;
+        document.querySelectorAll('#agenda-shares [data-agenda-share-translation]').forEach(element => {
+            element.textContent = window.generationLiaisonTranslate(element.dataset.agendaShareTranslation);
+        });
+        document.querySelectorAll('#calendar-google-requests [data-google-translation]').forEach(element => {
+            element.textContent = window.generationLiaisonTranslate(element.dataset.googleTranslation);
+        });
+        document.querySelectorAll('#calendar-google-requests time[data-google-date]').forEach(element => {
+            element.textContent = formaterDateModificationGoogle(element.dataset.googleDate);
+        });
+        if (!calendarDate ||
             document.getElementById('calendar-message').textContent) return;
         renderCalendar();
     }
@@ -8843,27 +8853,33 @@
             const addButton = (parent, label, handler) => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.textContent = label;
+                button.dataset.agendaShareTranslation = label;
+                button.textContent = window.generationLiaisonTranslate(label);
                 button.addEventListener('click', handler);
                 parent.append(button);
+            };
+            const addStatus = (parent, label) => {
+                const status = makeTextElement('p', window.generationLiaisonTranslate(label), 'helper-text');
+                status.dataset.agendaShareTranslation = label;
+                parent.append(status);
             };
             partners.forEach(partner => {
                 const row = document.createElement('article');
                 row.className = 'notification-card';
                 row.append(makeTextElement('strong', partner.name));
                 if (partner.incoming?.status === 'pending') {
-                    row.append(makeTextElement('p', 'Cette personne demande à voir votre agenda.', 'helper-text'));
+                    addStatus(row, 'Cette personne demande à voir votre agenda.');
                     addButton(row, 'Accepter', act(`/api/agenda/shares/${partner.incoming.id}`, { method: 'POST', body: { decision: 'accept' } }));
                     addButton(row, 'Refuser', act(`/api/agenda/shares/${partner.incoming.id}`, { method: 'POST', body: { decision: 'decline' } }));
                 } else if (partner.incoming?.status === 'accepted') {
-                    row.append(makeTextElement('p', 'Cette personne voit votre agenda.', 'helper-text'));
+                    addStatus(row, 'Cette personne voit votre agenda.');
                     addButton(row, 'Retirer son accès', act(`/api/agenda/shares/${partner.incoming.id}`, { method: 'POST', body: { decision: 'revoke' } }));
                 }
                 if (partner.outgoing?.status === 'accepted') {
-                    row.append(makeTextElement('p', 'Son agenda est affiché dans le vôtre.', 'helper-text'));
+                    addStatus(row, 'Son agenda est affiché dans le vôtre.');
                     addButton(row, 'Ne plus comparer', act(`/api/agenda/shares/${partner.outgoing.id}`, { method: 'POST', body: { decision: 'revoke' } }));
                 } else if (partner.outgoing?.status === 'pending') {
-                    row.append(makeTextElement('p', 'Demande envoyée, en attente de réponse.', 'helper-text'));
+                    addStatus(row, 'Demande envoyée, en attente de réponse.');
                     addButton(row, 'Annuler ma demande', act(`/api/agenda/shares/${partner.outgoing.id}`, { method: 'POST', body: { decision: 'revoke' } }));
                 } else {
                     addButton(row, 'Demander à comparer nos agendas', act('/api/agenda/shares', { method: 'POST', body: { ownerUserId: partner.userId } }));
@@ -8899,6 +8915,25 @@
         }
     }
 
+    function formaterDateModificationGoogle(date) {
+        return new Intl.DateTimeFormat(window.generationLiaisonLocale(), {
+            timeZone: 'Europe/Paris', dateStyle: 'medium', timeStyle: 'short'
+        }).format(new Date(date));
+    }
+
+    function texteModificationGoogle(tag, text, className) {
+        const element = makeTextElement(tag, window.generationLiaisonTranslate(text), className);
+        element.dataset.googleTranslation = text;
+        return element;
+    }
+
+    function dateModificationGoogle(date) {
+        const element = makeTextElement('time', formaterDateModificationGoogle(date));
+        element.dateTime = date;
+        element.dataset.googleDate = date;
+        return element;
+    }
+
     async function chargerModificationsGoogle() {
         if (!connectedUser) return;
         const container = document.getElementById('calendar-google-requests');
@@ -8906,37 +8941,45 @@
         const userId = connectedUser.id;
         if (container.dataset.owner !== userId) {
             container.dataset.owner = userId;
-            container.replaceChildren(makeTextElement('p', 'Chargement des demandes…', 'helper-text'));
+            container.replaceChildren(texteModificationGoogle('p', 'Chargement des demandes…', 'helper-text'));
         }
         try {
             const result = await planningRequest('/api/calendar/planning/requests');
             if (loadId !== calendarRequestsLoadId || connectedUser?.id !== userId) return;
             container.replaceChildren();
             if (!result.requests.length) {
-                container.append(makeTextElement('p', 'Aucune modification en attente.', 'helper-text'));
+                container.append(texteModificationGoogle('p', 'Aucune modification en attente.', 'helper-text'));
                 return;
             }
-            const dateFormatter = new Intl.DateTimeFormat('fr-FR', {
-                timeZone: 'Europe/Paris', dateStyle: 'medium', timeStyle: 'short'
-            });
             result.requests.forEach(request => {
                 const card = document.createElement('article');
                 card.className = 'notification-card';
-                card.append(makeTextElement('strong',
-                    `${request.kind === 'visit' ? 'Visite' : 'Service'} · ${dateFormatter.format(new Date(request.scheduledAt))}`));
+                const title = document.createElement('strong');
+                title.append(texteModificationGoogle('span', request.kind === 'visit' ? 'Visite' : 'Service'),
+                    document.createTextNode(' · '), dateModificationGoogle(request.scheduledAt));
+                card.append(title);
                 if (request.error) card.append(makeTextElement('p', request.error, 'visit-status'));
                 if (request.paused) {
-                    card.append(makeTextElement('p', 'Synchronisation mise en pause par l’intervenant.', 'helper-text'));
+                    card.append(texteModificationGoogle('p', 'Synchronisation mise en pause par l’intervenant.', 'helper-text'));
                 } else if (request.state === 'restore') {
-                    card.append(makeTextElement('p', 'Modification refusée : restauration de Google en cours.', 'helper-text'));
+                    card.append(texteModificationGoogle('p', 'Modification refusée : restauration de Google en cours.', 'helper-text'));
                 } else if (request.proposal) {
                     const proposal = request.proposal;
-                    card.append(makeTextElement('p', proposal.action === 'cancel'
-                        ? 'Annulation demandée depuis Google.'
-                        : `Déplacement demandé : ${dateFormatter.format(new Date(proposal.start))} · ${proposal.duration} min.`, 'helper-text'));
-                    card.append(makeTextElement('p',
-                        `Intervenant : ${proposal.professionalApproved ? 'accord donné' : 'en attente'} · Personne ou aidant : ${proposal.familyApproved ? 'accord donné' : 'en attente'}`,
-                        'helper-text'));
+                    if (proposal.action === 'cancel') {
+                        card.append(texteModificationGoogle('p', 'Annulation demandée depuis Google.', 'helper-text'));
+                    } else {
+                        const move = makeTextElement('p', '', 'helper-text');
+                        move.append(texteModificationGoogle('span', 'Déplacement demandé :'),
+                            document.createTextNode(' '), dateModificationGoogle(proposal.start),
+                            document.createTextNode(` · ${proposal.duration} min.`));
+                        card.append(move);
+                    }
+                    const approvals = makeTextElement('p', '', 'helper-text');
+                    approvals.append(texteModificationGoogle('span', 'Intervenant :'),
+                        document.createTextNode(' '), texteModificationGoogle('span', proposal.professionalApproved ? 'accord donné' : 'en attente'),
+                        document.createTextNode(' · '), texteModificationGoogle('span', 'Personne ou aidant :'),
+                        document.createTextNode(' '), texteModificationGoogle('span', proposal.familyApproved ? 'accord donné' : 'en attente'));
+                    card.append(approvals);
                     const actions = document.createElement('div');
                     actions.className = 'notification-actions';
                     const alreadyApproved = connectedUser.role === 'pro'
@@ -8944,14 +8987,16 @@
                     if (!alreadyApproved) {
                         const approve = document.createElement('button');
                         approve.type = 'button';
-                        approve.textContent = 'Valider';
+                        approve.dataset.googleTranslation = 'Valider';
+                        approve.textContent = window.generationLiaisonTranslate('Valider');
                         approve.addEventListener('click', () => repondreModificationGoogle(request.id, 'approve', approve));
                         actions.append(approve);
                     }
                     const reject = document.createElement('button');
                     reject.type = 'button';
                     reject.className = 'decline';
-                    reject.textContent = 'Refuser';
+                    reject.dataset.googleTranslation = 'Refuser';
+                    reject.textContent = window.generationLiaisonTranslate('Refuser');
                     reject.addEventListener('click', () => repondreModificationGoogle(request.id, 'reject', reject));
                     actions.append(reject);
                     card.append(actions);
@@ -8960,7 +9005,9 @@
             });
         } catch (error) {
             if (loadId !== calendarRequestsLoadId || connectedUser?.id !== userId) return;
-            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les modifications Google.', 'helper-text'));
+            container.replaceChildren(error.message
+                ? makeTextElement('p', error.message, 'helper-text')
+                : texteModificationGoogle('p', 'Impossible de charger les modifications Google.', 'helper-text'));
         }
     }
 
@@ -9022,20 +9069,21 @@
         const message = decision === 'approve'
             ? 'Confirmer votre accord pour cette modification ? Le rendez-vous ne changera qu’après les deux accords.'
             : 'Refuser cette modification et conserver le rendez-vous actuel ?';
-        if (!window.confirm(message)) return;
+        if (!window.confirm(window.generationLiaisonTranslate(message))) return;
         button.disabled = true;
         try {
             const result = await planningRequest(`/api/calendar/planning/requests/${encodeURIComponent(id)}`, {
                 method: 'POST', body: { decision }
             });
-            showToast({
+            const statusMessage = {
                 waiting: 'Votre accord est enregistré ; l’autre accord est attendu.',
                 applied: 'Modification validée et appliquée.',
                 restoring: 'Modification refusée ; restauration Google en cours.'
-            }[result.status]);
+            }[result.status];
+            showToast(statusMessage ? window.generationLiaisonTranslate(statusMessage) : statusMessage);
             await Promise.all([chargerCalendrier(), chargerModificationsGoogle()]);
         } catch (error) {
-            showToast(error.message || 'Impossible de répondre à la modification.', false);
+            showToast(error.message || window.generationLiaisonTranslate('Impossible de répondre à la modification.'), false);
             await chargerModificationsGoogle();
         }
     }
