@@ -1303,7 +1303,9 @@ test('unread message counts exclude inaccessible contacts and other accounts', a
   assert.equal((await request('/api/messages/inbox')).status, 401);
   assert.deepEqual((await request('/api/messages/inbox', { user: other })).data.messages, []);
   await db.query('UPDATE app_private_messages SET read_at = CURRENT_TIMESTAMP WHERE id = $1', [inbox.data.messages[0].id]);
-  assert.equal((await request('/api/messages/inbox', { user: aidant })).data.messages[0].read, true);
+  const openedMessage = (await request('/api/messages/inbox', { user: aidant })).data.messages[0];
+  assert.equal(openedMessage.read, true);
+  assert.ok(openedMessage.readAt);
   for (let index = 0; index < 21; index++) {
     await db.query(`INSERT INTO app_private_messages (id, sender_id, recipient_id, body, created_at)
                     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP + $5::integer * INTERVAL '1 second')`,

@@ -131,12 +131,14 @@
         .today-inbox-list { display: grid; gap: 8px; max-height: 22rem; overflow-y: auto; overscroll-behavior: contain; }
         .form-card .today-inbox-item { display: grid; gap: 4px; width: 100%; padding: 14px; border: 1px solid #c8d8d1; border-radius: 14px; background: #fff; color: #18352e; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
         .form-card .today-inbox-item.unread { border-left: 5px solid #17684f; background: #edf8f2; }
+        :is(#screen-aidant, #screen-pro) .form-card button.today-inbox-item:not(.rating-pill) { background: #fff; color: #18352e; }
+        :is(#screen-aidant, #screen-pro) .form-card button.today-inbox-item.unread:not(.rating-pill) { background: #edf8f2; }
         .today-inbox-item small { color: #52665c; }
         .wellbeing-mood-choices { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
         .wellbeing-mood-choices button { flex: 1 1 7rem; min-height: 56px; padding: 10px; }
         #senior-today-visit, #senior-today-tasks { white-space: pre-line; font-weight: 700; overflow-wrap: anywhere; }
         #senior-today-card, #senior-next-visit { border: 2px solid var(--brand); }
-        #senior-today-card.has-daily-photo {
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo {
             box-sizing: border-box;
             min-height: 290px;
             position: relative;
@@ -145,7 +147,7 @@
             background-position: center;
             line-height: 1.5;
         }
-        #senior-today-card.has-daily-photo > :is(h2, h3, p:not([hidden]):not(:empty), .today-inbox-list:not(:empty), #notification-opened-senior:not(:empty), #notifications-senior:not(:empty), #senior-today-photo-credit:not([hidden])) {
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo > :is(h2, h3, p:not([hidden]):not(:empty), #aidant-daily-summary:not([hidden]), .today-inbox-list:not(:empty), #notification-opened-senior:not(:empty), #notifications-senior:not(:empty), #aidant-today-inbox:not(:empty), #notification-opened-aidant:not(:empty), #notifications-aidant:not(:empty), #senior-today-photo-credit:not([hidden]), #aidant-today-photo-credit:not([hidden])) {
             width: fit-content;
             max-width: 100%;
             box-sizing: border-box;
@@ -155,19 +157,19 @@
             padding: 4px 8px;
             overflow-wrap: anywhere;
         }
-        #senior-today-card.has-daily-photo > .today-inbox-list {
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo > .today-inbox-list {
             width: 100%;
             max-height: none;
             overflow: visible;
         }
-        #senior-today-card.has-daily-photo .today-inbox-item span {
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo .today-inbox-item span {
             white-space: pre-wrap;
             overflow-wrap: anywhere;
             line-height: 1.5;
         }
-        #senior-today-card.has-daily-photo .today-inbox-item small { color: #294c3e; }
-        #senior-today-card.has-daily-photo > :is(p, .today-inbox-list):empty { display: none; }
-        #senior-today-card.has-daily-photo > #senior-today-photo-credit:not([hidden]) {
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo .today-inbox-item small { color: #294c3e; }
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo > :is(p, .today-inbox-list):empty { display: none; }
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo > :is(#senior-today-photo-credit, #aidant-today-photo-credit):not([hidden]) {
             position: absolute;
             right: 16px;
             bottom: 16px;
@@ -177,7 +179,7 @@
             color: #fff;
             font-size: 0.75rem;
         }
-        #senior-today-card.has-daily-photo > #senior-today-photo-credit::before {
+        :is(#senior-today-card, #aidant-today-card).has-daily-photo > :is(#senior-today-photo-credit, #aidant-today-photo-credit)::before {
             content: '';
             position: absolute;
             inset: -10px;
@@ -1911,7 +1913,7 @@
             <p class="helper-text">Prévisions fournies par <a href="https://www.visualcrossing.com/">Visual Crossing</a>.</p>
         </section>
         <h2>Mes informations du jour</h2>
-        <section class="form-card" aria-labelledby="aidant-daily-summary-title">
+        <section class="form-card" id="aidant-today-card" aria-labelledby="aidant-daily-summary-title">
             <h3 id="aidant-daily-summary-title">Aujourd’hui</h3>
             <div id="aidant-daily-summary" hidden>
             <p id="aidant-summary-visit" role="status">Chargement du prochain rendez-vous…</p>
@@ -1924,6 +1926,7 @@
             <div class="today-inbox-list" id="aidant-today-inbox" role="region" aria-label="Messages reçus" tabindex="0" aria-live="polite">Chargement des messages…</div>
             <div id="notification-opened-aidant" aria-live="polite"></div>
             <div id="notifications-aidant" aria-live="polite"></div>
+            <a id="aidant-today-photo-credit" href="/riddle-images/credits.html" target="_blank" rel="noopener noreferrer" aria-label="Crédits des photos" hidden>Crédits</a>
         </section>
     </div>
     <section class="form-card" id="aidant-home-links" hidden>
@@ -4486,7 +4489,8 @@
         centresInteretRevision++;
         centresInteret = null;
         texteInteret = '';
-        appliquerPhotoAujourdHui(null);
+        appliquerPhotoAujourdHui(null, 'senior');
+        appliquerPhotoAujourdHui(null, 'aidant');
         ['senior', 'aidant'].forEach(role => {
             const onboarding = document.getElementById(`interests-onboarding-${role}`);
             onboarding.hidden = true;
@@ -4617,9 +4621,9 @@
         return [...new Set([...centresInteret, ...themesDuTexte().themes])];
     }
 
-    function appliquerPhotoAujourdHui(photo) {
-        const card = document.getElementById('senior-today-card');
-        const credit = document.getElementById('senior-today-photo-credit');
+    function appliquerPhotoAujourdHui(photo, role = 'senior') {
+        const card = document.getElementById(`${role}-today-card`);
+        const credit = document.getElementById(`${role}-today-photo-credit`);
         card.classList.toggle('has-daily-photo', Boolean(photo));
         card.style.backgroundImage = photo
             ? `linear-gradient(rgba(255,255,255,.12), rgba(255,255,255,.12)), url("/riddle-images/fonds/${photo[0]}.jpg")`
@@ -4645,7 +4649,7 @@
         const matchingPhotos = typed.photos.length ? photos.filter(photo => typed.photos.includes(photo[0])) : photos;
         const day = Math.floor(Date.parse(`${dateCheckinBienEtre()}T00:00:00Z`) / 86400000);
         const photo = matchingPhotos.length ? matchingPhotos[((day % matchingPhotos.length) + matchingPhotos.length) % matchingPhotos.length] : null;
-        if (connectedUser.role === 'senior') appliquerPhotoAujourdHui(photo);
+        appliquerPhotoAujourdHui(photo, connectedUser.role);
         const tracks = [
             ['Valse de Chopin', 'https://commons.wikimedia.org/wiki/File:Chopin_-_Waltz_in_A-flat_major,_Op._64_No._3.oga'],
             ['Nicaragua, au piano', 'https://commons.wikimedia.org/wiki/File:Nicaragua_(himno).opus']
@@ -7003,14 +7007,22 @@
                 container.append(makeTextElement('p', 'Aucun message reçu pour le moment.', 'helper-text'));
                 return;
             }
+            const correspondantsAffiches = new Set();
             messages.slice(0, 20).forEach(message => {
+                if (!message.safety) {
+                    if (correspondantsAffiches.has(message.senderUserId)) return;
+                    correspondantsAffiches.add(message.senderUserId);
+                }
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `today-inbox-item${!message.safety && !message.read ? ' unread' : ''}`;
                 button.append(makeTextElement('strong', message.safety ? `Message automatique pour ${message.seniorName}` : message.senderName));
                 button.append(makeTextElement('span', message.body));
-                button.append(makeTextElement('small', formatDateTime(message.createdAt) +
-                    (message.safety ? '' : ` · ${message.read ? 'Lu' : 'Non lu'}`)));
+                const timestamp = formatDateTime(message.createdAt);
+                const readStatus = message.safety ? '' : message.readAt
+                    ? ` · Ouvert le ${formatDateTime(message.readAt)}`
+                    : ` · ${message.read ? 'Lu' : 'Non lu'}`;
+                button.append(makeTextElement('small', `${timestamp}${readStatus}`));
                 button.addEventListener('click', () => ouvrirMessageDepuisBoite(role, message));
                 container.append(button);
             });

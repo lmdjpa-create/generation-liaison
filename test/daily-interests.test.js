@@ -132,6 +132,24 @@ test('caregivers can see discoveries with and without a linked person', async ()
   }
 });
 
+test('caregivers see the daily photo on today’s summary card and it resets on logout', async () => {
+  const { context, node } = setup();
+  context.connectedUser = { id: 'two', role: 'aidant' };
+  context.fetch = async () => ({ ok: true, data: { interests: ['nature'], text: '' } });
+  await context.chargerCentresInteret(context.connectedUser);
+  const card = node('aidant-today-card');
+  assert.equal(card.classList.contains('has-daily-photo'), true);
+  assert.match(card.style.backgroundImage, /riddle-images\/fonds\/.+\.jpg/);
+  assert.match(card['aria-label'], /Aujourd’hui —/);
+  assert.equal(node('aidant-today-photo-credit').hidden, false);
+  assert.equal(node('senior-today-card').classList.contains('has-daily-photo'), false);
+  assert.match(source, /<section class="form-card" id="aidant-today-card"[^>]*aria-labelledby="aidant-daily-summary-title"/);
+  context.reinitialiserCentresInteret();
+  assert.equal(card.classList.contains('has-daily-photo'), false);
+  assert.equal(card.style.backgroundImage, '');
+  assert.equal(node('aidant-today-photo-credit').hidden, true);
+});
+
 test('late responses cannot display one account’s choices in another', async () => {
   const { context, node } = setup();
   let resolve;
@@ -204,8 +222,8 @@ test('the daily background follows the photo, resets on logout and allows conten
   assert.equal(card.classList.contains('has-daily-photo'), false);
   assert.equal(card.style.backgroundImage, '');
   assert.equal(node('senior-today-photo-credit').hidden, true);
-  assert.match(source, /#senior-today-card\.has-daily-photo\s*\{[^}]*min-height:\s*290px/);
-  assert.match(source, /#senior-today-card\.has-daily-photo > \.today-inbox-list\s*\{[^}]*max-height:\s*none/);
+  assert.match(source, /:is\(#senior-today-card, #aidant-today-card\)\.has-daily-photo\s*\{[^}]*min-height:\s*290px/);
+  assert.match(source, /:is\(#senior-today-card, #aidant-today-card\)\.has-daily-photo > \.today-inbox-list\s*\{[^}]*max-height:\s*none/);
 });
 
 test('written ingredients select recipes containing the requested ingredient', () => {

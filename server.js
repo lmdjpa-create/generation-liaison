@@ -5522,7 +5522,7 @@ app.get('/api/messages/inbox', requireAuth, async (req, res) => {
     );
     res.set('Cache-Control', 'private, no-store');
     res.json({ messages: rows.map(row => ({
-      id: row.id, body: row.body, createdAt: row.created_at, read: Boolean(row.read_at),
+      id: row.id, body: row.body, createdAt: row.created_at, read: Boolean(row.read_at), readAt: row.read_at,
       senderUserId: row.sender_id, senderName: row.sender_name
     })) });
   } catch (error) {
