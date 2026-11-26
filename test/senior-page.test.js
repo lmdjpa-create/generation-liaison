@@ -2473,7 +2473,52 @@ test('today inbox shows received messages and opens the selected conversation', 
     ? Promise.reject(new Error('Indisponible')) : load(path);
   await context.chargerBoiteReception('aidant');
   assert.equal(element('aidant-today-inbox').children[0].children[0].textContent, 'Camille');
-  assert.equal(element('aidant-today-inbox').children.some(child => /pas pu être chargés/.test(child.textContent)), true);
+  assert.equal(element('aidant-today-inbox').children.some(child => /messages automatiques n’ont pas pu/.test(child.textContent)), true);
+  const retry = element('aidant-today-inbox').children.at(-1);
+  assert.equal(retry.textContent, 'Réessayer');
+  let finishSafety;
+  let safetyRequests = 0;
+  context.planningRequest = path => path.endsWith('safety-alerts')
+    ? (safetyRequests++, new Promise(resolve => { finishSafety = resolve; })) : load(path);
+  const pending = retry.listeners.click();
+  assert.equal(retry.disabled, true);
+  assert.equal(retry.textContent, 'Chargement des messages…');
+  await retry.listeners.click();
+  assert.equal(safetyRequests, 1);
+  finishSafety({ messages: [{ id: 'safety', seniorName: 'Marie', body: 'Alerte', createdAt: '2026-01-02' }] });
+  await pending;
+  assert.equal(element('aidant-today-inbox').children.some(child => /pas pu être chargés/.test(child.textContent)), false);
+  assert.equal(element('aidant-today-inbox').children[1].children[0].textContent, 'Message automatique pour Marie');
+});
+
+test('today inbox distinguishes failed conversations from automatic messages', async () => {
+  const elements = new Map();
+  const node = () => ({
+    children: [], textContent: '', listeners: {},
+    append(...children) { this.children.push(...children); },
+    replaceChildren(...children) { this.children = children; },
+    addEventListener(name, callback) { this.listeners[name] = callback; }
+  });
+  const element = id => {
+    if (!elements.has(id)) elements.set(id, node());
+    return elements.get(id);
+  };
+  const context = {
+    connectedUser: { id: 'aidant', role: 'aidant' }, inboxLoadId: 0,
+    window: { generationLiaisonTranslate: value => value },
+    document: { getElementById: element, createElement: node },
+    planningRequest: async path => {
+      if (path.endsWith('safety-alerts')) return { messages: [] };
+      throw new Error('Indisponible');
+    },
+    makeTextElement: (tag, text) => ({ tag, textContent: text })
+  };
+  vm.runInNewContext(extract('    async function ouvrirMessageDepuisBoite(role, message)', '    async function chargerCorrespondants(role)'), context);
+  await context.chargerBoiteReception('aidant');
+  const children = element('aidant-today-inbox').children;
+  assert.equal(children[0].textContent, 'Les conversations n’ont pas pu être chargées.');
+  assert.equal(children[1].textContent, 'Réessayer');
+  assert.equal(children.some(child => /Aucun message/.test(child.textContent)), false);
 });
 
 test('SMS-style inbox groups private messages by correspondent for every messaging role', async () => {

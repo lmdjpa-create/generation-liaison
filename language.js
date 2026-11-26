@@ -557,6 +557,8 @@
     'Sans volontaire': 'Unclaimed',
     'Messages non lus (tous vos contacts)': 'Unread messages (all your contacts)',
     'Chargement des messages…': 'Loading messages…',
+    'Les conversations n’ont pas pu être chargées.': 'Conversations could not be loaded.',
+    'Les messages automatiques n’ont pas pu être chargés.': 'Automatic messages could not be loaded.',
     'Envoi du message…': 'Sending message…',
     'Afficher les messages': 'Show messages',
     'Tous les messages': 'All messages',

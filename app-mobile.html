@@ -52,6 +52,7 @@
         #reg-previous, #reg-next { padding: 12px 20px; margin: 8px 4px; cursor: pointer; }
         #reg-previous { background: #fff; color: #17684f; border: 1px solid #17684f; }
         #reg-next { background: #17684f; color: #fff; border: 1px solid #17684f; }
+        #login-section > label, #reg-step-2 > label { display: block; margin-bottom: 6px; text-align: left; font-weight: 600; }
         .register-button { width: 100%; min-height: 50px; margin-bottom: 16px; padding: 12px; border: 2px solid #19785b; border-radius: 14px; background: white; color: #155e48; font-size: 1.1rem; font-weight: bold; cursor: pointer; }
         .btn-gros { display: block; width: 100%; padding: 22px; font-size: 1.8rem; font-weight: bold; color: white; border: none; border-radius: 15px; margin: 15px 0; cursor: pointer; }
         .btn-success { background-color: #2ecc71; }
@@ -996,7 +997,9 @@
                 <button id="register-open" class="register-button" type="button" onclick="basculerFormulaire(true)">S’inscrire</button>
             </div>
             <p id="staff-login-help" class="helper-text" hidden>Votre établissement crée votre compte soignant. Pour une connexion sans e-mail, demandez-lui le lien et vos identifiants.</p>
+            <label for="auth-email">Adresse e-mail</label>
             <input type="email" id="auth-email" name="username" autocomplete="username" placeholder="Adresse e-mail" required>
+            <label for="auth-password">Mot de passe</label>
             <input type="password" id="auth-password" name="password" autocomplete="current-password" placeholder="Mot de passe" required>
             <button class="btn-submit" type="submit">Se connecter</button>
             <p class="helper-text">Après connexion, votre navigateur peut proposer d’enregistrer vos identifiants. Le site ne conserve pas votre mot de passe.</p>
@@ -1037,7 +1040,9 @@
             </div>
             <div id="reg-step-2" class="register-step" hidden>
             <h3 tabindex="-1">Votre identité et votre accès</h3>
+            <label for="reg-first-name">Prénom</label>
             <input type="text" id="reg-first-name" name="given-name" autocomplete="given-name" maxlength="120" placeholder="Prénom" aria-label="Prénom">
+            <label for="reg-last-name">Nom de famille</label>
             <input type="text" id="reg-last-name" name="family-name" autocomplete="family-name" maxlength="120" placeholder="Nom de famille" aria-label="Nom de famille">
             <label for="reg-civility">Civilité</label>
             <select id="reg-civility">
@@ -1048,6 +1053,7 @@
             <label for="reg-account-photo" id="reg-account-photo-label">Photo de profil (facultative)</label>
             <input id="reg-account-photo" type="file" accept="image/jpeg,image/png">
             <p class="helper-text">JPEG ou PNG, 2 Mo maximum. La photo est partagée par défaut avec les personnes qui vous ont ajouté à leurs contacts. Les intervenants doivent en ajouter une ; les autres peuvent désactiver le partage dans les réglages.</p>
+            <label for="reg-email">Adresse e-mail</label>
             <input type="email" id="reg-email" name="username" autocomplete="username" placeholder="Adresse e-mail">
             <label for="reg-password">Code d’accès (12 caractères minimum)</label>
             <input type="password" id="reg-password" name="password" autocomplete="new-password" maxlength="256" placeholder="Code d’accès (12 caractères min)" oninput="actualiserConfirmationInscription()">
@@ -7009,7 +7015,19 @@
         const userId = connectedUser.id;
         const loadId = ++inboxLoadId;
         const container = document.getElementById(`${role}-today-inbox`);
-        if (!container.children.length) container.textContent = 'Chargement des messages…';
+        const ajouterBoutonNouvelEssai = () => {
+            const retry = document.createElement('button');
+            retry.type = 'button';
+            retry.textContent = window.generationLiaisonTranslate('Réessayer');
+            retry.addEventListener('click', async () => {
+                if (retry.disabled) return;
+                retry.disabled = true;
+                retry.textContent = window.generationLiaisonTranslate('Chargement des messages…');
+                await chargerBoiteReception(role);
+            });
+            container.append(retry);
+        };
+        if (!container.children.length) container.textContent = window.generationLiaisonTranslate('Chargement des messages…');
         try {
             const [inbox, safety] = await Promise.allSettled([
                 planningRequest('/api/messages/inbox?view=conversations'),
@@ -7046,12 +7064,19 @@
             if (inbox.status === 'fulfilled' && inbox.value.hasMore) {
                 container.append(makeTextElement('p', window.generationLiaisonTranslate('Les 20 conversations les plus récentes sont affichées. Retrouvez les autres dans Messages en choisissant un correspondant.'), 'helper-text'));
             }
+            if (inbox.status === 'rejected') {
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Les conversations n’ont pas pu être chargées.'), 'helper-text'));
+            }
+            if (safety?.status === 'rejected') {
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Les messages automatiques n’ont pas pu être chargés.'), 'helper-text'));
+            }
             if (inbox.status === 'rejected' || safety?.status === 'rejected') {
-                container.append(makeTextElement('p', 'Certains messages n’ont pas pu être chargés.', 'helper-text'));
+                ajouterBoutonNouvelEssai();
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role && loadId === inboxLoadId) {
                 container.textContent = error.message || 'Impossible de charger la boîte de réception.';
+                ajouterBoutonNouvelEssai();
             }
         }
     }

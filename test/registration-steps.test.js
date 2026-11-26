@@ -6,6 +6,15 @@ const { test } = require('node:test');
 
 const source = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
 
+test('login and registration identity fields have persistent visible labels', () => {
+  for (const [id, label] of [
+    ['auth-email', 'Adresse e-mail'], ['auth-password', 'Mot de passe'],
+    ['reg-first-name', 'Prénom'], ['reg-last-name', 'Nom de famille'], ['reg-email', 'Adresse e-mail']
+  ]) {
+    assert.match(source, new RegExp(`<label for="${id}">${label}</label>\\s*<input[^>]*id="${id}"`));
+  }
+});
+
 test('tablet prices appear with each choice in registration and settings', () => {
   for (const [value, price] of [
     ['purchase', /299 € TTC/],
