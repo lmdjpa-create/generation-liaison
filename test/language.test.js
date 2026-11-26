@@ -442,7 +442,7 @@ test('English wellbeing displays translate labels but preserve saved and shared 
   const context = {
     window: app.window, connectedUser: { role: 'aidant' }, wellbeingSafetyTimer: null,
     document: { getElementById: id => elements[id] },
-    makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    makeTextElement: (tag, text) => ({ tag, textContent: text, setAttribute() {} }),
     afficherSuiviSecuriteBienEtre() {},
     planningRequest: async () => response
   };
@@ -467,6 +467,79 @@ test('English wellbeing displays translate labels but preserve saved and shared 
   context.planningRequest = async () => { throw new Error(); };
   await context.chargerCheckinsPartages();
   assert.equal(elements['aidant-wellbeing-shared'].children[0].textContent, 'Unable to load shared wellbeing check-ins.');
+});
+
+test('switching wellbeing language preserves the safety timer, actions and personal text', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup();
+  const node = () => ({
+    children: [], attributes: {}, textContent: '', listeners: {},
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+    addEventListener(name, callback) { this.listeners[name] = callback; },
+    querySelectorAll() {
+      return this.children.flatMap(child => [
+        ...(Object.hasOwn(child.attributes || {}, 'data-wellbeing-translation') ? [child] : []),
+        ...(child.querySelectorAll ? child.querySelectorAll() : [])
+      ]);
+    }
+  });
+  const elements = {
+    'wellbeing-checkin-form': node(), 'wellbeing-checkin-result': node(),
+    'wellbeing-safety-result': node()
+  };
+  let timers = 0;
+  let cleared = 0;
+  app.window.setTimeout = () => { timers++; return timers; };
+  app.window.clearTimeout = () => { cleared++; };
+  const context = {
+    window: app.window, wellbeingSafetyTimer: null,
+    document: { getElementById: id => elements[id], createElement: node },
+    makeTextElement: (tag, text) => Object.assign(node(), { textContent: text }),
+    enregistrerReponseSecurite() {}
+  };
+  const start = page.indexOf('    function afficherCheckinBienEtre(checkin)');
+  const end = page.indexOf('    async function enregistrerReponseSecurite', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  app.window.addEventListener('generationliaisonlanguagechange', context.actualiserLangueBienEtre);
+  context.afficherCheckinBienEtre({
+    id: 'check-1', response: 'Votre réponse', assistantReply: 'Votre réponse',
+    safetyConcern: true, safetyCheckStatus: 'awaiting_response'
+  });
+  const result = elements['wellbeing-checkin-result'].children;
+  const safety = elements['wellbeing-safety-result'].children[0].children;
+  const buttons = safety[2].children;
+  const click = buttons[0].listeners.click;
+  app.window.generationLiaisonSetLanguage('en');
+  assert.equal(result[1].textContent, 'Your answer');
+  assert.equal(result[2].textContent, 'Votre réponse');
+  assert.equal(result[4].textContent, 'Votre réponse');
+  assert.equal(buttons[0].textContent, 'Yes, I am safe');
+  assert.equal(buttons[0].listeners.click, click);
+  assert.equal(timers, 1);
+  assert.equal(cleared, 0);
+  safety[1].textContent = 'Erreur de connexion';
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(safety[1].textContent, 'Erreur de connexion');
+  assert.equal(buttons[0].textContent, 'Oui, je suis en sécurité');
+  assert.equal(timers, 1);
+  assert.equal(cleared, 0);
+  context.afficherCheckinBienEtre({
+    id: 'check-1', response: 'Votre réponse', assistantReply: 'Votre réponse',
+    safetyConcern: true, safetyCheckStatus: 'no_response', safetyNotifiedAidants: 2
+  });
+  app.window.generationLiaisonSetLanguage('en');
+  assert.match(elements['wellbeing-safety-result'].children[0].children[1].textContent, /2 caregiver/);
+  context.afficherCheckinBienEtre({
+    id: 'check-1', response: 'Votre réponse', assistantReply: 'Votre réponse',
+    safetyConcern: true, safetyCheckStatus: 'emergency_confirmed', safetyNotifiedAidants: 2
+  });
+  const confirmed = elements['wellbeing-safety-result'].children[0].children[1];
+  assert.match(confirmed.textContent, /selected number.*2 caregiver/);
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.match(confirmed.textContent, /numéro choisi.*2 aidant/);
 });
 
 test('English wellbeing loading and empty caregiver states use the selected language', async () => {
@@ -584,6 +657,49 @@ test('English professional location messages preserve locations and report error
   context.choisirCommune = async () => { throw new Error('Le service de recherche des communes est indisponible.'); };
   await element('reg-city-search').listeners.click();
   assert.equal(element('reg-home-location-status').textContent, 'The municipality search service is unavailable.');
+});
+
+test('switching registration language updates the current step without changing the form or focus', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup();
+  const elements = {};
+  let focusCount = 0;
+  const element = id => elements[id] ||= {
+    value: '', hidden: false, textContent: '', files: [],
+    querySelector: () => ({ focus() { focusCount++; } })
+  };
+  element('reg-role').options = [{ text: 'Senior' }];
+  element('reg-role').selectedIndex = 0;
+  element('reg-tablet-interest').options = [{ text: 'No' }];
+  element('reg-tablet-interest').selectedIndex = 0;
+  element('reg-first-name').value = 'Marie';
+  element('reg-last-name').value = 'Votre réponse';
+  element('reg-email').value = 'marie@example.test';
+  element('reg-postal-address').value = '10 rue Exemple';
+  element('reg-postal-code').value = '75000';
+  element('reg-postal-city').value = 'Paris';
+  element('reg-postal-country').value = 'France';
+  const file = { name: 'document.pdf' };
+  element('reg-identity-document').files = [file];
+  const context = { window: app.window, document: { getElementById: element } };
+  const start = page.indexOf('    let registrationStep = 1;');
+  const end = page.indexOf('    function messageErreurPosition(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  app.window.addEventListener('generationliaisonlanguagechange', context.actualiserTextesEtapeInscription);
+  context.afficherEtapeInscription(4);
+  const firstFocusCount = focusCount;
+  element('reg-step-error').hidden = false;
+  app.window.generationLiaisonSetLanguage('en');
+  assert.match(element('reg-step-progress').textContent, /^Step 4 of 4/);
+  assert.match(element('reg-summary').textContent, /Marie Votre réponse — marie@example\.test/);
+  assert.match(element('reg-postal-summary').textContent, /10 rue Exemple, 75000 Paris, France/);
+  assert.equal(element('reg-identity-document').files[0], file);
+  assert.equal(element('reg-step-error').hidden, false);
+  assert.equal(focusCount, firstFocusCount);
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.match(element('reg-step-progress').textContent, /^Étape 4 sur 4/);
+  assert.match(page, /addEventListener\('generationliaisonlanguagechange', actualiserTextesEtapeInscription\)/);
 });
 
 test('switching languages does not replace content or attributes updated by the application', () => {

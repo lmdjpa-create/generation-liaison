@@ -3518,18 +3518,11 @@
             : '';
     }
 
-    function afficherEtapeInscription(step) {
-        registrationStep = step;
-        for (let i = 1; i <= 4; i++) document.getElementById(`reg-step-${i}`).hidden = i !== step;
+    function actualiserTextesEtapeInscription() {
         const titles = ['votre profil', 'votre identité et votre accès', 'vos informations', 'vérification et conditions'];
         document.getElementById('reg-step-progress').textContent =
-            `${window.generationLiaisonTranslate('Étape')} ${step} ${window.generationLiaisonTranslate('sur')} 4 : ${window.generationLiaisonTranslate(titles[step - 1])}`;
-        document.getElementById('reg-progress').value = step;
-        document.getElementById('reg-previous').hidden = step === 1;
-        document.getElementById('reg-next').hidden = step === 4;
-        document.getElementById('reg-submit').hidden = step !== 4;
-        document.getElementById('reg-step-error').hidden = true;
-        if (step === 4) {
+            `${window.generationLiaisonTranslate('Étape')} ${registrationStep} ${window.generationLiaisonTranslate('sur')} 4 : ${window.generationLiaisonTranslate(titles[registrationStep - 1])}`;
+        if (registrationStep === 4) {
             const role = document.getElementById('reg-role');
             const name = `${document.getElementById('reg-first-name').value.trim()} ${document.getElementById('reg-last-name').value.trim()}`;
             const email = document.getElementById('reg-email').value.trim();
@@ -3542,6 +3535,17 @@
                 ? `${window.generationLiaisonTranslate('Adresse de livraison')} : ${address.street}, ${address.postalCode} ${address.city}, ${address.country}`
                 : '';
         }
+    }
+
+    function afficherEtapeInscription(step) {
+        registrationStep = step;
+        for (let i = 1; i <= 4; i++) document.getElementById(`reg-step-${i}`).hidden = i !== step;
+        actualiserTextesEtapeInscription();
+        document.getElementById('reg-progress').value = step;
+        document.getElementById('reg-previous').hidden = step === 1;
+        document.getElementById('reg-next').hidden = step === 4;
+        document.getElementById('reg-submit').hidden = step !== 4;
+        document.getElementById('reg-step-error').hidden = true;
         document.getElementById(`reg-step-${step}`).querySelector('h3').focus();
     }
 
@@ -5617,38 +5621,64 @@
 
         form.hidden = true;
         result.hidden = false;
-        result.append(makeTextElement(
-            'p',
-            window.generationLiaisonTranslate('Votre réponse du jour est enregistrée. Elle sera supprimée automatiquement après 30 jours.'),
-            'helper-text'
-        ));
-        result.append(makeTextElement('h4', window.generationLiaisonTranslate('Votre réponse')));
+        result.append(texteTraduitBienEtre(makeTextElement('p', '', 'helper-text'),
+            'Votre réponse du jour est enregistrée. Elle sera supprimée automatiquement après 30 jours.'));
+        result.append(texteTraduitBienEtre(makeTextElement('h4', ''), 'Votre réponse'));
         result.append(makeTextElement('p', checkin.response));
-        result.append(makeTextElement('h4', window.generationLiaisonTranslate('La réponse de votre assistant IA')));
+        result.append(texteTraduitBienEtre(makeTextElement('h4', ''), 'La réponse de votre assistant IA'));
         result.append(makeTextElement('p', checkin.assistantReply));
         afficherSuiviSecuriteBienEtre(safetyResult, checkin);
+    }
+
+    function texteTraduitBienEtre(element, key, values = {}) {
+        element.setAttribute('data-wellbeing-translation', '');
+        element.wellbeingTranslation = { key, values, last: '' };
+        actualiserTexteBienEtre(element);
+        return element;
+    }
+
+    function actualiserTexteBienEtre(element) {
+        const translation = element.wellbeingTranslation;
+        if (!translation) return;
+        const keys = Array.isArray(translation.key) ? translation.key : [translation.key];
+        let text = keys.map(key => window.generationLiaisonTranslate(key)).join(' ');
+        for (const [key, value] of Object.entries(translation.values)) {
+            text = text.replace(`{${key}}`, typeof value === 'function' ? value() : value);
+        }
+        element.textContent = text;
+        translation.last = text;
+    }
+
+    function actualiserLangueBienEtre() {
+        ['wellbeing-checkin-result', 'wellbeing-safety-result'].forEach(id => {
+            document.getElementById(id).querySelectorAll('[data-wellbeing-translation]').forEach(element => {
+                if (element.wellbeingTranslation && element.textContent === element.wellbeingTranslation.last) {
+                    actualiserTexteBienEtre(element);
+                }
+            });
+        });
     }
 
     function afficherSuiviSecuriteBienEtre(container, checkin) {
         if (!checkin.safetyConcern) return;
         const section = document.createElement('section');
         section.className = 'emergency-confirmation';
-        section.append(makeTextElement('h3', window.generationLiaisonTranslate('Vérifions que vous êtes en sécurité')));
+        section.append(texteTraduitBienEtre(makeTextElement('h3', ''), 'Vérifions que vous êtes en sécurité'));
         const status = makeTextElement('p', '', 'helper-text');
         status.setAttribute('aria-live', 'polite');
 
         if (checkin.safetyCheckStatus === 'awaiting_response') {
-            status.textContent = window.generationLiaisonTranslate('Est-ce que tout va bien ? Avez-vous besoin d’aide ? Aucun appel ne sera passé automatiquement. Si vous ne répondez pas sous 60 secondes pendant que l’application est ouverte, vos aidants actifs seront informés.');
+            texteTraduitBienEtre(status, 'Est-ce que tout va bien ? Avez-vous besoin d’aide ? Aucun appel ne sera passé automatiquement. Si vous ne répondez pas sous 60 secondes pendant que l’application est ouverte, vos aidants actifs seront informés.');
             const actions = document.createElement('div');
             actions.className = 'emergency-call-actions';
             const safeButton = document.createElement('button');
             safeButton.type = 'button';
-            safeButton.textContent = window.generationLiaisonTranslate('Oui, je suis en sécurité');
+            texteTraduitBienEtre(safeButton, 'Oui, je suis en sécurité');
             safeButton.addEventListener('click', () =>
                 enregistrerReponseSecurite(checkin.id, 'safe', status));
             const helpButton = document.createElement('button');
             helpButton.type = 'button';
-            helpButton.textContent = window.generationLiaisonTranslate('J’ai besoin d’aide');
+            texteTraduitBienEtre(helpButton, 'J’ai besoin d’aide');
             helpButton.addEventListener('click', () =>
                 enregistrerReponseSecurite(checkin.id, 'needs_help', status));
             actions.append(safeButton, helpButton);
@@ -5662,7 +5692,7 @@
         }
 
         if (checkin.safetyCheckStatus === 'needs_help') {
-            status.textContent = window.generationLiaisonTranslate('Vous avez indiqué avoir besoin d’aide. En France, choisissez le 112 ou, en cas d’incendie, le 18. Dans un autre pays, contactez les secours locaux. Une seconde confirmation sera demandée avant l’alerte aux aidants et l’ouverture du composeur.');
+            texteTraduitBienEtre(status, 'Vous avez indiqué avoir besoin d’aide. En France, choisissez le 112 ou, en cas d’incendie, le 18. Dans un autre pays, contactez les secours locaux. Une seconde confirmation sera demandée avant l’alerte aux aidants et l’ouverture du composeur.');
             const actions = document.createElement('div');
             actions.className = 'emergency-call-actions';
             [
@@ -5671,7 +5701,7 @@
             ].forEach(option => {
                 const button = document.createElement('button');
                 button.type = 'button';
-                button.textContent = window.generationLiaisonTranslate(option.label);
+                texteTraduitBienEtre(button, option.label);
                 button.addEventListener('click', () => {
                     emergencyNumberSelected = option.number;
                     emergencyCheckinId = checkin.id;
@@ -5687,20 +5717,25 @@
             });
             section.append(status, actions);
         } else if (checkin.safetyCheckStatus === 'no_response') {
-            status.textContent = checkin.safetyNotifiedAidants
-                ? window.generationLiaisonTranslate('Vous n’avez pas répondu à la vérification. Une alerte a été préparée pour {count} aidant(s), selon leurs préférences. Aucun appel n’a été passé. En cas de danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.').replace('{count}', checkin.safetyNotifiedAidants)
-                : window.generationLiaisonTranslate('Vous n’avez pas répondu à la vérification. Aucun aidant actif n’est enregistré ; aucun appel n’a été passé. En cas de danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.');
+            texteTraduitBienEtre(status, checkin.safetyNotifiedAidants
+                ? 'Vous n’avez pas répondu à la vérification. Une alerte a été préparée pour {count} aidant(s), selon leurs préférences. Aucun appel n’a été passé. En cas de danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.'
+                : 'Vous n’avez pas répondu à la vérification. Aucun aidant actif n’est enregistré ; aucun appel n’a été passé. En cas de danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.',
+                { count: checkin.safetyNotifiedAidants });
             section.append(status);
         } else if (checkin.safetyCheckStatus === 'emergency_confirmed') {
-            status.textContent = window.generationLiaisonTranslate('Votre demande d’appel au {number} a été confirmée.')
-                .replace('{number}', checkin.emergencyNumber || window.generationLiaisonTranslate('numéro choisi')) + ' ' +
-                (checkin.safetyNotifiedAidants
-                    ? window.generationLiaisonTranslate('Une notification a été préparée pour {count} aidant(s), selon leurs préférences.').replace('{count}', checkin.safetyNotifiedAidants)
-                    : window.generationLiaisonTranslate('Aucun aidant actif n’est enregistré.')) + ' ' +
-                window.generationLiaisonTranslate('L’application ne peut pas vérifier la réception de la notification ni l’aboutissement de l’appel.');
+            texteTraduitBienEtre(status, [
+                'Votre demande d’appel au {number} a été confirmée.',
+                checkin.safetyNotifiedAidants
+                    ? 'Une notification a été préparée pour {count} aidant(s), selon leurs préférences.'
+                    : 'Aucun aidant actif n’est enregistré.',
+                'L’application ne peut pas vérifier la réception de la notification ni l’aboutissement de l’appel.'
+            ], {
+                number: () => checkin.emergencyNumber || window.generationLiaisonTranslate('numéro choisi'),
+                count: checkin.safetyNotifiedAidants
+            });
             section.append(status);
         } else if (checkin.safetyCheckStatus === 'safe') {
-            status.textContent = window.generationLiaisonTranslate('Merci de nous avoir répondu. Si votre situation change ou si vous êtes en danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.');
+            texteTraduitBienEtre(status, 'Merci de nous avoir répondu. Si votre situation change ou si vous êtes en danger, appelez le 112 en France ou contactez les secours locaux dans un autre pays.');
             section.append(status);
         }
         container.append(section);
@@ -11933,6 +11968,8 @@
         window.addEventListener('resize', surveillerNotificationsVisibles);
         window.addEventListener('generationliaisonlanguagechange', afficherProchainRendezVous);
         window.addEventListener('generationliaisonlanguagechange', traduireTextesJeux);
+        window.addEventListener('generationliaisonlanguagechange', actualiserTextesEtapeInscription);
+        window.addEventListener('generationliaisonlanguagechange', actualiserLangueBienEtre);
         traduireTextesJeux();
         let pendingNotificationId = new URLSearchParams(window.location.search).get('notification') || '';
         window.handlePendingNotification = async () => {

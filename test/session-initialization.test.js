@@ -61,7 +61,7 @@ function createApp(response) {
     configurerAnnuaire() {},
     configurerExplicationsSenior() {},
     afficherChampsInscriptionProfessionnel() { calls.push({ registrationRole: element('reg-role').value }); },
-    afficherProchainRendezVous() {}, traduireTextesJeux() {},
+    afficherProchainRendezVous() {}, traduireTextesJeux() {}, actualiserTextesEtapeInscription() {}, actualiserLangueBienEtre() {},
     surveillerNotificationsVisibles() {},
     modifierSynchronisationGoogle() {}
   };
