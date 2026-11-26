@@ -2358,6 +2358,7 @@
       <details class="senior-tab-disclosure" id="safety-messages-details">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#fff1f0;">⚠️</span>Messages automatiques de sécurité</summary>
         <p class="helper-text">Ces messages sont générés par l’application, pas rédigés par la personne accompagnée. Ils ne garantissent pas la réception d’une alerte ni l’intervention des secours.</p>
+        <p class="helper-text">Certains messages automatiques de sécurité sont actuellement en français.</p>
         <div id="safety-messages-aidant" aria-live="polite"></div>
       </details>
       <details class="senior-tab-disclosure" id="message-details-aidant">
@@ -2771,7 +2772,9 @@
         <summary><span class="tile-icon" aria-hidden="true" style="background:#e6f4ee;">📅</span>Ajouter un rendez-vous</summary>
         <form id="personal-event-form">
             <input id="personal-event-title" type="text" maxlength="120" placeholder="Titre du rendez-vous" aria-label="Titre du rendez-vous" required>
+            <label for="personal-event-start">Date et heure de Paris</label>
             <input id="personal-event-start" type="datetime-local" aria-label="Date et heure de Paris" required>
+            <p class="helper-text">Saisissez l’heure de Paris, même si vous vous trouvez dans un autre fuseau horaire.</p>
             <input id="personal-event-duration" type="number" min="5" max="1440" step="5" value="60" aria-label="Durée en minutes" required>
             <label for="personal-event-recurrence">Répéter</label>
             <select id="personal-event-recurrence">
@@ -6856,7 +6859,7 @@
                 const badge = document.getElementById(id);
                 if (!badge) return;
                 badge.hidden = count === 0;
-                badge.textContent = count ? `${count} non lue${count > 1 ? 's' : ''}` : '';
+                badge.textContent = count ? `${count} ${window.generationLiaisonTranslate(count > 1 ? 'non lues' : 'non lue')}` : '';
             });
     }
 
@@ -6893,14 +6896,14 @@
                     });
                     if (connectedUser?.id !== entry.userId || !entry.card.isConnected) return;
                     entry.card.classList.remove('unread');
-                    entry.status.textContent = 'Lu';
+                    entry.status.textContent = window.generationLiaisonTranslate('Lu');
                     notificationReadEntries = notificationReadEntries.filter(item => item !== entry);
                     actualiserCompteurNotifications(document.querySelectorAll(
                         `#notifications-${entry.role} .notification-card.unread`
                     ).length);
                 } catch (error) {
                     entry.failed = true;
-                    showToast(error.message || 'Impossible de marquer la notification comme lue.', false);
+                    showToast(error.message || window.generationLiaisonTranslate('Impossible de marquer la notification comme lue.'), false);
                 } finally {
                     entry.pending = false;
                 }
@@ -6920,20 +6923,22 @@
             list.replaceChildren();
             const unread = result.announcements.filter(item => !item.read).length;
             document.getElementById('admin-announcements-summary').textContent =
-                unread ? `Messages de l’équipe et de l’établissement (${unread} non lu(s))` : 'Messages de l’équipe et de l’établissement';
-            status.textContent = result.announcements.length ? '' : 'Aucun message pour le moment.';
+                unread
+                    ? window.generationLiaisonTranslate('Messages de l’équipe et de l’établissement ({count} non lu(s))').replace('{count}', unread)
+                    : window.generationLiaisonTranslate('Messages de l’équipe et de l’établissement');
+            status.textContent = result.announcements.length ? '' : window.generationLiaisonTranslate('Aucun message pour le moment.');
             result.announcements.forEach(item => {
                 const card = document.createElement('article');
                 card.className = `notification-card${item.read ? '' : ' unread'}`;
-                card.append(makeTextElement('small', item.type === 'establishment_announcement' ? 'Votre établissement' : 'Administration', 'helper-text'));
+                card.append(makeTextElement('small', window.generationLiaisonTranslate(item.type === 'establishment_announcement' ? 'Votre établissement' : 'Administration'), 'helper-text'));
                 card.append(makeTextElement('strong', item.title));
                 const message = makeTextElement('p', item.message);
                 message.style.whiteSpace = 'pre-wrap';
-                card.append(message, makeTextElement('small', `${formatDateTime(item.createdAt)} · ${item.read ? 'Lu' : 'Non lu'}`, 'helper-text'));
+                card.append(message, makeTextElement('small', `${formatDateTime(item.createdAt)} · ${window.generationLiaisonTranslate(item.read ? 'Lu' : 'Non lu')}`, 'helper-text'));
                 if (!item.read) {
                     const button = document.createElement('button');
                     button.type = 'button';
-                    button.textContent = 'Marquer comme lu';
+                    button.textContent = window.generationLiaisonTranslate('Marquer comme lu');
                     button.addEventListener('click', async () => {
                         button.disabled = true;
                         try {
@@ -6942,7 +6947,7 @@
                             });
                             await chargerMessagesAdministration();
                         } catch (error) {
-                            status.textContent = error.message || 'Impossible de marquer le message comme lu.';
+                            status.textContent = error.message || window.generationLiaisonTranslate('Impossible de marquer le message comme lu.');
                             button.disabled = false;
                         }
                     });
@@ -6953,7 +6958,7 @@
             return result;
         } catch (error) {
             if (connectedUser?.id === userId && loadId === announcementLoadId) {
-                status.textContent = error.message || 'Impossible de charger les messages de l’administration.';
+                status.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger les messages de l’administration.');
             }
         }
     }
@@ -6983,7 +6988,7 @@
                 card.append(makeTextElement('strong', notification.title));
                 card.append(makeTextElement('p', notification.message, 'helper-text'));
                 const metadata = makeTextElement('small', `${formatDateTime(notification.createdAt)} · `, 'helper-text');
-                const readStatus = makeTextElement('span', notification.read ? 'Lu' : 'Non lu');
+                const readStatus = makeTextElement('span', window.generationLiaisonTranslate(notification.read ? 'Lu' : 'Non lu'));
                 metadata.append(readStatus);
                 card.append(metadata);
                 if (!notification.read) {
@@ -6993,12 +6998,12 @@
                 actions.className = 'notification-actions';
                 const accept = document.createElement('button');
                 accept.type = 'button';
-                accept.textContent = 'Accepter le rendez-vous';
+                accept.textContent = window.generationLiaisonTranslate('Accepter le rendez-vous');
                 accept.addEventListener('click', () => repondreInvitation(notification, 'accepted', accept));
                 const decline = document.createElement('button');
                 decline.type = 'button';
                 decline.className = 'decline';
-                decline.textContent = 'Refuser';
+                decline.textContent = window.generationLiaisonTranslate('Refuser');
                 decline.addEventListener('click', () => repondreInvitation(notification, 'declined', decline));
                 actions.append(accept, decline);
                 card.append(actions);
@@ -7010,36 +7015,46 @@
             if (connectedUser?.id !== userId || loadId !== notificationLoadId) return;
             container.replaceChildren(makeTextElement(
                 'p',
-                error.message || 'Impossible de charger les notifications.',
+                error.message || window.generationLiaisonTranslate('Impossible de charger les notifications.'),
                 'helper-text'
             ));
         }
+    }
+
+    function traduireMessageSecurite(body) {
+        const match = /^(.+?) a confirmé une demande d’appel au (15|18|112) à (\d{2}\/\d{2}\/\d{4}\s+\d{2}:\d{2}:\d{2})(?: \(heure de Paris\))?\. L’application ne peut pas vérifier que l’appel a été passé ou abouti\.$/.exec(body);
+        if (match) {
+            const values = { name: match[1], number: match[2], time: match[3] };
+            return window.generationLiaisonTranslate('{name} a confirmé une demande d’appel au {number} à {time} (heure de Paris). L’application ne peut pas vérifier que l’appel a été passé ou abouti.')
+                .replace(/\{(name|number|time)\}/g, (_, key) => values[key]);
+        }
+        return window.generationLiaisonTranslate(body);
     }
 
     async function chargerMessagesSecurite() {
         if (connectedUser?.role !== 'aidant') return;
         const userId = connectedUser.id;
         const container = document.getElementById('safety-messages-aidant');
-        container.replaceChildren(makeTextElement('p', 'Chargement des messages de sécurité…', 'helper-text'));
+        container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate('Chargement des messages de sécurité…'), 'helper-text'));
         try {
             const result = await planningRequest('/api/messages/safety-alerts');
             if (connectedUser?.id !== userId || connectedUser?.role !== 'aidant') return;
             container.replaceChildren();
             if (!result.messages.length) {
-                container.append(makeTextElement('p', 'Aucun message de sécurité pour le moment.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun message de sécurité pour le moment.'), 'helper-text'));
                 return;
             }
             result.messages.forEach(message => {
                 const card = document.createElement('article');
                 card.className = 'notification-card notification-bubble';
-                card.append(makeTextElement('strong', `Message automatique pour ${message.seniorName}`));
-                card.append(makeTextElement('p', message.body));
+                card.append(makeTextElement('strong', `${window.generationLiaisonTranslate('Message automatique pour')} ${message.seniorName}`));
+                card.append(makeTextElement('p', traduireMessageSecurite(message.body)));
                 card.append(makeTextElement('small', formatDateTime(message.createdAt), 'helper-text'));
                 container.append(card);
             });
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === 'aidant') {
-                container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les messages de sécurité.', 'helper-text'));
+                container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate(error.message || 'Impossible de charger les messages de sécurité.'), 'helper-text'));
             }
         }
     }
@@ -7111,7 +7126,7 @@
                 button.type = 'button';
                 button.className = `today-inbox-item${!message.safety && message.unreadCount > 0 ? ' unread' : ''}`;
                 button.append(makeTextElement('strong', message.safety ? `${window.generationLiaisonTranslate('Message automatique pour')} ${message.seniorName}` : message.senderName));
-                button.append(makeTextElement('span', message.body));
+                button.append(makeTextElement('span', message.safety ? traduireMessageSecurite(message.body) : message.body));
                 const timestamp = formatDateTime(message.createdAt);
                 const readStatus = message.safety ? '' : message.readAt
                     ? ` · ${window.generationLiaisonTranslate('Ouvert le')} ${formatDateTime(message.readAt)}`
@@ -8447,7 +8462,7 @@
             timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit'
         }).format(new Date(event.scheduledAt));
         const type = { visit: 'Visite', service: 'Service', directory: 'Annuaire', personal: 'Mon rendez-vous', shared: 'Agenda associé' }[event.kind];
-        return `${time} · ${type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ' (en attente)' : ''}${event.conflict ? ' ⚠ chevauchement' : ''}`;
+        return `${time} · ${type ? window.generationLiaisonTranslate(type) : type} : ${event.title}${event.person ? ` — ${event.person}` : ''}${event.status === 'pending' ? ` (${window.generationLiaisonTranslate('en attente')})` : ''}${event.conflict ? ` ⚠ ${window.generationLiaisonTranslate('chevauchement')}` : ''}`;
     }
 
     function etapesIntervenant(visits) {
@@ -8702,14 +8717,15 @@
         const { start, end } = calendarBounds();
         const grid = document.getElementById('calendar-grid');
         const selected = new Date(`${calendarDate}T12:00:00`);
-        const selectedLabel = selected.toLocaleDateString('fr-FR', {
+        const locale = window.generationLiaisonLocale();
+        const selectedLabel = selected.toLocaleDateString(locale, {
             weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
         });
         document.getElementById('calendar-title').textContent = calendarView === 'day'
-            ? `Agenda du ${selectedLabel}`
+            ? `${window.generationLiaisonTranslate('Agenda du')} ${selectedLabel}`
             : calendarView === 'month'
-                ? selected.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
-                : `Semaine du ${start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+                ? selected.toLocaleDateString(locale, { month: 'long', year: 'numeric' })
+                : `${window.generationLiaisonTranslate('Semaine du')} ${start.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' })}`;
         const summary = document.getElementById('calendar-week-summary');
         const summaryContent = document.getElementById('calendar-week-summary-content');
         summary.hidden = calendarView !== 'week';
@@ -8722,7 +8738,7 @@
                     .sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
                 if (!dayEvents.length) continue;
                 hasEvents = true;
-                summaryContent.append(makeTextElement('h4', date.toLocaleDateString('fr-FR', {
+                summaryContent.append(makeTextElement('h4', date.toLocaleDateString(locale, {
                     weekday: 'long', day: 'numeric', month: 'long'
                 })));
                 dayEvents.forEach(event => {
@@ -8737,7 +8753,7 @@
         grid.replaceChildren();
         if (calendarView !== 'day') {
             ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.'].forEach(day => {
-                grid.append(makeTextElement('div', day, 'calendar-weekday'));
+                grid.append(makeTextElement('div', window.generationLiaisonTranslate(day), 'calendar-weekday'));
             });
             for (const date = new Date(start); date < end; date.setDate(date.getDate() + 1)) {
                 const dayValue = dateInputValue(date);
@@ -8748,7 +8764,7 @@
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.textContent = String(date.getDate());
-                button.setAttribute('aria-label', date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+                button.setAttribute('aria-label', date.toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
                 button.setAttribute('aria-pressed', String(dayValue === calendarDate));
                 button.addEventListener('click', () => {
                     calendarDate = dayValue;
@@ -8766,17 +8782,17 @@
         details.replaceChildren();
         if (calendarView !== 'day') details.append(makeTextElement('h4', selectedLabel));
         const events = calendarEvents.filter(event => calendarEventDate(event.scheduledAt) === calendarDate);
-        if (!events.length) details.append(makeTextElement('p', 'Aucun rendez-vous pour cette date.', 'helper-text'));
+        if (!events.length) details.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun rendez-vous pour cette date.'), 'helper-text'));
         events.forEach(event => {
             details.append(makeTextElement('p', `${calendarEventLabel(event)} · ${event.durationMinutes} min`, 'calendar-event'));
             if (event.kind === 'personal') {
                 const remove = document.createElement('button');
                 remove.type = 'button';
-                remove.textContent = event.recurrence && event.recurrence !== 'none'
-                    ? 'Supprimer tous les rendez-vous de cette série' : 'Supprimer ce rendez-vous';
+                remove.textContent = window.generationLiaisonTranslate(event.recurrence && event.recurrence !== 'none'
+                    ? 'Supprimer tous les rendez-vous de cette série' : 'Supprimer ce rendez-vous');
                 remove.addEventListener('click', async () => {
                     if (event.recurrence && event.recurrence !== 'none' &&
-                        !window.confirm('Supprimer tous les rendez-vous de cette série ?')) return;
+                        !window.confirm(window.generationLiaisonTranslate('Supprimer tous les rendez-vous de cette série ?'))) return;
                     try {
                         await planningRequest(`/api/agenda/events/${event.id}`, { method: 'DELETE' });
                         chargerCalendrier();
@@ -8790,7 +8806,7 @@
         if (connectedUser.role === 'pro') {
             const button = document.createElement('button');
             button.type = 'button';
-            button.textContent = 'Voir mon planning détaillé';
+            button.textContent = window.generationLiaisonTranslate('Voir mon planning détaillé');
             button.addEventListener('click', () => {
                 document.getElementById('planning-date').value = calendarDate;
                 switchScreen('pro');
@@ -8798,6 +8814,13 @@
             });
             details.append(button);
         }
+    }
+
+    function actualiserLangueAgenda() {
+        if (!connectedUser || !calendarDate ||
+            !document.getElementById('screen-agenda').classList.contains('active') ||
+            document.getElementById('calendar-message').textContent) return;
+        renderCalendar();
     }
 
     async function chargerPartagesAgenda() {
@@ -8859,7 +8882,7 @@
         const loadId = ++calendarLoadId;
         const userId = connectedUser.id;
         const message = document.getElementById('calendar-message');
-        message.textContent = 'Chargement de l’agenda…';
+        message.textContent = window.generationLiaisonTranslate('Chargement de l’agenda…');
         document.getElementById('calendar-grid').replaceChildren();
         document.getElementById('calendar-selected-day').replaceChildren();
         document.getElementById('calendar-week-summary').hidden = true;
@@ -8872,7 +8895,7 @@
             renderCalendar();
         } catch (error) {
             if (loadId !== calendarLoadId || connectedUser?.id !== userId) return;
-            message.textContent = error.message || 'Impossible de charger l’agenda.';
+            message.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger l’agenda.');
         }
     }
 
@@ -11970,6 +11993,7 @@
         window.addEventListener('generationliaisonlanguagechange', traduireTextesJeux);
         window.addEventListener('generationliaisonlanguagechange', actualiserTextesEtapeInscription);
         window.addEventListener('generationliaisonlanguagechange', actualiserLangueBienEtre);
+        window.addEventListener('generationliaisonlanguagechange', actualiserLangueAgenda);
         traduireTextesJeux();
         let pendingNotificationId = new URLSearchParams(window.location.search).get('notification') || '';
         window.handlePendingNotification = async () => {

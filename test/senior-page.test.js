@@ -447,7 +447,8 @@ test('simplified journal shortcut opens the senior journal without hiding safety
 test('today shortcuts display unread notification counts', () => {
   const badges = {};
   const context = {
-    document: { getElementById: id => badges[id] || (badges[id] = {}) }
+    document: { getElementById: id => badges[id] || (badges[id] = {}) },
+    window: { generationLiaisonTranslate: text => text }
   };
   vm.runInNewContext(extract('    function actualiserCompteurNotifications(count)', '    function notificationVisible(entry)'), context);
   context.actualiserCompteurNotifications(2);
@@ -1309,7 +1310,7 @@ test('day view displays only the selected day and preserves week and month views
       { kind: 'visit', title: 'Autre jour', scheduledAt: '2026-03-28T22:30:00Z', durationMinutes: 30 }
     ],
     connectedUser: { role: 'senior' },
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
     document: { getElementById: element, createElement: node },
     makeTextElement: (tag, text, className) => ({ tag, textContent: text, className }),
     Date, Intl
@@ -1370,7 +1371,7 @@ test('weekly summary orders authorized events by Paris day and time', () => {
       { kind: 'visit', title: 'Hors semaine', scheduledAt: '2026-03-29T22:00:00Z', durationMinutes: 30 }
     ],
     connectedUser: { role: 'senior' },
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonLocale: () => 'fr-FR' },
     document: { getElementById: element, createElement: node },
     makeTextElement: (tag, text, className) => ({ tag, textContent: text, className }),
     Date, Intl
@@ -1403,6 +1404,7 @@ test('weekly summary is cleared while the agenda reloads and remains hidden on f
   const context = {
     connectedUser: { id: 'senior' }, calendarDate: '2026-12-31',
     calendarView: 'week', calendarLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: element },
     planningRequest: () => new Promise((resolve, reject) => { rejectRequest = reject; }),
     Date
@@ -1698,7 +1700,7 @@ test('only pending invitations appear in today, retain actions and are read when
         createElement: node,
         querySelectorAll: () => container.children.filter(card => card.className?.includes('unread') && !card.classList.removed)
       },
-      window: { innerWidth: 100, innerHeight: 100, handlePendingNotification() { this.opened = true; } },
+      window: { innerWidth: 100, innerHeight: 100, generationLiaisonTranslate: text => text, handlePendingNotification() { this.opened = true; } },
       setTimeout: (callback, delay) => { assert.equal(delay, 2000); timers.set(++timerId, callback); return timerId; },
       clearTimeout: id => timers.delete(id),
       makeTextElement: (tag, text) => Object.assign(node(tag), { textContent: text }),
@@ -2533,6 +2535,7 @@ test('today inbox shows received messages and opens the selected conversation', 
           read: false, readAt: null, unreadCount: 1, createdAt: '2025-12-31T10:00:00.000Z' }
       ] },
     makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    traduireMessageSecurite: text => text,
     formatDateTime: value => `date:${value}`,
     ouvrirNotifications: () => opened.push('messages'),
     chargerCorrespondants: async () => true,
@@ -2631,6 +2634,7 @@ test('English inbox translates interface text without changing message content',
       ? { messages: [{ seniorName: 'Marie', body: 'Bonjour', createdAt: '2026-01-02' }] }
       : { messages: [{ senderName: 'Camille', body: 'Bonjour', read: false, unreadCount: 1, createdAt: '2026-01-03' }] },
     makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    traduireMessageSecurite: text => text,
     formatDateTime: value => value
   };
   vm.runInNewContext(extract('    async function ouvrirMessageDepuisBoite(role, message)', '    async function chargerCorrespondants(role)'), context);

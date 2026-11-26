@@ -261,7 +261,15 @@ test('security alerts create private automatic messages only for active caregive
   assert.equal((await request('/api/emergency-alert', {
     user: senior, body: { number: '112', confirmationMethod: 'click', confirmed: true }
   })).status, 201);
-  assert.equal((await request('/api/messages/safety-alerts', { user: recipient })).data.messages.length, 2);
+  const withEmergency = (await request('/api/messages/safety-alerts', { user: recipient })).data.messages;
+  assert.equal(withEmergency.length, 2);
+  assert.match(withEmergency.find(item => item.body.includes('appel au 112')).body, /\(heure de Paris\)/);
+  await db.query("UPDATE app_wellbeing_checkins SET safety_check_status = 'needs_help' WHERE id = $1", [id]);
+  assert.equal((await request(`/api/wellbeing/check-in/${id}/emergency-alert`, {
+    user: senior, body: { number: '18', confirmationMethod: 'click', confirmed: true }
+  })).status, 201);
+  const checkinEmergency = (await request('/api/messages/safety-alerts', { user: recipient })).data.messages;
+  assert.match(checkinEmergency.find(item => item.body.includes('appel au 18')).body, /\(heure de Paris\)/);
   await db.query(`UPDATE app_safety_messages SET created_at = CURRENT_TIMESTAMP - INTERVAL '31 days'
                   WHERE recipient_id = $1`, [recipient.user.id]);
   assert.deepEqual((await request('/api/messages/safety-alerts', { user: recipient })).data.messages, []);

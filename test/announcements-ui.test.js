@@ -25,6 +25,7 @@ test('announcements display as text and can be marked read without senior-profil
   const item = { id: 'notice-1', title: '<script>titre</script>', message: '<img src=x>', type: 'establishment_announcement', read: false, createdAt: '2026-01-01' };
   const context = {
     connectedUser: { id: 'resident', role: 'senior' }, announcementLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: get, createElement: node },
     makeTextElement: (tag, text) => Object.assign(node(tag), { textContent: text }),
     formatDateTime: value => value,

@@ -432,7 +432,7 @@ app.post('/api/emergency-alert', requireAuth, async (req, res) => {
     const seniorName = (req.authUser.name || req.authUser.seniorName || 'Le senior')
       .trim().split(/\s+/)[0];
     for (const aidant of aidants) {
-      const message = `${seniorName} a confirmé une demande d’appel au ${number} à ${time}. L’application ne peut pas vérifier que l’appel a été passé ou abouti.`;
+      const message = `${seniorName} a confirmé une demande d’appel au ${number} à ${time} (heure de Paris). L’application ne peut pas vérifier que l’appel a été passé ou abouti.`;
       const notificationId = await insertAppNotification(
         client,
         aidant.contact_user_id,
@@ -757,7 +757,7 @@ app.post('/api/wellbeing/check-in/:checkinId/emergency-alert', requireAuth, asyn
     const notifiedAidants = await notifyEmergencyAidants(client, req.authUser, {
       type: 'emergency_alert',
       title: `Alerte d’urgence : appel au ${number} demandé`,
-      message: `${seniorName} a confirmé une demande d’appel au ${number} à ${time}. L’application ne peut pas vérifier que l’appel a été passé ou abouti.`,
+      message: `${seniorName} a confirmé une demande d’appel au ${number} à ${time} (heure de Paris). L’application ne peut pas vérifier que l’appel a été passé ou abouti.`,
       checkinId: checkin.id
     });
     await client.query(

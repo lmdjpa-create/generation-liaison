@@ -542,6 +542,263 @@ test('switching wellbeing language preserves the safety timer, actions and perso
   assert.match(confirmed.textContent, /numéro choisi.*2 aidant/);
 });
 
+test('English safety inbox translates the known automatic alert but not personal messages', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const node = () => ({
+    children: [], textContent: '',
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    addEventListener() {}
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node();
+  const alert = 'Le senior n’a pas répondu à la question de sécurité après sa vérification de bien-être. Veuillez essayer de le joindre. L’application n’a pas appelé les secours et ne peut pas vérifier son état.';
+  const translated = 'The senior did not answer the safety question after their wellbeing check-in. Please try to contact them. The app did not call emergency services and cannot verify their condition.';
+  const context = {
+    window: app.window, connectedUser: { id: 'alice', role: 'aidant' }, inboxLoadId: 0,
+    document: { getElementById: element, createElement: node },
+    makeTextElement: (tag, text) => ({ tag, textContent: text }),
+    formatDateTime: value => value,
+    planningRequest: async path => path.endsWith('safety-alerts')
+      ? { messages: [
+        { id: 's1', seniorName: 'Votre réponse', body: alert, createdAt: '2026-01-03' },
+        { id: 's2', seniorName: 'Marie', body: 'Message automatique non reconnu', createdAt: '2026-01-02' }
+      ] }
+      : { messages: [{ id: 'private', senderName: 'Alex', body: alert, createdAt: '2026-01-01' }] }
+  };
+  const start = page.indexOf('    function traduireMessageSecurite(body)');
+  const end = page.indexOf('    async function chargerCorrespondants(role)', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.chargerMessagesSecurite();
+  const safety = element('safety-messages-aidant').children;
+  assert.equal(safety[0].children[0].textContent, 'Automatic message for Votre réponse');
+  assert.equal(safety[0].children[1].textContent, translated);
+  assert.equal(safety[1].children[1].textContent, 'Message automatique non reconnu');
+  await context.chargerBoiteReception('aidant');
+  const inbox = element('aidant-today-inbox').children;
+  assert.equal(inbox[0].children[1].textContent, translated);
+  assert.equal(inbox[2].children[1].textContent, alert);
+  const emergency = 'Marie a confirmé une demande d’appel au 112 à 26/11/2026 20:45:00. L’application ne peut pas vérifier que l’appel a été passé ou abouti.';
+  assert.equal(context.traduireMessageSecurite(emergency),
+    'Marie confirmed a request to call 112 at 26/11/2026 20:45:00 (Paris time). The app cannot verify that the call was placed or connected.');
+  const clarified = emergency.replace('20:45:00.', '20:45:00 (heure de Paris).');
+  assert.equal(context.traduireMessageSecurite(clarified),
+    'Marie confirmed a request to call 112 at 26/11/2026 20:45:00 (Paris time). The app cannot verify that the call was placed or connected.');
+  assert.match(context.traduireMessageSecurite(emergency.replace('Marie', '{number}')),
+    /^\{number\} confirmed a request to call 112/);
+  const unfamiliar = emergency.replace('112', '999');
+  assert.equal(context.traduireMessageSecurite(unfamiliar), unfamiliar);
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(context.traduireMessageSecurite(emergency), clarified);
+  assert.equal(context.traduireMessageSecurite(clarified), clarified);
+  assert.match(page, /Certains messages automatiques de sécurité sont actuellement en français\./);
+});
+
+test('English appointment invitations translate actions and read state without changing their content', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const rect = { top: 0, bottom: 100, left: 0, right: 100, width: 100, height: 100 };
+  const node = () => ({
+    children: [], textContent: '', isConnected: true, listeners: {},
+    classList: { contains: () => true, remove() {} },
+    getBoundingClientRect: () => rect,
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    addEventListener(event, callback) { this.listeners[event] = callback; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node();
+  let timer;
+  const requests = [];
+  app.window.innerWidth = 100;
+  app.window.innerHeight = 100;
+  const context = {
+    window: app.window, connectedUser: { id: 'alice', role: 'aidant' },
+    notificationLoadId: 0, notificationReadEntries: [],
+    document: { hidden: false, getElementById: element, createElement: node, querySelectorAll: () => [] },
+    setTimeout: (callback, delay) => { assert.equal(delay, 2000); timer = callback; return 1; },
+    clearTimeout() {}, formatDateTime: () => 'date',
+    makeTextElement: (tag, text) => Object.assign(node(), { tag, textContent: text }),
+    planningRequest: async (url, options) => {
+      requests.push({ url, options });
+      if (url === '/api/notifications') return {
+        unreadCount: 1,
+        notifications: [{ id: 'invite', type: 'care_visit_invite', entityStatus: 'pending',
+          title: 'Votre réponse', message: 'Votre réponse', read: false, createdAt: '2026-01-01' }]
+      };
+      return {};
+    },
+    repondreInvitation() {}, showToast() {}
+  };
+  const start = page.indexOf('    function actualiserCompteurNotifications(count)');
+  const end = page.indexOf('    function traduireMessageSecurite(body)', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.chargerNotifications();
+  const card = element('notifications-aidant').children[0];
+  assert.equal(card.children[0].textContent, 'Votre réponse');
+  assert.equal(card.children[1].textContent, 'Votre réponse');
+  assert.equal(card.children[2].children[0].textContent, 'Unread');
+  assert.equal(card.children[3].children[0].textContent, 'Accept the appointment');
+  assert.equal(card.children[3].children[1].textContent, 'Reject');
+  assert.equal(element('home-notification-count-aidant').textContent, '1 unread');
+  await timer();
+  assert.equal(card.children[2].children[0].textContent, 'Read');
+  assert.equal(requests[1].options.method, 'PATCH');
+});
+
+test('English announcements translate controls and preserve messages from staff', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const node = () => ({
+    children: [], style: {}, textContent: '', listeners: {},
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    addEventListener(event, callback) { this.listeners[event] = callback; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node();
+  const item = { id: 'notice', title: 'Votre réponse', message: 'Votre réponse',
+    type: 'establishment_announcement', read: false, createdAt: '2026-01-01' };
+  const context = {
+    window: app.window, connectedUser: { id: 'resident' }, announcementLoadId: 0,
+    document: { getElementById: element, createElement: node },
+    makeTextElement: (tag, text) => Object.assign(node(), { tag, textContent: text }),
+    formatDateTime: value => value,
+    seniorLinksRequest: async (url, options) => {
+      if (options) item.read = true;
+      return options ? { read: true } : { announcements: [item] };
+    }
+  };
+  const start = page.indexOf('    async function chargerMessagesAdministration()');
+  const end = page.indexOf('    async function chargerNotifications()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.chargerMessagesAdministration();
+  const card = element('admin-announcements-list').children[0];
+  assert.equal(element('admin-announcements-summary').textContent, 'Messages from the team and the facility (1 unread)');
+  assert.equal(card.children[0].textContent, 'Your facility');
+  assert.equal(card.children[1].textContent, 'Votre réponse');
+  assert.equal(card.children[2].textContent, 'Votre réponse');
+  assert.match(card.children[3].textContent, /Unread/);
+  assert.equal(card.children[4].textContent, 'Mark as read');
+  await card.children[4].listeners.click();
+  assert.equal(element('admin-announcements-summary').textContent, 'Messages from the team and the facility');
+  assert.match(element('admin-announcements-list').children[0].children[3].textContent, /Read/);
+});
+
+test('calendar labels show Paris time and translate controls without altering event details', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const context = { window: app.window, Intl, Date };
+  const start = page.indexOf('    function calendarEventLabel(event)');
+  const end = page.indexOf('    function etapesIntervenant(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const event = { scheduledAt: '2026-03-29T01:30:00Z', kind: 'visit',
+    title: 'Visite', person: 'Votre réponse', status: 'pending', conflict: true };
+  assert.equal(context.calendarEventLabel(event), '03:30 · Visit : Visite — Votre réponse (pending) ⚠ overlap');
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(context.calendarEventLabel(event), '03:30 · Visite : Visite — Votre réponse (en attente) ⚠ chevauchement');
+  assert.match(page, /<label for="personal-event-start">Date et heure de Paris<\/label>/);
+  const instruction = 'Saisissez l’heure de Paris, même si vous vous trouvez dans un autre fuseau horaire.';
+  assert.ok(page.includes(instruction));
+  app.window.generationLiaisonSetLanguage('en');
+  assert.equal(app.window.generationLiaisonTranslate(instruction), 'Enter the time in Paris, even if you are in a different time zone.');
+});
+
+test('English calendar translates dates, empty states and deletion confirmation', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const node = () => ({
+    children: [], attrs: {}, hidden: false, textContent: '', classList: { add() {}, contains() { return true; } }, listeners: {},
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    setAttribute(name, value) { this.attrs[name] = value; },
+    addEventListener(event, callback) { this.listeners[event] = callback; }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= node();
+  let confirmation;
+  app.window.confirm = text => { confirmation = text; return false; };
+  const context = {
+    window: app.window, calendarDate: '2026-03-29', calendarView: 'day',
+    calendarEvents: [{ id: 'series', kind: 'personal', title: 'Votre réponse',
+      scheduledAt: '2026-03-29T01:30:00Z', durationMinutes: 30, recurrence: 'weekly' }],
+    connectedUser: { role: 'senior' },
+    document: { getElementById: element, createElement: node },
+    makeTextElement: (tag, text, className) => ({ tag, textContent: text, className }),
+    planningRequest() { throw new Error('Deletion was not confirmed'); },
+    Intl, Date
+  };
+  const start = page.indexOf('    function dateInputValue(date)');
+  const end = page.indexOf('    async function chargerPartagesAgenda()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  context.renderCalendar();
+  assert.match(element('calendar-title').textContent, /^Schedule for Sunday, March 29, 2026$/);
+  const details = element('calendar-selected-day').children;
+  assert.match(details[0].textContent, /03:30.*Votre réponse/);
+  assert.equal(details[1].textContent, 'Delete all appointments in this series');
+  await details[1].listeners.click();
+  assert.equal(confirmation, 'Delete all appointments in this series?');
+  context.calendarEvents = [];
+  context.calendarView = 'week';
+  context.renderCalendar();
+  assert.equal(element('calendar-title').textContent, 'Week of March 23, 2026');
+  assert.equal(element('calendar-grid').children[0].textContent, 'Mon.');
+  assert.equal(element('calendar-grid').children[7].children[0].attrs['aria-label'], 'Monday, March 23, 2026');
+  assert.equal(element('calendar-week-summary-content').children[0].textContent, 'No appointments this week.');
+  assert.ok(element('calendar-selected-day').children.some(child => child.textContent === 'No appointments on this date.'));
+  context.calendarView = 'month';
+  context.renderCalendar();
+  assert.equal(element('calendar-title').textContent, 'March 2026');
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueAgenda();
+  assert.equal(element('calendar-title').textContent, 'mars 2026');
+  element('calendar-message').textContent = 'Chargement…';
+  app.window.generationLiaisonSetLanguage('en');
+  context.actualiserLangueAgenda();
+  assert.equal(element('calendar-title').textContent, 'mars 2026');
+});
+
+test('English calendar loading and fallback error do not show stale appointments', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    hidden: false, textContent: '', children: ['previous appointment'],
+    replaceChildren() { this.children = []; }
+  };
+  let rejectRequest;
+  const context = {
+    window: app.window, connectedUser: { id: 'senior' }, calendarDate: '2026-03-29',
+    calendarView: 'week', calendarLoadId: 0,
+    document: { getElementById: element },
+    planningRequest: () => new Promise((resolve, reject) => { rejectRequest = reject; }), Date
+  };
+  const extract = (start, end) => {
+    const from = page.indexOf(start);
+    const to = page.indexOf(end, from);
+    assert.ok(from >= 0 && to > from);
+    return page.slice(from, to);
+  };
+  vm.runInNewContext(
+    extract('    function dateInputValue(date)', '    function dateTimeInputValue(date)') +
+    extract('    function calendarBounds()', '    function calendarEventDate(value)') +
+    extract('    async function chargerCalendrier()', '    async function chargerModificationsGoogle()'), context
+  );
+  const loading = context.chargerCalendrier();
+  assert.equal(element('calendar-message').textContent, 'Loading the calendar…');
+  assert.equal(element('calendar-week-summary').hidden, true);
+  assert.deepEqual(element('calendar-week-summary-content').children, []);
+  rejectRequest(new Error());
+  await loading;
+  assert.equal(element('calendar-message').textContent, 'Unable to load the calendar.');
+});
+
 test('English wellbeing loading and empty caregiver states use the selected language', async () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const app = setup('en');
