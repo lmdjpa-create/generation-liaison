@@ -673,6 +673,8 @@
     'Aucune commune trouvée avec cette ville et ce code postal.': 'No municipality found for this city and postal code.',
     'Choisissez une commune dans la liste, puis relancez la recherche.':
       'Choose a municipality from the list, then search again.',
+    'Choisissez votre commune dans la liste, puis appuyez sur Continuer.':
+      'Choose your municipality from the list, then press Continue.',
     'La recherche a changé. Relancez-la.': 'The search changed. Please run it again.',
     'Choisissez un rayon entier compris entre 1 et 500 km.': 'Choose a whole-number radius between 1 and 500 km.',
     'Centre approximatif sélectionné': 'Approximate centre selected',
@@ -882,7 +884,7 @@
     'Une option Premium payante pour un futur carnet de soins est envisagée ; elle n’est pas encore disponible. Le carnet actuel concerne le quotidien et ne doit pas contenir de données de santé.': 'A paid Premium option for a future care record is planned but not yet available. The current record is for everyday updates and must not contain health data.',
     'L’activation de l’espace établissement est manuelle, sans paiement en ligne ; contactez l’administration pour les conditions.': 'Organization access is activated manually, without online payment; contact the administration for details.',
     'Adresse pour une livraison de tablette': 'Address for tablet delivery',
-    'Facultative pour créer un compte, cette adresse complète sera nécessaire pour recevoir une tablette. La renseigner ne constitue pas une commande.': 'Optional when creating an account, this complete address will be needed to receive a tablet. Providing it does not place an order.',
+    'Si vous indiquez un intérêt pour une tablette, complétez toute l’adresse. Sinon, vous pouvez la laisser vide. La renseigner ne constitue pas une commande.': 'If you indicate interest in a tablet, complete the entire address. Otherwise, you can leave it blank. Providing it does not place an order.',
     'Adresse postale': 'Street address',
     'Pays': 'Country',
     'Adresse de livraison': 'Delivery address',

@@ -131,6 +131,27 @@ test('each profile retains its own required information and commune errors stay 
   }
 });
 
+test('multiple account communes explain how to continue without hiding other errors', async () => {
+  const app = createRegistration('senior');
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  app.context.choisirCommune = async () => {
+    app.get('reg-account-city-select').hidden = false;
+    throw new Error('Choisissez une commune dans la liste, puis relancez la recherche.');
+  };
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 3);
+  assert.equal(app.get('reg-step-error').textContent, 'Choisissez votre commune dans la liste, puis appuyez sur Continuer.');
+  assert.equal(app.focused(), 'reg-account-city-select');
+
+  app.context.choisirCommune = async () => { throw new Error('Service indisponible.'); };
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-step-error').textContent, 'Service indisponible.');
+  app.context.choisirCommune = async () => ({ name: 'Paris' });
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-progress').value, 4);
+});
+
 test('submission cannot bypass confirmation and rechecks changes before sending', async () => {
   const app = createRegistration('establishment');
   await app.context.inscrireUtilisateur();
@@ -194,10 +215,32 @@ test('the commune lookup cannot be triggered twice while it is pending', async (
   await app.context.etapeSuivanteInscription();
   assert.equal(calls, 1);
   assert.equal(app.get('reg-previous').disabled, true);
+  assert.equal(app.get('reg-step-status').textContent, 'Recherche de la commune…');
   resolveLookup({ name: 'Paris' });
   await pending;
   assert.equal(app.get('reg-progress').value, 4);
   assert.equal(app.get('reg-previous').disabled, false);
+  assert.equal(app.get('reg-step-status').textContent, '');
+});
+
+test('retrying a commune search clears the old error and reports a new failure', async () => {
+  const app = createRegistration('aidant');
+  await app.context.etapeSuivanteInscription();
+  await app.context.etapeSuivanteInscription();
+  app.context.choisirCommune = async () => { throw new Error('Première erreur.'); };
+  await app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-step-error').hidden, false);
+  let rejectLookup;
+  app.context.choisirCommune = () => new Promise((resolve, reject) => { rejectLookup = reject; });
+  const pending = app.context.etapeSuivanteInscription();
+  assert.equal(app.get('reg-step-error').hidden, true);
+  assert.equal(app.get('reg-step-status').textContent, 'Recherche de la commune…');
+  rejectLookup(new Error('Service indisponible.'));
+  await pending;
+  assert.equal(app.get('reg-step-status').textContent, '');
+  assert.equal(app.get('reg-step-error').textContent, 'Service indisponible.');
+  assert.equal(app.get('reg-step-error').hidden, false);
+  assert.equal(app.get('reg-next').disabled, false);
 });
 
 test('a tablet interest requires a complete address and preserves it when returning', async () => {

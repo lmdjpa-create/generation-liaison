@@ -1068,7 +1068,7 @@
             <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et service Premium en supplément. Le tarif Premium reste à définir et l’option n’est pas encore disponible. Votre réponse indique uniquement un intérêt : elle ne crée ni commande, ni paiement, ni engagement. L’administration pourra consulter votre réponse et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
             <section class="form-card" style="text-align:left;">
                 <h3>Adresse pour une livraison de tablette</h3>
-                <p class="helper-text">Facultative pour créer un compte, cette adresse complète sera nécessaire pour recevoir une tablette. La renseigner ne constitue pas une commande.</p>
+                <p class="helper-text">Si vous indiquez un intérêt pour une tablette, complétez toute l’adresse. Sinon, vous pouvez la laisser vide. La renseigner ne constitue pas une commande.</p>
                 <label for="reg-postal-address">Adresse postale</label>
                 <input id="reg-postal-address" type="text" maxlength="300" autocomplete="street-address">
                 <label for="reg-postal-code">Code postal</label>
@@ -1142,6 +1142,7 @@
             </label>
             <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
             </div>
+            <p id="reg-step-status" class="helper-text" role="status" aria-live="polite"></p>
             <p id="reg-step-error" class="terms-error" role="alert" hidden></p>
             <button id="reg-previous" type="button" onclick="etapePrecedenteInscription()" hidden>Précédent</button>
             <button id="reg-next" type="button" onclick="etapeSuivanteInscription()">Continuer</button>
@@ -3566,10 +3567,18 @@
                 if (!Number.isInteger(radius) || radius < 1 || radius > 500) return fail('Choisissez un rayon compris entre 1 et 500 km.', 'reg-service-radius');
             }
             if (['senior', 'aidant'].includes(role)) {
+                const status = el('reg-step-status');
+                status.textContent = window.generationLiaisonTranslate('Recherche de la commune…');
                 try {
                     await choisirCommune('account', 'reg-account-city', 'reg-account-postcode', 'reg-account-city-select', 'reg-account-city-label');
                 } catch (error) {
-                    return fail(error.message, el('reg-account-city-select').hidden ? 'reg-account-city' : 'reg-account-city-select');
+                    const needsSelection = !el('reg-account-city-select').hidden &&
+                        error.message === 'Choisissez une commune dans la liste, puis relancez la recherche.';
+                    return fail(needsSelection
+                        ? 'Choisissez votre commune dans la liste, puis appuyez sur Continuer.'
+                        : error.message, el('reg-account-city-select').hidden ? 'reg-account-city' : 'reg-account-city-select');
+                } finally {
+                    status.textContent = '';
                 }
             }
         }
@@ -3599,6 +3608,7 @@
         const next = document.getElementById('reg-next');
         const previous = document.getElementById('reg-previous');
         if (next.disabled || registrationStep >= 4) return;
+        document.getElementById('reg-step-error').hidden = true;
         next.disabled = previous.disabled = true;
         try {
             const error = await validerEtapeInscription(registrationStep);
