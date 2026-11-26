@@ -819,6 +819,59 @@ test('English calendar loading and fallback error do not show stale appointments
   assert.equal(element('calendar-message').textContent, 'Votre réponse');
 });
 
+test('calendar reset removes private data and invalidates a request from a previous session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    dataset: { owner: 'alice', googleSettingsTranslation: 'old', enabled: 'true' },
+    textContent: 'Private information', hidden: false, disabled: false, children: ['Private information'],
+    button: { disabled: true }, querySelector() { return this.button; },
+    replaceChildren(...items) { this.children = items; },
+    reset() { this.resetCount = (this.resetCount || 0) + 1; }
+  };
+  let resolveRequest;
+  let renders = 0;
+  const context = {
+    window: app.window, connectedUser: { id: 'alice' }, calendarDate: '2026-03-29',
+    calendarView: 'week', calendarEvents: [{ title: 'Private information' }],
+    calendarLoadId: 0, calendarRevision: 0, calendarRequestsLoadId: 0, calendarSettingsLoadId: 0,
+    document: { getElementById: element }, Date,
+    renderCalendar() { renders++; },
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; })
+  };
+  const extract = (start, end) => {
+    const from = page.indexOf(start);
+    const to = page.indexOf(end, from);
+    assert.ok(from >= 0 && to > from);
+    return page.slice(from, to);
+  };
+  vm.runInNewContext(
+    extract('    function dateInputValue(date)', '    function dateTimeInputValue(date)') +
+    extract('    function calendarBounds()', '    function calendarEventDate(value)') +
+    extract('    function reinitialiserCalendrier(', '    function reinitialiserPartagesAgenda()') +
+    extract('    async function chargerCalendrier()', '    async function chargerModificationsGoogle()'), context
+  );
+  const loading = context.chargerCalendrier();
+  context.reinitialiserCalendrier(true);
+  assert.equal(element('personal-event-form').resetCount, 1);
+  assert.equal(element('birthday-form').resetCount, 1);
+  assert.equal(element('calendar-week-summary').hidden, true);
+  assert.equal(element('calendar-google-settings').hidden, true);
+  assert.equal(element('calendar-google-sync-toggle').disabled, true);
+  assert.equal(element('calendar-google-requests').dataset.owner, undefined);
+  assert.equal(context.calendarDate, '');
+  assert.equal(context.calendarEvents.length, 0);
+  resolveRequest({ events: [{ title: 'Previous session' }] });
+  await loading;
+  assert.equal(renders, 0);
+  assert.equal(context.calendarEvents.length, 0);
+  assert.equal(element('calendar-message').textContent, '');
+  context.reinitialiserCalendrier();
+  assert.equal(element('personal-event-form').resetCount, 1);
+  assert.equal(element('birthday-form').resetCount, 1);
+});
+
 test('Google connection return messages use the selected language and remove the result from the URL', () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const app = setup('en');
@@ -975,8 +1028,8 @@ test('calendar sharing is cleared on account and accompanied-profile changes', (
   const logout = page.slice(logoutStart, page.indexOf("        activeSeniorProfileId = '';", logoutStart));
   const profileStart = page.indexOf("        document.getElementById('aidant-senior-select').addEventListener('change'");
   const profile = page.slice(profileStart, page.indexOf("        document.getElementById('aidant-refresh-seniors')", profileStart));
-  assert.match(login, /if \(connectedUser\?\.id !== user\.id\) \{\s*reinitialiserPartagesAgenda\(\)/);
-  assert.match(logout, /connectedUser = null;\s*reinitialiserPartagesAgenda\(\)/);
+  assert.match(login, /if \(connectedUser\?\.id !== user\.id\) \{\s*reinitialiserCalendrier\(true\);\s*reinitialiserPartagesAgenda\(\)/);
+  assert.match(logout, /connectedUser = null;\s*reinitialiserCalendrier\(true\);\s*reinitialiserPartagesAgenda\(\)/);
   assert.match(profile, /reinitialiserPartagesAgenda\(\)/);
 });
 
@@ -1208,7 +1261,7 @@ test('Google synchronization confirmations explain consequences before changing 
   const confirmations = [];
   app.window.confirm = text => { confirmations.push(text); return false; };
   const context = {
-    window: app.window, document: { getElementById: () => button },
+    window: app.window, calendarRevision: 0, document: { getElementById: () => button },
     planningRequest() { throw new Error('Rejected confirmation must not make a request'); }
   };
   const start = page.indexOf('    async function modifierSynchronisationGoogle()');
@@ -1235,7 +1288,7 @@ test('confirmed Google synchronization actions retain their request semantics', 
   const calls = [];
   const messages = [];
   const context = {
-    window: app.window, document: { getElementById: () => button },
+    window: app.window, calendarRevision: 0, document: { getElementById: () => button },
     planningRequest: async (url, options) => { calls.push({ url, options }); return {}; },
     chargerParametresGooglePlanning: async () => {},
     chargerModificationsGoogle: async () => {},
@@ -1259,12 +1312,42 @@ test('confirmed Google synchronization actions retain their request semantics', 
   assert.equal(button.disabled, false);
 });
 
+test('a late Google action cannot alter the next calendar session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const button = { dataset: { enabled: 'false' }, disabled: false };
+  app.window.confirm = () => true;
+  let resolveRequest;
+  let notifications = 0;
+  let reloads = 0;
+  const context = {
+    window: app.window, calendarRevision: 0, document: { getElementById: () => button },
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; }),
+    chargerParametresGooglePlanning: () => { reloads++; },
+    chargerModificationsGoogle: () => { reloads++; },
+    showToast: () => { notifications++; }
+  };
+  const start = page.indexOf('    async function modifierSynchronisationGoogle()');
+  const end = page.indexOf('    function decalerCalendrier(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const action = context.confirmerReconnexionGoogle(button);
+  assert.equal(button.disabled, true);
+  context.calendarRevision++;
+  resolveRequest({});
+  await action;
+  assert.equal(notifications, 0);
+  assert.equal(reloads, 0);
+  assert.equal(button.disabled, true);
+});
+
 test('appointment and birthday messages translate without altering entered details or unknown errors', async () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const app = setup('en');
   const elements = {};
   const element = id => elements[id] ||= {
     dataset: {}, value: '', textContent: '', handlers: {},
+    button: { disabled: false }, querySelector() { return this.button; },
     classList: { contains: () => true },
     addEventListener(type, handler) { this.handlers[type] = handler; },
     reset() { this.resetCount = (this.resetCount || 0) + 1; }
@@ -1279,7 +1362,7 @@ test('appointment and birthday messages translate without altering entered detai
   const requests = [];
   let refreshes = 0;
   const context = {
-    window: app.window, connectedUser: { id: 'senior' }, calendarDate: null,
+    window: app.window, connectedUser: { id: 'senior' }, calendarDate: null, calendarRevision: 0,
     document: {
       getElementById: element,
       querySelectorAll: selector => selector.startsWith('#screen-agenda')
@@ -1334,6 +1417,89 @@ test('appointment and birthday messages translate without altering entered detai
   context.actualiserLangueAgenda();
   assert.equal(element('birthday-message').textContent, 'Votre réponse');
   assert.equal(refreshes, 2);
+});
+
+test('late appointment and birthday submissions cannot update another calendar session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '', dataset: {}, textContent: '', handlers: {},
+    button: { disabled: false }, querySelector() { return this.button; },
+    addEventListener(type, handler) { this.handlers[type] = handler; },
+    reset() { throw new Error('The previous session must not reset the new form'); }
+  };
+  element('personal-event-start').value = '2026-03-29T03:30';
+  let finishRequest;
+  let refreshes = 0;
+  const context = {
+    calendarRevision: 0, calendarDate: 'new-session',
+    document: { getElementById: element },
+    planningRequest: () => new Promise(resolve => { finishRequest = resolve; }),
+    chargerCalendrier: () => { refreshes++; },
+    definirMessageFormulaireAgenda() { throw new Error('Stale result changed the message'); },
+    afficherErreurFormulaireAgenda() { throw new Error('Stale error changed the message'); }
+  };
+  const start = page.indexOf("        document.getElementById('personal-event-form').addEventListener");
+  const end = page.indexOf("        document.getElementById('planning-next-day')", start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  for (const id of ['personal-event-form', 'birthday-form']) {
+    const pending = element(id).handlers.submit({ preventDefault() {} });
+    context.calendarRevision++;
+    finishRequest({});
+    await pending;
+  }
+  assert.equal(context.calendarDate, 'new-session');
+  assert.equal(refreshes, 0);
+});
+
+test('calendar forms avoid duplicate requests and preserve edits made while saving', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '', dataset: {}, textContent: '', handlers: {},
+    button: { disabled: false }, querySelector() { return this.button; },
+    addEventListener(type, handler) { this.handlers[type] = handler; },
+    reset() { this.resetCount = (this.resetCount || 0) + 1; }
+  };
+  element('personal-event-title').value = 'First title';
+  element('personal-event-start').value = '2026-03-29T03:30';
+  element('personal-event-duration').value = '30';
+  element('personal-event-recurrence').value = 'none';
+  element('birthday-name').value = 'Alice';
+  element('birthday-date').value = '1950-02-28';
+  const pending = [];
+  const context = {
+    calendarRevision: 0, calendarDate: '',
+    document: { getElementById: element },
+    planningRequest: (url, options) => new Promise(resolve => { pending.push({ url, options, resolve }); }),
+    chargerCalendrier() {}, definirMessageFormulaireAgenda() {}, afficherErreurFormulaireAgenda() {}
+  };
+  const start = page.indexOf("        document.getElementById('personal-event-form').addEventListener");
+  const end = page.indexOf("        document.getElementById('planning-next-day')", start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const submit = id => element(id).handlers.submit({ preventDefault() {} });
+  const appointment = submit('personal-event-form');
+  assert.equal(element('personal-event-form').button.disabled, true);
+  await submit('personal-event-form');
+  assert.equal(pending.length, 1);
+  element('personal-event-title').value = 'Next title';
+  pending[0].resolve({});
+  await appointment;
+  assert.equal(pending[0].options.body.title, 'First title');
+  assert.equal(element('personal-event-title').value, 'Next title');
+  assert.equal(element('personal-event-form').button.disabled, false);
+  const birthday = submit('birthday-form');
+  await submit('birthday-form');
+  assert.equal(pending.length, 2);
+  element('birthday-name').value = 'Bob';
+  pending[1].resolve({});
+  await birthday;
+  assert.equal(pending[1].options.body.name, 'Alice');
+  assert.equal(element('birthday-name').value, 'Bob');
+  assert.equal(element('birthday-form').resetCount, undefined);
+  assert.equal(element('birthday-form').button.disabled, false);
 });
 
 test('English wellbeing loading and empty caregiver states use the selected language', async () => {

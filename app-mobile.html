@@ -2987,6 +2987,7 @@
     let calendarDate = '';
     let calendarEvents = [];
     let calendarLoadId = 0;
+    let calendarRevision = 0;
     let agendaSharesLoadId = 0;
     let agendaSharesRevision = 0;
     let agendaSharesActionPending = false;
@@ -4160,6 +4161,7 @@
         directoryLoadId++;
         document.getElementById('directory-results').replaceChildren();
         if (connectedUser?.id !== user.id) {
+            reinitialiserCalendrier(true);
             reinitialiserPartagesAgenda();
             reinitialiserChoixTablette();
             wellbeingLoadedDate = null;
@@ -8799,11 +8801,14 @@
                 remove.addEventListener('click', async () => {
                     if (event.recurrence && event.recurrence !== 'none' &&
                         !window.confirm(window.generationLiaisonTranslate('Supprimer tous les rendez-vous de cette série ?'))) return;
+                    const revision = calendarRevision;
                     try {
                         await planningRequest(`/api/agenda/events/${event.id}`, { method: 'DELETE' });
-                        chargerCalendrier();
+                        if (revision === calendarRevision) chargerCalendrier();
                     } catch (error) {
-                        definirMessageFormulaireAgenda(document.getElementById('calendar-message'), error.message, false);
+                        if (revision === calendarRevision) {
+                            definirMessageFormulaireAgenda(document.getElementById('calendar-message'), error.message, false);
+                        }
                     }
                 });
                 details.append(remove);
@@ -8839,6 +8844,49 @@
         if (!calendarDate ||
             document.getElementById('calendar-message').textContent) return;
         renderCalendar();
+    }
+
+    function reinitialiserCalendrier(clearForms = false) {
+        calendarRevision++;
+        calendarLoadId++;
+        calendarRequestsLoadId++;
+        calendarSettingsLoadId++;
+        calendarEvents = [];
+        calendarDate = '';
+        document.getElementById('calendar-title').textContent = '';
+        definirMessageFormulaireAgenda(document.getElementById('calendar-message'), '', false);
+        document.getElementById('calendar-grid').replaceChildren();
+        document.getElementById('calendar-selected-day').replaceChildren();
+        document.getElementById('calendar-week-summary').hidden = true;
+        document.getElementById('calendar-week-summary-content').replaceChildren();
+        const requests = document.getElementById('calendar-google-requests');
+        requests.replaceChildren();
+        delete requests.dataset.owner;
+        const settings = document.getElementById('calendar-google-settings');
+        settings.hidden = true;
+        delete settings.dataset.owner;
+        const syncStatus = document.getElementById('calendar-google-sync-status');
+        syncStatus.textContent = '';
+        delete syncStatus.dataset.googleSettingsTranslation;
+        const toggle = document.getElementById('calendar-google-sync-toggle');
+        toggle.disabled = true;
+        delete toggle.dataset.enabled;
+        delete toggle.dataset.googleSettingsTranslation;
+        ['calendar-google-same', 'calendar-google-new'].forEach(id => {
+            const button = document.getElementById(id);
+            button.hidden = true;
+            button.disabled = false;
+        });
+        const personalForm = document.getElementById('personal-event-form');
+        const birthdayForm = document.getElementById('birthday-form');
+        personalForm.querySelector('button[type="submit"]').disabled = false;
+        birthdayForm.querySelector('button[type="submit"]').disabled = false;
+        if (clearForms) {
+            personalForm.reset();
+            birthdayForm.reset();
+            definirMessageFormulaireAgenda(document.getElementById('personal-event-message'), '', false);
+            definirMessageFormulaireAgenda(document.getElementById('birthday-message'), '', false);
+        }
     }
 
     function reinitialiserPartagesAgenda() {
@@ -9142,12 +9190,15 @@
             ? 'Autoriser la copie des dates et durées de vos prochains rendez-vous confirmés dans Google, avec un titre générique sans nom ?'
             : 'Mettre en pause la synchronisation ? Les événements déjà copiés resteront dans Google.';
         if (!window.confirm(window.generationLiaisonTranslate(message))) return;
+        const revision = calendarRevision;
         button.disabled = true;
         try {
             await planningRequest('/api/calendar/planning/status', { method: 'POST', body: { enabled } });
+            if (revision !== calendarRevision) return;
             showToast(window.generationLiaisonTranslate(enabled ? 'Synchronisation activée.' : 'Synchronisation mise en pause.'));
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
+            if (revision !== calendarRevision) return;
             showToast(error.message || window.generationLiaisonTranslate('Impossible de modifier la synchronisation.'), false);
             await chargerParametresGooglePlanning();
         }
@@ -9158,11 +9209,13 @@
             ? 'Confirmer votre accord pour cette modification ? Le rendez-vous ne changera qu’après les deux accords.'
             : 'Refuser cette modification et conserver le rendez-vous actuel ?';
         if (!window.confirm(window.generationLiaisonTranslate(message))) return;
+        const revision = calendarRevision;
         button.disabled = true;
         try {
             const result = await planningRequest(`/api/calendar/planning/requests/${encodeURIComponent(id)}`, {
                 method: 'POST', body: { decision }
             });
+            if (revision !== calendarRevision) return;
             const statusMessage = {
                 waiting: 'Votre accord est enregistré ; l’autre accord est attendu.',
                 applied: 'Modification validée et appliquée.',
@@ -9171,6 +9224,7 @@
             showToast(statusMessage ? window.generationLiaisonTranslate(statusMessage) : statusMessage);
             await Promise.all([chargerCalendrier(), chargerModificationsGoogle()]);
         } catch (error) {
+            if (revision !== calendarRevision) return;
             showToast(error.message || window.generationLiaisonTranslate('Impossible de répondre à la modification.'), false);
             await chargerModificationsGoogle();
         }
@@ -9178,33 +9232,39 @@
 
     async function confirmerReconnexionGoogle(button) {
         if (!window.confirm(window.generationLiaisonTranslate('Confirmez uniquement si vous avez reconnecté exactement le même compte et le même agenda Google. Sinon, les changements ne correspondent pas aux rendez-vous enregistrés.'))) return;
+        const revision = calendarRevision;
         button.disabled = true;
         try {
             await planningRequest('/api/calendar/planning/confirm-reconnect', {
                 method: 'POST', body: { sameCalendar: true }
             });
+            if (revision !== calendarRevision) return;
             showToast(window.generationLiaisonTranslate('Connexion confirmée. Vous pouvez réactiver la synchronisation.'));
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
+            if (revision !== calendarRevision) return;
             showToast(error.message || window.generationLiaisonTranslate('Impossible de confirmer la connexion.'), false);
         } finally {
-            button.disabled = false;
+            if (revision === calendarRevision) button.disabled = false;
         }
     }
 
     async function changerAgendaGoogle(button) {
         if (!window.confirm(window.generationLiaisonTranslate('Confirmez-vous avoir connecté un autre agenda ? Les événements copiés dans l’ancien agenda y resteront. Les demandes Google en attente seront abandonnées, sans changer les rendez-vous de l’application.'))) return;
+        const revision = calendarRevision;
         button.disabled = true;
         try {
             await planningRequest('/api/calendar/planning/change-calendar', {
                 method: 'POST', body: { newCalendar: true }
             });
+            if (revision !== calendarRevision) return;
             showToast(window.generationLiaisonTranslate('Nouvel agenda confirmé. Vous pouvez activer la synchronisation.'));
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
+            if (revision !== calendarRevision) return;
             showToast(error.message || window.generationLiaisonTranslate('Impossible de changer d’agenda Google.'), false);
         } finally {
-            button.disabled = false;
+            if (revision === calendarRevision) button.disabled = false;
         }
     }
 
@@ -10197,14 +10257,9 @@
             reinitialiserAnnuairePartage();
             directoryLoadId++;
             document.getElementById('directory-results').replaceChildren();
-            calendarLoadId++;
+            reinitialiserCalendrier();
             reinitialiserPartagesAgenda();
-            calendarRequestsLoadId++;
             directoryBookingsLoadId++;
-            calendarEvents = [];
-            document.getElementById('calendar-grid').replaceChildren();
-            document.getElementById('calendar-selected-day').replaceChildren();
-            document.getElementById('calendar-google-requests').replaceChildren();
             document.getElementById('directory-requester-bookings').replaceChildren();
             activeSeniorProfileId = event.currentTarget.value;
             localStorage.setItem('generation-liaison-active-senior', activeSeniorProfileId);
@@ -11267,6 +11322,7 @@
         document.getElementById('senior-home-links-status').textContent = '';
         document.getElementById('aidant-home-links').hidden = true;
         connectedUser = null;
+        reinitialiserCalendrier(true);
         reinitialiserPartagesAgenda();
         wellbeingLoadedDate = null;
         wellbeingLoadId++;
@@ -12284,43 +12340,66 @@
         document.getElementById('planning-previous-day').addEventListener('click', () => decalerJourPlanning(-1));
         document.getElementById('personal-event-form').addEventListener('submit', async event => {
             event.preventDefault();
+            const button = document.getElementById('personal-event-form').querySelector('button[type="submit"]');
+            if (button.disabled) return;
+            button.disabled = true;
             const message = document.getElementById('personal-event-message');
+            const revision = calendarRevision;
             try {
                 const startValue = document.getElementById('personal-event-start').value;
+                const title = document.getElementById('personal-event-title').value;
                 await planningRequest('/api/agenda/events', { method: 'POST', body: {
-                    title: document.getElementById('personal-event-title').value,
+                    title,
                     start: startValue,
                     durationMinutes: Number(document.getElementById('personal-event-duration').value),
                     recurrence: document.getElementById('personal-event-recurrence').value
                 } });
+                if (revision !== calendarRevision) return;
                 definirMessageFormulaireAgenda(message, 'Rendez-vous ajouté.', true);
-                document.getElementById('personal-event-title').value = '';
+                if (document.getElementById('personal-event-title').value === title) {
+                    document.getElementById('personal-event-title').value = '';
+                }
                 calendarDate = startValue.slice(0, 10);
                 chargerCalendrier();
             } catch (error) {
+                if (revision !== calendarRevision) return;
                 afficherErreurFormulaireAgenda(message, error, 'Impossible d’ajouter le rendez-vous.', [
                     'Accès à l’agenda non autorisé.', 'Indiquez un titre de 120 caractères maximum.',
                     'Choisissez une date et une heure valides.', 'Choisissez une durée entre 5 minutes et 24 heures.',
                     'Choisissez une répétition valide.', 'Impossible d’enregistrer le rendez-vous.'
                 ]);
+            } finally {
+                if (revision === calendarRevision) button.disabled = false;
             }
         });
         document.getElementById('birthday-form').addEventListener('submit', async event => {
             event.preventDefault();
+            const form = document.getElementById('birthday-form');
+            const button = form.querySelector('button[type="submit"]');
+            if (button.disabled) return;
+            button.disabled = true;
             const message = document.getElementById('birthday-message');
+            const revision = calendarRevision;
             try {
+                const name = document.getElementById('birthday-name').value;
+                const birthDate = document.getElementById('birthday-date').value;
                 await planningRequest('/api/agenda/birthdays', { method: 'POST', body: {
-                    name: document.getElementById('birthday-name').value,
-                    birthDate: document.getElementById('birthday-date').value
+                    name,
+                    birthDate
                 } });
+                if (revision !== calendarRevision) return;
                 definirMessageFormulaireAgenda(message, 'Anniversaire ajouté. Un rappel est prévu le jour même si le service est disponible.', true);
-                document.getElementById('birthday-form').reset();
+                if (document.getElementById('birthday-name').value === name &&
+                    document.getElementById('birthday-date').value === birthDate) form.reset();
                 chargerCalendrier();
             } catch (error) {
+                if (revision !== calendarRevision) return;
                 afficherErreurFormulaireAgenda(message, error, 'Impossible d’ajouter l’anniversaire.', [
                     'Accès à l’agenda non autorisé.', 'Indiquez un nom de 100 caractères maximum.',
                     'Choisissez une date de naissance valide, pas dans le futur.', 'Impossible d’enregistrer l’anniversaire.'
                 ]);
+            } finally {
+                if (revision === calendarRevision) button.disabled = false;
             }
         });
         document.getElementById('planning-next-day').addEventListener('click', () => decalerJourPlanning(1));

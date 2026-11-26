@@ -1070,12 +1070,14 @@ test('birthday form submits the birth date and keeps it when saving fails', asyn
   let fail = false;
   let submitted;
   const nodes = {
-    'birthday-form': { addEventListener: (_, fn) => { handler = fn; }, reset: () => { resetCount++; } },
+    'birthday-form': { addEventListener: (_, fn) => { handler = fn; }, reset: () => { resetCount++; }, querySelector: () => birthdayButton },
     'birthday-name': { value: 'Alice' },
     'birthday-date': { value: '1950-02-28' },
     'birthday-message': { textContent: '' }
   };
+  const birthdayButton = { disabled: false };
   const context = {
+    calendarRevision: 0,
     document: { getElementById: id => nodes[id] },
     planningRequest: async (url, options) => {
       submitted = { url, options };
