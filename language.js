@@ -1219,6 +1219,22 @@
     'La recherche a changé. Relancez-la.': 'The search changed. Please run it again.',
     'Choisissez un rayon entier compris entre 1 et 500 km.': 'Choose a whole-number radius between 1 and 500 km.',
     'Centre approximatif sélectionné': 'Approximate centre selected',
+    'Localisation en cours…': 'Finding your location…',
+    'Position relevée sur cet appareil (précision indicative : {accuracy} m).':
+      'Location obtained on this device (approximate accuracy: {accuracy} m).',
+    'La localisation GPS n’est pas disponible sur cet appareil.': 'GPS location is unavailable on this device.',
+    'Recherchez et choisissez une commune, ou utilisez votre position GPS.':
+      'Search for and choose a municipality, or use your GPS location.',
+    'Impossible de rechercher la commune.': 'Unable to search for the municipality.',
+    'La position enregistrée reste inchangée.': 'Your saved location remains unchanged.',
+    'Position du domicile enregistrée.': 'Home location saved.',
+    'Position du domicile non enregistrée : relevez-la depuis votre domicile.':
+      'Home location not saved: obtain your location from home.',
+    'Relevez votre position depuis votre domicile avant d’enregistrer.':
+      'Obtain your location from home before saving.',
+    'Rayon et position du domicile enregistrés.': 'Service radius and home location saved.',
+    'Zone d’intervention enregistrée': 'Service area saved',
+    'Impossible d’enregistrer votre zone d’intervention.': 'Unable to save your service area.',
     'Autorisez la localisation dans les paramètres de l’application, puis réessayez.':
       'Allow location access in the app settings, then try again.',
     'Activez les services de localisation sur votre téléphone, puis réessayez.':
@@ -1468,6 +1484,11 @@
     'Choisissez un code d’accès de 12 caractères minimum.': 'Choose an access code of at least 12 characters.',
     'Ajoutez les justificatifs demandés.': 'Add the required documents.',
     'Chaque justificatif doit être un fichier PDF, JPEG ou PNG de 10 Mo maximum.': 'Each document must be a PDF, JPEG or PNG file no larger than 10 MB.',
+    'Pour recevoir les SMS, saisissez un numéro au format international, par exemple +33612345678.':
+      'To receive SMS messages, enter a number in international format, for example +33612345678.',
+    'Choisissez une commune ou relevez votre position GPS avant de créer le compte intervenant.':
+      'Choose a municipality or obtain your GPS location before creating a professional account.',
+    'Choisissez un rayon compris entre 1 et 500 km.': 'Choose a radius between 1 and 500 km.',
     'Précédent': 'Previous',
     'Continuer': 'Continue',
     '👨‍👩‍👧 Proche / Aidant Familial': '👨‍👩‍👧 Family member / Caregiver',

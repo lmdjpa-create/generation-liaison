@@ -3489,7 +3489,7 @@
         afficherChampsTutelle();
         if (!isProfessional) {
             registrationHomeCoordinates = null;
-            document.getElementById('reg-home-location-status').textContent = 'Position du domicile non enregistrée.';
+            document.getElementById('reg-home-location-status').textContent = window.generationLiaisonTranslate('Position du domicile non enregistrée.');
         }
     }
 
@@ -3710,7 +3710,8 @@
     }
 
     function messagePositionEnregistree(position) {
-        return `Position relevée sur cet appareil (précision indicative : ${Math.round(position.accuracy)} m).`;
+        return window.generationLiaisonTranslate('Position relevée sur cet appareil (précision indicative : {accuracy} m).')
+            .replace('{accuracy}', Math.round(position.accuracy));
     }
 
     async function rechercherCommunes(city, postalCode) {
@@ -4316,9 +4317,9 @@
         chargerPreferencesNotification();
         if (user.role === 'pro') {
             document.getElementById('pro-service-radius').value = user.serviceRadiusKm || 30;
-            document.getElementById('pro-home-location-status').textContent = user.hasHomeLocation
+            document.getElementById('pro-home-location-status').textContent = window.generationLiaisonTranslate(user.hasHomeLocation
                 ? 'Position du domicile enregistrée.'
-                : 'Position du domicile non enregistrée : relevez-la depuis votre domicile.';
+                : 'Position du domicile non enregistrée : relevez-la depuis votre domicile.');
         }
         switchScreen(user.role);
         window.handlePendingNotification?.();
@@ -10053,7 +10054,7 @@
         document.getElementById('reg-home-location-button').addEventListener('click', async () => {
             const status = document.getElementById('reg-home-location-status');
             registrationHomeCoordinates = null;
-            status.textContent = 'Localisation en cours…';
+            status.textContent = window.generationLiaisonTranslate('Localisation en cours…');
             try {
                 registrationHomeCoordinates = await obtenirPositionActuelle();
                 document.getElementById('reg-home-city').value = '';
@@ -10062,8 +10063,8 @@
                 document.getElementById('reg-city-label').hidden = true;
                 status.textContent = messagePositionEnregistree(registrationHomeCoordinates);
             } catch (error) {
-                status.textContent = 'Position du domicile non enregistrée.';
-                showToast(error.message, false);
+                status.textContent = window.generationLiaisonTranslate('Position du domicile non enregistrée.');
+                showToast(window.generationLiaisonTranslate(error.message || 'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.'), false);
             }
         });
         const afficherStatutCentreInscription = () => {
@@ -10079,7 +10080,7 @@
                 document.getElementById('reg-city-select').hidden = true;
                 document.getElementById('reg-city-label').hidden = true;
                 document.getElementById('reg-home-location-status').textContent =
-                    'Recherchez et choisissez une commune, ou utilisez votre position GPS.';
+                    window.generationLiaisonTranslate('Recherchez et choisissez une commune, ou utilisez votre position GPS.');
             });
         });
         const choisirCommuneInscription = async () => {
@@ -10091,7 +10092,7 @@
                 );
                 afficherStatutCentreInscription();
             } catch (error) {
-                status.textContent = error.message || 'Impossible de rechercher la commune.';
+                status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de rechercher la commune.');
             }
         };
         document.getElementById('reg-city-search').addEventListener('click', choisirCommuneInscription);
@@ -10099,15 +10100,15 @@
         document.getElementById('pro-home-location-button').addEventListener('click', async () => {
             const status = document.getElementById('pro-home-location-status');
             professionalHomeCoordinates = null;
-            status.textContent = 'Localisation en cours…';
+            status.textContent = window.generationLiaisonTranslate('Localisation en cours…');
             try {
                 professionalHomeCoordinates = await obtenirPositionActuelle();
                 status.textContent = messagePositionEnregistree(professionalHomeCoordinates);
             } catch (error) {
-                status.textContent = connectedUser?.hasHomeLocation
+                status.textContent = window.generationLiaisonTranslate(connectedUser?.hasHomeLocation
                     ? 'La position enregistrée reste inchangée.'
-                    : 'Position du domicile non enregistrée.';
-                showToast(error.message, false);
+                    : 'Position du domicile non enregistrée.');
+                showToast(window.generationLiaisonTranslate(error.message || 'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.'), false);
             }
         });
         document.getElementById('professional-location-form').addEventListener('submit', async event => {
@@ -10115,7 +10116,7 @@
             const form = event.currentTarget;
             const serviceRadiusKm = Number(document.getElementById('pro-service-radius').value);
             if (!professionalHomeCoordinates && !connectedUser?.hasHomeLocation) {
-                showToast('Relevez votre position depuis votre domicile avant d’enregistrer.', false);
+                showToast(window.generationLiaisonTranslate('Relevez votre position depuis votre domicile avant d’enregistrer.'), false);
                 return;
             }
             const submit = form.querySelector('button[type="submit"]');
@@ -10131,10 +10132,10 @@
                 });
                 connectedUser = { ...connectedUser, ...result };
                 professionalHomeCoordinates = null;
-                document.getElementById('pro-home-location-status').textContent = 'Rayon et position du domicile enregistrés.';
-                showToast('Zone d’intervention enregistrée');
+                document.getElementById('pro-home-location-status').textContent = window.generationLiaisonTranslate('Rayon et position du domicile enregistrés.');
+                showToast(window.generationLiaisonTranslate('Zone d’intervention enregistrée'));
             } catch (error) {
-                showToast(error.message || 'Impossible d’enregistrer votre zone d’intervention.', false);
+                showToast(window.generationLiaisonTranslate(error.message || 'Impossible d’enregistrer votre zone d’intervention.'), false);
             } finally {
                 submit.disabled = false;
             }

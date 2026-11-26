@@ -509,6 +509,83 @@ test('English wellbeing loading and empty caregiver states use the selected lang
   assert.equal(elements['wellbeing-checkin-retry'].hidden, false);
 });
 
+test('English professional registration explains SMS, location and radius errors', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  assert.equal(app.window.generationLiaisonTranslate('Position du domicile enregistrée.'), 'Home location saved.');
+  assert.equal(app.window.generationLiaisonTranslate('Position du domicile non enregistrée : relevez-la depuis votre domicile.'),
+    'Home location not saved: obtain your location from home.');
+  const elements = {};
+  const element = id => elements[id] ||= { value: '', files: [], checked: false, focus() { this.focused = true; } };
+  element('reg-role').value = 'pro';
+  element('reg-tablet-interest').value = 'none';
+  element('reg-identity-document').files = [{ type: 'application/pdf', size: 10 }];
+  element('reg-kbis-document').files = [{ type: 'application/pdf', size: 10 }];
+  element('reg-sms-notifications').checked = true;
+  const context = {
+    window: app.window, document: { getElementById: element }, registrationHomeCoordinates: null
+  };
+  const start = page.indexOf('    async function validerEtapeInscription(step)');
+  const end = page.indexOf('    function etapePrecedenteInscription()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const checkError = async (field, expected) => {
+    const error = await context.validerEtapeInscription(3);
+    assert.equal(error.field, field);
+    context.afficherErreurEtapeInscription(error);
+    assert.equal(element('reg-step-error').textContent, expected);
+    assert.equal(element(field).focused, true);
+  };
+  await checkError('reg-notification-phone', 'To receive SMS messages, enter a number in international format, for example +33612345678.');
+  element('reg-notification-phone').value = '+33612345678';
+  await checkError('reg-home-city', 'Choose a municipality or obtain your GPS location before creating a professional account.');
+  context.registrationHomeCoordinates = { latitude: 48, longitude: 2 };
+  element('reg-service-radius').value = '501';
+  await checkError('reg-service-radius', 'Choose a radius between 1 and 500 km.');
+});
+
+test('English professional location messages preserve locations and report errors', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '', hidden: false, listeners: {},
+    addEventListener(name, callback) { this.listeners[name] = callback; }
+  };
+  const toasts = [];
+  const context = {
+    window: app.window, document: { getElementById: element },
+    registrationHomeCoordinates: null, professionalHomeCoordinates: null,
+    connectedUser: { hasHomeLocation: true },
+    obtenirPositionActuelle: async () => ({ latitude: 48, longitude: 2, accuracy: 34.6 }),
+    choisirCommune: async () => ({ latitude: 48, longitude: 2, name: 'Paris' }),
+    showToast: (message, success) => toasts.push({ message, success })
+  };
+  const positionStart = page.indexOf('    function messagePositionEnregistree(position)');
+  const positionEnd = page.indexOf('    async function rechercherCommunes(', positionStart);
+  const start = page.indexOf("        document.getElementById('reg-home-location-button').addEventListener");
+  const end = page.indexOf("        document.getElementById('professional-location-form').addEventListener", start);
+  assert.ok(positionStart >= 0 && positionEnd > positionStart && start >= 0 && end > start);
+  vm.runInNewContext(page.slice(positionStart, positionEnd) + page.slice(start, end), context);
+  await element('reg-home-location-button').listeners.click();
+  assert.equal(element('reg-home-location-status').textContent, 'Location obtained on this device (approximate accuracy: 35 m).');
+  assert.equal(context.registrationHomeCoordinates.latitude, 48);
+  context.obtenirPositionActuelle = async () => { throw new Error('La localisation GPS n’est pas disponible sur cet appareil.'); };
+  await element('reg-home-location-button').listeners.click();
+  assert.equal(element('reg-home-location-status').textContent, 'Home location not saved.');
+  assert.equal(toasts.at(-1).message, 'GPS location is unavailable on this device.');
+  await element('pro-home-location-button').listeners.click();
+  assert.equal(element('pro-home-location-status').textContent, 'Your saved location remains unchanged.');
+  element('reg-home-city').listeners.input();
+  assert.equal(element('reg-home-location-status').textContent, 'Search for and choose a municipality, or use your GPS location.');
+  element('reg-city-select').hidden = false;
+  await element('reg-city-search').listeners.click();
+  assert.equal(element('reg-home-location-status').textContent, 'Approximate centre selected : Paris');
+  context.choisirCommune = async () => { throw new Error('Le service de recherche des communes est indisponible.'); };
+  await element('reg-city-search').listeners.click();
+  assert.equal(element('reg-home-location-status').textContent, 'The municipality search service is unavailable.');
+});
+
 test('switching languages does not replace content or attributes updated by the application', () => {
   const app = setup();
   app.nodes[1].textContent = 'Message envoyé.';
