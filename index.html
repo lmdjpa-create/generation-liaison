@@ -1205,7 +1205,8 @@
       padding: clamp(28px, 5vw, 48px);
       border: 2px solid #a9d2bc;
       border-radius: 22px;
-      background: #f5fbf7;
+      background: linear-gradient(135deg, #f8fcf9 0%, #e8f5ed 100%);
+      box-shadow: 0 14px 36px rgba(25, 57, 42, 0.08);
       font-size: clamp(2.45rem, 7.8vw, 3.6rem);
     }
     .audience-header .landing-brand img {
@@ -1225,6 +1226,49 @@
       font-size: 1.15rem;
       line-height: 1.6;
     }
+    .audience-highlights {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 auto 18px;
+      padding: 0;
+      list-style: none;
+    }
+    .audience-highlights li {
+      padding: 8px 13px;
+      border: 1px solid #c5dfcf;
+      border-radius: 999px;
+      background: #fff;
+      color: #155e48;
+      font-weight: 700;
+    }
+    .audience-highlights span[aria-hidden] { margin-right: 5px; }
+    .audience-header-actions {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 18px 0;
+    }
+    .audience-header-actions a {
+      min-height: 52px;
+      padding: 12px 20px;
+      border: 2px solid #156c4f;
+      border-radius: 12px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .audience-header-actions .landing-login { background: #156c4f; color: #fff; }
+    .audience-header-actions .audience-existing {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      color: #155e48;
+    }
+    .audience-header-actions a:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+    .audience-header-actions .audience-existing:hover { background: #e6f4ee; }
     .audience-guide { text-align: center; }
     .audience-guide h2 { margin: 0 0 12px; }
     .audience-guide-links {
@@ -1360,6 +1404,7 @@
     }
 
     @media (max-width: 560px) {
+      .audience-header-actions { flex-direction: column; }
       .landing {
         padding: 18px 14px;
       }
@@ -1382,6 +1427,15 @@
       <div class="landing-brand"><img src="/logo-generation-liaison.jpg" width="600" height="600" alt="" /><span>Génération<br>Liaison</span></div>
       <h1>Le lien au quotidien entre générations</h1>
       <p class="audience-purpose">Génération Liaison aide les personnes accompagnées, leurs proches et les intervenants à partager des nouvelles et organiser le quotidien.</p>
+      <ul class="audience-highlights">
+        <li><span aria-hidden="true">💬</span>Partager des nouvelles</li>
+        <li><span aria-hidden="true">📅</span>Organiser les rendez-vous</li>
+        <li><span aria-hidden="true">🤝</span>Garder le lien</li>
+      </ul>
+      <div class="audience-header-actions">
+        <a class="landing-login" href="/app-mobile.html#inscription">Créer un espace gratuitement</a>
+        <a class="audience-existing" href="#audience-guide-title">J’ai déjà un compte</a>
+      </div>
       <p>L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.</p>
     </header>
 

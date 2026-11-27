@@ -436,6 +436,10 @@
   };
 
   const translations = {
+    'Partager des nouvelles': 'Share updates',
+    'Organiser les rendez-vous': 'Organize appointments',
+    'Garder le lien': 'Stay connected',
+    'J’ai déjà un compte': 'I already have an account',
     'Autre numéro de secours local': 'Other local emergency number',
     'Saisissez le numéro de secours que vous connaissez pour l’endroit où vous êtes. L’application ne détermine pas votre position ni le numéro local. Cet appel ne prévient pas vos aidants : vous devrez lancer l’appel sur votre téléphone.': 'Enter the emergency number you know for your current location. The app does not determine your location or the local number. This call does not notify your caregivers: you must place the call on your phone.',
     'Ouvrir le téléphone avec ce numéro': 'Open the phone with this number',

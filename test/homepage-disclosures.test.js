@@ -9,6 +9,27 @@ const mobileSource = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html
 const privacySource = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
 const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8');
 
+test('homepage introduces the service and offers clear entry points in both languages', () => {
+  const header = source.slice(source.indexOf('<header class="audience-header">'), source.indexOf('</header>'));
+  assert.match(header, /<a class="landing-login" href="\/app-mobile\.html#inscription">Créer un espace gratuitement<\/a>/);
+  assert.match(header, /<a class="audience-existing" href="#audience-guide-title">J’ai déjà un compte<\/a>/);
+  assert.match(source, /<h2 id="audience-guide-title">/);
+  assert.match(source, /\.audience-header-actions a:focus-visible/);
+  assert.match(source, /\.audience-header-actions \{ flex-direction: column; \}/);
+  const window = { localStorage: { getItem: () => 'en' } };
+  const document = { documentElement: {}, addEventListener() {} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
+  for (const [fr, en] of [
+    ['Partager des nouvelles', 'Share updates'],
+    ['Organiser les rendez-vous', 'Organize appointments'],
+    ['Garder le lien', 'Stay connected'],
+    ['J’ai déjà un compte', 'I already have an account']
+  ]) {
+    assert.ok(header.includes(fr));
+    assert.equal(window.generationLiaisonTranslate(fr), en);
+  }
+});
+
 test('homepage guides each audience and offers optional fictional everyday examples', () => {
   const purpose = 'Génération Liaison aide les personnes accompagnées, leurs proches et les intervenants à partager des nouvelles et organiser le quotidien.';
   assert.ok(source.includes(`<p class="audience-purpose">${purpose}</p>`));
