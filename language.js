@@ -436,6 +436,11 @@
   };
 
   const translations = {
+    'Autre numéro de secours local': 'Other local emergency number',
+    'Saisissez le numéro de secours que vous connaissez pour l’endroit où vous êtes. L’application ne détermine pas votre position ni le numéro local. Cet appel ne prévient pas vos aidants : vous devrez lancer l’appel sur votre téléphone.': 'Enter the emergency number you know for your current location. The app does not determine your location or the local number. This call does not notify your caregivers: you must place the call on your phone.',
+    'Ouvrir le téléphone avec ce numéro': 'Open the phone with this number',
+    'Saisissez le numéro local avec des chiffres uniquement, éventuellement précédés de +.': 'Enter the local number using digits only, optionally preceded by +.',
+    'Lancez l’appel sur votre téléphone. Aucun aidant n’a été prévenu par cette action.': 'Place the call on your phone. This action did not notify any caregivers.',
     'Compte créé, mais justificatifs à envoyer :': 'Account created, but documents still need to be sent:',
     'Votre dossier doit être complété. Envoyez les justificatifs demandés ; il sera ensuite remis en attente de vérification.': 'Your application needs more information. Send the requested documents; it will then return to the verification queue.',
     'Votre dossier est en attente de vérification manuelle. L’accès à l’espace intervenant sera ouvert après validation.': 'Your application is awaiting manual verification. Access to the professional workspace will open after approval.',

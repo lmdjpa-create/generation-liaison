@@ -79,6 +79,11 @@ test('static text and labels translate and return to French', () => {
     app.window.generationLiaisonTranslate('En France, utilisez ces numéros. Dans un autre pays, contactez les secours locaux.'),
     'Use these numbers in France. In another country, contact local emergency services.'
   );
+  assert.equal(app.window.generationLiaisonTranslate('Autre numéro de secours local'), 'Other local emergency number');
+  assert.match(
+    app.window.generationLiaisonTranslate('Saisissez le numéro de secours que vous connaissez pour l’endroit où vous êtes. L’application ne détermine pas votre position ni le numéro local. Cet appel ne prévient pas vos aidants : vous devrez lancer l’appel sur votre téléphone.'),
+    /does not determine your location or the local number.*does not notify your caregivers/
+  );
   assert.match(
     app.window.generationLiaisonTranslate('Pour confirmer par la voix, dites : « Je confirme l’appel d’urgence ». La confirmation vocale dépend du navigateur et peut être traitée par son fournisseur ; Génération Liaison ne conserve pas l’audio. Le bouton de confirmation reste disponible.'),
     /say in French: “Je confirme l’appel d’urgence”/

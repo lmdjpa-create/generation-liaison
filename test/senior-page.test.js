@@ -2244,6 +2244,36 @@ test('emergency details are optional while numbers, confirmation and status stay
   assert.match(emergency, /Vous devrez lancer l’appel sur votre téléphone/);
 });
 
+test('a known local emergency number opens the dialer without notifying caregivers', () => {
+  const form = { addEventListener(type, handler) { this[type] = handler; } };
+  const number = { value: '' };
+  const status = { textContent: '' };
+  const elements = {
+    'local-emergency-form': form,
+    'local-emergency-number': number,
+    'local-emergency-status': status
+  };
+  const context = {
+    document: { getElementById: id => elements[id] },
+    window: { location: { href: '' }, generationLiaisonTranslate: text => text }
+  };
+  vm.runInNewContext(extract("    document.getElementById('local-emergency-form')", '    let emergencyNumberSelected = null;'), context);
+  const event = { preventDefault() {} };
+  for (const invalid of ['', '12#34', 'tel:112', '1234567890123456']) {
+    number.value = invalid;
+    form.submit(event);
+    assert.equal(context.window.location.href, '');
+    assert.match(status.textContent, /chiffres uniquement/);
+  }
+  number.value = ' 911 ';
+  form.submit(event);
+  assert.equal(context.window.location.href, 'tel:911');
+  assert.match(status.textContent, /Aucun aidant/);
+  number.value = '+44123';
+  form.submit(event);
+  assert.equal(context.window.location.href, 'tel:+44123');
+});
+
 test('emergency calls require confirmation and can be confirmed again after a completed attempt', async () => {
   const makeElement = () => ({
     hidden: true, disabled: false, textContent: '', listeners: {},

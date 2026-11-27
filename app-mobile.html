@@ -1309,6 +1309,13 @@
                 <button type="button" data-emergency-number="15">Appeler le 15</button>
                 <button type="button" data-emergency-number="112">Appeler le 112</button>
             </div>
+            <form id="local-emergency-form" class="form-grid">
+                <label for="local-emergency-number">Autre numéro de secours local</label>
+                <p class="helper-text">Saisissez le numéro de secours que vous connaissez pour l’endroit où vous êtes. L’application ne détermine pas votre position ni le numéro local. Cet appel ne prévient pas vos aidants : vous devrez lancer l’appel sur votre téléphone.</p>
+                <input id="local-emergency-number" type="tel" inputmode="tel" maxlength="16" autocomplete="off" aria-describedby="local-emergency-status">
+                <button type="submit">Ouvrir le téléphone avec ce numéro</button>
+                <p id="local-emergency-status" class="helper-text" role="status" aria-live="polite"></p>
+            </form>
             <div id="emergency-call-confirmation" class="emergency-confirmation" hidden>
                 <h3 id="emergency-call-confirmation-title">Confirmer l’appel</h3>
                 <p>Confirmez pour préparer l’alerte aux aidants et ouvrir le téléphone. Lancez ensuite l’appel.</p>
@@ -5448,6 +5455,18 @@
             }
         }
     }
+
+    document.getElementById('local-emergency-form').addEventListener('submit', event => {
+        event.preventDefault();
+        const number = document.getElementById('local-emergency-number').value.trim();
+        const status = document.getElementById('local-emergency-status');
+        if (!/^\+?\d{1,15}$/.test(number)) {
+            status.textContent = window.generationLiaisonTranslate('Saisissez le numéro local avec des chiffres uniquement, éventuellement précédés de +.');
+            return;
+        }
+        status.textContent = window.generationLiaisonTranslate('Lancez l’appel sur votre téléphone. Aucun aidant n’a été prévenu par cette action.');
+        window.location.href = `tel:${number}`;
+    });
 
     let emergencyNumberSelected = null;
     let emergencyCheckinId = null;
