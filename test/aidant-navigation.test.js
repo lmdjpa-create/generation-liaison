@@ -940,6 +940,16 @@ function createView(response) {
   return { context, element, calls, bodyClasses, tabDisclosures, featureDisclosures, weatherDisclosures, respite, explanation };
 }
 
+test('refreshing the same account keeps shared drafts while account changes clear them', async () => {
+  const { context, calls } = createView({ seniors: [] });
+  await context.openView({ id: 'one', role: 'senior', seniorId: 'profile-one' });
+  calls.length = 0;
+  await context.openView({ id: 'one', role: 'senior', seniorId: 'profile-one' });
+  assert.ok(!calls.includes('reinitialiserSuiviPartage'));
+  await context.openView({ id: 'two', role: 'senior', seniorId: 'profile-two' });
+  assert.ok(calls.includes('reinitialiserSuiviPartage'));
+});
+
 test('establishment accounts open only their dedicated workspace', async () => {
   const { context, element, calls } = createView({ seniors: [] });
   await context.openView({ id: 'director', role: 'establishment' });

@@ -77,3 +77,35 @@ test('settings reflect the saved photo-sharing choice', () => {
   app.context.setUser({ role: 'aidant', shareAccountPhoto: false });
   assert.equal(app.element('account-photo-sharing').checked, false);
 });
+
+test('each profile avatar opens the photo chooser in profile settings', () => {
+  const avatars = [...source.matchAll(/<button\b[^>]*class="[^"]*\baccount-avatar\b[^"]*"[^>]*>/g)];
+  assert.equal(avatars.length, 4);
+  for (const [avatar] of avatars) {
+    assert.match(avatar, /type="button"/);
+    assert.match(avatar, /aria-label="Ajouter ou modifier ma photo de profil"/);
+    assert.match(avatar, /onclick="ouvrirPhotoProfil\(\)"/);
+  }
+  const begin = source.indexOf('    function ouvrirPhotoProfil()');
+  const finish = source.indexOf('    function afficherAvatarProfil()', begin);
+  assert.ok(begin >= 0 && finish > begin);
+  for (const role of ['senior', 'aidant', 'pro']) {
+    let active = false;
+    let chooser = 0;
+    let navigations = 0;
+    const details = { open: false, scrollIntoView() {} };
+    const context = {
+      document: {
+        getElementById: id => id === 'screen-settings'
+          ? { classList: { contains: () => active } }
+          : { click: () => { chooser++; } },
+        querySelector: () => details
+      },
+      switchScreen: screen => { assert.equal(screen, 'settings'); active = true; navigations++; }
+    };
+    vm.runInNewContext(`let connectedUser = { role: ${JSON.stringify(role)} }; ${source.slice(begin, finish)}; ouvrirPhotoProfil(); ouvrirPhotoProfil();`, context);
+    assert.equal(navigations, 1);
+    assert.equal(details.open, true);
+    assert.equal(chooser, 2);
+  }
+});

@@ -2031,12 +2031,13 @@ test('notification activation is offered only when the server is configured', as
   let configured = false;
   const context = {
     connectedUser: { role: 'senior' },
+    afficherTexteNotification: (element, text) => { element.textContent = text; },
     document: { querySelector: selector => {
       if (selector.startsWith('.notification-preferences-form')) return form;
       if (selector.startsWith('.enable-push-button')) return button;
       return selector.endsWith('.push-status') ? pushStatus : channelStatus;
     } },
-    window: {},
+    window: { generationLiaisonTranslate: text => text },
     localStorage: { getItem: () => null },
     PUSH_TOKEN_KEY: 'push',
     planningRequest: async url => url.endsWith('/preferences')
@@ -2069,6 +2070,7 @@ test('iOS native push is unavailable without affecting Android or existing remov
   let permissionRequests = 0;
   const context = {
     connectedUser: { id: 'user-1', role: 'senior' },
+    afficherTexteNotification: (element, text) => { element.textContent = text; },
     document: { querySelector: selector => {
       if (selector.startsWith('.notification-preferences-form')) return form;
       if (selector.startsWith('.enable-push-button')) return button;
@@ -2110,6 +2112,7 @@ test('notification permission is requested once only when supported and configur
   const notification = { permission: 'default', requestPermission: async () => { calls.push('permission'); return 'granted'; } };
   const context = {
     connectedUser: { id: 'user-1', role: 'senior' },
+    afficherTexteNotification: (element, text) => { element.textContent = text; },
     navigator: { serviceWorker: {} },
     window: { PushManager: {}, Notification: notification },
     Notification: notification,
@@ -2202,8 +2205,10 @@ test('removing a legacy iOS push registration leaves activation disabled', async
   const context = {
     window: {
       Capacitor: { getPlatform: () => 'ios', isNativePlatform: () => true },
-      unregisterNativePush: async () => calls.push('unregister')
+      unregisterNativePush: async () => calls.push('unregister'),
+      generationLiaisonTranslate: text => text
     },
+    afficherTexteNotification: (element, text) => { element.textContent = text; },
     document: { querySelector: () => status },
     localStorage: {
       getItem: key => stored.get(key) || null,

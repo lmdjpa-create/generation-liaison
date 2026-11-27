@@ -84,6 +84,117 @@ test('static text and labels translate and return to French', () => {
   );
 });
 
+test('profile, journal and sudoku labels translate in both directions', () => {
+  const app = setup('en', ['Texte']);
+  assert.equal(app.nodes[0].textContent, 'Text');
+  assert.equal(app.window.generationLiaisonTranslate('Ajouter ou modifier ma photo de profil'), 'Add or change my profile photo');
+  assert.equal(app.window.generationLiaisonTranslate('Grille de sudoku'), 'Sudoku grid');
+  assert.equal(app.window.generationLiaisonTranslate('Grille de sudoku 9 × 9'), '9 × 9 sudoku grid');
+  assert.equal(app.window.generationLiaisonTranslate('Pain\nLait\nPommes'), 'Bread\nMilk\nApples');
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(app.nodes[0].textContent, 'Texte');
+  assert.equal(app.window.generationLiaisonTranslate('Grille de sudoku'), 'Grille de sudoku');
+});
+
+test('notification settings switch language without reloading or replacing edited values', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const start = page.indexOf('    function afficherTexteNotification(element, texte)');
+  const end = page.indexOf('    async function activerNotificationsPush(button)', start);
+  assert.ok(start >= 0 && end > start);
+  const app = setup('en');
+  const fields = new Map();
+  const form = { querySelector: key => {
+    if (!fields.has(key)) fields.set(key, {});
+    return fields.get(key);
+  } };
+  const pushButton = { dataset: {} };
+  const status = { dataset: {} };
+  const channels = { dataset: {} };
+  let requests = 0;
+  const context = {
+    window: app.window,
+    document: {
+      querySelector: selector => selector.startsWith('.notification-preferences-form') ? form
+        : selector.startsWith('.enable-push-button') ? pushButton
+        : selector.endsWith('.push-status') ? status : channels,
+      querySelectorAll: () => [pushButton, status, channels]
+    },
+    connectedUser: { role: 'senior' },
+    localStorage: { getItem: () => null },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async url => {
+      requests++;
+      return url.endsWith('/preferences')
+        ? { phone: 'original', emailEnabled: false, smsEnabled: false }
+        : { channels: { email: true, sms: false, webPush: true } };
+    }
+  };
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.chargerPreferencesNotification();
+  assert.equal(pushButton.textContent, 'Enable notifications on this device');
+  assert.equal(status.textContent, 'Push notifications are ready to be enabled on this device.');
+  assert.equal(channels.textContent, 'Email: ready · SMS: not configured.');
+  fields.get('[data-notification-phone]').value = 'unsaved edit';
+  fields.get('[data-email-enabled]').checked = true;
+  app.window.generationLiaisonSetLanguage('fr');
+  context.actualiserLangueNotifications();
+  assert.equal(pushButton.textContent, 'Activer les notifications sur cet appareil');
+  assert.equal(status.textContent, 'Les notifications push sont prêtes à être activées sur cet appareil.');
+  assert.equal(fields.get('[data-notification-phone]').value, 'unsaved edit');
+  assert.equal(fields.get('[data-email-enabled]').checked, true);
+  assert.equal(requests, 2);
+  status.textContent = 'Message serveur personnalisé';
+  app.window.generationLiaisonSetLanguage('en');
+  context.actualiserLangueNotifications();
+  assert.equal(status.textContent, 'Message serveur personnalisé');
+  assert.equal(pushButton.textContent, 'Enable notifications on this device');
+});
+
+test('notification availability and permission failures are clear in English', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const helpers = page.slice(page.indexOf('    function afficherTexteNotification(element, texte)'),
+    page.indexOf('    async function demanderNotificationsAutomatiquement(user)'));
+  const settings = page.slice(page.indexOf('    async function chargerPreferencesNotification()'),
+    page.indexOf('    function cleVapidVersOctets(value)'));
+  const app = setup('en');
+  let platform = 'android';
+  let token = null;
+  const form = { querySelector: () => ({}) };
+  const button = { dataset: { role: 'senior' } };
+  const status = { dataset: {} };
+  const channels = { dataset: {} };
+  app.window.Capacitor = { getPlatform: () => platform };
+  const context = {
+    window: app.window,
+    document: { querySelector: selector => selector.startsWith('.notification-preferences-form') ? form
+      : selector.startsWith('.enable-push-button') ? button
+      : selector.endsWith('.push-status') ? status : channels },
+    connectedUser: { role: 'senior' },
+    localStorage: { getItem: key => key === 'push' ? token : null },
+    PUSH_TOKEN_KEY: 'push',
+    planningRequest: async url => url.endsWith('/preferences')
+      ? { phone: '', emailEnabled: false, smsEnabled: false }
+      : { channels: { email: false, sms: false, nativePush: true } },
+    showToast() {}
+  };
+  vm.runInNewContext(helpers + settings, context);
+  await context.chargerPreferencesNotification();
+  assert.equal(channels.textContent, 'Email: not configured · SMS: not configured.');
+  assert.equal(button.textContent, 'Enable notifications on this device');
+  token = 'existing';
+  await context.chargerPreferencesNotification();
+  assert.equal(button.textContent, 'Disable notifications on this device');
+  assert.equal(status.textContent, 'This device is registered for push notifications.');
+  token = null;
+  platform = 'ios';
+  await context.chargerPreferencesNotification();
+  assert.equal(button.disabled, true);
+  assert.match(status.textContent, /iPhone app are not yet available/);
+  await context.activerNotificationsPush(button);
+  assert.equal(status.textContent, 'Notifications in the iPhone app are not yet available.');
+  assert.equal(button.disabled, true);
+});
+
 test('account activation identifies the language of its legal documents', () => {
   const resetPage = fs.readFileSync(path.join(__dirname, '..', 'reset-password.html'), 'utf8');
   assert.match(resetPage, /<form id="reset-form"[^>]*>[\s\S]*Les conditions et la politique de confidentialité sont actuellement en français\.[\s\S]*<\/form>/);
@@ -831,9 +942,10 @@ test('professional planning uses the Paris date and time when the browser is on 
   }
   const elements = {};
   const element = id => elements[id] ||= {
-    value: '', textContent: '', children: [], listeners: {},
+    value: '', textContent: '', children: [], listeners: {}, dataset: {},
     append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = items; },
+    querySelectorAll() { return []; }, querySelector() { return null; },
     addEventListener(type, handler) { this.listeners[type] = handler; }
   };
   const urls = [];
@@ -841,7 +953,7 @@ test('professional planning uses the Paris date and time when the browser is on 
     window: app.window, document: {
       getElementById: element,
       createElement: () => ({
-        children: [], classList: { add() {} },
+        children: [], dataset: {}, classList: { add() {} },
         append(...items) { this.children.push(...items); },
         addEventListener() {}, setAttribute() {}
       })
@@ -936,19 +1048,122 @@ test('professional planning reset clears personal data and rejects old service r
   assert.equal(context.planningState.members.length, 0);
 });
 
+test('API errors retain their status so expired sessions are distinguished from network failures', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const start = page.indexOf('    async function readResponse(response)');
+  const end = page.indexOf('    async function planningRequest(', start);
+  assert.ok(start >= 0 && end > start);
+  const context = {};
+  vm.runInNewContext(page.slice(start, end), context);
+  await assert.rejects(context.readResponse({
+    ok: false, status: 401, json: async () => ({ error: 'Session expirée' })
+  }), error => error.message === 'Session expirée' && error.status === 401);
+});
+
+test('professional visit drafts survive refresh and are removed if the visit is no longer available', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const makeElement = tag => ({
+    tag, children: [], dataset: {}, value: '', checked: false, disabled: false,
+    className: '', classList: { add() {} },
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; },
+    setAttribute() {}, addEventListener() {},
+    querySelectorAll(selector) {
+      const matches = node => selector === '.visit-card[data-visit-id]' &&
+        node.className === 'visit-card' && node.dataset.visitId;
+      const descendants = node => (node.children || []).flatMap(child =>
+        [ ...(matches(child) ? [child] : []), ...descendants(child) ]);
+      return descendants(this);
+    },
+    querySelector(selector) {
+      const matches = node => selector === '.visit-card' ? node.className === 'visit-card'
+        : selector === '.visit-progress' ? node.className === 'visit-progress'
+        : selector === '.visit-notes-panel' ? node.className === 'visit-notes-panel'
+        : selector === 'textarea' ? node.tag === 'textarea'
+        : selector === 'button' ? node.tag === 'button'
+        : selector === 'input[type="checkbox"]' ? node.tag === 'input' && node.type === 'checkbox'
+        : false;
+      const find = node => (node.children || []).map(child => matches(child) ? child : find(child)).find(Boolean);
+      return find(this) || null;
+    }
+  });
+  const elements = {};
+  const element = id => elements[id] ||= makeElement('div');
+  element('planning-date').value = '2030-01-15';
+  const toasts = [];
+  const visit = { id: 'visit', recipient: { name: 'Personne' }, scheduledAt: 'date',
+    visitType: 'Visite', durationMinutes: 30, progress: [] };
+  let visits = [visit];
+  let failure = null;
+  const context = {
+    connectedUser: { id: 'professional', role: 'pro' }, planningLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
+    document: { getElementById: element, createElement: makeElement, createTextNode: text => ({ text }) },
+    planningRequest: async () => { if (failure) throw failure; return { visits }; },
+    updatePlanningDateTitle() {}, afficherJournalIntervenant() {}, ajouterDistanceAuRendezVous() {},
+    makeTextElement: (tag, text) => Object.assign(makeElement(tag), { textContent: text }),
+    formatDateTime: value => value, progressArray: value => value, renderVisitProgress() {},
+    nextVisitStage: progress => progress.length ? 'started' : 'arrived',
+    stageLabel: stage => stage, showToast: (...args) => toasts.push(args)
+  };
+  const start = page.indexOf('    async function chargerPlanningPro()');
+  const end = page.indexOf('    async function chargerPlanningServices()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  await context.chargerPlanningPro();
+  const container = element('pro-planning');
+  const controls = container.querySelector('.visit-progress');
+  controls.querySelector('textarea').value = 'Note en cours';
+  const panel = makeElement('section');
+  panel.className = 'visit-notes-panel';
+  const transmission = makeElement('textarea');
+  transmission.value = 'Transmission en cours';
+  panel.append(transmission);
+  container.children[0].append(panel);
+  await context.chargerPlanningPro();
+  assert.equal(container.querySelector('.visit-progress'), controls);
+  assert.equal(container.querySelector('.visit-notes-panel'), panel);
+  assert.equal(transmission.value, 'Transmission en cours');
+  visits = [{ ...visit, progress: ['arrived'] }];
+  await context.chargerPlanningPro();
+  const updatedControls = container.querySelector('.visit-progress');
+  assert.notEqual(updatedControls, controls);
+  assert.equal(container.querySelector('.visit-notes-panel'), panel);
+  assert.match(toasts.at(-1)[0], /étape n’est plus disponible/);
+  updatedControls.querySelector('textarea').value = 'Autre note';
+  failure = new Error('Connexion indisponible');
+  await context.chargerPlanningPro();
+  assert.equal(container.querySelector('.visit-progress'), updatedControls);
+  assert.equal(toasts.at(-1)[0], 'Connexion indisponible');
+  failure = null;
+  visits = [];
+  await context.chargerPlanningPro();
+  assert.equal(container.querySelector('.visit-progress'), null);
+  assert.equal(container.querySelector('.visit-notes-panel'), null);
+  assert.match(toasts.at(-1)[0], /n’est plus disponible/);
+  visits = [visit];
+  await context.chargerPlanningPro();
+  container.querySelector('.visit-progress').querySelector('textarea').value = 'Note privée';
+  failure = Object.assign(new Error('Session expirée'), { status: 401 });
+  await context.chargerPlanningPro();
+  assert.equal(container.querySelector('.visit-card'), null);
+  assert.equal(container.children[0].textContent, 'Session expirée');
+});
+
 test('shared visit tracking discards stale account, profile and refresh results', async () => {
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const elements = {};
   const element = id => elements[id] ||= {
     children: ['Private information'],
-    querySelectorAll() { return []; },
+    querySelectorAll() { return []; }, querySelector() { return this.button ||= {}; },
+    reset() {},
     replaceChildren(...items) { this.children = items; },
     append(...items) { this.children.push(...items); }
   };
   const pending = [];
   const context = {
     connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first',
-    sharedFollowingRevision: 0, sharedFollowingLoadId: 0,
+    sharedFollowingRevision: 0, sharedFollowingLoadId: 0, consentLoadId: 0,
     document: { getElementById: element },
     planningRequest: () => new Promise((resolve, reject) => pending.push({ resolve, reject })),
     makeTextElement: (tag, text) => ({ textContent: text })
@@ -979,6 +1194,142 @@ test('shared visit tracking discards stale account, profile and refresh results'
   pending[3].reject(new Error('Previous session'));
   await previousSession;
   assert.equal(element('aidant-live-following').children.length, 0);
+});
+
+test('team information submissions preserve edits and cannot affect a later session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const elements = {};
+  const element = id => elements[id] ||= {
+    value: '', listeners: {}, button: { disabled: false },
+    addEventListener(type, handler) { this.listeners[type] = handler; },
+    querySelector() { return this.button; }
+  };
+  const pending = [];
+  const toasts = [];
+  const context = {
+    connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first',
+    sharedFollowingRevision: 0,
+    document: { getElementById: element }, window: { generationLiaisonTranslate: text => text },
+    planningRequest: (url, options) => new Promise((resolve, reject) => pending.push({ url, options, resolve, reject })),
+    showToast: (...args) => toasts.push(args)
+  };
+  const start = page.indexOf('    function configurerFormulairesInformationsPersonne()');
+  const end = page.indexOf('    async function modifierConsentement(', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  context.configurerFormulairesInformationsPersonne();
+  const form = element('aidant-person-note-form');
+  const submit = () => form.listeners.submit({ preventDefault() {} });
+  element('aidant-note-recipient').value = 'team';
+  element('aidant-note-content').value = 'Premier message';
+  const first = submit();
+  await submit();
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].options.body.content, 'Premier message');
+  element('aidant-note-content').value = 'Message modifié';
+  pending[0].resolve({});
+  await first;
+  assert.equal(element('aidant-note-content').value, 'Message modifié');
+  assert.equal(form.button.disabled, false);
+
+  const second = submit();
+  context.sharedFollowingRevision++;
+  context.activeSeniorProfileId = 'second';
+  form.button.disabled = false;
+  element('aidant-note-content').value = 'Nouveau profil';
+  pending[1].resolve({});
+  await second;
+  assert.equal(element('aidant-note-content').value, 'Nouveau profil');
+  assert.equal(toasts.length, 1);
+  assert.equal(form.button.disabled, false);
+
+  const third = submit();
+  context.sharedFollowingRevision++;
+  form.button.disabled = false;
+  pending[2].reject(new Error('Ancienne session'));
+  await third;
+  assert.equal(toasts.length, 1);
+  element('aidant-note-recipient').value = '';
+  await submit();
+  assert.equal(pending.length, 3);
+  assert.match(toasts.at(-1)[0], /équipe autorisée/);
+});
+
+test('late consent actions do not refresh another session', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  let resolveRequest;
+  const effects = [];
+  const context = {
+    connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first', sharedFollowingRevision: 0,
+    planningRequest: () => new Promise(resolve => { resolveRequest = resolve; }),
+    showToast: (...args) => effects.push(args),
+    chargerConsentements: async () => effects.push('consent'),
+    chargerSuiviPartage: async () => effects.push('following')
+  };
+  const start = page.indexOf('    async function modifierConsentement(');
+  const end = page.indexOf('    function configurerFormulairesCoordination()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const button = { disabled: false };
+  const action = context.modifierConsentement({ id: 'team', consented: true }, 'aidant', button);
+  context.sharedFollowingRevision++;
+  context.activeSeniorProfileId = 'second';
+  resolveRequest({});
+  await action;
+  assert.deepEqual(effects, []);
+});
+
+test('consent refresh retains only an authorized team and ignores previous-session results', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const makeElement = () => ({
+    value: '', children: [],
+    append(...items) { this.children.push(...items); },
+    replaceChildren(...items) { this.children = items; this.value = ''; },
+    add(item) { this.children.push(item); },
+    addEventListener() {}
+  });
+  const elements = {};
+  const element = id => elements[id] ||= makeElement();
+  const pending = [];
+  const context = {
+    connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first', consentLoadId: 0,
+    document: { getElementById: element, createElement: makeElement },
+    Option: function(text, value) { this.text = text; this.value = value; },
+    makeTextElement: (tag, text) => ({ textContent: text }),
+    planningRequest: () => new Promise(resolve => pending.push(resolve))
+  };
+  const start = page.indexOf('    async function chargerConsentements(');
+  const end = page.indexOf('    function configurerFormulairesInformationsPersonne()', start);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const select = element('aidant-note-recipient');
+  select.value = 'team';
+  const first = context.chargerConsentements('aidant');
+  pending[0]([{ id: 'team', organizationName: 'Équipe', name: 'Personne', consented: true }]);
+  await first;
+  assert.equal(select.value, 'team');
+  const older = context.chargerConsentements('aidant');
+  const newer = context.chargerConsentements('aidant');
+  select.value = 'other';
+  pending[2]([
+    { id: 'team', organizationName: 'Équipe', name: 'Personne', consented: true },
+    { id: 'other', organizationName: 'Autre équipe', name: 'Personne', consented: true }
+  ]);
+  await newer;
+  pending[1]([]);
+  await older;
+  assert.equal(select.value, 'other');
+  const revoked = context.chargerConsentements('aidant');
+  pending[3]([{ id: 'other', organizationName: 'Autre équipe', name: 'Personne', consented: false }]);
+  await revoked;
+  assert.equal(select.value, '');
+  const previous = context.chargerConsentements('aidant');
+  context.consentLoadId++;
+  context.connectedUser = null;
+  context.connectedUser = { id: 'alice', role: 'aidant' };
+  pending[4]([{ id: 'old', organizationName: 'Ancienne équipe', name: 'Personne', consented: true }]);
+  await previous;
+  assert.equal(select.children.length, 1);
 });
 
 test('late visit progress cannot notify or refresh a later professional session', async () => {
@@ -1172,8 +1523,16 @@ test('visit evaluation drafts survive refreshes and edits made while saving', as
   await failedRefresh;
   assert.equal(container.children[0].children[3], nextSection);
   assert.equal(toasts.at(-1)[0], 'Connexion indisponible');
+  const expired = context.chargerSuiviPartage('aidant');
+  requests[6].reject(Object.assign(new Error('Session expirée'), { status: 401 }));
+  await expired;
+  assert.equal(container.children[0].textContent, 'Session expirée');
+  const reloaded = context.chargerSuiviPartage('aidant');
+  requests[7].resolve(data);
+  await reloaded;
+  container.children[0].children[3].children[1].children[0].listeners.click();
   const revoked = context.chargerSuiviPartage('aidant');
-  requests[6].resolve({ visits: [] });
+  requests[8].resolve({ visits: [] });
   await revoked;
   assert.equal(container.children.length, 1);
   assert.match(toasts.at(-1)[0], /n’est plus disponible/);
@@ -1183,7 +1542,8 @@ test('outdated coordinator responses cannot repopulate private team information'
   const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
   const elements = {};
   const element = id => elements[id] ||= {
-    value: '2026-03-29', textContent: '', children: [],
+    value: '2026-03-29', textContent: '', children: [], dataset: {},
+    querySelectorAll() { return []; }, querySelector() { return null; },
     append(...items) { this.children.push(...items); },
     replaceChildren(...items) { this.children = items; }
   };
