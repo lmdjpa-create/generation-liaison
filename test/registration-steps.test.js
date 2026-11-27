@@ -23,8 +23,8 @@ test('registration discloses the current language of the terms and privacy polic
 test('tablet prices appear with each choice in registration and settings', () => {
   for (const [value, price] of [
     ['purchase', /299 € TTC/],
-    ['purchase_premium', /299 € TTC.*Premium à venir \(tarif à définir\)/],
-    ['rental_premium', /25 € HT \/ mois sur 12 mois.*Premium à venir \(tarif à définir\)/]
+    ['purchase_premium', /299 € TTC.*Premium à venir à 9,90 € TTC \/ mois/],
+    ['rental_premium', /25 € HT \/ mois sur 12 mois.*Premium à venir à 9,90 € TTC \/ mois/]
   ]) {
     const options = [...source.matchAll(new RegExp(`<option value="${value}">([^<]+)</option>`, 'g'))]
       .map(match => match[1]).filter(label => label.includes('Premium') || label.includes('Achat seul'));

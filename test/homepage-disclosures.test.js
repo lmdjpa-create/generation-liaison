@@ -9,6 +9,33 @@ const mobileSource = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html
 const privacySource = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
 const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8');
 
+test('future paid offers are clearly distinguished from available services', () => {
+  const start = source.indexOf('<summary>Offres et paiements : ce qui est prévu</summary>');
+  assert.ok(start >= 0);
+  const offers = source.slice(start, source.indexOf('</details>', start));
+  assert.match(offers, /Aucun paiement ni abonnement payant en ligne n’est actuellement activé/);
+  assert.match(offers, /PayPal et Stripe pour le paiement par carte sont prévus, mais ne sont pas encore configurés/);
+  assert.match(offers, /carnet de soins Premium est envisagé à 9,90 € TTC par mois, mais n’est pas disponible/);
+  assert.match(offers, /carnet actuel ne doit pas contenir de données de santé/);
+  assert.match(offers, /exprimer son intérêt ne crée ni commande ni paiement/);
+  assert.match(offers, /leurs tarifs et modalités restent à préciser/);
+  assert.match(offers, /href="\/cgv\.html"/);
+  const window = { localStorage: { getItem: () => 'en' } };
+  const document = { documentElement: {}, addEventListener() {} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
+  for (const text of [
+    'Offres et paiements : ce qui est prévu',
+    'Des informations claires avant toute souscription',
+    'Aucun paiement ni abonnement payant en ligne n’est actuellement activé. Les projets ci-dessous ne constituent ni une commande ni un engagement.',
+    'Les comptes senior et proches sont actuellement gratuits.',
+    'PayPal et Stripe pour le paiement par carte sont prévus, mais ne sont pas encore configurés.',
+    'Un futur carnet de soins Premium est envisagé à 9,90 € TTC par mois, mais n’est pas disponible. Ses fonctions et ses conditions restent à définir. Le carnet actuel ne doit pas contenir de données de santé.',
+    'Les options de tablette sont indicatives : exprimer son intérêt ne crée ni commande ni paiement. Le prix et la disponibilité restent à confirmer par devis.',
+    'Les prestations à domicile sont réalisées par les intervenants ; leurs tarifs et modalités restent à préciser. Aucun paiement n’est prélevé par l’application.',
+    'Avant toute offre payante, le prix total, les conditions de paiement et de résiliation seront précisés.'
+  ]) assert.notEqual(window.generationLiaisonTranslate(text), text);
+});
+
 test('homepage introduces the service and offers clear entry points in both languages', () => {
   const header = source.slice(source.indexOf('<header class="audience-header">'), source.indexOf('</header>'));
   assert.match(header, /<a class="landing-login" href="\/app-mobile\.html#inscription">Créer un espace gratuitement<\/a>/);
@@ -113,7 +140,7 @@ test('each audience has a linked, accessible presentation with closed explanatio
   }
   const residence = fs.readFileSync(path.join(__dirname, '..', 'presentation-residences.html'), 'utf8');
   assert.match(residence, /direction ne consulte ni les carnets ni les messages privés/);
-  assert.match(residence, /L’application est gratuite\. La partie médicale est payante[\s\S]*Aucun paiement en ligne ni facturation automatique/);
+  assert.match(residence, /L’application est gratuite\.[\s\S]*partie médicale pour les établissements restent à préciser[\s\S]*Aucun paiement en ligne ni facturation automatique/);
 });
 
 test('homepage proposals are individually collapsed and retain their descriptions', () => {
@@ -216,7 +243,7 @@ test('homepage metadata and reassurance match the updated presentation', () => {
   assert.match(source, /<meta property="og:description" content="Un carnet de liaison gratuit pour les seniors et les personnes ayant besoin d'accompagnement/);
   assert.match(source, /Application gratuite · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation/);
   const header = source.slice(source.indexOf('<header class="audience-header">'), source.indexOf('</header>'));
-  assert.match(header, /L’application est gratuite\. La partie médicale est payante/);
+  assert.match(header, /L’application est gratuite\. Le futur carnet de soins Premium est envisagé à 9,90 € TTC par mois/);
   assert.match(header, /Aucun paiement n’est actuellement activé dans l’application/);
   assert.match(source, /Bon à savoir :[\s\S]*?15 ou le 112/);
   assert.match(source, /href="mailto:mail@generation-liaison\.fr"/);
@@ -235,8 +262,8 @@ test('updated homepage copy remains available in English', () => {
     'Que vous soyez senior ou que vous ayez besoin d’accompagnement pour une autre raison, choisissez le profil « Personne accompagnée » dans l’application.',
     '✓ Application gratuite · ✓ Aucun suivi statistique dans l’espace connecté · ✓ Accessible sans installation',
     'Une tablette : achat ou location',
-    'Achat envisagé à 299 € TTC, ou location envisagée à 25 € HT par mois sur 12 mois, avec Premium en supplément. Le tarif Premium reste à définir.',
-    'L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.',
+    'Achat envisagé à 299 € TTC, ou location envisagée à 25 € HT par mois sur 12 mois, avec Premium à 9,90 € TTC par mois en supplément. Le total TTC de la location avec Premium reste à confirmer selon la TVA applicable.',
+    'L’application est gratuite. Le futur carnet de soins Premium est envisagé à 9,90 € TTC par mois ; il n’est pas encore disponible. Aucun paiement n’est actuellement activé dans l’application.',
     'Faut-il télécharger une application sur téléphone ?',
     'Comment sont sélectionnés les prestataires à domicile ?',
     'Gestion des cookies'
@@ -309,8 +336,8 @@ test('homepage pricing distinguishes the free app, medical section and external 
   const start = source.indexOf('<section class="landing-info" aria-labelledby="pricing-title">');
   assert.ok(start > 0);
   const pricing = source.slice(start, source.indexOf('</section>', start));
-  assert.match(pricing, /L’application est gratuite\. La partie médicale est payante/);
-  assert.match(pricing, /tarifs et modalités restent à préciser/);
+  assert.match(pricing, /L’application est gratuite\. Le futur carnet de soins Premium est envisagé à 9,90 € TTC par mois/);
+  assert.match(pricing, /il n’est pas encore disponible/);
   assert.match(pricing, /Aucun paiement n’est actuellement activé dans l’application/);
   assert.doesNotMatch(pricing, /disponibilité et des autorisations nécessaires/);
   assert.doesNotMatch(pricing, /nécessitent un accès Premium/);
@@ -321,7 +348,8 @@ test('homepage pricing distinguishes the free app, medical section and external 
 
 test('sales terms and partner settings do not present payments as active', () => {
   assert.match(salesTerms, /Compte famille\/senior<\/td><td>Gratuit/);
-  assert.match(salesTerms, /Partie médicale<\/td><td>À préciser/);
+  assert.match(salesTerms, /Futur carnet de soins Premium<\/td><td>9,90 € TTC \/ mois/);
+  assert.match(salesTerms, /total TTC de la location avec Premium reste à confirmer/);
   assert.match(salesTerms, /aucun paiement par carte ou PayPal ne sont actuellement activés/);
   assert.doesNotMatch(salesTerms, /1 € HT par prestation réalisée|15 € HT \/ mois/);
   for (const html of [mobileSource, fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8')]) {
@@ -338,7 +366,7 @@ test('tablet purchase and rental are visible without opening further information
   assert.match(section, /achat ou location/i);
   assert.match(section, /299 € TTC/);
   assert.match(section, /25 € HT par mois sur 12 mois/);
-  assert.match(section, /Premium en supplément/);
+  assert.match(section, /Premium à 9,90 € TTC par mois en supplément/);
   assert.match(section, /sous réserve de devis et de disponibilité/);
   assert.match(section, /Aucun partenaire de location n’est confirmé/);
   assert.match(section, /ne constitue ni une commande ni un paiement/);

@@ -1080,10 +1080,10 @@
                 <option value="">Choisissez une réponse</option>
                 <option value="none">Non</option>
                 <option value="purchase">Achat seul : 299 € TTC (prix indicatif)</option>
-                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir (tarif à définir)</option>
-                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir (tarif à définir)</option>
+                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir à 9,90 € TTC / mois</option>
+                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir à 9,90 € TTC / mois</option>
             </select>
-            <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et service Premium en supplément. Le tarif Premium reste à définir et l’option n’est pas encore disponible. Votre réponse indique uniquement un intérêt : elle ne crée ni commande, ni paiement, ni engagement. L’administration pourra consulter votre réponse et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
+            <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et Premium en supplément à 9,90 € TTC par mois. Le total TTC de la location avec Premium reste à confirmer selon la TVA applicable. Premium n’est pas encore disponible. Votre réponse indique uniquement un intérêt : elle ne crée ni commande, ni paiement, ni engagement. L’administration pourra consulter votre réponse et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
             <section class="form-card" style="text-align:left;">
                 <h3>Adresse pour une livraison de tablette</h3>
                 <p class="helper-text">Si vous indiquez un intérêt pour une tablette, complétez toute l’adresse. Sinon, vous pouvez la laisser vide. La renseigner ne constitue pas une commande.</p>
@@ -1839,12 +1839,12 @@
             <label for="establishment-tablet-interest">Option tablettes (facultatif)</label>
             <select id="establishment-tablet-interest">
                 <option value="none">Aucune demande</option>
-                <option value="rental">Location envisagée : 25 € HT / mois / tablette sur 12 mois + Premium à venir</option>
+                <option value="rental">Location envisagée : 25 € HT / mois / tablette sur 12 mois + Premium à venir à 9,90 € TTC / mois</option>
                 <option value="purchase">Achat envisagé : 299 € TTC / tablette</option>
             </select>
             <label for="establishment-tablet-quantity">Nombre de tablettes souhaitées</label>
             <input id="establishment-tablet-quantity" type="number" min="1" max="1000">
-            <p>Tarifs indicatifs, selon devis et disponibilité. La location prévoit un engagement de 12 mois et le service Premium en supplément, dont le tarif reste à définir. Le Premium n’est pas encore disponible et aucun partenaire de location n’est confirmé. Ce choix exprime un intérêt et ne constitue ni une commande ni un engagement.</p>
+            <p>Tarifs indicatifs, selon devis et disponibilité. La location prévoit un engagement de 12 mois et Premium en supplément à 9,90 € TTC par mois. Le total TTC de la location avec Premium reste à confirmer selon la TVA applicable. Premium n’est pas encore disponible et aucun partenaire de location n’est confirmé. Ce choix exprime un intérêt et ne constitue ni une commande ni un engagement.</p>
             <button type="submit">Enregistrer</button>
             <p id="establishment-status" role="status" aria-live="polite"></p>
         </form>
@@ -2700,7 +2700,7 @@
       <details class="senior-tab-disclosure">
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">ℹ️</span>Gratuité et partie médicale</summary>
         <p>La visio est gratuite, sous réserve de disponibilité du service.</p>
-        <p>L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.</p>
+        <p>L’application est gratuite. Le futur carnet de soins Premium est envisagé à 9,90 € TTC par mois ; il n’est pas encore disponible. Aucun paiement n’est actuellement activé dans l’application.</p>
       </details>
     </section>
 <section class="form-card" id="settings-account-closure" style="display:none;">
@@ -2733,15 +2733,15 @@
     <section class="form-card">
       <details class="senior-tab-disclosure" data-tablet-settings>
         <summary>Tablette et adresse de livraison</summary>
-        <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et service Premium en supplément. Le tarif Premium reste à définir et l’option n’est pas encore disponible. Ce choix n’est ni une commande, ni un paiement, ni un engagement. L’administration pourra consulter votre choix et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
+        <p class="helper-text">Prix indicatifs à confirmer par devis et selon disponibilité : achat de la tablette seule à 299 € TTC ; location envisagée à 25 € HT par mois avec engagement de 12 mois et Premium en supplément à 9,90 € TTC par mois. Le total TTC de la location avec Premium reste à confirmer selon la TVA applicable. Premium n’est pas encore disponible. Ce choix n’est ni une commande, ni un paiement, ni un engagement. L’administration pourra consulter votre choix et, si vous êtes intéressé(e), votre adresse pour vous contacter.</p>
         <form class="form-grid">
           <fieldset disabled>
             <label>Votre choix
               <select name="interest">
                 <option value="none">Non</option>
                 <option value="purchase">Achat seul : 299 € TTC (prix indicatif)</option>
-                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir (tarif à définir)</option>
-                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir (tarif à définir)</option>
+                <option value="purchase_premium">Achat : 299 € TTC + Premium à venir à 9,90 € TTC / mois</option>
+                <option value="rental_premium">Location : 25 € HT / mois sur 12 mois + Premium à venir à 9,90 € TTC / mois</option>
               </select>
             </label>
             <p class="helper-text">L’adresse complète est nécessaire si vous souhaitez une tablette. Vous pouvez aussi la supprimer en choisissant « Non » et en vidant les champs.</p>
