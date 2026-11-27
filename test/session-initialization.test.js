@@ -32,7 +32,7 @@ function createApp(response) {
   const calls = [];
   const context = {
     document: { getElementById: element, addEventListener() {} },
-    window: { location: { search: '' }, addEventListener() {} },
+    window: { location: { search: '' }, addEventListener() {}, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     navigator: {},
     localStorage: {
       getItem: key => storage.get(key) || null,

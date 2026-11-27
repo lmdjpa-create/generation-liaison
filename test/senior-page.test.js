@@ -179,7 +179,7 @@ test('multiple message delivery confirms selected recipients and keeps the draft
       querySelectorAll: () => chosen.filter(item => item.checked),
       querySelector: () => ({ disabled: false })
     },
-    window: { confirm: () => confirmed, generationLiaisonTranslate: text => text },
+    window: { confirm: () => confirmed, generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     annulerDicteeMessage() {}, annulerPropositionMessage() {},
     ouvrirConversation: async () => {},
     seniorLinksRequest: async (url, options) => {
@@ -223,7 +223,7 @@ test('quick replies send only to the selected contact, keep the draft, and repor
   let canRefresh = true;
   const context = {
     connectedUser: { id: 'senior', role: 'senior' },
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: { getElementById: id => nodes[id], querySelector: () => submit },
     seniorLinksRequest: (url, options) => {
       calls.push({ url, options });
@@ -468,6 +468,7 @@ test('sharing settings discard responses for a previous accompanied person', asy
     connectedUser: { id: 'aidant', role: 'aidant' },
     activeSeniorProfileId: 'first',
     consentLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: id => nodes[id] },
     makeTextElement: (tag, text) => ({ tag, text }),
     Option: function Option(text, value) { this.text = text; this.value = value; },
@@ -503,7 +504,7 @@ test('key contacts render safe call links and discard responses from a previous 
     document: { getElementById: id => nodes[id], createElement: makeNode },
     makeTextElement: (tag, text) => ({ tagName: tag, textContent: text }),
     planningRequest: () => new Promise(resolve => requests.push(resolve)),
-    window: { confirm: () => true }
+    window: { confirm: () => true, generationLiaisonTranslate: value => value }
   };
   vm.runInNewContext(extract('    async function chargerContactsUtiles(', '    async function chargerTachesPartagees('), context);
   const old = context.chargerContactsUtiles('aidant');
@@ -1408,7 +1409,7 @@ test('weekly summary is cleared while the agenda reloads and remains hidden on f
   const context = {
     connectedUser: { id: 'senior' }, calendarDate: '2026-12-31',
     calendarView: 'week', calendarLoadId: 0,
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: { getElementById: element },
     planningRequest: () => new Promise((resolve, reject) => { rejectRequest = reject; }),
     Date
@@ -1552,7 +1553,7 @@ test('check-in loading retries failures and ignores another account’s late res
   const context = {
     connectedUser: { id: 'alice', role: 'senior' },
     wellbeingLoadedDate: null, wellbeingLoadId: 0,
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: { getElementById: id => elements[id], querySelectorAll: () => choices },
     dateCheckinBienEtre: () => 'today',
     reinitialiserHumeurBienEtre: () => choices.forEach(choice => { choice.disabled = true; }),
@@ -1704,7 +1705,7 @@ test('only pending invitations appear in today, retain actions and are read when
         createElement: node,
         querySelectorAll: () => container.children.filter(card => card.className?.includes('unread') && !card.classList.removed)
       },
-      window: { innerWidth: 100, innerHeight: 100, generationLiaisonTranslate: text => text, handlePendingNotification() { this.opened = true; } },
+      window: { innerWidth: 100, innerHeight: 100, generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback, handlePendingNotification() { this.opened = true; } },
       setTimeout: (callback, delay) => { assert.equal(delay, 2000); timers.set(++timerId, callback); return timerId; },
       clearTimeout: id => timers.delete(id),
       makeTextElement: (tag, text) => Object.assign(node(tag), { textContent: text }),
@@ -2738,7 +2739,7 @@ test('contact video calls use the selected contact and report failures without a
     connectedUser: { id: 'senior' },
     videoCallState: { active: false, callFrame: null, localStream: null },
     document: { getElementById: element, querySelectorAll: () => [] },
-    window: {},
+    window: { generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     console: { warn() {} },
     setVideoCallPlaceholder() {},
     switchScreen: screen => calls.push({ screen }),

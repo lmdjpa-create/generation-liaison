@@ -155,6 +155,7 @@ test('director overview separates categories and distinguishes accounts from con
   };
   const context = {
     connectedUser: { id: 'director' }, establishmentOverviewLoadId: 0, SERVER_URL: '',
+    window: { generationLiaisonTranslate: value => value, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     authHeaders: () => ({}), fetch: async url => values[url], readResponse: async response => response,
     document: {
       getElementById(id) { if (!elements.has(id)) elements.set(id, element()); return elements.get(id); },
@@ -215,7 +216,7 @@ test('only the director workspace offers the shareable sign-in link', async () =
     URL, URLSearchParams, SERVER_URL: 'https://example.test', connectedUser: { role: 'establishment' },
     document: { getElementById: id => elements[id] },
     navigator: { clipboard: { writeText: async value => { copied = value; } } },
-    window: { location: { hash: '#connexion-etablissement' } },
+    window: { location: { hash: '#connexion-etablissement' }, generationLiaisonTranslate: value => value },
     basculerFormulaire: value => { registrationOpened = value; }
   };
   vm.runInNewContext(source.slice(start, end), context);

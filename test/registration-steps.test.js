@@ -17,7 +17,7 @@ test('login and registration identity fields have persistent visible labels', ()
 
 test('registration discloses the current language of the terms and privacy policy', () => {
   const step = source.slice(source.indexOf('id="reg-step-4"'), source.indexOf('id="reg-step-error"'));
-  assert.match(step, /Les conditions et la politique de confidentialité sont actuellement en français\./);
+  assert.match(step, /leurs traductions anglaises sont provisoires\./);
 });
 
 test('tablet prices appear with each choice in registration and settings', () => {

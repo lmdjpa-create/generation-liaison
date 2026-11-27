@@ -36,7 +36,7 @@ function setup() {
   const context = {
     document, directoryOffset: 0, directoryLoadId: 0, directorySearchParams: null,
     sharedDirectoryLoadId: 0, directoryLocation: null,
-    window: { generationLiaisonTranslate: value => value },
+    window: { generationLiaisonTranslate: value => value, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     makeTextElement(tag, text, className = '') {
       const element = makeElement(tag);
       element.textContent = text;

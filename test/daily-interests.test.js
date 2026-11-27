@@ -32,7 +32,7 @@ function setup() {
   }
   const context = {
     document: { getElementById: node },
-    window: { generationLiaisonTranslate: value => value },
+    window: { generationLiaisonTranslate: value => value, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     connectedUser: { id: 'one', role: 'senior' },
     SERVER_URL: '',
     dateRecetteAffichee: '',

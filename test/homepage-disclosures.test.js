@@ -9,6 +9,35 @@ const mobileSource = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html
 const privacySource = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
 const salesTerms = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8');
 
+test('homepage guides each audience and offers optional fictional everyday examples', () => {
+  const purpose = 'Génération Liaison aide les personnes accompagnées, leurs proches et les intervenants à partager des nouvelles et organiser le quotidien.';
+  assert.ok(source.includes(`<p class="audience-purpose">${purpose}</p>`));
+  const nav = source.slice(source.indexOf('<nav class="audience-guide"'), source.indexOf('</nav>', source.indexOf('<nav class="audience-guide"')));
+  for (const id of ['espace-senior', 'espace-aidant', 'espace-pro', 'espace-etablissement', 'espace-soignant']) {
+    assert.ok(nav.includes(`href="#${id}"`));
+    assert.equal((source.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1);
+  }
+  const start = source.indexOf('<details class="home-examples">');
+  assert.ok(start > source.indexOf('</nav>', source.indexOf('<nav class="audience-guide"')));
+  const preview = source.slice(start, source.indexOf('</details>', start));
+  assert.match(preview, /Ces exemples sont fictifs/);
+  assert.match(preview, /autorisations de chacun/);
+  for (const text of ['Un message', 'Un rendez-vous', 'Le lien au quotidien']) assert.ok(preview.includes(`<h3>${text}</h3>`));
+  assert.match(source, /\.audience-guide-links a \{[\s\S]*?min-height: 56px/);
+  assert.match(source, /\.home-example-grid \{[^}]*auto-fit/);
+  const window = { localStorage: { getItem: () => 'en' } };
+  const document = { documentElement: {}, addEventListener() {} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
+  for (const text of [
+    purpose, 'Voir des exemples du quotidien',
+    'Ces exemples sont fictifs. Les informations visibles dépendent des autorisations de chacun.',
+    'Un message', 'Un rendez-vous',
+    'Un proche écrit : « Bonjour, je passerai te voir demain. »',
+    'Une visite confirmée apparaît dans l’agenda des personnes autorisées.',
+    'Un intervenant partage une nouvelle du quotidien avec les personnes autorisées.'
+  ]) assert.notEqual(window.generationLiaisonTranslate(text), text);
+});
+
 test('homepage offers every audience a photo, sign-in link and detailed information', () => {
   const header = source.slice(source.indexOf('<header class="audience-header">'), source.indexOf('</header>'));
   assert.match(header, /<img src="\/logo-generation-liaison\.jpg"/);

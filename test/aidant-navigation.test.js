@@ -69,7 +69,7 @@ test('the senior link prompt reflects active associations and stays current afte
     connectedUser: { id: 'senior-1', role: 'senior' },
     associationLoadId: 0,
     document: { getElementById: element, createElement: makeNode },
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     makeTextElement: (tag, text) => Object.assign(makeNode(), { tag, textContent: text }),
     seniorLinksRequest: async (url, options) => {
       if (options?.body?.decision === 'accept') result = { links: [{ aidant_name: 'Aidant', suspended_at: null }], requests: [] };
@@ -529,6 +529,7 @@ test('professional journal shows only the supplied assigned visits and their ste
   const children = [];
   const container = { replaceChildren() { children.length = 0; }, append(item) { children.push(item); } };
   const context = {
+    window: { generationLiaisonTranslate: text => text },
     document: {
       getElementById: () => container,
       createElement: tag => ({ tag, children: [], append(...items) { this.children.push(...items); } })
@@ -565,6 +566,7 @@ test('daily journal sorts shared updates and reports unavailable sources', async
   };
   const context = {
     connectedUser: { id: 'aidant', role: 'aidant' }, activeSeniorProfileId: 'senior-1', familyJournalRevision: 0,
+    window: { generationLiaisonTranslate: value => value },
     document: {
       getElementById: () => container,
       createElement: tag => ({ tag, children: [], append(...items) { this.children.push(...items); } })
@@ -715,7 +717,7 @@ test('weekly gazette includes only family notes and approved photos from the sev
       body: { classList: { add: value => classes.add(value), remove: value => classes.delete(value) } }
     },
     URL: { createObjectURL: () => 'blob:photo', revokeObjectURL: url => revoked.push(url) },
-    window: { print: () => { printCalls++; } },
+    window: { print: () => { printCalls++; }, generationLiaisonTranslate: value => value },
     dateCheckinBienEtre: () => '2028-04-03',
     formatDateTime: value => value,
     auteurAvecRole: role => String(role),
@@ -777,6 +779,7 @@ test('weekly gazette rejects failed or stale loads without exposing partial data
   const context = {
     connectedUser: { id: 'aidant', role: 'aidant' }, activeSeniorProfileId: 's1',
     weeklyGazetteRevision: 0, weeklyGazetteUrls: [],
+    window: { generationLiaisonTranslate: value => value, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: { getElementById: get, body: { classList: { remove() {} } } },
     URL: { revokeObjectURL() {} },
     planningRequest: path => path === '/api/logs/weekly-family'

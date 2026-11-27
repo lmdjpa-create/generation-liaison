@@ -21,7 +21,7 @@ test('shared task loads clear old data and ignore responses from an earlier prof
   let calls = 0;
   const context = {
     sharedTasksLoadId: 0, keyContactsLoadId: 0, shoppingListRevision: 0, shoppingListLoaded: false,
-    window: { generationLiaisonTranslate: value => value },
+    window: { generationLiaisonTranslate: value => value, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: { getElementById: element, createElement: () => element(Symbol()) },
     dateCheckinBienEtre: () => '2028-02-28',
     planningRequest: () => {
@@ -281,7 +281,7 @@ test('professional sees only returned assignments and can update their state', a
       createElement: makeElement
     },
     makeTextElement(tag, text) { const result = makeElement(); result.textContent = text; return result; },
-    window: { generationLiaisonLocale: () => 'fr-FR' },
+    window: { generationLiaisonLocale: () => 'fr-FR', generationLiaisonTranslate: value => value },
     planningRequest: async (url, options) => {
       requests.push({ url, options });
       return { tasks: [{ id: 'one', title: 'Laver le sol', seniorName: 'Camille', completed: false }] };
@@ -304,6 +304,7 @@ test('shopping list loading ignores a response after logout', async () => {
   let resolve;
   const context = {
     shoppingListRevision: 0, shoppingListLoaded: false, connectedUser: { id: 'senior', role: 'senior' },
+    window: { generationLiaisonTranslate: value => value },
     document: { getElementById(id) {
       if (!elements.has(id)) elements.set(id, { value: '', textContent: '', disabled: false });
       return elements.get(id);
@@ -333,6 +334,7 @@ test('shopping list is sent only to selected contacts and not automatically save
   }
   const context = {
     shoppingListRevision: 0, shoppingListLoaded: true, connectedUser: { id: 'senior', role: 'senior' },
+    window: { generationLiaisonTranslate: value => value },
     document: { getElementById: element, querySelectorAll: () => [{ value: 'chosen' }] },
     seniorLinksRequest: async (url, options) => { requests.push({ url, options }); },
     planningRequest: async () => { throw new Error('Unexpected save'); }

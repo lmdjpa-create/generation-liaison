@@ -46,6 +46,7 @@ test('administrator display identifies affected areas and clears stale data on f
   };
   let fails = false;
   const context = {
+    window: { generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: {
       getElementById: id => id === 'site-monitor-status' ? status : container,
       createElement: () => ({ textContent: '' })

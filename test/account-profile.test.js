@@ -109,3 +109,51 @@ test('each profile avatar opens the photo chooser in profile settings', () => {
     assert.equal(chooser, 2);
   }
 });
+
+test('profile errors use translated fallbacks without changing server messages', async () => {
+  const begin = source.indexOf('    function configurerProfil()');
+  const end = source.indexOf('    let tabletSettingsRevision', begin);
+  assert.ok(begin >= 0 && end > begin);
+  const handlers = {};
+  const uploadButton = { disabled: false };
+  const elements = {
+    'account-profile-status': { textContent: '' },
+    'account-profile-form': { addEventListener: (name, fn) => { handlers.profile = fn; } },
+    'account-photo-form': { addEventListener: (name, fn) => { handlers.photo = fn; } },
+    'account-photo-delete': { disabled: false, addEventListener: (name, fn) => { handlers.delete = fn; } },
+    'account-civility': { value: 'unspecified' },
+    'account-photo-sharing': { checked: false },
+    'account-photo-file': { files: [{ type: 'image/png', size: 1 }] }
+  };
+  const translations = {
+    'Impossible de modifier votre profil.': 'Unable to update your profile.',
+    'Impossible d’enregistrer votre photo de profil.': 'Unable to save your profile photo.',
+    'Impossible de supprimer votre photo de profil.': 'Unable to delete your profile photo.'
+  };
+  let error = new Error('');
+  const context = {
+    document: {
+      getElementById: id => elements[id],
+      querySelector: () => uploadButton
+    },
+    window: {
+      generationLiaisonTranslate: text => translations[text] || text,
+      generationLiaisonTranslateError: (message, fallback) => message || translations[fallback] || fallback
+    },
+    connectedUser: { role: 'senior' },
+    accountProfileRevision: 0,
+    planningRequest: async () => { throw error; },
+    enregistrerPhotoProfil: async () => { throw error; }
+  };
+  vm.runInNewContext(`${source.slice(begin, end)}; configurerProfil();`, context);
+  await handlers.profile({ preventDefault() {} });
+  assert.equal(elements['account-profile-status'].textContent, translations['Impossible de modifier votre profil.']);
+  await handlers.photo({ preventDefault() {}, currentTarget: { querySelector: () => uploadButton } });
+  assert.equal(elements['account-profile-status'].textContent, translations['Impossible d’enregistrer votre photo de profil.']);
+  assert.equal(uploadButton.disabled, false);
+  await handlers.delete({ currentTarget: elements['account-photo-delete'] });
+  assert.equal(elements['account-profile-status'].textContent, translations['Impossible de supprimer votre photo de profil.']);
+  error = new Error('Détail du serveur');
+  await handlers.profile({ preventDefault() {} });
+  assert.equal(elements['account-profile-status'].textContent, 'Détail du serveur');
+});

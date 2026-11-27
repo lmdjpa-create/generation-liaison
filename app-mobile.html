@@ -1167,7 +1167,7 @@
                 <input id="reg-terms-accepted" type="checkbox" required aria-describedby="reg-terms-error">
                 <span>J’accepte les <a href="/cgu.html" target="_blank" rel="noopener">conditions générales d’utilisation</a> et confirme en avoir pris connaissance. <a href="/privacy-policy.html" target="_blank" rel="noopener">Lire la politique de confidentialité</a>.</span>
             </label>
-            <p class="helper-text">Les conditions et la politique de confidentialité sont actuellement en français.</p>
+            <p class="helper-text">Les versions françaises des conditions et de la politique de confidentialité restent disponibles ; leurs traductions anglaises sont provisoires.</p>
             <p id="reg-terms-error" class="terms-error" role="alert" hidden>Veuillez accepter les conditions générales d’utilisation pour créer votre compte.</p>
             </div>
             <p id="reg-step-status" class="helper-text" role="status" aria-live="polite"></p>
@@ -3048,9 +3048,9 @@
         per_completed_booking: window.generationLiaisonTranslate('Participation après prestation réalisée · paiement non activé')
     };
 
-    function showToast(message, isSuccess = true) {
+    function showToast(message, isSuccess = true, translate = true) {
         const toast = document.getElementById('toast');
-        toast.textContent = window.generationLiaisonTranslate(message);
+        toast.textContent = translate ? window.generationLiaisonTranslate(message) : message;
         toast.style.background = isSuccess ? '#2ecc71' : '#e74c3c';
         toast.style.display = 'block';
         clearTimeout(showToast.timer);
@@ -3076,7 +3076,7 @@
         local.replaceChildren();
         if (mode === 'placeholder') {
             const remoteText = document.createElement('div');
-            remoteText.textContent = `Appel avec ${targetName}`;
+            remoteText.textContent = window.generationLiaisonTranslate('Appel avec {name}').replace('{name}', targetName);
             remoteText.style.display = 'flex';
             remoteText.style.alignItems = 'center';
             remoteText.style.justifyContent = 'center';
@@ -3088,7 +3088,7 @@
             remoteText.style.padding = '20px';
             remote.append(remoteText);
             const localText = document.createElement('div');
-            localText.textContent = 'Vous';
+            localText.textContent = window.generationLiaisonTranslate('Vous');
             localText.style.display = 'flex';
             localText.style.alignItems = 'center';
             localText.style.justifyContent = 'center';
@@ -3101,7 +3101,7 @@
             return;
         }
         const badge = document.createElement('div');
-        badge.textContent = 'Caméra activée';
+        badge.textContent = window.generationLiaisonTranslate('Caméra activée');
         badge.style.display = 'flex';
         badge.style.alignItems = 'center';
         badge.style.justifyContent = 'center';
@@ -3122,7 +3122,7 @@
         if (!container) return;
         reinitialiserPhotosContacts();
         const loadId = contactsLoadId;
-        container.replaceChildren(makeTextElement('p', 'Chargement des contacts…', 'helper-text'));
+        container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate('Chargement des contacts…'), 'helper-text'));
 
         try {
             const result = await seniorLinksRequest('/api/contacts');
@@ -3130,7 +3130,7 @@
             const contacts = result.contacts;
             container.replaceChildren();
             if (!contacts.length) {
-                container.append(makeTextElement('p', 'Aucun contact enregistré pour le moment.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun contact enregistré pour le moment.'), 'helper-text'));
                 return;
             }
 
@@ -3174,7 +3174,7 @@
                         } catch (error) {
                             if (loadId !== contactsLoadId) return;
                             console.error('Chargement de la photo du contact impossible :', error);
-                            card.append(makeTextElement('p', 'Impossible de charger la photo du contact.', 'helper-text'));
+                            card.append(makeTextElement('p', window.generationLiaisonTranslate('Impossible de charger la photo du contact.'), 'helper-text'));
                         }
                     })();
                 }
@@ -3193,13 +3193,13 @@
 
                 const button = makeTextElement(
                     'button',
-                    '📞 Appeler en visio',
+                    window.generationLiaisonTranslate('📞 Appeler en visio'),
                     'btn-submit'
                 );
                 button.type = 'button';
                 button.addEventListener('click', () => appelerContactEnVisio(contact));
                 card.append(button);
-                const remove = makeTextElement('button', 'Retirer ce contact', 'visit-notes-button');
+                const remove = makeTextElement('button', window.generationLiaisonTranslate('Retirer ce contact'), 'visit-notes-button');
                 remove.type = 'button';
                 remove.addEventListener('click', async () => {
                     remove.disabled = true;
@@ -3208,7 +3208,7 @@
                         await chargerContacts();
                     } catch (error) {
                         remove.disabled = false;
-                        showToast(error.message || 'Impossible de retirer ce contact.', false);
+                        showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de retirer ce contact.'), false, false);
                     }
                 });
                 card.append(remove);
@@ -3216,7 +3216,7 @@
             });
         } catch (error) {
             if (loadId !== contactsLoadId) return;
-            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les contacts.', 'helper-text'));
+            container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger les contacts.'), 'helper-text'));
         }
     }
 
@@ -3301,11 +3301,11 @@
                 return;
             }
 
-            throw new Error('Le SDK Daily n’est pas disponible pour cette session.');
+            throw new Error(window.generationLiaisonTranslate('Le SDK Daily n’est pas disponible pour cette session.'));
         } catch (error) {
             console.warn('Appel visio impossible avec Daily :', error);
             terminerAppelVideo(false);
-            showToast(error.message || 'Impossible de lancer l’appel vidéo.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de lancer l’appel vidéo.'), false, false);
         }
     }
 
@@ -3319,7 +3319,7 @@
         videoCallState.localStream.getAudioTracks().forEach(track => {
             track.enabled = videoCallState.micEnabled;
         });
-        button.textContent = videoCallState.micEnabled ? 'Micro' : 'Micro coupé';
+        button.textContent = window.generationLiaisonTranslate(videoCallState.micEnabled ? 'Micro' : 'Micro coupé');
         showToast(videoCallState.micEnabled ? 'Micro activé' : 'Micro coupé');
     });
 
@@ -3333,14 +3333,14 @@
         videoCallState.localStream.getVideoTracks().forEach(track => {
             track.enabled = videoCallState.cameraEnabled;
         });
-        button.textContent = videoCallState.cameraEnabled ? 'Caméra' : 'Caméra coupée';
+        button.textContent = window.generationLiaisonTranslate(videoCallState.cameraEnabled ? 'Caméra' : 'Caméra coupée');
         showToast(videoCallState.cameraEnabled ? 'Caméra activée' : 'Caméra coupée');
     });
 
     document.getElementById('toggle-speaker-button')?.addEventListener('click', () => {
         const button = document.getElementById('toggle-speaker-button');
         videoCallState.speakerEnabled = !videoCallState.speakerEnabled;
-        button.textContent = videoCallState.speakerEnabled ? 'Son' : 'Son coupé';
+        button.textContent = window.generationLiaisonTranslate(videoCallState.speakerEnabled ? 'Son' : 'Son coupé');
         showToast(videoCallState.speakerEnabled ? 'Son activé' : 'Son coupé');
     });
 
@@ -4691,7 +4691,7 @@
         } catch (error) {
             if (revision !== centresInteretRevision || connectedUser?.id !== user.id) return;
             console.error('Enregistrement des centres d’intérêt impossible :', error);
-            status.textContent = error.message || window.generationLiaisonTranslate('Impossible d’enregistrer vos choix. Réessayez.');
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer vos choix. Réessayez.');
             button.disabled = false;
         }
     }
@@ -4871,7 +4871,7 @@
                 afficherAvatarProfil();
                 status.textContent = window.generationLiaisonTranslate('Profil enregistré.');
             } catch (error) {
-                if (revision === accountProfileRevision) status.textContent = error.message || 'Impossible de modifier votre profil.';
+                if (revision === accountProfileRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de modifier votre profil.');
             }
         });
         document.getElementById('account-photo-form').addEventListener('submit', async event => {
@@ -4887,7 +4887,7 @@
                 document.getElementById('account-photo-file').value = '';
                 if (loaded) status.textContent = window.generationLiaisonTranslate('Photo de profil enregistrée.');
             } catch (error) {
-                if (revision === accountProfileRevision) status.textContent = error.message || 'Impossible d’enregistrer votre photo de profil.';
+                if (revision === accountProfileRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer votre photo de profil.');
             } finally {
                 button.disabled = false;
                 deleteButton.disabled = false;
@@ -4909,7 +4909,7 @@
                 afficherAvatarProfil();
                 status.textContent = window.generationLiaisonTranslate('Photo de profil supprimée.');
             } catch (error) {
-                if (revision === accountProfileRevision) status.textContent = error.message || 'Impossible de supprimer votre photo de profil.';
+                if (revision === accountProfileRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de supprimer votre photo de profil.');
             } finally {
                 button.disabled = false;
                 uploadButton.disabled = false;
@@ -4963,7 +4963,7 @@
                     fieldset.disabled = false;
                 } catch (error) {
                     if (revision === tabletSettingsRevision && connectedUser?.id === userId) {
-                        status.textContent = error.message || 'Impossible de charger votre choix de tablette.';
+                        status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger votre choix de tablette.');
                     }
                 }
             });
@@ -4987,7 +4987,7 @@
                     }
                 } catch (error) {
                     if (revision === tabletSettingsRevision && connectedUser?.id === userId) {
-                        status.textContent = error.message || 'Impossible d’enregistrer votre choix de tablette.';
+                        status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer votre choix de tablette.');
                     }
                 } finally {
                     if (revision === tabletSettingsRevision && connectedUser?.id === userId && details.open) fieldset.disabled = false;
@@ -5030,7 +5030,7 @@
         const list = document.getElementById(`${role}-key-contacts-list`);
         const status = document.getElementById(`${role}-key-contacts-status`);
         list.replaceChildren();
-        status.textContent = 'Chargement des contacts…';
+        status.textContent = window.generationLiaisonTranslate('Chargement des contacts…');
         try {
             const result = await planningRequest('/api/key-contacts');
             if (loadId !== keyContactsLoadId) return;
@@ -5043,7 +5043,7 @@
                 call.textContent = contact.phone;
                 const remove = document.createElement('button');
                 remove.type = 'button';
-                remove.textContent = 'Supprimer';
+                remove.textContent = window.generationLiaisonTranslate('Supprimer');
                 remove.setAttribute('aria-label', `Supprimer ${contact.name}`);
                 remove.addEventListener('click', async () => {
                     if (!window.confirm('Supprimer ce contact pour tous ?')) return;
@@ -5053,7 +5053,7 @@
                         await planningRequest(`/api/key-contacts/${encodeURIComponent(contact.id)}`, { method: 'DELETE' });
                         if (revision === keyContactsLoadId) await chargerContactsUtiles(role);
                     } catch (error) {
-                        if (revision === keyContactsLoadId) status.textContent = error.message || 'Impossible de supprimer ce contact.';
+                        if (revision === keyContactsLoadId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de supprimer ce contact.');
                     } finally {
                         remove.disabled = false;
                     }
@@ -5062,7 +5062,7 @@
                 list.append(row);
             }
         } catch (error) {
-            if (loadId === keyContactsLoadId) status.textContent = error.message || 'Impossible de charger les contacts.';
+            if (loadId === keyContactsLoadId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les contacts.');
         }
     }
 
@@ -5187,7 +5187,7 @@
                             assignStatus.textContent = window.generationLiaisonTranslate('Ajoutez d’abord l’intervenant à l’annuaire partagé. Il reçoit une notification dans l’application ; prévenez les autres personnes.');
                         } catch (error) {
                             if (loadId === sharedTasksLoadId) {
-                                assignStatus.textContent = error.message || 'Impossible de charger les personnes.';
+                                assignStatus.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les personnes.');
                             }
                         }
                     });
@@ -5211,7 +5211,7 @@
                 list.append(row);
             }
         } catch (error) {
-            if (loadId === sharedTasksLoadId) status.textContent = error.message || 'Impossible de charger les tâches.';
+            if (loadId === sharedTasksLoadId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les tâches.');
         }
     }
 
@@ -5223,7 +5223,7 @@
         } catch (error) {
             if (loadId === sharedTasksLoadId) {
                 document.getElementById(`${role}-tasks-list`).replaceChildren();
-                document.getElementById(`${role}-tasks-status`).textContent = error.message || 'Impossible de modifier la tâche.';
+                document.getElementById(`${role}-tasks-status`).textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de modifier la tâche.');
             }
         }
     }
@@ -5234,7 +5234,7 @@
         const list = document.getElementById('pro-intervention-tasks-list');
         const status = document.getElementById('pro-intervention-tasks-status');
         list.replaceChildren();
-        status.textContent = 'Chargement des tâches…';
+        status.textContent = window.generationLiaisonTranslate('Chargement des tâches…');
         try {
             const result = await planningRequest('/api/intervention-tasks');
             if (loadId !== sharedTasksLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
@@ -5248,7 +5248,7 @@
                 row.append(makeTextElement('p', task.completed ? 'Terminée' : 'À faire'));
                 const toggle = document.createElement('button');
                 toggle.type = 'button';
-                toggle.textContent = task.completed ? 'Marquer à faire' : 'Marquer terminée';
+                toggle.textContent = window.generationLiaisonTranslate(task.completed ? 'Marquer à faire' : 'Marquer terminée');
                 toggle.setAttribute('aria-label', `${toggle.textContent} : ${task.title}`);
                 toggle.addEventListener('click', async () => {
                     toggle.disabled = true;
@@ -5261,7 +5261,7 @@
                     } catch (error) {
                         if (revision === sharedTasksLoadId) {
                             list.replaceChildren();
-                            status.textContent = error.message || 'Impossible de modifier la tâche.';
+                            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de modifier la tâche.');
                         }
                     } finally {
                         toggle.disabled = false;
@@ -5271,7 +5271,7 @@
                 list.append(row);
             }
         } catch (error) {
-            if (loadId === sharedTasksLoadId) status.textContent = error.message || 'Impossible de charger les tâches confiées.';
+            if (loadId === sharedTasksLoadId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les tâches confiées.');
         }
     }
 
@@ -5286,7 +5286,7 @@
         content.disabled = true;
         save.disabled = true;
         send.disabled = true;
-        status.textContent = 'Chargement de votre liste…';
+        status.textContent = window.generationLiaisonTranslate('Chargement de votre liste…');
         try {
             const result = await planningRequest('/api/shopping-list');
             if (revision !== shoppingListRevision || connectedUser?.id !== userId || connectedUser?.role !== 'senior') return;
@@ -5297,7 +5297,7 @@
             send.disabled = false;
             status.textContent = '';
         } catch (error) {
-            if (revision === shoppingListRevision) status.textContent = `${error.message || 'Impossible de charger votre liste.'} Fermez et rouvrez cette rubrique pour réessayer.`;
+            if (revision === shoppingListRevision) status.textContent = `${window.generationLiaisonTranslateError(error.message, 'Impossible de charger votre liste.')} ${window.generationLiaisonTranslate('Fermez et rouvrez cette rubrique pour réessayer.')}`;
         }
     }
 
@@ -5307,7 +5307,7 @@
         const list = document.getElementById('senior-shopping-contacts');
         const status = document.getElementById('senior-shopping-status');
         list.replaceChildren();
-        status.textContent = 'Chargement des correspondants…';
+        status.textContent = window.generationLiaisonTranslate('Chargement des correspondants…');
         try {
             const result = await seniorLinksRequest('/api/messages/contacts');
             if (revision !== shoppingListRevision || connectedUser?.id !== userId || connectedUser?.role !== 'senior') return;
@@ -5321,7 +5321,7 @@
             }
             status.textContent = result.contacts.length ? '' : 'Aucun correspondant disponible dans votre messagerie.';
         } catch (error) {
-            if (revision === shoppingListRevision) status.textContent = error.message || 'Impossible de charger les correspondants.';
+            if (revision === shoppingListRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les correspondants.');
         }
     }
 
@@ -5369,7 +5369,7 @@
                             await chargerGestionAssociations();
                         } catch (error) {
                             button.disabled = false;
-                            showToast(error.message || 'Impossible de traiter la demande.', false);
+                            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de traiter la demande.'), false, false);
                         }
                     });
                     item.append(button);
@@ -5411,7 +5411,7 @@
                             showToast(window.generationLiaisonTranslate('Retrait confirmé.'));
                         } catch (error) {
                             button.disabled = false;
-                            showToast(error.message || 'Impossible de confirmer le retrait.', false);
+                            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de confirmer le retrait.'), false, false);
                         }
                     });
                     item.append(form);
@@ -5432,7 +5432,7 @@
                             await chargerGestionAssociations();
                         } catch (error) {
                             button.disabled = false;
-                            showToast(error.message || 'Impossible de demander le retrait.', false);
+                            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de demander le retrait.'), false, false);
                         }
                     });
                     item.append(button);
@@ -5441,7 +5441,7 @@
             }
         } catch (error) {
             if (loadId !== associationLoadId || connectedUser?.id !== userId || connectedUser?.role !== role) return;
-            container.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger les associations.');
+            container.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les associations.');
             if (role === 'senior') {
                 document.getElementById('senior-home-links-status').textContent =
                     window.generationLiaisonTranslate('Impossible de vérifier les associations. Consultez les réglages pour réessayer.');
@@ -5512,7 +5512,7 @@
             status.textContent = window.generationLiaisonTranslate('La demande d’alerte est encore en cours. Vous pouvez ouvrir le composeur sans attendre ; l’application poursuit l’envoi.');
             request.then(result => {
                 status.textContent = result.error
-                    ? window.generationLiaisonTranslate('L’alerte aux aidants a échoué : {error} Vous pouvez néanmoins appeler le {number}.').replace('{error}', result.error.message).replace('{number}', number)
+                    ? window.generationLiaisonTranslate('L’alerte aux aidants a échoué : {error} Vous pouvez néanmoins appeler le {number}.').replace('{error}', window.generationLiaisonTranslateError(result.error.message)).replace('{number}', number)
                     : result.data.notificationsQueued
                         ? window.generationLiaisonTranslate('Notifications préparées pour {count} aidant(s), selon leurs préférences. L’application ne confirme pas leur réception.').replace('{count}', result.data.notificationsQueued)
                         : window.generationLiaisonTranslate('Aucun contact aidant actif n’est enregistré. Vous pouvez appeler les secours directement.');
@@ -5525,7 +5525,7 @@
                 emergencyAlertStarted = false;
             });
         } else if (outcome.error) {
-            status.textContent = window.generationLiaisonTranslate('L’alerte aux aidants a échoué : {error} Vous pouvez néanmoins appeler le {number}.').replace('{error}', outcome.error.message).replace('{number}', number);
+            status.textContent = window.generationLiaisonTranslate('L’alerte aux aidants a échoué : {error} Vous pouvez néanmoins appeler le {number}.').replace('{error}', window.generationLiaisonTranslateError(outcome.error.message)).replace('{number}', number);
             emergencyAlertStarted = false;
         } else if (outcome.data.notificationsQueued) {
             status.textContent = window.generationLiaisonTranslate('Notifications préparées pour {count} aidant(s), selon leurs préférences. L’application ne confirme pas leur réception.').replace('{count}', outcome.data.notificationsQueued);
@@ -5812,7 +5812,7 @@
                 afficherCheckinBienEtre(currentWellbeingCheckin);
             }
         } catch (error) {
-            statusElement.textContent = error.message || window.generationLiaisonTranslate('Impossible d’enregistrer votre réponse.');
+            statusElement.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer votre réponse.');
         }
     }
 
@@ -5839,7 +5839,7 @@
             if (result.checkin) return;
         } catch (error) {
             if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
-            status.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger votre vérification de bien-être.');
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger votre vérification de bien-être.');
             document.getElementById('wellbeing-checkin-retry').hidden = false;
             document.getElementById('wellbeing-checkin-details').open = true;
             return;
@@ -5873,7 +5873,7 @@
             if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
             contacts.replaceChildren(makeTextElement(
                 'p',
-                error.message || window.generationLiaisonTranslate('Impossible de charger vos contacts aidants.'),
+                window.generationLiaisonTranslateError(error.message, 'Impossible de charger vos contacts aidants.'),
                 'helper-text'
             ));
         }
@@ -5904,7 +5904,7 @@
         } catch (error) {
             container.replaceChildren(makeTextElement(
                 'p',
-                error.message || window.generationLiaisonTranslate('Impossible de charger les vérifications de bien-être partagées.'),
+                window.generationLiaisonTranslateError(error.message, 'Impossible de charger les vérifications de bien-être partagées.'),
                 'helper-text'
             ));
         }
@@ -6003,7 +6003,7 @@
                 : window.generationLiaisonTranslate('Votre réponse a été enregistrée. Elle n’a pas été partagée.');
         } catch (error) {
             if (loadId !== wellbeingLoadId || connectedUser?.id !== userId || today !== dateCheckinBienEtre()) return;
-            status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’enregistrer votre vérification de bien-être.');
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer votre vérification de bien-être.');
             button.disabled = false;
         }
     });
@@ -6032,7 +6032,7 @@
             }
             handoffButton.disabled = result.status === 'human_requested';
         } catch (error) {
-            status.textContent = error.message || 'Impossible de charger la conversation.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger la conversation.');
             handoffButton.disabled = true;
         }
     }
@@ -6045,7 +6045,7 @@
             await planningRequest('/api/assistant/handoff', { method: 'POST', body: {} });
             await chargerAssistantConversation();
         } catch (error) {
-            status.textContent = error.message || 'Impossible de transmettre votre demande.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de transmettre votre demande.');
             button.disabled = false;
         }
     });
@@ -6089,7 +6089,7 @@
             const button = document.getElementById('directory-location-button');
             if (!button.checked) {
                 directoryLocation = null;
-                status.textContent = 'Position effacée. La recherche nationale fonctionne sans position.';
+                status.textContent = window.generationLiaisonTranslate('Position effacée. La recherche nationale fonctionne sans position.');
                 chargerAnnuaire();
                 return;
             }
@@ -6099,12 +6099,12 @@
                 document.getElementById('directory-search-postcode').value = '';
                 document.getElementById('directory-city-select').hidden = true;
                 document.getElementById('directory-city-label').hidden = true;
-                status.textContent = `Position relevée pour cette recherche uniquement (précision indicative : ${Math.round(directoryLocation.accuracy)} m). Elle ne sera pas enregistrée.`;
+                status.textContent = window.generationLiaisonTranslate('Position relevée pour cette recherche uniquement (précision indicative : {accuracy} m). Elle ne sera pas enregistrée.').replace('{accuracy}', Math.round(directoryLocation.accuracy));
                 chargerAnnuaire();
             } catch (error) {
                 directoryLocation = null;
                 button.checked = false;
-                status.textContent = error.message || 'Impossible de relever la position.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de relever la position.');
                 showToast(status.textContent, false);
             }
         });
@@ -6127,13 +6127,13 @@
         if (!value) {
             image.hidden = true;
             image.removeAttribute('src');
-            label.textContent = 'Aucune photo enregistrée pour l’instant.';
+            label.textContent = window.generationLiaisonTranslate('Aucune photo enregistrée pour l’instant.');
             return;
         }
         image.src = value;
         image.hidden = false;
         image.alt = 'Aperçu de la photo de profil';
-        label.textContent = 'Photo de profil affichée.';
+        label.textContent = window.generationLiaisonTranslate('Photo de profil affichée.');
     }
 
     async function chargerDirectoryProfile() {
@@ -6166,7 +6166,7 @@
                     : 'Agenda Google facultatif (non configuré pour le moment). Vos horaires suffisent pour publier.';
             document.getElementById('directory-calendar-connect').disabled = !calendar.configured;
         } catch (error) {
-            status.textContent = error.message || 'Impossible de charger votre profil annuaire.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger votre profil annuaire.');
         }
     }
 
@@ -6181,7 +6181,7 @@
                 window.location.assign(result.authorizationUrl);
             }
         } catch (error) {
-            showToast(error.message || 'Impossible de connecter Google Calendar.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de connecter Google Calendar.'), false, false);
         } finally {
             button.disabled = false;
         }
@@ -6212,7 +6212,7 @@
             showToast('Profil annuaire enregistré');
             await chargerDirectoryProfile();
         } catch (error) {
-            showToast(error.message || 'Impossible d’enregistrer le profil annuaire.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer le profil annuaire.'), false, false);
         }
     }
 
@@ -6220,7 +6220,7 @@
         const results = document.getElementById('directory-results');
         const loadId = ++directoryLoadId;
         if (!append) {
-            results.replaceChildren(makeTextElement('p', 'Recherche des professionnels…', 'helper-text'));
+            results.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate('Recherche des professionnels…'), 'helper-text'));
             directoryOffset = 0;
             directorySearchParams = null;
         }
@@ -6291,7 +6291,7 @@
             professionals.forEach(professional => verified.append(creerCarteAnnuaire(professional)));
             directoryOffset = result.nextOffset ?? offset;
             if (result.hasMore) {
-                const more = makeTextElement('button', 'Afficher plus de professionnels');
+                const more = makeTextElement('button', window.generationLiaisonTranslate('Afficher plus de professionnels'));
                 more.type = 'button';
                 more.className = 'btn-submit';
                 more.classList.add('directory-load-more');
@@ -6303,9 +6303,9 @@
             if (append) {
                 const verified = document.getElementById('directory-verified-results');
                 verified.querySelector('.directory-page-error')?.remove();
-                verified.append(makeTextElement('p', error.message || 'Impossible de charger la suite de l’annuaire.', 'helper-text directory-page-error'));
+                verified.append(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger la suite de l’annuaire.'), 'helper-text directory-page-error'));
             } else {
-                results.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger l’annuaire.', 'helper-text'));
+                results.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger l’annuaire.'), 'helper-text'));
             }
         }
     }
@@ -6339,7 +6339,7 @@
             });
         } catch (error) {
             if (loadId !== sharedDirectoryLoadId) return;
-            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger l’annuaire partagé.', 'helper-text'));
+            container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger l’annuaire partagé.'), 'helper-text'));
         }
     }
 
@@ -6356,7 +6356,7 @@
                 await chargerAnnuairePartage();
                 showToast(shared ? 'Professionnel retiré de l’annuaire partagé' : 'Professionnel ajouté à l’annuaire partagé');
             } catch (error) {
-                if (loadId === sharedDirectoryLoadId) showToast(error.message || 'Impossible de modifier l’annuaire partagé.', false);
+                if (loadId === sharedDirectoryLoadId) showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de modifier l’annuaire partagé.'), false, false);
             } finally {
                 button.disabled = false;
             }
@@ -6387,8 +6387,8 @@
         heading.className = 'visit-heading';
         heading.append(makeTextElement('strong', professional.name));
         heading.append(professional.external
-            ? makeTextElement('span', 'Non vérifié', 'visit-status')
-            : makeTextElement('span', '✓ Dossier vérifié', 'visit-status done'));
+            ? makeTextElement('span', window.generationLiaisonTranslate('Non vérifié'), 'visit-status')
+            : makeTextElement('span', window.generationLiaisonTranslate('✓ Dossier vérifié'), 'visit-status done'));
         avatarWrap.append(heading);
         card.append(avatarWrap);
         card.append(makeTextElement('p', professional.activity, 'visit-kind'));
@@ -6408,7 +6408,7 @@
                 card.append(mailLine);
             }
             if (professional.address) card.append(makeTextElement('p', `📍 ${professional.address}`, 'helper-text'));
-            card.append(makeTextElement('p', 'Intervenant non vérifié par Génération Liaison : la réservation en ligne n’est pas disponible. Contactez-le directement.', 'helper-text'));
+            card.append(makeTextElement('p', window.generationLiaisonTranslate('Intervenant non vérifié par Génération Liaison : la réservation en ligne n’est pas disponible. Contactez-le directement.'), 'helper-text'));
             return card;
         }
         if (professional.description) card.append(makeTextElement('p', professional.description, 'helper-text'));
@@ -6423,7 +6423,7 @@
         date.type = 'date';
         date.value = dateInputValue(new Date());
         dateLabel.append(date);
-        const availability = makeTextElement('button', 'Voir les créneaux disponibles');
+        const availability = makeTextElement('button', window.generationLiaisonTranslate('Voir les créneaux disponibles'));
         availability.type = 'button';
         availability.className = 'btn-submit';
         availability.addEventListener('click', () => chargerCreneauxAnnuaire(
@@ -6442,14 +6442,14 @@
             return;
         }
         button.disabled = true;
-        container.replaceChildren(makeTextElement('p', 'Vérification de l’agenda…', 'helper-text'));
+        container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate('Vérification de l’agenda…'), 'helper-text'));
         try {
             const result = await planningRequest(
                 `/api/directory/${encodeURIComponent(professional.id)}/availability?date=${encodeURIComponent(date)}`
             );
             container.replaceChildren();
             if (!result.slots.length) {
-                container.append(makeTextElement('p', 'Aucun créneau disponible à cette date.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun créneau disponible à cette date.'), 'helper-text'));
                 return;
             }
             result.slots.forEach(slot => {
@@ -6464,7 +6464,7 @@
                 container.append(slotButton);
             });
         } catch (error) {
-            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de vérifier les disponibilités.', 'helper-text'));
+            container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de vérifier les disponibilités.'), 'helper-text'));
         } finally {
             button.disabled = false;
         }
@@ -6489,7 +6489,7 @@
             await chargerDirectoryBookings(false);
             await chargerAnnuaire();
         } catch (error) {
-            showToast(error.message || 'Impossible de réserver ce créneau.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de réserver ce créneau.'), false, false);
             button.disabled = false;
         }
     }
@@ -6508,7 +6508,7 @@
                 activeSeniorProfileId !== seniorId) return;
             container.replaceChildren();
             if (!result.bookings.length) {
-                container.append(makeTextElement('p', 'Aucune demande de rendez-vous.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune demande de rendez-vous.'), 'helper-text'));
                 return;
             }
             result.bookings.forEach(booking => {
@@ -6550,7 +6550,7 @@
                 activeSeniorProfileId !== seniorId) return;
             container.replaceChildren(makeTextElement(
                 'p',
-                error.message || 'Impossible de charger les demandes de rendez-vous.',
+                window.generationLiaisonTranslateError(error.message, 'Impossible de charger les demandes de rendez-vous.'),
                 'helper-text'
             ));
         }
@@ -6566,7 +6566,7 @@
             showToast(decision === 'confirmed' ? 'Rendez-vous confirmé' : 'Demande refusée');
             await chargerDirectoryBookings(true);
         } catch (error) {
-            showToast(error.message || 'Impossible de traiter cette demande.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de traiter cette demande.'), false, false);
             button.disabled = false;
             await chargerDirectoryBookings(true);
         }
@@ -6580,13 +6580,15 @@
             const result = await planningRequest('/api/professional-verification/documents');
             if (loadId !== verificationDocumentsLoadId) return;
             const uploaded = new Set(result.documents.map(document => document.type));
-            status.textContent = `Justificatifs reçus : identité ${uploaded.has('identity') ? '✓' : 'à fournir'} · Kbis ${uploaded.has('kbis') ? '✓' : 'à fournir'}.`;
-            message.textContent = result.verificationStatus === 'rejected'
+            status.textContent = window.generationLiaisonTranslate('Justificatifs reçus : identité {identity} · Kbis {kbis}.')
+                .replace('{identity}', uploaded.has('identity') ? '✓' : window.generationLiaisonTranslate('à fournir'))
+                .replace('{kbis}', uploaded.has('kbis') ? '✓' : window.generationLiaisonTranslate('à fournir'));
+            message.textContent = window.generationLiaisonTranslate(result.verificationStatus === 'rejected'
                 ? 'Votre dossier doit être complété. Envoyez les justificatifs demandés ; il sera ensuite remis en attente de vérification.'
-                : 'Votre dossier est en attente de vérification manuelle. L’accès à l’espace intervenant sera ouvert après validation.';
+                : 'Votre dossier est en attente de vérification manuelle. L’accès à l’espace intervenant sera ouvert après validation.');
         } catch (error) {
             if (loadId !== verificationDocumentsLoadId) return;
-            status.textContent = error.message || 'Impossible de charger l’état des justificatifs.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger l’état des justificatifs.');
         }
     }
 
@@ -6594,15 +6596,15 @@
         const inputs = [...container.querySelectorAll('[data-document-type]')];
         const selected = inputs.filter(input => input.files?.[0]);
         if (requireBoth && selected.length !== 2) {
-            throw new Error('Ajoutez la pièce d’identité et le Kbis avant de créer le compte.');
+            throw new Error(window.generationLiaisonTranslate('Ajoutez la pièce d’identité et le Kbis avant de créer le compte.'));
         }
         if (!selected.length) {
-            throw new Error('Sélectionnez au moins un justificatif à envoyer.');
+            throw new Error(window.generationLiaisonTranslate('Sélectionnez au moins un justificatif à envoyer.'));
         }
         for (const input of selected) {
             const file = input.files[0];
             if (!['application/pdf', 'image/jpeg', 'image/png'].includes(file.type) || file.size > 10 * 1024 * 1024) {
-                throw new Error('Chaque justificatif doit être un PDF, JPEG ou PNG de 10 Mo maximum.');
+                throw new Error(window.generationLiaisonTranslate('Chaque justificatif doit être un PDF, JPEG ou PNG de 10 Mo maximum.'));
             }
             const response = await fetch(
                 `${SERVER_URL}/api/professional-verification/documents/${encodeURIComponent(input.dataset.documentType)}`,
@@ -6631,7 +6633,7 @@
                 ? translate('Les justificatifs doivent être complétés. Contactez l’administration après leur remplacement.')
                 : translate('Votre dossier est en attente de vérification manuelle. L’accès aux profils des personnes accompagnées sera ouvert après validation.');
         } catch (error) {
-            status.textContent = error.message || 'Impossible de charger l’état des justificatifs de tutelle.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger l’état des justificatifs de tutelle.');
         }
     }
 
@@ -6757,7 +6759,7 @@
                     ? 'Les notifications push sont prêtes à être activées sur cet appareil.'
                     : 'Le service push n’est pas encore configuré sur le serveur.');
         } catch (error) {
-            status.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger les préférences.');
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les préférences.');
         }
     }
 
@@ -6808,7 +6810,7 @@
             await chargerPreferencesNotification();
             showToast(window.generationLiaisonTranslate('Notifications push activées'));
         } catch (error) {
-            status.textContent = error.message || window.generationLiaisonTranslate('Impossible d’activer les notifications push.');
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’activer les notifications push.');
             showToast(status.textContent, false);
         } finally {
             button.disabled = platform === 'ios' && !localStorage.getItem(PUSH_TOKEN_KEY);
@@ -6840,7 +6842,7 @@
                     form.querySelector('[data-notification-phone]').value = result.phone;
                     showToast(window.generationLiaisonTranslate('Préférences de notification enregistrées'));
                 } catch (error) {
-                    showToast(error.message || window.generationLiaisonTranslate('Impossible d’enregistrer vos préférences.'), false);
+                    showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer vos préférences.'), false, false);
                 } finally {
                     button.disabled = false;
                 }
@@ -6865,7 +6867,7 @@
         const status = document.querySelector(`[data-close-account-status="${role}"]`);
         const password = passwordInput.value;
         if (!password) {
-            status.textContent = 'Saisissez votre mot de passe pour confirmer la clôture.';
+            status.textContent = window.generationLiaisonTranslate('Saisissez votre mot de passe pour confirmer la clôture.');
             passwordInput.focus();
             return;
         }
@@ -6874,7 +6876,7 @@
         }
 
         button.disabled = true;
-        status.textContent = 'Enregistrement de votre demande…';
+        status.textContent = window.generationLiaisonTranslate('Enregistrement de votre demande…');
         try {
             const result = await planningRequest('/api/account/closure-request', {
                 method: 'POST',
@@ -6886,7 +6888,7 @@
                 successMessage: result.message
             });
         } catch (error) {
-            status.textContent = error.message || 'Impossible d’enregistrer la demande de clôture.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer la demande de clôture.');
             showToast(status.textContent, false);
             button.disabled = false;
         }
@@ -6918,7 +6920,7 @@
             afficherTexteNotification(status, 'Notifications push désactivées sur cet appareil.');
             showToast(window.generationLiaisonTranslate('Notifications push désactivées'));
         } catch (error) {
-            status.textContent = error.message || window.generationLiaisonTranslate('Impossible de désactiver les notifications push.');
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de désactiver les notifications push.');
             showToast(status.textContent, false);
         } finally {
             button.disabled = window.Capacitor?.getPlatform?.() === 'ios' && !localStorage.getItem(PUSH_TOKEN_KEY);
@@ -6975,7 +6977,7 @@
                     ).length);
                 } catch (error) {
                     entry.failed = true;
-                    showToast(error.message || window.generationLiaisonTranslate('Impossible de marquer la notification comme lue.'), false);
+                    showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de marquer la notification comme lue.'), false, false);
                 } finally {
                     entry.pending = false;
                 }
@@ -7019,7 +7021,7 @@
                             });
                             await chargerMessagesAdministration();
                         } catch (error) {
-                            status.textContent = error.message || window.generationLiaisonTranslate('Impossible de marquer le message comme lu.');
+                            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de marquer le message comme lu.');
                             button.disabled = false;
                         }
                     });
@@ -7030,7 +7032,7 @@
             return result;
         } catch (error) {
             if (connectedUser?.id === userId && loadId === announcementLoadId) {
-                status.textContent = error.message || window.generationLiaisonTranslate('Impossible de charger les messages de l’administration.');
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les messages de l’administration.');
             }
         }
     }
@@ -7087,7 +7089,7 @@
             if (connectedUser?.id !== userId || loadId !== notificationLoadId) return;
             container.replaceChildren(makeTextElement(
                 'p',
-                error.message || window.generationLiaisonTranslate('Impossible de charger les notifications.'),
+                window.generationLiaisonTranslateError(error.message, 'Impossible de charger les notifications.'),
                 'helper-text'
             ));
         }
@@ -7126,7 +7128,7 @@
             });
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === 'aidant') {
-                container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate(error.message || 'Impossible de charger les messages de sécurité.'), 'helper-text'));
+                container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger les messages de sécurité.'), 'helper-text'));
             }
         }
     }
@@ -7224,7 +7226,7 @@
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role && loadId === inboxLoadId) {
-                container.textContent = error.message || 'Impossible de charger la boîte de réception.';
+                container.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger la boîte de réception.');
                 ajouterBoutonNouvelEssai();
             }
         }
@@ -7261,7 +7263,7 @@
             status.textContent = result.contacts.length ? '' : window.generationLiaisonTranslate('Aucun contact pour le moment. Ajoutez-en dans Contacts.');
             return true;
         } catch (error) {
-            status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de charger les correspondants.');
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les correspondants.');
             return false;
         }
     }
@@ -7358,7 +7360,7 @@
             return true;
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role && select.value === contactId) {
-                status.textContent = error.message || 'Impossible de charger les messages.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les messages.');
             }
             return false;
         }
@@ -7406,7 +7408,7 @@
                 headers: authHeaders(false), cache: 'no-store'
             });
             if (response.status === 404) return;
-            if (!response.ok) throw new Error('Impossible de charger la photo du correspondant.');
+            if (!response.ok) throw new Error(window.generationLiaisonTranslate('Impossible de charger la photo du correspondant.'));
             const blob = await response.blob();
             if (loadId !== messagePhotoLoadId || connectedUser?.id !== userId ||
                 connectedUser?.role !== role || select.value !== contactId) return;
@@ -8292,7 +8294,7 @@
             status.textContent = t('Vérifiez la proposition avant de l’utiliser.');
         } catch (error) {
             if (revision === messageRewriteRevision && connectedUser?.id === userId) {
-                status.textContent = error.message || t('Impossible de préparer une proposition.');
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de préparer une proposition.');
             }
         } finally {
             button.disabled = false;
@@ -8341,11 +8343,11 @@
         const contactId = select.value;
         const message = text.value.trim();
         if (!message) {
-            status.textContent = 'Écrivez un message avant de l’envoyer.';
+            status.textContent = window.generationLiaisonTranslate('Écrivez un message avant de l’envoyer.');
             return;
         }
         if (selected.length > 20) {
-            status.textContent = 'Choisissez 20 correspondants maximum.';
+            status.textContent = window.generationLiaisonTranslate('Choisissez 20 correspondants maximum.');
             return;
         }
         if (selected.length) {
@@ -8386,7 +8388,7 @@
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role) {
-                status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’envoyer le message.');
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.');
             }
         } finally {
             button.disabled = false;
@@ -8420,7 +8422,7 @@
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === 'senior') {
-                status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’envoyer le message.');
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.');
             }
         } finally {
             buttons.forEach(button => { button.disabled = false; });
@@ -8467,7 +8469,7 @@
             );
         } catch (error) {
             button.disabled = false;
-            showToast(error.message || 'Impossible de répondre à cette demande.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de répondre à cette demande.'), false, false);
         }
     }
 
@@ -8715,7 +8717,7 @@
         const context = `${role}:${userId}:${seniorId}:${today}`;
         if (context !== historyContext) {
             historyContext = context;
-            list.textContent = 'Chargement de l’historique…';
+            list.textContent = window.generationLiaisonTranslate('Chargement de l’historique…');
         }
         const [calendar, tasks] = await Promise.allSettled([
             planningRequest(`/api/planning/calendar?start=${from}&end=${today}`),
@@ -8747,10 +8749,10 @@
         }
         entries.sort((a, b) => b.sort - a.sort);
         entries.forEach(entry => list.append(makeTextElement('p', entry.text)));
-        if (calendar.status === 'rejected') list.append(makeTextElement('p', 'Impossible de charger l’historique des rendez-vous.'));
-        if (tasks.status === 'rejected') list.append(makeTextElement('p', 'Impossible de charger l’historique des tâches.'));
+        if (calendar.status === 'rejected') list.append(makeTextElement('p', window.generationLiaisonTranslate('Impossible de charger l’historique des rendez-vous.')));
+        if (tasks.status === 'rejected') list.append(makeTextElement('p', window.generationLiaisonTranslate('Impossible de charger l’historique des tâches.')));
         if (!entries.length && calendar.status === 'fulfilled' && tasks.status === 'fulfilled') {
-            list.append(makeTextElement('p', 'Aucun rendez-vous ou tâche datée durant les 30 derniers jours.'));
+            list.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun rendez-vous ou tâche datée durant les 30 derniers jours.')));
         }
     }
 
@@ -8872,7 +8874,7 @@
                         if (revision === calendarRevision) chargerCalendrier();
                     } catch (error) {
                         if (revision === calendarRevision) {
-                            definirMessageFormulaireAgenda(document.getElementById('calendar-message'), error.message, false);
+                            definirMessageFormulaireAgenda(document.getElementById('calendar-message'), window.generationLiaisonTranslateError(error.message), false);
                         }
                     }
                 });
@@ -8991,7 +8993,7 @@
                         await planningRequest(path, options);
                     } catch (error) {
                         if (!isCurrent()) return;
-                        definirMessageFormulaireAgenda(status, error.message || 'Impossible de modifier le partage de l’agenda.', !error.message);
+                        definirMessageFormulaireAgenda(status, window.generationLiaisonTranslateError(error.message, 'Impossible de modifier le partage de l’agenda.'), !error.message);
                     }
                     if (isCurrent()) {
                         await Promise.all([chargerPartagesAgenda(true), chargerCalendrier()]);
@@ -9045,7 +9047,7 @@
             if (!isCurrent() || loadId !== agendaSharesLoadId) return;
             card.hidden = false;
             const message = makeTextElement('p', '', 'helper-text');
-            definirMessageFormulaireAgenda(message, error.message || 'Impossible de charger les partages de l’agenda.', !error.message);
+            definirMessageFormulaireAgenda(message, window.generationLiaisonTranslateError(error.message, 'Impossible de charger les partages de l’agenda.'), !error.message);
             const retry = document.createElement('button');
             retry.type = 'button';
             retry.disabled = agendaSharesActionPending;
@@ -9076,7 +9078,7 @@
             renderCalendar();
         } catch (error) {
             if (loadId !== calendarLoadId || connectedUser?.id !== userId) return;
-            definirMessageFormulaireAgenda(message, error.message || 'Impossible de charger l’agenda.', !error.message);
+            definirMessageFormulaireAgenda(message, window.generationLiaisonTranslateError(error.message, 'Impossible de charger l’agenda.'), !error.message);
         }
     }
 
@@ -9186,7 +9188,7 @@
         } catch (error) {
             if (loadId !== calendarRequestsLoadId || connectedUser?.id !== userId) return;
             container.replaceChildren(error.message
-                ? makeTextElement('p', error.message, 'helper-text')
+                ? makeTextElement('p', window.generationLiaisonTranslateError(error.message), 'helper-text')
                 : texteModificationGoogle('p', 'Impossible de charger les modifications Google.', 'helper-text'));
         }
     }
@@ -9239,7 +9241,7 @@
             if (loadId !== calendarSettingsLoadId || connectedUser?.id !== userId) return;
             if (error.message) {
                 delete status.dataset.googleSettingsTranslation;
-                status.textContent = error.message;
+                status.textContent = window.generationLiaisonTranslateError(error.message);
             } else {
                 definirTexteReglageGoogle(status, 'Impossible de vérifier la synchronisation.');
             }
@@ -9264,7 +9266,7 @@
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
             if (revision !== calendarRevision) return;
-            showToast(error.message || window.generationLiaisonTranslate('Impossible de modifier la synchronisation.'), false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de modifier la synchronisation.'), false, false);
             await chargerParametresGooglePlanning();
         }
     }
@@ -9290,7 +9292,7 @@
             await Promise.all([chargerCalendrier(), chargerModificationsGoogle()]);
         } catch (error) {
             if (revision !== calendarRevision) return;
-            showToast(error.message || window.generationLiaisonTranslate('Impossible de répondre à la modification.'), false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de répondre à la modification.'), false, false);
             await chargerModificationsGoogle();
         }
     }
@@ -9308,7 +9310,7 @@
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
             if (revision !== calendarRevision) return;
-            showToast(error.message || window.generationLiaisonTranslate('Impossible de confirmer la connexion.'), false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de confirmer la connexion.'), false, false);
         } finally {
             if (revision === calendarRevision) button.disabled = false;
         }
@@ -9327,7 +9329,7 @@
             await Promise.all([chargerParametresGooglePlanning(), chargerModificationsGoogle()]);
         } catch (error) {
             if (revision !== calendarRevision) return;
-            showToast(error.message || window.generationLiaisonTranslate('Impossible de changer d’agenda Google.'), false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de changer d’agenda Google.'), false, false);
         } finally {
             if (revision === calendarRevision) button.disabled = false;
         }
@@ -9395,14 +9397,14 @@
     }
 
     function stageLabel(stage) {
-        return {
+        return window.generationLiaisonTranslate({
             arrived: 'Arrivée signalée',
             started: 'Intervention démarrée',
             completed: 'Visite terminée',
             visit_planned: 'Visite prévue, non confirmée terminée',
             visit_in_progress: 'Visite signalée en cours',
             visit_completed: 'Visite signalée terminée'
-        }[stage] || 'Étape enregistrée';
+        }[stage] || 'Étape enregistrée');
     }
 
     function makeTextElement(tagName, text, className) {
@@ -9443,9 +9445,9 @@
             legend.append(makeTextElement('span', importance.label, `importance-badge ${importance.className}`));
         });
         container.append(legend);
-        container.append(makeTextElement('p', 'Prioritaire signale une importance de suivi, pas une urgence médicale.', 'helper-text'));
+        container.append(makeTextElement('p', window.generationLiaisonTranslate('Prioritaire signale une importance de suivi, pas une urgence médicale.'), 'helper-text'));
         if (!notes.length) {
-            container.append(makeTextElement('p', 'Aucune recommandation ni transmission sur les 30 derniers jours.', 'helper-text'));
+            container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune recommandation ni transmission sur les 30 derniers jours.'), 'helper-text'));
             return;
         }
 
@@ -9481,14 +9483,14 @@
         button.disabled = true;
         const panel = document.createElement('section');
         panel.className = 'visit-notes-panel form-card';
-        panel.append(makeTextElement('h4', 'Nouvelles de liaison · 30 derniers jours'));
+        panel.append(makeTextElement('h4', window.generationLiaisonTranslate('Nouvelles de liaison · 30 derniers jours')));
         panel.append(makeTextElement(
             'p',
-            'Ce carnet est réservé aux nouvelles du quotidien. Ne saisissez pas de données de santé ou de traitement.',
+            window.generationLiaisonTranslate('Ce carnet est réservé aux nouvelles du quotidien. Ne saisissez pas de données de santé ou de traitement.'),
             'helper-text'
         ));
         const notesContainer = document.createElement('div');
-        notesContainer.textContent = 'Chargement des transmissions…';
+        notesContainer.textContent = window.generationLiaisonTranslate('Chargement des transmissions…');
         panel.append(notesContainer);
         panel.append(creerFormulaireTransmission(
             visitId,
@@ -9500,7 +9502,7 @@
             await actualiserHistoriqueVisite(visitId, notesContainer);
         } catch (error) {
             if (revision !== professionalSessionRevision) return;
-            notesContainer.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les transmissions.', 'helper-text'));
+            notesContainer.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger les transmissions.'), 'helper-text'));
         } finally {
             button.disabled = false;
         }
@@ -9518,23 +9520,23 @@
         const form = document.createElement('form');
         form.className = 'form-grid';
         form.style.marginTop = '12px';
-        form.append(makeTextElement('h4', 'Ajouter une transmission'));
+        form.append(makeTextElement('h4', window.generationLiaisonTranslate('Ajouter une transmission')));
         const typeSelect = document.createElement('select');
         typeSelect.required = true;
-        typeSelect.add(new Option('Transmission d’un collègue', 'colleague_note'));
+        typeSelect.add(new Option(window.generationLiaisonTranslate('Transmission d’un collègue'), 'colleague_note'));
         const importanceSelect = document.createElement('select');
         importanceSelect.required = true;
-        importanceSelect.setAttribute('aria-label', 'Importance de la transmission');
-        importanceSelect.add(new Option('🔵 Information', 'information'));
-        importanceSelect.add(new Option('🟠 À suivre', 'follow_up'));
-        importanceSelect.add(new Option('🔴 Prioritaire', 'priority'));
+        importanceSelect.setAttribute('aria-label', window.generationLiaisonTranslate('Importance de la transmission'));
+        importanceSelect.add(new Option(window.generationLiaisonTranslate('🔵 Information'), 'information'));
+        importanceSelect.add(new Option(window.generationLiaisonTranslate('🟠 À suivre'), 'follow_up'));
+        importanceSelect.add(new Option(window.generationLiaisonTranslate('🔴 Prioritaire'), 'priority'));
         const content = document.createElement('textarea');
         content.maxLength = 1500;
         content.required = true;
-        content.placeholder = 'Saisir la transmission à partager avec l’équipe autorisée';
+        content.placeholder = window.generationLiaisonTranslate('Saisir la transmission à partager avec l’équipe autorisée');
         const submit = document.createElement('button');
         submit.type = 'submit';
-        submit.textContent = 'Enregistrer la transmission';
+        submit.textContent = window.generationLiaisonTranslate('Enregistrer la transmission');
         form.append(typeSelect, importanceSelect, content, submit);
         form.addEventListener('submit', async event => {
             event.preventDefault();
@@ -9555,7 +9557,7 @@
                 await afterSave();
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(error.message || 'Impossible d’enregistrer la transmission.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer la transmission.'), false, false);
             } finally {
                 submit.disabled = false;
             }
@@ -9570,11 +9572,12 @@
         entries.forEach(event => {
             const item = document.createElement('div');
             item.className = 'progress-item';
-            item.append(makeTextElement('strong', `${event.scheduled ? 'Prévue le ' : ''}${formatDateTime(event.createdAt, 'Europe/Paris')}`), document.createElement('br'),
-                makeTextElement('span', `Visite ${event.visitNumber} · ${event.colleague ? 'Collègue' : 'Moi'} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`));
+            const t = window.generationLiaisonTranslate;
+            item.append(makeTextElement('strong', `${event.scheduled ? `${t('Prévue le')} ` : ''}${formatDateTime(event.createdAt, 'Europe/Paris')}`), document.createElement('br'),
+                makeTextElement('span', `${t('Visite')} ${event.visitNumber} · ${t(event.colleague ? 'Collègue' : 'Moi')} — ${stageLabel(event.type)}${event.note ? ` : ${event.note}` : ''}`));
             container.append(item);
         });
-        if (!entries.length) container.append(makeTextElement('p', 'Aucune étape pour les visites de cette date.', 'helper-text'));
+        if (!entries.length) container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune étape pour les visites de cette date.'), 'helper-text'));
     }
 
     function reinitialiserPlanningProfessionnel() {
@@ -9595,10 +9598,10 @@
             .forEach(id => document.getElementById(id).reset());
         document.getElementById('professional-location-form').reset();
         document.getElementById('professional-location-form').querySelector('button[type="submit"]').disabled = false;
-        document.getElementById('pro-home-location-status').textContent = 'Position du domicile non enregistrée.';
+        document.getElementById('pro-home-location-status').textContent = window.generationLiaisonTranslate('Position du domicile non enregistrée.');
         ['visit-member', 'service-partner-member', 'contact-recipient', 'visit-recipient']
             .forEach(id => document.getElementById(id).replaceChildren());
-        document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+        document.getElementById('contact-home-location-status').textContent = window.generationLiaisonTranslate('Position GPS non relevée.');
     }
 
     async function chargerPlanningPro() {
@@ -9629,7 +9632,7 @@
             container.replaceChildren();
             container.dataset.planningDate = dateInput.value;
             if (!result.visits.length) {
-                container.append(makeTextElement('p', 'Aucune visite ne vous est affectée à cette date.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune visite ne vous est affectée à cette date.'), 'helper-text'));
             } else {
                 result.visits.forEach((visit, index) => {
                     const card = document.createElement('article');
@@ -9648,7 +9651,7 @@
                     const notesButton = document.createElement('button');
                     notesButton.type = 'button';
                     notesButton.className = 'visit-notes-button';
-                    notesButton.textContent = 'Voir les nouvelles de liaison';
+                    notesButton.textContent = window.generationLiaisonTranslate('Voir les nouvelles de liaison');
                     notesButton.setAttribute('aria-expanded', 'false');
                     notesButton.addEventListener('click', () => ouvrirHistoriqueVisite(visit.id, card, notesButton));
                     card.append(notesButton);
@@ -9676,7 +9679,7 @@
                     timeline.className = 'visit-status';
                     timeline.textContent = progress.length
                         ? stageLabel(progress[progress.length - 1].type)
-                        : 'En attente de l’arrivée';
+                        : window.generationLiaisonTranslate('En attente de l’arrivée');
                     if (visit.status === 'completed') timeline.classList.add('done');
                     card.append(timeline);
                     renderVisitProgress(card, progress);
@@ -9691,13 +9694,13 @@
                             controls.dataset.progressStage = stage;
                             const note = document.createElement('textarea');
                             note.maxLength = 500;
-                            note.placeholder = 'Note pratique facultative (sans donnée personnelle ou de santé)';
-                            const warning = makeTextElement('p', 'Cette note est visible des aidants autorisés. N’indiquez aucune donnée personnelle ou de santé.');
+                            note.placeholder = window.generationLiaisonTranslate('Note pratique facultative (sans donnée personnelle ou de santé)');
+                            const warning = makeTextElement('p', window.generationLiaisonTranslate('Cette note est visible des aidants autorisés. N’indiquez aucune donnée personnelle ou de santé.'));
                             warning.className = 'helper-text';
                             const shareLabel = document.createElement('label');
                             const share = document.createElement('input');
                             share.type = 'checkbox';
-                            shareLabel.append(share, document.createTextNode(' Partager cette note avec mes collègues autorisés. Je confirme qu’elle ne contient aucune donnée personnelle ou de santé.'));
+                            shareLabel.append(share, document.createTextNode(window.generationLiaisonTranslate(' Partager cette note avec mes collègues autorisés. Je confirme qu’elle ne contient aucune donnée personnelle ou de santé.')));
                             const button = document.createElement('button');
                             button.type = 'button';
                             button.textContent = stageLabel(stage);
@@ -9735,11 +9738,12 @@
                     remplirSelecteursCoordination();
                     afficherHistoriqueCoordinateur(team.visits);
                     afficherPartenairesServices(team.servicePartners);
-                    summary.textContent = `${team.members.length} intervenant(s) · ${team.recipients.length} personne(s) suivie(s). Les personnes sans consentement actif ne sont pas affectables.`;
+                    summary.textContent = window.generationLiaisonTranslate('{members} intervenant(s) · {recipients} personne(s) suivie(s). Les personnes sans consentement actif ne sont pas affectables.')
+                        .replace('{members}', team.members.length).replace('{recipients}', team.recipients.length);
                 } catch (error) {
                     if (loadId !== planningLoadId || connectedUser?.id !== userId ||
                         connectedUser?.role !== 'pro' || !connectedUser.isCoordinator) return;
-                    summary.textContent = error.message || 'Impossible de charger les outils de coordination.';
+                    summary.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les outils de coordination.');
                 }
             }
         } catch (error) {
@@ -9747,12 +9751,12 @@
             if (error.status !== 401 && error.status !== 403 &&
                 container.dataset.planningDate === document.getElementById('planning-date').value &&
                 container.querySelector('.visit-card')) {
-                showToast(error.message || 'Impossible de charger le planning.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de charger le planning.'), false, false);
             } else {
-                container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger le planning.', 'helper-text'));
+                container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger le planning.'), 'helper-text'));
             }
             document.getElementById('pro-journal-list').replaceChildren(
-                makeTextElement('p', 'Impossible de charger les étapes des interventions.', 'helper-text')
+                makeTextElement('p', window.generationLiaisonTranslate('Impossible de charger les étapes des interventions.'), 'helper-text')
             );
         }
     }
@@ -9771,7 +9775,7 @@
             if (loadId !== servicePlanningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
             container.replaceChildren();
             if (!result.bookings.length) {
-                container.append(makeTextElement('p', 'Aucun rendez-vous de service ne vous est affecté à cette date.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun rendez-vous de service ne vous est affecté à cette date.'), 'helper-text'));
                 return;
             }
 
@@ -9800,7 +9804,7 @@
                 });
                 if (booking.requestNote) {
                     const note = document.createElement('div');
-                    note.append(makeTextElement('strong', 'Précision pratique : '), document.createTextNode(booking.requestNote));
+                    note.append(makeTextElement('strong', window.generationLiaisonTranslate('Précision pratique : ')), document.createTextNode(booking.requestNote));
                     details.append(note);
                 }
                 card.append(details);
@@ -9813,7 +9817,7 @@
                     const action = document.createElement('button');
                     action.type = 'button';
                     action.className = 'visit-notes-button';
-                    action.textContent = nextStatus === 'confirmed' ? 'Confirmer le rendez-vous' : 'Marquer la prestation réalisée';
+                    action.textContent = window.generationLiaisonTranslate(nextStatus === 'confirmed' ? 'Confirmer le rendez-vous' : 'Marquer la prestation réalisée');
                     action.addEventListener('click', () => modifierStatutService(booking.id, nextStatus, action));
                     card.append(action);
                 }
@@ -9821,7 +9825,7 @@
                     const cancel = document.createElement('button');
                     cancel.type = 'button';
                     cancel.className = 'visit-notes-button';
-                    cancel.textContent = 'Annuler ce rendez-vous';
+                    cancel.textContent = window.generationLiaisonTranslate('Annuler ce rendez-vous');
                     cancel.addEventListener('click', () => modifierStatutService(booking.id, 'cancelled', cancel));
                     card.append(cancel);
                 }
@@ -9829,7 +9833,7 @@
             });
         } catch (error) {
             if (loadId !== servicePlanningLoadId || connectedUser?.id !== userId || connectedUser?.role !== 'pro') return;
-            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger votre agenda de services.', 'helper-text'));
+            container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger votre agenda de services.'), 'helper-text'));
         }
     }
 
@@ -9857,7 +9861,7 @@
             }
         } catch (error) {
             button.disabled = false;
-            showToast(error.message || 'Impossible de modifier ce rendez-vous.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de modifier ce rendez-vous.'), false, false);
         }
     }
 
@@ -9874,11 +9878,11 @@
             if (loadId !== serviceFamilyLoadIds[role]) return;
             container.replaceChildren();
             const directory = document.createElement('div');
-            directory.append(makeTextElement('h4', 'Prestataires disponibles'));
+            directory.append(makeTextElement('h4', window.generationLiaisonTranslate('Prestataires disponibles')));
             if (!catalog.partners.length) {
                 directory.append(makeTextElement(
                     'p',
-                    'Aucun partenaire disponible pour le moment. Les services proposés apparaîtront après autorisation du partage avec une équipe qui les référence.',
+                    window.generationLiaisonTranslate('Aucun partenaire disponible pour le moment. Les services proposés apparaîtront après autorisation du partage avec une équipe qui les référence.'),
                     'helper-text'
                 ));
             }
@@ -9899,13 +9903,13 @@
                 appointment.type = 'datetime-local';
                 appointment.required = true;
                 appointment.min = dateTimeInputValue(new Date());
-                appointment.setAttribute('aria-label', 'Date et heure souhaitées');
+                appointment.setAttribute('aria-label', window.generationLiaisonTranslate('Date et heure souhaitées'));
                 const note = document.createElement('textarea');
                 note.maxLength = 500;
-                note.placeholder = 'Précision pratique facultative, sans information médicale';
+                note.placeholder = window.generationLiaisonTranslate('Précision pratique facultative, sans information médicale');
                 const submit = document.createElement('button');
                 submit.type = 'submit';
-                submit.textContent = 'Demander un rendez-vous';
+                submit.textContent = window.generationLiaisonTranslate('Demander un rendez-vous');
                 form.append(appointment, note, submit);
                 form.addEventListener('submit', async event => {
                     event.preventDefault();
@@ -9923,7 +9927,7 @@
                         await chargerServicesFamiliaux(role);
                     } catch (error) {
                         submit.disabled = false;
-                        showToast(error.message || 'Impossible d’envoyer la demande.', false);
+                        showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer la demande.'), false, false);
                     }
                 });
                 card.append(form);
@@ -9932,9 +9936,9 @@
             container.append(directory);
 
             const bookings = document.createElement('div');
-            bookings.append(makeTextElement('h4', 'Mes demandes et rendez-vous'));
+            bookings.append(makeTextElement('h4', window.generationLiaisonTranslate('Mes demandes et rendez-vous')));
             if (!schedule.bookings.length) {
-                bookings.append(makeTextElement('p', 'Aucune demande de service pour le moment.', 'helper-text'));
+                bookings.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune demande de service pour le moment.'), 'helper-text'));
             }
             schedule.bookings.forEach(booking => {
                 const item = document.createElement('article');
@@ -9949,7 +9953,7 @@
                 if (booking.status === 'requested') {
                     item.append(makeTextElement(
                         'p',
-                        'En attente de l’acceptation du partenaire : ce rendez-vous n’est pas encore ajouté à l’agenda.',
+                        window.generationLiaisonTranslate('En attente de l’acceptation du partenaire : ce rendez-vous n’est pas encore ajouté à l’agenda.'),
                         'helper-text'
                     ));
                 }
@@ -9960,7 +9964,7 @@
                     const cancel = document.createElement('button');
                     cancel.type = 'button';
                     cancel.className = 'visit-notes-button';
-                    cancel.textContent = 'Annuler ma demande';
+                    cancel.textContent = window.generationLiaisonTranslate('Annuler ma demande');
                     cancel.addEventListener('click', () => modifierStatutService(booking.id, 'cancelled', cancel));
                     item.append(cancel);
                 }
@@ -9971,7 +9975,7 @@
             if (loadId !== serviceFamilyLoadIds[role]) return;
             container.replaceChildren(makeTextElement(
                 'p',
-                error.message || 'Impossible de charger les services et rendez-vous.',
+                window.generationLiaisonTranslateError(error.message, 'Impossible de charger les services et rendez-vous.'),
                 'helper-text'
             ));
         }
@@ -9979,9 +9983,9 @@
 
     function afficherPartenairesServices(partners) {
         const container = document.getElementById('service-partner-list');
-        container.replaceChildren(makeTextElement('h4', 'Partenaires référencés'));
+        container.replaceChildren(makeTextElement('h4', window.generationLiaisonTranslate('Partenaires référencés')));
         if (!partners.length) {
-            container.append(makeTextElement('p', 'Aucun partenaire de services référencé pour le moment.', 'helper-text'));
+            container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucun partenaire de services référencé pour le moment.'), 'helper-text'));
             return;
         }
         partners.forEach(partner => {
@@ -10002,9 +10006,9 @@
 
     function afficherHistoriqueCoordinateur(visits) {
         const container = document.getElementById('coordinator-visit-history');
-        container.replaceChildren(makeTextElement('h4', 'Visites de l’équipe · historique 30 jours'));
+        container.replaceChildren(makeTextElement('h4', window.generationLiaisonTranslate('Visites de l’équipe · historique 30 jours')));
         if (!visits.length) {
-            container.append(makeTextElement('p', 'Aucune visite autorisée sur cette période.', 'helper-text'));
+            container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune visite autorisée sur cette période.'), 'helper-text'));
             return;
         }
 
@@ -10017,7 +10021,7 @@
             const button = document.createElement('button');
             button.type = 'button';
             button.className = 'visit-notes-button';
-            button.textContent = 'Voir les nouvelles de liaison';
+            button.textContent = window.generationLiaisonTranslate('Voir les nouvelles de liaison');
             button.setAttribute('aria-expanded', 'false');
             button.addEventListener('click', () => ouvrirHistoriqueVisite(visit.id, card, button));
             card.append(button);
@@ -10031,7 +10035,7 @@
         recipientLocationRevision++;
         recipientHomeCoordinates = null;
         document.getElementById('contact-location-consent').checked = false;
-        document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+        document.getElementById('contact-home-location-status').textContent = window.generationLiaisonTranslate('Position GPS non relevée.');
     }
 
     function remplirSelecteursCoordination() {
@@ -10046,8 +10050,8 @@
         const memberIds = new Set(planningState.members.map(member => String(member.id)));
         const recipients = planningState.recipients.filter(recipient => recipient.consented);
         const recipientIds = new Set(recipients.map(recipient => String(recipient.id)));
-        memberSelect.replaceChildren(new Option('Choisir un intervenant', ''));
-        serviceMemberSelect.replaceChildren(new Option('Choisir un intervenant de l’équipe', ''));
+        memberSelect.replaceChildren(new Option(window.generationLiaisonTranslate('Choisir un intervenant'), ''));
+        serviceMemberSelect.replaceChildren(new Option(window.generationLiaisonTranslate('Choisir un intervenant de l’équipe'), ''));
         planningState.members.forEach(member => {
             memberSelect.add(new Option(`${member.name} (${member.email})`, member.id));
             serviceMemberSelect.add(new Option(`${member.name} (${member.email})`, member.id));
@@ -10056,7 +10060,7 @@
             select.value = memberIds.has(memberChoices[index]) ? memberChoices[index] : '';
         });
         recipientSelects.forEach((select, index) => {
-            select.replaceChildren(new Option('Choisir une personne autorisée', ''));
+            select.replaceChildren(new Option(window.generationLiaisonTranslate('Choisir une personne autorisée'), ''));
             recipients.forEach(recipient => {
                 select.add(new Option(recipient.name, recipient.id));
             });
@@ -10071,7 +10075,7 @@
                 recipientLocationRevision++;
                 recipientHomeCoordinates = null;
                 document.getElementById('contact-location-consent').checked = false;
-                document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+                document.getElementById('contact-home-location-status').textContent = window.generationLiaisonTranslate('Position GPS non relevée.');
             }
         }
     }
@@ -10093,7 +10097,7 @@
         } catch (error) {
             if (revision !== professionalSessionRevision) return;
             button.disabled = false;
-            showToast(error.message || 'Impossible d’enregistrer cette étape.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer cette étape.'), false, false);
         }
     }
 
@@ -10130,7 +10134,7 @@
             const pendingDrafts = new Map(drafts().map(section => [section.dataset.followingVisitId, section]));
             container.replaceChildren();
             if (!result.visits.length) {
-                container.append(makeTextElement('p', 'Aucune intervention partagée pour le moment.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune intervention partagée pour le moment.'), 'helper-text'));
             } else result.visits.forEach(visit => {
                 const item = document.createElement('div');
                 item.className = 'progress-item';
@@ -10139,8 +10143,8 @@
                 const state = progress.length
                     ? stageLabel(progress[progress.length - 1].type)
                     : visit.status === 'completed'
-                        ? 'Visite terminée'
-                        : 'Visite planifiée';
+                        ? window.generationLiaisonTranslate('Visite terminée')
+                        : window.generationLiaisonTranslate('Visite planifiée');
                 item.append(document.createElement('br'), makeTextElement('span', state));
                 renderVisitProgress(item, progress);
                 if (visit.status === 'completed') {
@@ -10160,10 +10164,10 @@
         } catch (error) {
             if (!current()) return;
             if (error.status !== 401 && error.status !== 403 && drafts().length) {
-                showToast(error.message || 'Suivi temporairement indisponible.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Suivi temporairement indisponible.'), false, false);
                 return;
             }
-            container.replaceChildren(makeTextElement('p', error.message || 'Suivi temporairement indisponible.', 'helper-text'));
+            container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Suivi temporairement indisponible.'), 'helper-text'));
         }
     }
 
@@ -10171,13 +10175,13 @@
         const section = document.createElement('section');
         section.className = 'visit-evaluation';
         section.dataset.followingVisitId = String(visit.id);
-        section.append(makeTextElement('strong', 'Comment s’est passée cette intervention ?'));
+        section.append(makeTextElement('strong', window.generationLiaisonTranslate('Comment s’est passée cette intervention ?')));
         const pills = document.createElement('div');
         pills.className = 'evaluation-pills';
         const comment = document.createElement('textarea');
         comment.className = 'evaluation-comment';
         comment.maxLength = 1500;
-        comment.placeholder = 'Expliquez le problème rencontré (obligatoire pour une pastille rouge).';
+        comment.placeholder = window.generationLiaisonTranslate('Expliquez le problème rencontré (obligatoire pour une pastille rouge).');
         comment.value = visit.evaluation?.comment || '';
         const status = makeTextElement('p', '', 'helper-text');
         status.setAttribute('aria-live', 'polite');
@@ -10187,7 +10191,7 @@
         let saving = false;
         const save = document.createElement('button');
         save.type = 'button';
-        save.textContent = visit.evaluation ? 'Modifier mon évaluation' : 'Enregistrer mon évaluation';
+        save.textContent = window.generationLiaisonTranslate(visit.evaluation ? 'Modifier mon évaluation' : 'Enregistrer mon évaluation');
         save.disabled = !selectedRating;
         const cancel = document.createElement('button');
         cancel.type = 'button';
@@ -10248,7 +10252,7 @@
             if (saving || save.disabled) return;
             if (!selectedRating) return;
             if (selectedRating === 'red' && !comment.value.trim()) {
-                status.textContent = 'Ajoutez un commentaire pour expliquer le problème.';
+                status.textContent = window.generationLiaisonTranslate('Ajoutez un commentaire pour expliquer le problème.');
                 comment.focus();
                 return;
             }
@@ -10256,7 +10260,7 @@
             save.disabled = true;
             cancel.disabled = true;
             section.dataset.followingDirty = 'true';
-            status.textContent = 'Enregistrement…';
+            status.textContent = window.generationLiaisonTranslate('Enregistrement…');
             const submittedRating = selectedRating;
             const submittedComment = comment.value;
             const revision = sharedFollowingRevision;
@@ -10284,7 +10288,7 @@
                 }
             } catch (error) {
                 if (!current()) return;
-                status.textContent = error.message || 'Impossible d’enregistrer votre évaluation.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer votre évaluation.');
                 saving = false;
                 save.disabled = false;
                 cancel.disabled = false;
@@ -10305,12 +10309,12 @@
         const current = () => loadId === consentLoadId && connectedUser?.id === userId &&
             connectedUser?.role === role && (role !== 'aidant' || activeSeniorProfileId === seniorId);
         const recipientSelect = document.getElementById(`${role}-note-recipient`);
-        container.replaceChildren(makeTextElement('p', 'Chargement des autorisations…', 'helper-text'));
+        container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslate('Chargement des autorisations…'), 'helper-text'));
         try {
             const consents = await planningRequest('/api/planning/consents');
             if (!current()) return;
             const selectedRecipient = recipientSelect.value;
-            recipientSelect.replaceChildren(new Option('Choisir une équipe autorisée', ''));
+            recipientSelect.replaceChildren(new Option(window.generationLiaisonTranslate('Choisir une équipe autorisée'), ''));
             container.replaceChildren();
             consents.filter(consent => consent.consented).forEach(consent => {
                 recipientSelect.add(new Option(consent.organizationName, consent.id));
@@ -10319,7 +10323,7 @@
                 recipientSelect.value = selectedRecipient;
             }
             if (!consents.length) {
-                container.append(makeTextElement('p', 'Aucune demande de partage en attente.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune demande de partage en attente.'), 'helper-text'));
                 return;
             }
             consents.forEach(consent => {
@@ -10330,7 +10334,7 @@
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = 'visit-done-button';
-                button.textContent = consent.consented ? 'Retirer mon autorisation' : 'Autoriser le partage';
+                button.textContent = window.generationLiaisonTranslate(consent.consented ? 'Retirer mon autorisation' : 'Autoriser le partage');
                 button.addEventListener('click', () => modifierConsentement(consent, role, button));
                 item.append(button);
                 container.append(item);
@@ -10338,7 +10342,7 @@
         } catch (error) {
             if (!current()) return;
             if (error.status === 401 || error.status === 403) reinitialiserSuiviPartage();
-            container.replaceChildren(makeTextElement('p', error.message || 'Impossible de charger les autorisations.', 'helper-text'));
+            container.replaceChildren(makeTextElement('p', window.generationLiaisonTranslateError(error.message, 'Impossible de charger les autorisations.'), 'helper-text'));
         }
     }
 
@@ -10377,7 +10381,7 @@
                     showToast('Information transmise à l’équipe');
                 } catch (error) {
                     if (!current()) return;
-                    showToast(error.message || 'Impossible de transmettre cette information.', false);
+                    showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de transmettre cette information.'), false, false);
                 } finally {
                     if (current()) submit.disabled = false;
                 }
@@ -10405,7 +10409,7 @@
         } catch (error) {
             if (!current()) return;
             button.disabled = false;
-            showToast(error.message || 'Impossible de modifier l’autorisation.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de modifier l’autorisation.'), false, false);
         }
     }
 
@@ -10434,7 +10438,7 @@
                 } catch (error) {
                     if (revision === keyContactsLoadId) {
                         document.getElementById(`${role}-key-contacts-status`).textContent =
-                            error.message || 'Impossible d’ajouter ce contact.';
+                            window.generationLiaisonTranslateError(error.message, 'Impossible d’ajouter ce contact.');
                     }
                 } finally {
                     button.disabled = false;
@@ -10464,7 +10468,7 @@
                 } catch (error) {
                     if (loadId === sharedTasksLoadId) {
                         document.getElementById(`${role}-tasks-list`).replaceChildren();
-                        document.getElementById(`${role}-tasks-status`).textContent = error.message || 'Impossible d’ajouter la tâche.';
+                        document.getElementById(`${role}-tasks-status`).textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’ajouter la tâche.');
                     }
                 } finally {
                     button.disabled = false;
@@ -10496,7 +10500,7 @@
                         ? 'Liste enregistrée.' : 'La version précédente a été enregistrée. Enregistrez vos nouvelles modifications.';
                 }
             } catch (error) {
-                if (revision === shoppingListRevision) status.textContent = error.message || 'Impossible d’enregistrer votre liste.';
+                if (revision === shoppingListRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer votre liste.');
             } finally {
                 event.currentTarget.disabled = false;
             }
@@ -10508,7 +10512,7 @@
             const content = document.getElementById('senior-shopping-content').value.trim();
             const recipients = Array.from(document.querySelectorAll('#senior-shopping-contacts input:checked'), input => input.value);
             if (!content || !recipients.length) {
-                status.textContent = 'Saisissez une liste et choisissez au moins un correspondant.';
+                status.textContent = window.generationLiaisonTranslate('Saisissez une liste et choisissez au moins un correspondant.');
                 return;
             }
             event.currentTarget.disabled = true;
@@ -10516,9 +10520,9 @@
                 await seniorLinksRequest('/api/messages/multiple', {
                     method: 'POST', body: { recipients, message: `Liste de courses :\n${content}` }
                 });
-                if (revision === shoppingListRevision && connectedUser?.id === userId) status.textContent = 'Liste envoyée par message.';
+                if (revision === shoppingListRevision && connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslate('Liste envoyée par message.');
             } catch (error) {
-                if (revision === shoppingListRevision) status.textContent = error.message || 'Impossible d’envoyer votre liste.';
+                if (revision === shoppingListRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer votre liste.');
             } finally {
                 event.currentTarget.disabled = false;
             }
@@ -10530,7 +10534,7 @@
             const button = event.currentTarget.querySelector('button[type="submit"]');
             const status = document.getElementById('aidant-link-status');
             button.disabled = true;
-            status.textContent = 'Envoi de la demande…';
+            status.textContent = window.generationLiaisonTranslate('Envoi de la demande…');
             try {
                 const result = await seniorLinksRequest('/api/senior-links/requests', {
                     method: 'POST', body: { email: document.getElementById('aidant-link-email').value }
@@ -10538,7 +10542,7 @@
                 document.getElementById('aidant-link-email').value = '';
                 status.textContent = window.generationLiaisonTranslate(result.message);
             } catch (error) {
-                status.textContent = error.message || 'Impossible d’envoyer la demande.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer la demande.');
             } finally {
                 button.disabled = false;
             }
@@ -10584,7 +10588,7 @@
             try {
                 await envoyerJustificatifsTutelle(event.currentTarget);
             } catch (error) {
-                showToast(error.message || 'Impossible d’envoyer les justificatifs de tutelle.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer les justificatifs de tutelle.'), false, false);
             } finally {
                 button.disabled = false;
             }
@@ -10597,7 +10601,7 @@
                 await envoyerJustificatifsProfessionnels(event.currentTarget);
                 showToast('Justificatifs envoyés');
             } catch (error) {
-                showToast(error.message || 'Envoi des justificatifs impossible.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Envoi des justificatifs impossible.'), false, false);
             } finally {
                 button.disabled = false;
             }
@@ -10615,7 +10619,7 @@
                 status.textContent = messagePositionEnregistree(registrationHomeCoordinates);
             } catch (error) {
                 status.textContent = window.generationLiaisonTranslate('Position du domicile non enregistrée.');
-                showToast(window.generationLiaisonTranslate(error.message || 'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.'), false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.'), false, false);
             }
         });
         const afficherStatutCentreInscription = () => {
@@ -10643,7 +10647,7 @@
                 );
                 afficherStatutCentreInscription();
             } catch (error) {
-                status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de rechercher la commune.');
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de rechercher la commune.');
             }
         };
         document.getElementById('reg-city-search').addEventListener('click', choisirCommuneInscription);
@@ -10663,7 +10667,7 @@
                 status.textContent = window.generationLiaisonTranslate(connectedUser?.hasHomeLocation
                     ? 'La position enregistrée reste inchangée.'
                     : 'Position du domicile non enregistrée.');
-                showToast(window.generationLiaisonTranslate(error.message || 'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.'), false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de relever la position. Vérifiez les autorisations et les services de localisation.'), false, false);
             }
         });
         document.getElementById('professional-location-form').addEventListener('submit', async event => {
@@ -10694,7 +10698,7 @@
                 showToast(window.generationLiaisonTranslate('Zone d’intervention enregistrée'));
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(window.generationLiaisonTranslate(error.message || 'Impossible d’enregistrer votre zone d’intervention.'), false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer votre zone d’intervention.'), false, false);
             } finally {
                 if (revision === professionalSessionRevision) submit.disabled = false;
             }
@@ -10716,7 +10720,7 @@
             if (!event.currentTarget.checked) {
                 recipientLocationRevision++;
                 recipientHomeCoordinates = null;
-                document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+                document.getElementById('contact-home-location-status').textContent = window.generationLiaisonTranslate('Position GPS non relevée.');
             }
         });
         document.getElementById('contact-home-location-button').addEventListener('click', async () => {
@@ -10727,7 +10731,7 @@
                 return;
             }
             recipientHomeCoordinates = null;
-            status.textContent = 'Localisation en cours…';
+            status.textContent = window.generationLiaisonTranslate('Localisation en cours…');
             const revision = ++recipientLocationRevision;
             try {
                 const coordinates = await obtenirPositionActuelle();
@@ -10736,8 +10740,8 @@
                 status.textContent = messagePositionEnregistree(recipientHomeCoordinates);
             } catch (error) {
                 if (revision !== recipientLocationRevision) return;
-                status.textContent = 'Position GPS non relevée.';
-                showToast(error.message, false);
+                status.textContent = window.generationLiaisonTranslate('Position GPS non relevée.');
+                showToast(window.generationLiaisonTranslateError(error.message), false, false);
             }
         });
         document.getElementById('member-form').addEventListener('submit', async event => {
@@ -10755,7 +10759,7 @@
                 await chargerPlanningPro();
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(error.message || 'Impossible d’ajouter cet intervenant.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’ajouter cet intervenant.'), false, false);
             }
         });
         document.getElementById('service-partner-form').addEventListener('submit', async event => {
@@ -10781,7 +10785,7 @@
                 await chargerPlanningServices();
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(error.message || 'Impossible de référencer ce partenaire.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de référencer ce partenaire.'), false, false);
             }
         });
         document.getElementById('recipient-form').addEventListener('submit', async event => {
@@ -10802,7 +10806,7 @@
                 await chargerPlanningPro();
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(error.message || 'Impossible de créer la demande.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de créer la demande.'), false, false);
             }
         });
         document.getElementById('contact-form').addEventListener('submit', async event => {
@@ -10828,7 +10832,7 @@
                 await chargerPlanningPro();
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(error.message || 'Impossible d’enregistrer les coordonnées.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer les coordonnées.'), false, false);
             }
         });
         document.getElementById('visit-form').addEventListener('submit', async event => {
@@ -10853,7 +10857,7 @@
                 await chargerPlanningPro();
             } catch (error) {
                 if (revision !== professionalSessionRevision) return;
-                showToast(window.generationLiaisonTranslate(error.message || 'Impossible de planifier cette visite.'), false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de planifier cette visite.'), false, false);
             }
         });
     }
@@ -10874,7 +10878,7 @@
             event.currentTarget.reset();
             status.textContent = '';
         } catch (error) {
-            status.textContent = error.message || 'Connexion impossible.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Connexion impossible.');
         } finally {
             button.disabled = false;
         }
@@ -10885,7 +10889,7 @@
         const status = document.getElementById('resident-password-status');
         const newPassword = document.getElementById('resident-new-password').value;
         if (newPassword !== document.getElementById('resident-confirm-password').value) {
-            status.textContent = 'Les deux nouveaux mots de passe ne correspondent pas.';
+            status.textContent = window.generationLiaisonTranslate('Les deux nouveaux mots de passe ne correspondent pas.');
             return;
         }
         const button = event.currentTarget.querySelector('[type="submit"]');
@@ -10919,7 +10923,7 @@
                 }
             }
         } catch (error) {
-            status.textContent = error.message || 'Impossible de modifier le mot de passe.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de modifier le mot de passe.');
         } finally {
             button.disabled = false;
         }
@@ -10938,7 +10942,7 @@
             document.getElementById('screen-senior').classList.add('active');
             document.getElementById('nav-bar').style.display = 'flex';
         } catch (error) {
-            status.textContent = error.message || 'Décision non enregistrée. Réessayez.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Décision non enregistrée. Réessayez.');
         } finally {
             buttons.forEach(button => { button.disabled = false; });
         }
@@ -10957,22 +10961,23 @@
         const message = document.getElementById('establishment-announcement-message').value.trim();
         const status = document.getElementById('establishment-announcement-status');
         if (!title || !message) {
-            status.textContent = 'Renseignez un titre et un message.';
+            status.textContent = window.generationLiaisonTranslate('Renseignez un titre et un message.');
             return;
         }
         if (!confirm(`Envoyer cette notification à : ${audience.options[audience.selectedIndex].text} ?`)) return;
         const button = form.querySelector('button[type="submit"]');
         button.disabled = true;
-        status.textContent = 'Envoi en cours…';
+        status.textContent = window.generationLiaisonTranslate('Envoi en cours…');
         try {
             const result = await planningRequest('/api/establishment/announcements', {
                 method: 'POST', body: { audience: audience.value, title, message }
             });
-            status.textContent = `Notification enregistrée pour ${result.recipients} compte(s).`;
+            status.textContent = window.generationLiaisonTranslate('Notification enregistrée pour {count} compte(s).').replace('{count}', result.recipients);
             document.getElementById('establishment-announcement-title').value = '';
             document.getElementById('establishment-announcement-message').value = '';
         } catch (error) {
-            status.textContent = `Envoi non confirmé : ${error.message || 'erreur de connexion'}. Vérifiez avant de réessayer.`;
+            status.textContent = window.generationLiaisonTranslate('Envoi non confirmé : {error}. Vérifiez avant de réessayer.')
+                .replace('{error}', window.generationLiaisonTranslateError(error.message, 'erreur de connexion'));
         } finally {
             button.disabled = false;
         }
@@ -11009,7 +11014,7 @@
         const status = document.getElementById('establishment-overview-status');
         categories.forEach(category => document.getElementById(`establishment-overview-${category}`).replaceChildren());
         reinitialiserChiffresEtablissement();
-        status.textContent = 'Chargement du tableau…';
+        status.textContent = window.generationLiaisonTranslate('Chargement du tableau…');
         try {
             const [contacts, residents, staff] = await Promise.all(
                 ['/api/establishment/contacts', '/api/establishment/residents', '/api/establishment/staff']
@@ -11044,7 +11049,7 @@
                     const row = document.createElement('tr');
                     const cell = document.createElement('td');
                     cell.colSpan = 4;
-                    cell.textContent = 'Aucune personne enregistrée.';
+                    cell.textContent = window.generationLiaisonTranslate('Aucune personne enregistrée.');
                     row.append(cell);
                     document.getElementById(`establishment-overview-${category}`).append(row);
                 }
@@ -11052,7 +11057,7 @@
             status.textContent = rows.length ? `${rows.length} ligne(s).` : 'Aucune personne enregistrée.';
         } catch (error) {
             if (connectedUser?.id === userId && loadId === establishmentOverviewLoadId) {
-                status.textContent = error.message || 'Impossible de charger le tableau.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger le tableau.');
             }
         }
     }
@@ -11062,7 +11067,7 @@
         const list = document.getElementById('establishment-staff-list');
         const status = document.getElementById('establishment-staff-status');
         list.replaceChildren();
-        status.textContent = 'Chargement des soignants…';
+        status.textContent = window.generationLiaisonTranslate('Chargement des soignants…');
         try {
             const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment/staff`, { headers: authHeaders() }));
             if (connectedUser?.id !== userId) return;
@@ -11070,16 +11075,16 @@
             for (const staff of result.staff) {
                 const item = document.createElement('div');
                 const label = document.createElement('p');
-                label.textContent = `${staff.first_name} ${staff.last_name} · Identifiant : ${staff.identifier}`;
+                label.textContent = `${staff.first_name} ${staff.last_name} · ${window.generationLiaisonTranslate('Identifiant')} : ${staff.identifier}`;
                 const form = document.createElement('form');
                 const password = document.createElement('input');
                 password.type = 'password'; password.minLength = 12; password.maxLength = 256;
                 password.required = true; password.autocomplete = 'new-password';
                 password.setAttribute('aria-label', `Nouveau mot de passe provisoire pour ${staff.first_name} ${staff.last_name}`);
                 const reset = document.createElement('button');
-                reset.type = 'submit'; reset.textContent = 'Réinitialiser le mot de passe';
+                reset.type = 'submit'; reset.textContent = window.generationLiaisonTranslate('Réinitialiser le mot de passe');
                 const disable = document.createElement('button');
-                disable.type = 'button'; disable.textContent = 'Désactiver ce soignant';
+                disable.type = 'button'; disable.textContent = window.generationLiaisonTranslate('Désactiver ce soignant');
                 password.disabled = reset.disabled = disable.disabled = !establishmentContactsEditable;
                 form.append(password, reset);
                 form.addEventListener('submit', async event => {
@@ -11092,9 +11097,9 @@
                             body: JSON.stringify({ password: password.value })
                         }));
                         password.value = '';
-                        if (connectedUser?.id === userId) status.textContent = 'Mot de passe réinitialisé. Remettez-le en privé.';
+                        if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslate('Mot de passe réinitialisé. Remettez-le en privé.');
                     } catch (error) {
-                        if (connectedUser?.id === userId) status.textContent = error.message || 'Réinitialisation impossible.';
+                        if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Réinitialisation impossible.');
                     } finally { reset.disabled = !establishmentContactsEditable; }
                 });
                 disable.addEventListener('click', async () => {
@@ -11109,7 +11114,7 @@
                             await chargerTableauEtablissement();
                         }
                     } catch (error) {
-                        if (connectedUser?.id === userId) status.textContent = error.message || 'Désactivation impossible.';
+                        if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Désactivation impossible.');
                         disable.disabled = !establishmentContactsEditable;
                     }
                 });
@@ -11117,7 +11122,7 @@
                 list.append(item);
             }
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement impossible.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Chargement impossible.');
         }
     }
 
@@ -11140,10 +11145,10 @@
                 await chargerSoignantsEtablissement();
                 await chargerTableauEtablissement();
                 await chargerTableauEtablissement();
-                status.textContent = `Compte créé. Identifiant à remettre au soignant : ${result.identifier}.`;
+                status.textContent = window.generationLiaisonTranslate('Compte créé. Identifiant à remettre au soignant : {identifier}.').replace('{identifier}', result.identifier);
             }
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Création impossible.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Création impossible.');
         } finally { button.disabled = !establishmentContactsEditable; }
     });
 
@@ -11174,7 +11179,7 @@
             for (const resident of result.residents) select.add(new Option(resident.name, resident.id));
             status.textContent = window.generationLiaisonTranslate(result.residents.length ? 'Choisissez un résident.' : 'Aucun résident autorisé ou abonnement inactif.');
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslate(error.message || 'Chargement impossible.');
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Chargement impossible.');
         }
     }
 
@@ -11230,7 +11235,7 @@
                             }));
                             if (current()) await chargerCarnetEtablissement(role);
                         } catch (error) {
-                            if (current()) { status.textContent = window.generationLiaisonTranslate(error.message || 'Décision non enregistrée.'); button.disabled = false; }
+                            if (current()) { status.textContent = window.generationLiaisonTranslateError(error.message, 'Décision non enregistrée.'); button.disabled = false; }
                         }
                     });
                     consentBox.append(button);
@@ -11262,7 +11267,7 @@
             }
             status.textContent = response.entries.length ? '' : window.generationLiaisonTranslate('Aucune transmission ou message.');
         } catch (error) {
-            if (current()) status.textContent = window.generationLiaisonTranslate(error.message || 'Chargement impossible.');
+            if (current()) status.textContent = window.generationLiaisonTranslateError(error.message, 'Chargement impossible.');
         }
     }
 
@@ -11294,7 +11299,7 @@
                     await chargerCarnetEtablissement(role);
                 }
             } catch (error) {
-                if (connectedUser?.id === userId) status.textContent = error.message || 'Envoi impossible.';
+                if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Envoi impossible.');
             } finally { button.disabled = false; }
         });
     }
@@ -11304,7 +11309,7 @@
         const list = document.getElementById('establishment-residents-list');
         const status = document.getElementById('establishment-residents-status');
         list.replaceChildren();
-        status.textContent = 'Chargement des accès…';
+        status.textContent = window.generationLiaisonTranslate('Chargement des accès…');
         try {
             const { residents } = await readResponse(await fetch(`${SERVER_URL}/api/establishment/residents`, { headers: authHeaders() }));
             if (connectedUser?.id !== userId) return;
@@ -11312,7 +11317,7 @@
             for (const resident of residents) {
                 const item = document.createElement('div');
                 const label = document.createElement('p');
-                label.textContent = `${resident.first_name} ${resident.last_name} · Identifiant : ${resident.identifier}`;
+                label.textContent = `${resident.first_name} ${resident.last_name} · ${window.generationLiaisonTranslate('Identifiant')} : ${resident.identifier}`;
                 const form = document.createElement('form');
                 const password = document.createElement('input');
                 password.type = 'password';
@@ -11323,7 +11328,7 @@
                 password.setAttribute('aria-label', `Nouveau mot de passe provisoire pour ${resident.first_name} ${resident.last_name}`);
                 const reset = document.createElement('button');
                 reset.type = 'submit';
-                reset.textContent = 'Réinitialiser le mot de passe';
+                reset.textContent = window.generationLiaisonTranslate('Réinitialiser le mot de passe');
                 password.disabled = reset.disabled = !establishmentContactsEditable;
                 form.append(password, reset);
                 form.addEventListener('submit', async event => {
@@ -11336,9 +11341,9 @@
                             body: JSON.stringify({ password: password.value })
                         }));
                         password.value = '';
-                        if (connectedUser?.id === userId) status.textContent = 'Mot de passe provisoire enregistré. Remettez-le au résident en privé.';
+                        if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslate('Mot de passe provisoire enregistré. Remettez-le au résident en privé.');
                     } catch (error) {
-                        if (connectedUser?.id === userId) status.textContent = error.message || 'Réinitialisation impossible.';
+                        if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Réinitialisation impossible.');
                     } finally {
                         reset.disabled = !establishmentContactsEditable;
                     }
@@ -11347,7 +11352,7 @@
                 list.append(item);
             }
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement des accès impossible.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Chargement des accès impossible.');
         }
     }
 
@@ -11361,7 +11366,7 @@
         const list = document.getElementById('establishment-contacts-list');
         const status = document.getElementById('establishment-contacts-status');
         list.replaceChildren();
-        status.textContent = 'Chargement…';
+        status.textContent = window.generationLiaisonTranslate('Chargement…');
         try {
             const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment/contacts`, { headers: authHeaders() }));
             if (connectedUser?.id !== userId) return;
@@ -11369,10 +11374,10 @@
             for (const contact of result.contacts) {
                 const item = document.createElement('div');
                 const label = document.createElement('p');
-                label.textContent = `${{ resident: 'Résident', caregiver: 'Soignant', intervenant: 'Intervenant' }[contact.category]} · ${contact.name} · ${contact.phone || '—'} · ${contact.email || '—'}`;
+                label.textContent = `${window.generationLiaisonTranslate({ resident: 'Résident', caregiver: 'Soignant', intervenant: 'Intervenant' }[contact.category])} · ${contact.name} · ${contact.phone || '—'} · ${contact.email || '—'}`;
                 const edit = document.createElement('button');
                 edit.type = 'button';
-                edit.textContent = 'Modifier';
+                edit.textContent = window.generationLiaisonTranslate('Modifier');
                 edit.disabled = !establishmentContactsEditable;
                 edit.addEventListener('click', () => {
                     establishmentContactId = contact.id;
@@ -11383,7 +11388,7 @@
                 });
                 const remove = document.createElement('button');
                 remove.type = 'button';
-                remove.textContent = 'Supprimer';
+                remove.textContent = window.generationLiaisonTranslate('Supprimer');
                 remove.disabled = !establishmentContactsEditable;
                 remove.addEventListener('click', async () => {
                     if (!confirm('Supprimer ces coordonnées ?')) return;
@@ -11398,7 +11403,7 @@
                             await chargerTableauEtablissement();
                         }
                     } catch (error) {
-                        if (connectedUser?.id === userId) status.textContent = error.message || 'Suppression impossible.';
+                        if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Suppression impossible.');
                         remove.disabled = false;
                     }
                 });
@@ -11406,7 +11411,7 @@
                 list.append(item);
             }
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Chargement impossible.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Chargement impossible.');
         }
     }
 
@@ -11426,8 +11431,8 @@
         document.getElementById('establishment-residents-list').replaceChildren();
         document.getElementById('establishment-contacts-list').replaceChildren();
         reinitialiserContactEtablissement();
-        status.textContent = 'Chargement…';
-        document.getElementById('establishment-subscription-status').textContent = 'Chargement de l’abonnement…';
+        status.textContent = window.generationLiaisonTranslate('Chargement…');
+        document.getElementById('establishment-subscription-status').textContent = window.generationLiaisonTranslate('Chargement de l’abonnement…');
         try {
             const result = await readResponse(await fetch(`${SERVER_URL}/api/establishment`, { headers: authHeaders() }));
             if (connectedUser?.id !== userId) return;
@@ -11445,7 +11450,7 @@
             document.getElementById('establishment-staff-form').querySelectorAll('input, button')
                 .forEach(element => { element.disabled = !result.active; });
             const count = result.userCount === null ? 'Nombre de personnes non renseigné.' : `Nombre de personnes déclaré par l’administration : ${result.userCount}.`;
-            status.textContent = `${result.active ? 'Abonnement actif.' : 'Abonnement inactif : consultez votre fiche ou contactez l’administration pour la modifier.'} ${count}`;
+            status.textContent = `${window.generationLiaisonTranslate(result.active ? 'Abonnement actif.' : 'Abonnement inactif : consultez votre fiche ou contactez l’administration pour la modifier.')} ${count}`;
             document.getElementById('establishment-subscription-status').textContent = status.textContent;
             await chargerContactsEtablissement();
             await chargerResidentsEtablissement();
@@ -11453,7 +11458,7 @@
             await chargerSoignantsEtablissement();
         } catch (error) {
             if (connectedUser?.id === userId) {
-                status.textContent = error.message || 'Impossible de charger la fiche.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger la fiche.');
                 document.getElementById('establishment-subscription-status').textContent = status.textContent;
             }
         }
@@ -11475,9 +11480,9 @@
                 method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
                 body: JSON.stringify(body)
             }));
-            if (connectedUser?.id === userId) status.textContent = 'Fiche enregistrée.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslate('Fiche enregistrée.');
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Impossible d’enregistrer la fiche.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer la fiche.');
         } finally {
             button.disabled = false;
         }
@@ -11503,10 +11508,10 @@
             event.currentTarget.reset();
             if (connectedUser?.id === userId) {
                 await chargerResidentsEtablissement();
-                status.textContent = `Accès créé. Identifiant à remettre au résident : ${result.identifier}.`;
+                status.textContent = window.generationLiaisonTranslate('Accès créé. Identifiant à remettre au résident : {identifier}.').replace('{identifier}', result.identifier);
             }
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Création impossible.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Création impossible.');
         } finally {
             button.disabled = !establishmentContactsEditable;
         }
@@ -11532,7 +11537,7 @@
                 await chargerTableauEtablissement();
             }
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Enregistrement impossible.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Enregistrement impossible.');
         } finally {
             button.disabled = !establishmentContactsEditable;
         }
@@ -11551,7 +11556,7 @@
             }));
             await deconnecterUtilisateur({ sessionAlreadyRevoked: true, successMessage: 'Demande de clôture enregistrée.' });
         } catch (error) {
-            status.textContent = error.message || 'Impossible de demander la clôture.';
+            status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de demander la clôture.');
         } finally {
             button.disabled = false;
         }
@@ -11581,11 +11586,11 @@
         link.value = new URL('/app-mobile.html#connexion-etablissement', SERVER_URL).toString();
         try {
             await navigator.clipboard.writeText(link.value);
-            status.textContent = 'Lien copié. Transmettez-le à la personne concernée.';
+            status.textContent = window.generationLiaisonTranslate('Lien copié. Transmettez-le à la personne concernée.');
         } catch (error) {
             link.focus();
             link.select();
-            status.textContent = 'Copie automatique impossible : copiez le lien sélectionné.';
+            status.textContent = window.generationLiaisonTranslate('Copie automatique impossible : copiez le lien sélectionné.');
         }
     }
 
@@ -11617,7 +11622,7 @@
                     headers: { ...headers, 'Content-Type': 'application/json' },
                     body: JSON.stringify(registeredPush)
                 });
-                if (!response.ok) throw new Error('Le serveur n’a pas confirmé la désactivation des notifications push.');
+                if (!response.ok) throw new Error(window.generationLiaisonTranslate('Le serveur n’a pas confirmé la désactivation des notifications push.'));
                 localStorage.removeItem(PUSH_TOKEN_KEY);
             } catch (error) {
                 console.error('Désactivation des notifications push impossible :', error);
@@ -11713,7 +11718,7 @@
         directoryLocation = null;
         document.getElementById('directory-location-button').checked = false;
         document.getElementById('directory-location-status').textContent =
-            'La recherche nationale fonctionne sans position.';
+            window.generationLiaisonTranslate('La recherche nationale fonctionne sans position.');
         ['senior', 'aidant', 'pro'].forEach(role => {
             document.getElementById(`notifications-panel-${role}`).style.display = 'none';
             document.getElementById(`notification-settings-${role}`).style.display = 'none';
@@ -11741,7 +11746,7 @@
         if (headers.Authorization && !sessionAlreadyRevoked) {
             try {
                 const response = await fetch(`${SERVER_URL}/api/auth/logout`, { method: 'POST', headers });
-                if (!response.ok) throw new Error('Le serveur n’a pas confirmé la fermeture de session.');
+                if (!response.ok) throw new Error(window.generationLiaisonTranslate('Le serveur n’a pas confirmé la fermeture de session.'));
             } catch (error) {
                 console.error('Révocation de session impossible :', error);
                 revocationFailed = true;
@@ -11828,7 +11833,7 @@
         professionalHomeCoordinates = null;
         recipientHomeCoordinates = null;
         document.getElementById('contact-location-consent').checked = false;
-        document.getElementById('contact-home-location-status').textContent = 'Position GPS non relevée.';
+        document.getElementById('contact-home-location-status').textContent = window.generationLiaisonTranslate('Position GPS non relevée.');
         afficherChampsInscriptionProfessionnel();
         basculerFormulaire(false);
         showToast(
@@ -11854,7 +11859,7 @@
             await requestSession('/api/auth/login', { email, password });
             showToast('Connexion réussie');
         } catch (error) {
-            showToast(error.message || 'Connexion impossible. Vérifiez le serveur.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Connexion impossible. Vérifiez le serveur.'), false, false);
         }
     }
 
@@ -11918,7 +11923,7 @@
             try {
                 verifierPhotoProfil(accountPhoto);
             } catch (error) {
-                showToast(error.message, false);
+                showToast(window.generationLiaisonTranslateError(error.message), false, false);
                 return;
             }
         }
@@ -12005,7 +12010,7 @@
                         return;
                     }
                 } catch (error) {
-                    showToast(`${window.generationLiaisonTranslate('Compte créé, mais la photo n’a pas été enregistrée.')} ${error.message}`, false);
+                    showToast(`${window.generationLiaisonTranslate('Compte créé, mais la photo n’a pas été enregistrée.')} ${window.generationLiaisonTranslateError(error.message)}`, false, false);
                     return;
                 }
             }
@@ -12016,8 +12021,8 @@
             showToast((connectedUser?.role === 'pro' && connectedUser.verificationStatus !== 'approved') ||
                 (connectedUser?.role === 'aidant' && connectedUser.isLegalGuardian &&
                     connectedUser.guardianVerificationStatus !== 'approved')
-                ? `Compte créé, mais justificatifs à envoyer : ${error.message}`
-                : error.message || 'Création du compte impossible.', false);
+                ? `${window.generationLiaisonTranslate('Compte créé, mais justificatifs à envoyer :')} ${window.generationLiaisonTranslateError(error.message)}`
+                : window.generationLiaisonTranslateError(error.message, 'Création du compte impossible.'), false, false);
         }
     }
 
@@ -12049,23 +12054,23 @@
         familyAlbumUrls.forEach(url => URL.revokeObjectURL(url));
         familyAlbumUrls = [];
         list.replaceChildren();
-        status.textContent = 'Chargement des photos…';
+        status.textContent = window.generationLiaisonTranslate('Chargement des photos…');
         try {
             const result = await planningRequest('/api/family-album');
             if (!current()) return;
-            status.textContent = result.photos.length ? '' : 'Aucune photo pour le moment.';
+            status.textContent = result.photos.length ? '' : window.generationLiaisonTranslate('Aucune photo pour le moment.');
             for (const photo of result.photos) {
                 const card = document.createElement('div');
                 card.className = 'progress-item';
-                card.append(makeTextElement('p', `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)}${photo.approved ? '' : ' · En attente de votre accord'}`));
+                card.append(makeTextElement('p', `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)}${photo.approved ? '' : ` · ${window.generationLiaisonTranslate('En attente de votre accord')}`}`));
                 if (!photo.approved && role === 'aidant') card.firstChild.textContent =
-                    `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)} · En attente de l’accord de la personne accompagnée`;
+                    `${auteurAvecRole(photo.authorRole, photo.authorName)} · ${formatDateTime(photo.createdAt)} · ${window.generationLiaisonTranslate('En attente de l’accord de la personne accompagnée')}`;
                 const image = document.createElement('img');
-                image.alt = `Photo partagée par ${photo.authorName}`;
+                image.alt = window.generationLiaisonTranslate('Photo partagée par {name}').replace('{name}', photo.authorName);
                 image.style.cssText = 'max-width:100%;max-height:300px;object-fit:contain;';
                 card.append(image);
                 if (role === 'senior' && !photo.approved) {
-                    const approve = makeTextElement('button', 'Accepter et partager');
+                    const approve = makeTextElement('button', window.generationLiaisonTranslate('Accepter et partager'));
                     approve.type = 'button';
                     approve.addEventListener('click', async () => {
                         approve.disabled = true;
@@ -12073,13 +12078,13 @@
                             await planningRequest(`/api/family-album/${encodeURIComponent(photo.id)}/approve`, { method: 'POST' });
                             if (current()) await chargerAlbumFamilial(role);
                         } catch (error) {
-                            if (current()) { status.textContent = error.message; approve.disabled = false; }
+                            if (current()) { status.textContent = window.generationLiaisonTranslateError(error.message); approve.disabled = false; }
                         }
                     });
                     card.append(approve);
                 }
                 if (role === 'senior' || photo.authorId === userId) {
-                    const remove = makeTextElement('button', 'Supprimer');
+                    const remove = makeTextElement('button', window.generationLiaisonTranslate('Supprimer'));
                     remove.type = 'button';
                     remove.addEventListener('click', async () => {
                         if (!window.confirm('Supprimer cette photo de l’album ?')) return;
@@ -12088,7 +12093,7 @@
                             await planningRequest(`/api/family-album/${encodeURIComponent(photo.id)}`, { method: 'DELETE' });
                             if (current()) await chargerAlbumFamilial(role);
                         } catch (error) {
-                            if (current()) { status.textContent = error.message; remove.disabled = false; }
+                            if (current()) { status.textContent = window.generationLiaisonTranslateError(error.message); remove.disabled = false; }
                         }
                     });
                     card.append(remove);
@@ -12097,7 +12102,7 @@
                 const response = await fetch(`${SERVER_URL}/api/family-album/${encodeURIComponent(photo.id)}/photo`, {
                     headers: authHeaders(), cache: 'no-store'
                 });
-                if (!response.ok) throw new Error('Impossible de charger une photo de l’album.');
+                if (!response.ok) throw new Error(window.generationLiaisonTranslate('Impossible de charger une photo de l’album.'));
                 const blob = await response.blob();
                 if (!current()) return;
                 const url = URL.createObjectURL(blob);
@@ -12105,7 +12110,7 @@
                 image.src = url;
             }
         } catch (error) {
-            if (current()) status.textContent = error.message || 'Impossible de charger l’album.';
+            if (current()) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger l’album.');
         }
     }
 
@@ -12114,10 +12119,10 @@
             : role === 2 || role === '2' ? 'aidant'
                 : role === 1 || role === '1' ? 'senior'
                     : role;
-        const author = roleId === 'pro' ? '🩺 Soignant'
+        const author = window.generationLiaisonTranslate(roleId === 'pro' ? '🩺 Soignant'
             : roleId === 'aidant' ? '👨‍👩‍👧‍👦 Famille'
                 : roleId === 'senior' ? '🧑 Personne accompagnée'
-                    : '👤 Participant';
+                    : '👤 Participant');
         return name ? `${author} · ${name}` : author;
     }
 
@@ -12127,7 +12132,7 @@
         const userId = connectedUser.id;
         const seniorId = role === 'aidant' ? activeSeniorProfileId : connectedUser.seniorId;
         const container = document.getElementById(`${role}-journal-list`);
-        container.textContent = 'Chargement du journal…';
+        container.textContent = window.generationLiaisonTranslate('Chargement du journal…');
         const [logs, following] = await Promise.allSettled([
             planningRequest('/api/logs/all'), planningRequest('/api/planning/following')
         ]);
@@ -12168,10 +12173,10 @@
                     makeTextElement('span', `${entry.author} · ${entry.text}`));
                 container.append(item);
             });
-            if (logs.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les nouvelles.', 'helper-text'));
-            if (following.status === 'rejected') container.append(makeTextElement('p', 'Impossible de charger les interventions.', 'helper-text'));
+            if (logs.status === 'rejected') container.append(makeTextElement('p', window.generationLiaisonTranslate('Impossible de charger les nouvelles.'), 'helper-text'));
+            if (following.status === 'rejected') container.append(makeTextElement('p', window.generationLiaisonTranslate('Impossible de charger les interventions.'), 'helper-text'));
             if (!entries.length && logs.status === 'fulfilled' && following.status === 'fulfilled' && lastPage.length < 100) {
-                container.append(makeTextElement('p', 'Aucune nouvelle pour le moment.', 'helper-text'));
+                container.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune nouvelle pour le moment.'), 'helper-text'));
             }
             if (pageError) container.append(makeTextElement('p', window.generationLiaisonTranslate(pageError), 'helper-text'));
             if (lastPage.length === 100) {
@@ -12225,7 +12230,7 @@
         const status = document.getElementById(`${role}-weekly-status`);
         const preview = document.getElementById(`${role}-weekly-preview`);
         button.disabled = true;
-        status.textContent = 'Préparation de la gazette…';
+        status.textContent = window.generationLiaisonTranslate('Préparation de la gazette…');
         try {
             const [weekly, album] = await Promise.all([
                 planningRequest('/api/logs/weekly-family'), planningRequest('/api/family-album')
@@ -12237,10 +12242,10 @@
             const notes = weekly.notes.filter(log => log.log_type === 'family_note' && inWeek(log.created_at));
             const photos = album.photos.filter(photo => photo.approved && inWeek(photo.createdAt));
             const content = document.createElement('div');
-            content.append(makeTextElement('h2', 'Gazette de la semaine'),
+            content.append(makeTextElement('h2', window.generationLiaisonTranslate('Gazette de la semaine')),
                 makeTextElement('p', `Du ${start} au ${end} inclus (heure de Paris).`));
-            content.append(makeTextElement('h3', 'Nouvelles familiales'));
-            if (!notes.length) content.append(makeTextElement('p', 'Aucune nouvelle familiale cette semaine.'));
+            content.append(makeTextElement('h3', window.generationLiaisonTranslate('Nouvelles familiales')));
+            if (!notes.length) content.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune nouvelle familiale cette semaine.')));
             for (const note of notes) {
                 const item = document.createElement('article');
                 item.append(makeTextElement('strong', `${formatDateTime(note.created_at)} · ${auteurAvecRole(note.author_id, note.author_name)}`),
@@ -12248,15 +12253,15 @@
                 content.append(item);
             }
             if (weekly.truncated) content.append(makeTextElement('p',
-                'Seules les 1 000 nouvelles familiales les plus récentes ont été incluses : la gazette peut être incomplète.'));
-            content.append(makeTextElement('h3', 'Photos partagées'));
-            if (!photos.length) content.append(makeTextElement('p', 'Aucune photo acceptée cette semaine.'));
+                window.generationLiaisonTranslate('Seules les 1 000 nouvelles familiales les plus récentes ont été incluses : la gazette peut être incomplète.')));
+            content.append(makeTextElement('h3', window.generationLiaisonTranslate('Photos partagées')));
+            if (!photos.length) content.append(makeTextElement('p', window.generationLiaisonTranslate('Aucune photo acceptée cette semaine.')));
             for (const photo of photos) {
                 if (!current()) return;
                 const response = await fetch(`${SERVER_URL}/api/family-album/${encodeURIComponent(photo.id)}/photo`, {
                     headers: authHeaders(), cache: 'no-store'
                 });
-                if (!response.ok) throw new Error('Impossible de charger une photo pour la gazette.');
+                if (!response.ok) throw new Error(window.generationLiaisonTranslate('Impossible de charger une photo pour la gazette.'));
                 const blob = await response.blob();
                 if (!current()) return;
                 const url = URL.createObjectURL(blob);
@@ -12275,13 +12280,13 @@
             if (!current()) return;
             preview.replaceChildren(content);
             document.getElementById(`${role}-weekly-print`).hidden = false;
-            status.textContent = 'Gazette prête. Vérifiez son contenu avant impression.';
+            status.textContent = window.generationLiaisonTranslate('Gazette prête. Vérifiez son contenu avant impression.');
         } catch (error) {
             if (current()) {
                 weeklyGazetteUrls.forEach(url => URL.revokeObjectURL(url));
                 weeklyGazetteUrls = [];
                 preview.replaceChildren();
-                status.textContent = error.message || 'Impossible de préparer la gazette.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de préparer la gazette.');
             }
         } finally {
             if (current()) button.disabled = false;
@@ -12294,7 +12299,7 @@
         if (!preview.firstElementChild) return;
         const status = document.getElementById(`${role}-weekly-status`);
         if (typeof window.print !== 'function') {
-            status.textContent = 'L’impression n’est pas disponible sur cet appareil.';
+            status.textContent = window.generationLiaisonTranslate('L’impression n’est pas disponible sur cet appareil.');
             return;
         }
         document.getElementById('weekly-print-root').replaceChildren(preview.firstElementChild.cloneNode(true));
@@ -12304,7 +12309,7 @@
         } catch (error) {
             document.body.classList.remove('gazette-printing');
             document.getElementById('weekly-print-root').replaceChildren();
-            status.textContent = 'Impossible d’ouvrir l’impression.';
+            status.textContent = window.generationLiaisonTranslate('Impossible d’ouvrir l’impression.');
         }
     }
 
@@ -12342,10 +12347,10 @@
                     event.target.reset();
                     await chargerAlbumFamilial(role);
                     if (connectedUser?.id === userId && (role !== 'aidant' || activeSeniorProfileId === seniorId)) {
-                        status.textContent = role === 'senior' ? 'Photo partagée.' : 'Photo proposée au senior.';
+                        status.textContent = window.generationLiaisonTranslate(role === 'senior' ? 'Photo partagée.' : 'Photo proposée au senior.');
                     }
                 } catch (error) {
-                    if (revision === familyAlbumRevision) status.textContent = error.message || 'Impossible d’ajouter la photo.';
+                    if (revision === familyAlbumRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’ajouter la photo.');
                 } finally {
                     button.disabled = false;
                 }
@@ -12359,7 +12364,7 @@
         const userId = connectedUser?.id;
         const seniorId = activeSeniorProfileId;
         const current = () => revision === logsLoadId && connectedUser?.id === userId && activeSeniorProfileId === seniorId;
-        logsList.innerHTML = 'Chargement du journal...';
+        logsList.textContent = window.generationLiaisonTranslate('Chargement du journal...');
 
         fetch(`${SERVER_URL}/api/logs/all`, { headers: authHeaders() })
             .then(response => {
@@ -12369,7 +12374,7 @@
             .then(logs => {
                 if (!current()) return;
                 if (!Array.isArray(logs) || logs.length === 0) {
-                    logsList.textContent = 'Aucun événement pour le moment.';
+                    logsList.textContent = window.generationLiaisonTranslate('Aucun événement pour le moment.');
                     return;
                 }
 
@@ -12395,7 +12400,7 @@
             .catch(error => {
                 if (!current()) return;
                 console.error('Chargement du carnet impossible :', error);
-                logsList.textContent = error.message || 'Erreur de connexion au serveur.';
+                logsList.textContent = window.generationLiaisonTranslateError(error.message, 'Erreur de connexion au serveur.');
             });
     }
 
@@ -12409,11 +12414,11 @@
             })
         })
             .then(response => {
-                if (!response.ok) throw new Error('Impossible d’enregistrer cette action.');
+                if (!response.ok) throw new Error(window.generationLiaisonTranslate('Impossible d’enregistrer cette action.'));
                 return response.json();
             })
             .then(() => showToast('Action enregistrée'))
-            .catch(error => showToast(error.message, false));
+            .catch(error => showToast(window.generationLiaisonTranslateError(error.message), false, false));
     }
 
     function actionAidant(message, logType = 'family_note') {
@@ -12426,14 +12431,14 @@
             })
         })
             .then(response => {
-                if (!response.ok) throw new Error('Impossible d’enregistrer cette commande.');
+                if (!response.ok) throw new Error(window.generationLiaisonTranslate('Impossible d’enregistrer cette commande.'));
                 return response.json();
             })
             .then(() => {
                 showToast('Commande envoyée');
                 chargerLogs();
             })
-            .catch(error => showToast(error.message, false));
+            .catch(error => showToast(window.generationLiaisonTranslateError(error.message), false, false));
     }
 
     function declencherVisio() {
@@ -12442,7 +12447,7 @@
             headers: authHeaders()
         })
             .then(response => {
-                if (!response.ok) throw new Error('Impossible de créer l’appel vidéo.');
+                if (!response.ok) throw new Error(window.generationLiaisonTranslate('Impossible de créer l’appel vidéo.'));
                 return response.json();
             })
             .then(data => {
@@ -12450,10 +12455,10 @@
                     window.open(data.url, '_blank');
                     showToast('Appel vidéo lancé');
                 } else {
-                    throw new Error('Lien absent');
+                    throw new Error(window.generationLiaisonTranslate('Lien absent'));
                 }
             })
-            .catch(error => showToast(error.message, false));
+            .catch(error => showToast(window.generationLiaisonTranslateError(error.message), false, false));
     }
 
     document.getElementById('aidant-task-reminders').addEventListener('toggle', async event => {
@@ -12473,7 +12478,7 @@
             save.disabled = false;
             status.textContent = '';
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Impossible de charger les rappels de tâches.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les rappels de tâches.');
         }
     });
 
@@ -12494,7 +12499,7 @@
             checkbox.checked = result.enabled;
             status.textContent = window.generationLiaisonTranslate('Choix des rappels enregistré.');
         } catch (error) {
-            if (connectedUser?.id === userId) status.textContent = error.message || 'Impossible de modifier les rappels de tâches.';
+            if (connectedUser?.id === userId) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de modifier les rappels de tâches.');
         } finally {
             if (connectedUser?.id === userId) {
                 checkbox.disabled = false;
@@ -12604,7 +12609,7 @@
                 url.searchParams.delete('notification');
                 window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
             } catch (error) {
-                showToast(error.message || 'Impossible de confirmer l’ouverture de la notification.', false);
+                showToast(window.generationLiaisonTranslateError(error.message, 'Impossible de confirmer l’ouverture de la notification.'), false, false);
             }
         };
         window.addEventListener('generation-notification-opened', () => window.handlePendingNotification());
@@ -12647,10 +12652,10 @@
             try {
                 await seniorLinksRequest('/api/contacts', { method: 'POST', body: { email: email.value.trim() } });
                 email.value = '';
-                status.textContent = 'Contact ajouté.';
+                status.textContent = window.generationLiaisonTranslate('Contact ajouté.');
                 await chargerContacts();
             } catch (error) {
-                status.textContent = error.message || 'Impossible d’ajouter ce contact.';
+                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’ajouter ce contact.');
             } finally {
                 button.disabled = false;
             }
@@ -12792,7 +12797,7 @@
                 localStorage.removeItem(SESSION_KEY);
                 afficherConnexionInitiale();
             }
-            showToast(error.message || 'Serveur inaccessible. Réessayez.', false);
+            showToast(window.generationLiaisonTranslateError(error.message, 'Serveur inaccessible. Réessayez.'), false, false);
         }
     }
 

@@ -32,6 +32,7 @@ function setup(initialLanguage = 'fr', texts = ['Date de naissance', 'Chargement
   };
   let ready;
   const document = {
+    title: 'Génération Liaison : carnet de liaison pour tous',
     documentElement: {},
     body: { insertBefore() {}, querySelectorAll: () => [field] },
     head: { append() {} },
@@ -69,7 +70,7 @@ test('static text and labels translate and return to French', () => {
   assert.equal(app.window.generationLiaisonTranslate('Choisissez votre mot de passe personnel'), 'Choose your personal password');
   assert.equal(app.window.generationLiaisonTranslate('Pour activer un compte créé par l’administration, j’accepte les'), 'To activate an account created by the administration, I accept the');
   assert.equal(app.window.generationLiaisonTranslate(' et la '), ' and the ');
-  assert.equal(app.window.generationLiaisonTranslate('Les conditions et la politique de confidentialité sont actuellement en français.'), 'The terms and privacy policy are currently in French.');
+  assert.equal(app.window.generationLiaisonTranslate('Les versions françaises des conditions et de la politique de confidentialité restent disponibles ; leurs traductions anglaises sont provisoires.'), 'The French versions of the terms and privacy policy remain available; their English translations are provisional.');
   assert.match(app.window.generationLiaisonTranslate('Le Kbis est un justificatif français. Pour une activité à l’étranger, contactez l’équipe avant l’inscription.'), /contact the team before registering/);
   assert.match(app.window.generationLiaisonTranslate('Dites : « Je confirme l’appel d’urgence ». Aucun composeur ne sera ouvert si la phrase n’est pas reconnue.'), /Say in French/);
   assert.match(app.window.generationLiaisonTranslate('Vous avez indiqué avoir besoin d’aide. En France, choisissez le 112 ou, en cas d’incendie, le 18. Dans un autre pays, contactez les secours locaux. Une seconde confirmation sera demandée avant l’alerte aux aidants et l’ouverture du composeur.'), /In another country, contact local emergency services/);
@@ -94,6 +95,124 @@ test('profile, journal and sudoku labels translate in both directions', () => {
   app.window.generationLiaisonSetLanguage('fr');
   assert.equal(app.nodes[0].textContent, 'Texte');
   assert.equal(app.window.generationLiaisonTranslate('Grille de sudoku'), 'Grille de sudoku');
+});
+
+test('homepage, administration and game labels translate without overwriting changed titles', () => {
+  const app = setup('en', [
+    'Contactez l’équipe à ',
+    '. Pour en savoir plus sur vos données, consultez la ',
+    'Un espace pour la direction'
+  ]);
+  assert.equal(app.document.title, 'Génération Liaison: a shared journal for everyone');
+  assert.deepEqual(app.nodes.map(node => node.textContent), [
+    'Contact the team at ', '. To learn more about your data, see the ', 'A workspace for management'
+  ]);
+  for (const [french, english] of [
+    ['Rubriques de l’administration', 'Administration sections'],
+    ['Une personne âgée entourée de ses proches.', 'An older person surrounded by family.'],
+    ['Ligne 3, colonne 2 : vide', 'Row 3, column 2: empty'],
+    ['Carte 8 : cachée', 'Card 8: hidden']
+  ]) assert.equal(app.window.generationLiaisonTranslate(french), english);
+  app.document.title = 'Titre modifié par la page';
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(app.document.title, 'Titre modifié par la page');
+  assert.equal(app.nodes[2].textContent, 'Un espace pour la direction');
+});
+
+test('admin error display preserves unknown server details after translating known errors', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'admin.html'), 'utf8');
+  const start = page.indexOf('    function setStatus(message, isError = false, translate = true)');
+  const end = page.indexOf("    document.getElementById('login-form')", start);
+  assert.ok(start >= 0 && end > start);
+  const app = setup('en');
+  const status = { textContent: '', style: {} };
+  const context = { window: app.window, document: { getElementById: () => status } };
+  vm.runInNewContext(page.slice(start, end), context);
+  const known = new Error('Votre session a expiré. Reconnectez-vous.');
+  context.setStatus(app.window.generationLiaisonTranslateError(known.message), true, false);
+  assert.equal(status.textContent, 'Your session has expired. Sign in again.');
+  assert.equal(known.message, 'Votre session a expiré. Reconnectez-vous.');
+  const unknown = new Error('Votre réponse');
+  context.setStatus(app.window.generationLiaisonTranslateError(unknown.message), true, false);
+  assert.equal(status.textContent, 'Votre réponse');
+});
+
+test('English task loading errors translate the fallback but preserve server details', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const start = page.indexOf('    async function chargerTachesPartagees(role)');
+  const end = page.indexOf('    async function modifierTachePartagee(', start);
+  assert.ok(start >= 0 && end > start);
+  const app = setup('en');
+  const status = { textContent: '' };
+  const list = { replaceChildren() {} };
+  let failure = new Error('');
+  const context = {
+    window: app.window,
+    document: { getElementById: id => id.endsWith('-status') ? status : list },
+    planningRequest: async () => { throw failure; }
+  };
+  vm.runInNewContext(`let sharedTasksLoadId = 0; ${page.slice(start, end)}`, context);
+  await context.chargerTachesPartagees('aidant');
+  assert.equal(status.textContent, 'Unable to load tasks.');
+  failure = new Error('Détail du serveur');
+  await context.chargerTachesPartagees('aidant');
+  assert.equal(status.textContent, 'Détail du serveur');
+});
+
+test('professional verification status and required documents are displayed in English', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const start = page.indexOf('    async function chargerProfessionalVerificationDocuments()');
+  const end = page.indexOf('    async function envoyerJustificatifsProfessionnels(', start);
+  assert.ok(start >= 0 && end > start);
+  const app = setup('en');
+  const status = { textContent: '' }, message = { textContent: '' };
+  let verificationStatus = 'pending';
+  let failure;
+  const context = {
+    window: app.window,
+    document: { getElementById: id => id.endsWith('-status') ? status : message },
+    planningRequest: async () => {
+      if (failure) throw failure;
+      return { documents: [{ type: 'identity' }], verificationStatus };
+    }
+  };
+  vm.runInNewContext(`let verificationDocumentsLoadId = 0; ${page.slice(start, end)}`, context);
+  await context.chargerProfessionalVerificationDocuments();
+  assert.equal(status.textContent, 'Documents received: identity ✓ · Kbis required.');
+  assert.match(message.textContent, /awaiting manual verification/);
+  verificationStatus = 'rejected';
+  await context.chargerProfessionalVerificationDocuments();
+  assert.match(message.textContent, /needs more information/);
+  failure = new Error('Votre session a expiré. Reconnectez-vous.');
+  await context.chargerProfessionalVerificationDocuments();
+  assert.equal(status.textContent, 'Your session has expired. Sign in again.');
+  assert.equal(failure.message, 'Votre session a expiré. Reconnectez-vous.');
+  failure = new Error('Votre réponse');
+  await context.chargerProfessionalVerificationDocuments();
+  assert.equal(status.textContent, 'Votre réponse');
+  app.window.generationLiaisonSetLanguage('fr');
+  failure = new Error('Votre session a expiré. Reconnectez-vous.');
+  await context.chargerProfessionalVerificationDocuments();
+  assert.equal(status.textContent, failure.message);
+});
+
+test('professional document validation translates without modifying selected files', async () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const start = page.indexOf('    async function envoyerJustificatifsProfessionnels(');
+  const end = page.indexOf('    async function chargerLegalGuardianDocuments()', start);
+  assert.ok(start >= 0 && end > start);
+  const app = setup('en');
+  const context = { window: app.window };
+  vm.runInNewContext(page.slice(start, end), context);
+  const file = { type: 'text/plain', size: 10 };
+  const input = { files: [file], value: 'unchanged' };
+  const container = { querySelectorAll: () => [input] };
+  await assert.rejects(context.envoyerJustificatifsProfessionnels(container, true), /identity document and Kbis/);
+  await assert.rejects(context.envoyerJustificatifsProfessionnels(container), /PDF, JPEG, or PNG/);
+  assert.equal(input.files[0], file);
+  assert.equal(input.value, 'unchanged');
+  app.window.generationLiaisonSetLanguage('fr');
+  await assert.rejects(context.envoyerJustificatifsProfessionnels(container, true), /pièce d’identité et le Kbis/);
 });
 
 test('notification settings switch language without reloading or replacing edited values', async () => {
@@ -197,7 +316,7 @@ test('notification availability and permission failures are clear in English', a
 
 test('account activation identifies the language of its legal documents', () => {
   const resetPage = fs.readFileSync(path.join(__dirname, '..', 'reset-password.html'), 'utf8');
-  assert.match(resetPage, /<form id="reset-form"[^>]*>[\s\S]*Les conditions et la politique de confidentialité sont actuellement en français\.[\s\S]*<\/form>/);
+  assert.match(resetPage, /<form id="reset-form"[^>]*>[\s\S]*leurs traductions anglaises sont provisoires\.[\s\S]*<\/form>/);
 });
 
 test('the Android installation guide translates its security warning', () => {
@@ -1022,6 +1141,7 @@ test('professional planning reset clears personal data and rejects old service r
   let resolveRequest;
   const context = {
     connectedUser: { id: 'alice', role: 'pro' }, planningLoadId: 0, servicePlanningLoadId: 0,
+    window: { generationLiaisonTranslate: value => value },
     recipientLocationRevision: 0, professionalLocationRevision: 0, professionalSessionRevision: 0,
     recipientHomeCoordinates: { latitude: 48, longitude: 2 }, professionalHomeCoordinates: { latitude: 48, longitude: 2 },
     planningState: { members: ['Private information'], recipients: ['Private information'], servicePartners: [] },
@@ -1097,7 +1217,7 @@ test('professional visit drafts survive refresh and are removed if the visit is 
   let failure = null;
   const context = {
     connectedUser: { id: 'professional', role: 'pro' }, planningLoadId: 0,
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: { getElementById: element, createElement: makeElement, createTextNode: text => ({ text }) },
     planningRequest: async () => { if (failure) throw failure; return { visits }; },
     updatePlanningDateTitle() {}, afficherJournalIntervenant() {}, ajouterDistanceAuRendezVous() {},
@@ -1164,6 +1284,7 @@ test('shared visit tracking discards stale account, profile and refresh results'
   const context = {
     connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first',
     sharedFollowingRevision: 0, sharedFollowingLoadId: 0, consentLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: element },
     planningRequest: () => new Promise((resolve, reject) => pending.push({ resolve, reject })),
     makeTextElement: (tag, text) => ({ textContent: text })
@@ -1293,6 +1414,7 @@ test('consent refresh retains only an authorized team and ignores previous-sessi
   const pending = [];
   const context = {
     connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first', consentLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
     document: { getElementById: element, createElement: makeElement },
     Option: function(text, value) { this.text = text; this.value = value; },
     makeTextElement: (tag, text) => ({ textContent: text }),
@@ -1389,6 +1511,7 @@ test('a late transmission save does not notify or reload the next session', asyn
   const effects = [];
   const context = {
     professionalSessionRevision: 0, document: { createElement: makeElement },
+    window: { generationLiaisonTranslate: value => value },
     Option: function(text, value) { this.text = text; this.value = value; },
     makeTextElement: (tag, text) => Object.assign(makeElement(tag), { textContent: text }),
     planningRequest: () => new Promise(resolve => { resolveRequest = resolve; }),
@@ -1466,7 +1589,7 @@ test('visit evaluation drafts survive refreshes and edits made while saving', as
   const context = {
     sharedFollowingRevision: 0, sharedFollowingLoadId: 0,
     connectedUser: { id: 'alice', role: 'aidant' }, activeSeniorProfileId: 'first',
-    window: { generationLiaisonTranslate: text => text },
+    window: { generationLiaisonTranslate: text => text, generationLiaisonTranslateError: (message, fallback) => message || fallback },
     document: { createElement: makeElement, getElementById: () => container },
     makeTextElement: (tag, text) => Object.assign(makeElement(tag), { textContent: text }),
     planningRequest: url => new Promise((resolve, reject) => requests.push({ url, resolve, reject })),
@@ -1551,6 +1674,7 @@ test('outdated coordinator responses cannot repopulate private team information'
   let populateCount = 0;
   const context = {
     connectedUser: { id: 'alice', role: 'pro', isCoordinator: true }, planningLoadId: 0,
+    window: { generationLiaisonTranslate: text => text },
     planningState: { members: [] }, document: { getElementById: element },
     planningRequest: async url => url.includes('/today?')
       ? { visits: [] } : new Promise(resolve => { resolveCoordinator = resolve; }),
@@ -2610,4 +2734,125 @@ test('switching languages does not replace content or attributes updated by the 
   app.window.generationLiaisonSetLanguage('fr');
   assert.equal(app.nodes[1].textContent, 'Message envoyé.');
   assert.equal(app.attributes.get('aria-label'), 'Destinataire choisi');
+});
+
+test('visit progress translates labels without changing personal notes', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const app = setup('en');
+  const element = () => ({
+    children: [], append(...children) { this.children.push(...children); }
+  });
+
+  const context = {
+    window: app.window,
+    document: { createElement: element },
+    formatDateTime: value => value
+  };
+  const start = page.indexOf('    function stageLabel(stage)');
+  const end = page.indexOf('    function ', page.indexOf('    function renderVisitProgress(', start) + 10);
+  assert.ok(start >= 0 && end > start);
+  vm.runInNewContext(page.slice(start, end), context);
+  const container = element();
+  const note = 'Votre réponse : Marie';
+  context.renderVisitProgress(container, [{ type: 'arrived', createdAt: '10:00', note }]);
+  assert.equal(container.children[0].children[0].textContent, 'Arrival reported · 10:00');
+  assert.equal(container.children[0].children[2].textContent, note);
+  assert.match(app.window.generationLiaisonTranslate('Cette note est visible des aidants autorisés. N’indiquez aucune donnée personnelle ou de santé.'), /Do not include any personal or health information/);
+  assert.match(app.window.generationLiaisonTranslate(' Partager cette note avec mes collègues autorisés. Je confirme qu’elle ne contient aucune donnée personnelle ou de santé.'), /^ Share this note/);
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(context.stageLabel('arrived'), 'Arrivée signalée');
+  assert.equal(container.children[0].children[2].textContent, note);
+});
+
+test('draft sales terms translate completely and retain the French version', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'cgv.html'), 'utf8');
+  assert.match(html, /<script src="\/language\.js" defer><\/script>/);
+  const body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
+  const unchanged = new Set(['← Génération Liaison', 'mail@generation-liaison.fr', 'M. Pina Pierre', '.', ';']);
+  const texts = body.split(/<[^>]*>/).map(text => text.trim()).filter(text => text && !unchanged.has(text));
+  const app = setup('en', texts);
+  for (let i = 0; i < texts.length; i++) {
+    assert.notEqual(app.nodes[i].textContent, texts[i], `Untranslated sales terms: ${texts[i]}`);
+  }
+  assert.match(app.nodes.map(node => node.textContent).join(' '), /provisional.*legal professional/i);
+  assert.match(app.nodes.map(node => node.textContent).join(' '), /€25 excluding tax.*12-month commitment.*€299 including tax/);
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.deepEqual(app.nodes.map(node => node.textContent), texts);
+});
+
+test('draft terms of use translate completely and preserve safety limitations', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'cgu.html'), 'utf8');
+  assert.match(html, /<script src="\/language\.js" defer><\/script>/);
+  const body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
+  const unchanged = new Set(['← Génération Liaison', 'mail@generation-liaison.fr', 'M. Pina Pierre', '.', ';']);
+  const texts = body.split(/<[^>]*>/).map(text => text.trim()).filter(text => text && !unchanged.has(text));
+  const app = setup('en', texts);
+  for (let i = 0; i < texts.length; i++) {
+    assert.notEqual(app.nodes[i].textContent, texts[i], `Untranslated terms of use: ${texts[i]}`);
+  }
+  const english = app.nodes.map(node => node.textContent).join(' ');
+  assert.match(english, /provisional.*legal professional/i);
+  assert.match(english, /no call is initiated in that case/);
+  assert.match(english, /senior must still initiate the call/);
+  assert.match(english, /Do not rely on this detection to obtain help/);
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.deepEqual(app.nodes.map(node => node.textContent), texts);
+});
+
+test('privacy policy translates completely and preserves important safeguards', () => {
+  const html = fs.readFileSync(path.join(__dirname, '..', 'privacy-policy.html'), 'utf8');
+  assert.match(html, /<script src="\/language\.js" defer><\/script>/);
+  const body = html.match(/<body>([\s\S]*?)<\/body>/)[1];
+  const unchanged = new Set(['G', 'Génération Liaison', 'mail@generation-liaison.fr', '.', '8. Contact']);
+  const texts = body.split(/<[^>]*>/).map(text => text.trim()).filter(text => text && !unchanged.has(text));
+  const app = setup('en', texts);
+  for (let i = 0; i < texts.length; i++) {
+    assert.notEqual(app.nodes[i].textContent, texts[i], `Untranslated privacy policy: ${texts[i]}`);
+  }
+  const english = app.nodes.map(node => node.textContent).join(' ');
+  assert.match(english, /provisional.*legal professional/i);
+  assert.match(english, /without an automatic call/);
+  assert.match(english, /does not itself contact emergency services/);
+  assert.match(english, /at most 30 days/);
+  assert.match(english, /only with your consent/);
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.deepEqual(app.nodes.map(node => node.textContent), texts);
+});
+
+test('family journal translates roles while preserving the author name', () => {
+  const page = fs.readFileSync(path.join(__dirname, '..', 'app-mobile.html'), 'utf8');
+  const start = page.indexOf('    function auteurAvecRole(');
+  const end = page.indexOf('    async function chargerJournalQuotidien(', start);
+  assert.ok(start >= 0 && end > start);
+  const app = setup('en');
+  const context = { window: app.window };
+  vm.runInNewContext(page.slice(start, end), context);
+  assert.equal(context.auteurAvecRole('aidant', 'Votre réponse'), '👨‍👩‍👧‍👦 Family · Votre réponse');
+  assert.equal(context.auteurAvecRole('pro', 'Marie'), '🩺 Care professional · Marie');
+  assert.equal(app.window.generationLiaisonTranslate('Photo partagée par {name}').replace('{name}', 'Votre réponse'), 'Photo shared by Votre réponse');
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(context.auteurAvecRole('aidant', 'Votre réponse'), '👨‍👩‍👧‍👦 Famille · Votre réponse');
+});
+
+test('known safety and session messages translate without changing unknown server details', () => {
+  const app = setup('en');
+  const original = 'Votre session a expiré. Reconnectez-vous.';
+  const error = new Error(original);
+  assert.equal(app.window.generationLiaisonTranslate(error.message), 'Your session has expired. Sign in again.');
+  assert.equal(error.message, original);
+  assert.equal(app.window.generationLiaisonTranslate('Choisissez le 18 ou le 112.'), 'Choose 18 or 112.');
+  assert.equal(app.window.generationLiaisonTranslate('Détail du serveur : Votre réponse'), 'Détail du serveur : Votre réponse');
+  assert.equal(app.window.generationLiaisonTranslateError('Votre réponse'), 'Votre réponse');
+  app.window.generationLiaisonSetLanguage('fr');
+  assert.equal(app.window.generationLiaisonTranslate(error.message), original);
+});
+
+test('fixed server error responses have English translations', () => {
+  const server = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const errors = [...server.matchAll(/\berror:\s*'([^'\n]+)'/g)].map(match => match[1]);
+  assert.ok(errors.length > 300);
+  const app = setup('en');
+  for (const error of new Set(errors)) {
+    assert.notEqual(app.window.generationLiaisonTranslateError(error), error, `Untranslated server error: ${error}`);
+  }
 });

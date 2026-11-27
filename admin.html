@@ -575,7 +575,7 @@
         }
         status.textContent = result.interests.length ? '' : window.generationLiaisonTranslate('Aucun intérêt enregistré.');
       } catch (error) {
-        if (revision === tabletInterestsRevision) status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de charger les intérêts.');
+        if (revision === tabletInterestsRevision) status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les intérêts.');
       } finally {
         button.disabled = false;
       }
@@ -605,14 +605,14 @@
         document.getElementById('admin-announcement-message').value = '';
       } catch (error) {
         status.textContent = window.generationLiaisonTranslate('Envoi non confirmé : {error}. Vérifiez avant de réessayer.')
-          .replace('{error}', window.generationLiaisonTranslate(error.message || 'erreur de connexion'));
+          .replace('{error}', window.generationLiaisonTranslateError(error.message, 'erreur de connexion'));
       } finally {
         button.disabled = false;
       }
     });
 
-    function showLoginError(message) {
-      document.getElementById('login-error').textContent = message;
+    function showLoginError(message, translate = true) {
+      document.getElementById('login-error').textContent = translate ? window.generationLiaisonTranslate(message) : message;
     }
 
     function setAdminView(user) {
@@ -712,7 +712,7 @@
       } catch (error) {
         document.getElementById('site-monitor-areas').replaceChildren();
         document.getElementById('site-monitor-status').textContent =
-          error.message || 'Impossible de charger les compteurs.';
+          window.generationLiaisonTranslateError(error.message, 'Impossible de charger les compteurs.');
       }
     }
 
@@ -727,7 +727,7 @@
         });
         status.textContent = result.review;
       } catch (error) {
-        status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’analyser les compteurs.');
+        status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’analyser les compteurs.');
       } finally {
         event.currentTarget.disabled = false;
       }
@@ -746,7 +746,7 @@
         document.getElementById('assistant-custom-instructions').value = result.customInstructions;
         status.textContent = window.generationLiaisonTranslate('Réglages de l’IA enregistrés.');
       } catch (error) {
-        status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible d’enregistrer les réglages de l’IA.');
+        status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’enregistrer les réglages de l’IA.');
       } finally {
         button.disabled = false;
       }
@@ -780,7 +780,7 @@
         appendMessage('assistant', result.reply);
         status.textContent = '';
       } catch (error) {
-        status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de joindre l’assistant IA.');
+        status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de joindre l’assistant IA.');
       } finally {
         button.disabled = false;
         input.focus();
@@ -847,7 +847,7 @@
               });
               await loadAssistantHandoffs();
             } catch (error) {
-              setStatus(error.message || 'Impossible d’envoyer la réponse.', true);
+              setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer la réponse.'), true, false);
               submit.disabled = false;
             }
           });
@@ -856,7 +856,7 @@
         });
       } catch (error) {
         document.getElementById('assistant-handoffs').textContent =
-          window.generationLiaisonTranslate(error.message || 'Impossible de charger les demandes de contact.');
+          window.generationLiaisonTranslateError(error.message, 'Impossible de charger les demandes de contact.');
       }
     }
 
@@ -939,7 +939,7 @@
         setStatus('Partenaire mis à jour.');
         await loadOverview();
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(window.generationLiaisonTranslateError(error.message), true, false);
         button.disabled = false;
       }
     }
@@ -990,7 +990,7 @@
         setStatus('Rendez-vous mis à jour.');
         await loadOverview();
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(window.generationLiaisonTranslateError(error.message), true, false);
         button.disabled = false;
       }
     }
@@ -1016,7 +1016,7 @@
         setStatus('Abonnement mis à jour.');
         await loadOverview();
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(window.generationLiaisonTranslateError(error.message), true, false);
         button.disabled = false;
       }
     }
@@ -1031,7 +1031,7 @@
         setStatus(account.active ? 'Compte suspendu et sessions fermées.' : 'Compte réactivé.');
         await loadOverview();
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(window.generationLiaisonTranslateError(error.message), true, false);
         button.disabled = false;
       }
     }
@@ -1052,7 +1052,7 @@
         await loadOverview();
         setStatus('Clôture administrative lancée. Le compte est désactivé ; le traitement reste à examiner.');
       } catch (error) {
-        setStatus(error.message || 'Impossible de lancer la clôture.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de lancer la clôture.'), true, false);
         button.disabled = false;
       }
     }
@@ -1081,7 +1081,7 @@
           : 'Compte créé, mais l’e-mail n’a pas pu être envoyé. Après une minute, demandez à la personne de créer son mot de passe avec « Mot de passe oublié » sur la page de connexion.';
         await loadOverview();
       } catch (error) {
-        status.textContent = error.message || 'Impossible de créer le compte.';
+        status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de créer le compte.');
       } finally {
         button.disabled = false;
       }
@@ -1122,7 +1122,7 @@
             form.reset();
             setStatus(result.message);
           } catch (error) {
-            setStatus(error.message || 'Impossible d’envoyer l’invitation.', true);
+            setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer l’invitation.'), true, false);
           } finally {
             button.disabled = false;
           }
@@ -1130,7 +1130,7 @@
         form.reset();
         setStatus(result.message);
       } catch (error) {
-        setStatus(error.message || 'Impossible d’envoyer l’invitation.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer l’invitation.'), true, false);
       } finally {
         button.disabled = false;
       }
@@ -1172,7 +1172,7 @@
         setStatus(verificationStatus === 'approved' ? 'Dossier intervenant validé ; notification mise en file.' : 'Dossier refusé ; notification mise en file.');
         await loadOverview();
       } catch (error) {
-        setStatus(error.message || 'Impossible de traiter le dossier intervenant.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de traiter le dossier intervenant.'), true, false);
         button.disabled = false;
       }
     }
@@ -1304,7 +1304,7 @@
         setStatus(`Rendez-vous créé pour ${selectedRecipient.textContent} avec ${selectedProfessional.textContent}.`);
         await loadOverview();
       } catch (error) {
-        setStatus(error.message || 'Impossible de créer le rendez-vous.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de créer le rendez-vous.'), true, false);
       } finally {
         button.disabled = false;
       }
@@ -1323,7 +1323,7 @@
         setStatus('Rendez-vous modifié.');
         await loadOverview();
       } catch (error) {
-        setStatus(error.message || 'Impossible de modifier le rendez-vous.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de modifier le rendez-vous.'), true, false);
         button.disabled = false;
       }
     }
@@ -1364,7 +1364,7 @@
               try {
                 await downloadVerificationDocument(account.id, type);
               } catch (error) {
-                setStatus(error.message || 'Téléchargement impossible.', true);
+                setStatus(window.generationLiaisonTranslateError(error.message, 'Téléchargement impossible.'), true, false);
               } finally {
                 button.disabled = !documents[type];
               }
@@ -1412,7 +1412,7 @@
                 try {
                   await downloadGuardianDocument(account.id, type);
                 } catch (error) {
-                  setStatus(error.message || 'Téléchargement impossible.', true);
+                  setStatus(window.generationLiaisonTranslateError(error.message, 'Téléchargement impossible.'), true, false);
                 } finally {
                   button.disabled = !documents[type];
                 }
@@ -1586,7 +1586,7 @@
         ));
         await loadOverview();
       } catch (error) {
-        setStatus(error.message || 'Impossible de vérifier la tutelle.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de vérifier la tutelle.'), true, false);
         button.disabled = false;
       }
     }
@@ -1601,7 +1601,7 @@
         setStatus(window.generationLiaisonTranslate('Profil senior associé au compte aidant.'));
         await loadOverview();
       } catch (error) {
-        setStatus(error.message || 'Impossible d’associer ce profil senior.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible d’associer ce profil senior.'), true, false);
         button.disabled = false;
       }
     }
@@ -1616,7 +1616,7 @@
         setStatus(window.generationLiaisonTranslate('Profil senior retiré du compte aidant.'));
         await loadOverview();
       } catch (error) {
-        setStatus(error.message || 'Impossible de retirer ce profil senior.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de retirer ce profil senior.'), true, false);
         button.disabled = false;
       }
     }
@@ -1698,7 +1698,7 @@
         setStatus('Pré-jugement indicatif prêt. L’administration doit vérifier les données et décider.');
         await loadAccountClosureRequests();
       } catch (error) {
-        setStatus(error.message || 'Impossible de préparer le pré-jugement IA.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de préparer le pré-jugement IA.'), true, false);
         button.disabled = false;
       }
     }
@@ -1736,7 +1736,7 @@
         setStatus(status === 'processing' ? 'Demande prise en charge.' : 'Demande clôturée.');
         await loadAccountClosureRequests();
       } catch (error) {
-        setStatus(error.message || 'Impossible de mettre à jour la demande.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de mettre à jour la demande.'), true, false);
         button.disabled = false;
       }
     }
@@ -1747,7 +1747,7 @@
         renderAccountClosureRequests(result.requests);
       } catch (error) {
         document.getElementById('account-closure-requests-body').textContent =
-          error.message || 'Impossible de charger les demandes de clôture.';
+          window.generationLiaisonTranslateError(error.message, 'Impossible de charger les demandes de clôture.');
       }
     }
 
@@ -1809,7 +1809,7 @@
               await loadOverview();
               setStatus('Accord confirmé et accès activé.');
             } catch (error) {
-              setStatus(error.message || 'Impossible de confirmer la demande.', true);
+              setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de confirmer la demande.'), true, false);
               button.disabled = false;
             }
           });
@@ -1817,9 +1817,9 @@
           container.append(item);
         }
       } catch (error) {
-        const message = error.message || 'Impossible de charger les demandes d’accès.';
-        if (hasDraft()) setStatus(message, true);
-        else container.textContent = window.generationLiaisonTranslate(message);
+        const message = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les demandes d’accès.');
+        if (hasDraft()) setStatus(message, true, false);
+        else container.textContent = message;
       }
     }
 
@@ -1865,7 +1865,7 @@
                 setStatus('Association retirée.');
               }
             } catch (error) {
-              setStatus(error.message || 'Impossible de traiter la demande.', true);
+              setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de traiter la demande.'), true, false);
               button.disabled = false;
             }
           });
@@ -1873,7 +1873,7 @@
           container.append(item);
         }
       } catch (error) {
-        container.textContent = error.message || 'Impossible de charger les demandes de retrait.';
+        container.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de charger les demandes de retrait.');
       }
     }
 
@@ -1897,7 +1897,7 @@
         await loadEstablishments();
         setStatus(`${window.generationLiaisonTranslate('Données actualisées à')} ${new Date().toLocaleTimeString(window.generationLiaisonLocale(), { hour: '2-digit', minute: '2-digit' })}.`);
       } catch (error) {
-        setStatus(error.message || 'Impossible de charger le tableau de bord.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de charger le tableau de bord.'), true, false);
       }
     }
 
@@ -1963,7 +1963,7 @@
           form.reset();
           status.textContent = window.generationLiaisonTranslate('Compte créé. Identifiant à remettre en privé : {identifier}. Transmettez aussi le mot de passe provisoire séparément.').replace('{identifier}', account.identifier);
         } catch (error) {
-          status.textContent = window.generationLiaisonTranslate(error.message || 'Impossible de créer le compte.');
+          status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible de créer le compte.');
         } finally {
           submit.disabled = false;
         }
@@ -2021,7 +2021,7 @@
             });
             await loadEstablishments();
           } catch (error) {
-            setStatus(error.message, true);
+            setStatus(window.generationLiaisonTranslateError(error.message), true, false);
             save.disabled = false;
           }
         });
@@ -2048,7 +2048,7 @@
             });
             await loadEstablishments();
           } catch (error) {
-            setStatus(error.message, true);
+            setStatus(window.generationLiaisonTranslateError(error.message), true, false);
             button.disabled = false;
           }
         });
@@ -2069,7 +2069,7 @@
             });
             await loadEstablishments();
           } catch (error) {
-            setStatus(error.message || 'Impossible de modifier ce compte.', true);
+            setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de modifier ce compte.'), true, false);
             accountButton.disabled = false;
           }
         });
@@ -2106,7 +2106,7 @@
             await adminRequest(`/api/admin/external-professionals/${pro.id}`, { method: 'DELETE' });
             await loadExternalPros();
           } catch (error) {
-            setStatus(error.message, true);
+            setStatus(window.generationLiaisonTranslateError(error.message), true, false);
           }
         });
         cell.append(button);
@@ -2130,7 +2130,7 @@
         event.currentTarget.reset();
         await loadExternalPros();
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(window.generationLiaisonTranslateError(error.message), true, false);
       }
     });
 
@@ -2146,7 +2146,7 @@
         setStatus(`${result.imported} intervenant(s) importé(s), ${result.rejected} ligne(s) refusée(s).`);
         await loadExternalPros();
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(window.generationLiaisonTranslateError(error.message), true, false);
       }
     });
 
@@ -2160,13 +2160,13 @@
         document.getElementById('ext-city').value = found.city;
         setStatus(found.active ? 'Entreprise trouvée : complétez l’activité et le contact.' : 'Attention : cet établissement est fermé.', !found.active);
       } catch (error) {
-        setStatus(error.message, true);
+        setStatus(window.generationLiaisonTranslateError(error.message), true, false);
       }
     });
 
-    function setStatus(message, isError = false) {
+    function setStatus(message, isError = false, translate = true) {
       const status = document.getElementById('page-status');
-      status.textContent = window.generationLiaisonTranslate(message);
+      status.textContent = translate ? window.generationLiaisonTranslate(message) : message;
       status.style.color = isError ? 'var(--danger)' : 'var(--green)';
     }
 
@@ -2198,7 +2198,7 @@
       } catch (error) {
         localStorage.removeItem(SESSION_KEY);
         sessionStorage.removeItem(ADMIN_CODE_KEY);
-        showLoginError(error.message || 'Connexion impossible.');
+        showLoginError(window.generationLiaisonTranslateError(error.message, 'Connexion impossible.'), false);
       } finally {
         button.disabled = false;
       }
@@ -2219,7 +2219,7 @@
         button.textContent = result.enabled ? 'Désactiver l’assistant IA' : 'Activer l’assistant IA';
         setStatus(result.enabled ? 'Assistant IA activé.' : 'Assistant IA désactivé.');
       } catch (error) {
-        setStatus(error.message || 'Impossible de modifier l’assistant IA.', true);
+        setStatus(window.generationLiaisonTranslateError(error.message, 'Impossible de modifier l’assistant IA.'), true, false);
       } finally {
         button.disabled = false;
       }
@@ -2237,7 +2237,7 @@
         }
         window.location.reload();
       } catch (error) {
-        showLoginError(error.message);
+        showLoginError(window.generationLiaisonTranslateError(error.message), false);
         adminView.hidden = true;
         loginView.hidden = false;
       }
@@ -2255,7 +2255,7 @@
         await setAdminView(result.user);
       } catch (error) {
         localStorage.removeItem(SESSION_KEY);
-        showLoginError(error.message || 'Session expirée. Connectez-vous à nouveau.');
+        showLoginError(window.generationLiaisonTranslateError(error.message, 'Session expirée. Connectez-vous à nouveau.'), false);
       }
     }
 

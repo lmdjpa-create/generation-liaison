@@ -1191,7 +1191,7 @@
       outline-offset: 3px;
     }
 
-    .audience-header, .audience-list, .landing-more {
+    .audience-header, .audience-list, .landing-more, .audience-guide, .home-examples {
       width: min(100%, 960px);
     }
     .audience-header { text-align: center; }
@@ -1218,6 +1218,63 @@
       margin: 0 auto;
       font-size: clamp(1.35rem, 3vw, 2rem);
     }
+    .audience-header .audience-purpose {
+      max-width: 720px;
+      margin: 16px auto;
+      color: #203d32;
+      font-size: 1.15rem;
+      line-height: 1.6;
+    }
+    .audience-guide { text-align: center; }
+    .audience-guide h2 { margin: 0 0 12px; }
+    .audience-guide-links {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+      gap: 10px;
+    }
+    .audience-guide-links a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 56px;
+      padding: 12px;
+      border: 2px solid #156c4f;
+      border-radius: 12px;
+      background: #fff;
+      color: #155e48;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .audience-guide-links a:focus-visible, .home-examples summary:focus-visible {
+      outline: 3px solid #163b72;
+      outline-offset: 3px;
+    }
+    .home-examples {
+      padding: 16px;
+      border: 1px solid #b8d5c7;
+      border-radius: 18px;
+      background: #f5fbf7;
+    }
+    .home-examples summary {
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      border: 2px solid #156c4f;
+      border-radius: 12px;
+      color: #155e48;
+      font-size: 1.1rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .home-examples summary::after { content: "+"; margin-left: 12px; font-size: 1.4rem; }
+    .home-examples[open] summary::after { content: "−"; }
+    .home-examples > p { text-align: center; line-height: 1.5; }
+    .home-example-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }
+    .home-example-grid article { min-width: 0; padding: 16px; border: 1px solid #d5e6db; border-radius: 12px; background: #fff; }
+    .home-example-grid h3 { margin: 0 0 10px; }
+    .home-example-grid p { margin: 0; line-height: 1.5; overflow-wrap: anywhere; }
     .tablet-highlight {
       display: inline-flex;
       align-items: center;
@@ -1324,14 +1381,33 @@
     <header class="audience-header">
       <div class="landing-brand"><img src="/logo-generation-liaison.jpg" width="600" height="600" alt="" /><span>Génération<br>Liaison</span></div>
       <h1>Le lien au quotidien entre générations</h1>
+      <p class="audience-purpose">Génération Liaison aide les personnes accompagnées, leurs proches et les intervenants à partager des nouvelles et organiser le quotidien.</p>
       <p>L’application est gratuite. La partie médicale est payante ; ses tarifs et modalités restent à préciser. Aucun paiement n’est actuellement activé dans l’application.</p>
     </header>
 
-    <a class="tablet-highlight" href="#tablettes">Découvrir l’achat ou la location d’une tablette</a>
+    <nav class="audience-guide" aria-labelledby="audience-guide-title">
+      <h2 id="audience-guide-title">Choisissez votre espace</h2>
+      <div class="audience-guide-links">
+        <a href="#espace-senior">Senior et personne accompagnée</a>
+        <a href="#espace-aidant">Proches et aidants</a>
+        <a href="#espace-pro">Professionnels et intervenants</a>
+        <a href="#espace-etablissement">Entreprises et résidences</a>
+        <a href="#espace-soignant">Soignants en établissement</a>
+      </div>
+    </nav>
+    <details class="home-examples">
+      <summary>Voir des exemples du quotidien</summary>
+      <p>Ces exemples sont fictifs. Les informations visibles dépendent des autorisations de chacun.</p>
+      <div class="home-example-grid">
+        <article><h3>Un message</h3><p>Un proche écrit : « Bonjour, je passerai te voir demain. »</p></article>
+        <article><h3>Un rendez-vous</h3><p>Une visite confirmée apparaît dans l’agenda des personnes autorisées.</p></article>
+        <article><h3>Le lien au quotidien</h3><p>Un intervenant partage une nouvelle du quotidien avec les personnes autorisées.</p></article>
+      </div>
+    </details>
     <section class="audience-list" aria-label="Choisissez votre espace">
       <article class="audience-card">
         <img src="/homepage-images/senior-portrait.jpg" width="1100" height="1650" alt="Une femme âgée souriante, assise à table." />
-        <div>
+        <div id="espace-senior">
           <h2>Senior et personne accompagnée</h2>
           <p>Gardez le lien avec vos proches, retrouvez vos rendez-vous et profitez de jeux dans une interface simple.</p>
           <div class="audience-actions">
@@ -1350,7 +1426,7 @@
       </article>
       <article class="audience-card">
         <img src="/homepage-images/famille.jpg" width="1200" height="800" loading="lazy" alt="Une personne âgée entourée de ses proches." />
-        <div>
+        <div id="espace-aidant">
           <h2>Proches et aidants</h2>
           <p>Partagez des nouvelles et organisez le quotidien avec votre proche, selon vos autorisations.</p>
           <div class="audience-actions">
@@ -1368,7 +1444,7 @@
       </article>
       <article class="audience-card">
         <img src="/homepage-images/coiffure.jpg" width="900" height="700" loading="lazy" alt="Une coiffeuse accompagne une personne âgée." />
-        <div>
+        <div id="espace-pro">
           <h2>Professionnels et intervenants</h2>
           <p>Organisez vos interventions, retrouvez vos rendez-vous et échangez avec les personnes autorisées.</p>
           <div class="audience-actions">
@@ -1386,7 +1462,7 @@
       </article>
       <article class="audience-card">
         <img src="/homepage-images/accueil-residence.jpg" width="1100" height="733" loading="lazy" alt="Une personne au téléphone à l’accueil d’une résidence." />
-        <div>
+        <div id="espace-etablissement">
           <h2>Entreprises et résidences</h2>
           <p>Gérez les accès des résidents et des soignants et retrouvez les intervenants de votre établissement.</p>
           <div class="audience-actions">
@@ -1404,7 +1480,7 @@
       </article>
       <article class="audience-card">
         <img src="/homepage-images/soins.jpg" width="900" height="700" loading="lazy" alt="Une soignante auprès d’une personne accompagnée." />
-        <div>
+        <div id="espace-soignant">
           <h2>Soignants en établissement</h2>
           <p>Partagez des nouvelles du quotidien avec les résidents et leurs proches autorisés.</p>
           <div class="audience-actions">
@@ -1422,6 +1498,7 @@
       </article>
     </section>
     <p class="audience-safety">Génération Liaison ne remplace ni un dossier médical ni un service d’urgence. En cas d’urgence en France, composez le 15 ou le 112.</p>
+    <a class="tablet-highlight" href="#tablettes">Découvrir l’achat ou la location d’une tablette</a>
     <section class="landing-info" id="tablettes" aria-labelledby="tablettes-title">
       <h2 id="tablettes-title">Une tablette : achat ou location</h2>
       <p>Achat envisagé à 299 € TTC, ou location envisagée à 25 € HT par mois sur 12 mois, avec Premium en supplément. Le tarif Premium reste à définir.</p>
