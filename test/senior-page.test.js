@@ -2443,6 +2443,13 @@ test('focus indicators cover form fields and controls across account screens', (
   assert.match(source, /\.screen-container :is\(button, a, summary\):focus-visible\s*\{\s*outline:\s*3px solid #163b72/);
 });
 
+test('mobile navigation has a skip link and reports the current page', () => {
+  assert.match(source, /class="skip-link" href="#main-content" onclick="allerAuContenu\(event\)"/);
+  assert.match(source, /function allerAuContenu\(event\)/);
+  assert.match(source, /n\.removeAttribute\('aria-current'\)/);
+  assert.match(source, /activeNav\.setAttribute\('aria-current', 'page'\)/);
+});
+
 test('the notification shortcut opens the separate page', () => {
   const calls = [];
   const context = {

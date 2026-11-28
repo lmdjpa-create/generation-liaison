@@ -36,6 +36,20 @@
             height: 100dvh;
             overflow: hidden;
         }
+        .skip-link {
+            position: fixed;
+            top: 8px;
+            left: 8px;
+            z-index: 10000;
+            transform: translateY(-160%);
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: #163b72;
+            color: #fff;
+            font-weight: 800;
+            text-decoration: none;
+        }
+        .skip-link:focus { transform: translateY(0); }
         .screen-container {
             flex: 1;
             overflow-y: auto;
@@ -1003,6 +1017,7 @@
     <link rel="stylesheet" href="/accessibility.css">
 </head>
 <body>
+<a class="skip-link" href="#main-content" onclick="allerAuContenu(event)">Aller au contenu principal</a>
 <div id="weekly-print-root"></div>
 
 <div id="toast">✅ Action enregistrée !</div>
@@ -3419,6 +3434,15 @@
         ouvrirSectionSenior('senior-journal-details', 'senior-journal-details');
     }
 
+    function allerAuContenu(event) {
+        if (event) event.preventDefault();
+        const activeScreen = document.querySelector('.screen-container.active');
+        if (!activeScreen) return;
+        if (!activeScreen.hasAttribute('tabindex')) activeScreen.setAttribute('tabindex', '-1');
+        activeScreen.focus();
+        activeScreen.scrollTop = 0;
+    }
+
     function switchScreen(screenName, skipContacts = false) {
         if (connectedUser && screenName === `informations-${connectedUser.role}` &&
             ['senior', 'aidant', 'pro'].includes(connectedUser.role)) {
@@ -3449,10 +3473,17 @@
             annulerPropositionMessage();
         }
         document.querySelectorAll('.screen-container').forEach(s => s.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => {
+            n.classList.remove('active');
+            if (typeof n.removeAttribute === 'function') n.removeAttribute('aria-current');
+        });
         const screenId = pendingGuardian && screenName === 'aidant' ? 'senior' : screenName;
         document.getElementById(`screen-${screenId}`).classList.add('active');
-        document.getElementById(`nav-${screenName === 'messages' ? 'notifications' : screenName === 'more' ? 'proche' : screenName === 'senior-pro' ? 'senior' : screenName}`)?.classList.add('active');
+        const activeNav = document.getElementById(`nav-${screenName === 'messages' ? 'notifications' : screenName === 'more' ? 'proche' : screenName === 'senior-pro' ? 'senior' : screenName}`);
+        activeNav?.classList.add('active');
+        if (activeNav && typeof activeNav.setAttribute === 'function') {
+            activeNav.setAttribute('aria-current', 'page');
+        }
         if (screenName === 'agenda' || screenName === 'directory') {
             const isAidant = connectedUser.role === 'aidant';
             const context = document.getElementById(`${screenName}-senior-context`);

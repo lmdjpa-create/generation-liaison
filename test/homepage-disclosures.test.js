@@ -40,6 +40,14 @@ test('future paid offers are clearly distinguished from available services', () 
   ]) assert.notEqual(window.generationLiaisonTranslate(text), text);
 });
 
+test('homepage and mobile app expose a visible skip-to-content link', () => {
+  assert.match(source, /<a class="skip-link" href="#main-content">Aller au contenu principal<\/a>/);
+  assert.match(source, /<main class="landing" id="main-content" tabindex="-1">/);
+  assert.match(source, /\.skip-link:focus\s*\{\s*transform: translateY\(0\)/);
+  assert.match(mobileSource, /class="skip-link" href="#main-content" onclick="allerAuContenu\(event\)"/);
+  assert.match(mobileSource, /function allerAuContenu\(event\)/);
+});
+
 test('homepage introduces the service and offers clear entry points in both languages', () => {
   const header = source.slice(source.indexOf('<header class="audience-header">'), source.indexOf('</header>'));
   assert.match(header, /<a class="landing-login" href="\/app-mobile\.html#inscription">Créer un espace gratuitement<\/a>/);
