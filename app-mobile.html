@@ -8497,14 +8497,22 @@
             ? [document.getElementById('message-quick-received'), document.getElementById('message-quick-well')] : [];
         quickButtons.forEach(item => { item.disabled = true; });
         status.textContent = window.generationLiaisonTranslate('Envoi du message…');
+        const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+        const sendTimeout = abortController && typeof setTimeout === 'function'
+            ? setTimeout(() => abortController.abort(), 30000)
+            : null;
         try {
             if (selected.length) {
                 await seniorLinksRequest('/api/messages/multiple', {
-                    method: 'POST', body: { message, recipients: selected.map(input => input.value) }
+                    method: 'POST',
+                    body: { message, recipients: selected.map(input => input.value) },
+                    ...(abortController ? { signal: abortController.signal } : {})
                 });
             } else {
                 await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
-                    method: 'POST', body: { message }
+                    method: 'POST',
+                    body: { message },
+                    ...(abortController ? { signal: abortController.signal } : {})
                 });
             }
             if (connectedUser?.id !== userId || connectedUser?.role !== role) return;
@@ -8522,11 +8530,18 @@
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role) {
-                status.textContent =
-                    window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.')
-                    + ' ' + window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.');
+                if (error?.name === 'AbortError') {
+                    status.textContent =
+                        window.generationLiaisonTranslate('Délai d’envoi dépassé.')
+                        + ' ' + window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.');
+                } else {
+                    status.textContent =
+                        window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.')
+                        + ' ' + window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.');
+                }
             }
         } finally {
+            if (sendTimeout && typeof clearTimeout === 'function') clearTimeout(sendTimeout);
             button.disabled = false;
             button.textContent = originalSubmitText;
             if (typeof mettreAJourCompteurMessage === 'function') mettreAJourCompteurMessage(role);

@@ -66,6 +66,8 @@ test('failed message sending keeps the draft and explains that it can be retried
   assert.match(source, /button\.textContent = window\.generationLiaisonTranslate\('Envoi…'\)/);
   assert.match(source, /Votre brouillon est conservé\. Vous pouvez réessayer/);
   assert.match(source, /if \(text\.value\.trim\(\) === message\) text\.value = '';/);
+  assert.match(source, /30000/);
+  assert.match(source, /Délai d’envoi dépassé/);
 });
 
 test('message character counters update and warn at the limit', () => {

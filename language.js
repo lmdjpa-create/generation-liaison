@@ -338,6 +338,7 @@
     'Limite de 2 000 caractères atteinte.': 'Limit of 2,000 characters reached.',
     'Envoi…': 'Sending…',
     'Votre brouillon est conservé. Vous pouvez réessayer.': 'Your draft is kept. You can try again.',
+    'Délai d’envoi dépassé.': 'Sending time exceeded.',
     'Vous avez fait plusieurs demandes. Réessayez dans une minute.': 'You have made several requests. Try again in one minute.',
     'L’assistant IA est actuellement désactivé par l’équipe.': 'The AI assistant is currently disabled by the team.',
     'Cette conversation est réservée au compte senior.': 'This conversation is restricted to the senior account.',
