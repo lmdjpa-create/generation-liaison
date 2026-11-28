@@ -8587,6 +8587,7 @@
         const sendTimeout = abortController && typeof setTimeout === 'function'
             ? setTimeout(() => abortController.abort(), 30000)
             : null;
+        let envoiEchoue = false;
         try {
             if (selected.length) {
                 await seniorLinksRequest('/api/messages/multiple', {
@@ -8627,6 +8628,7 @@
                     : selected.length ? 'Messages envoyés séparément.' : 'Message envoyé.');
             }
         } catch (error) {
+            envoiEchoue = true;
             if (connectedUser?.id === userId && connectedUser?.role === role) {
                 if (error?.name === 'AbortError') {
                     status.textContent =
@@ -8643,7 +8645,9 @@
         } finally {
             if (sendTimeout && typeof clearTimeout === 'function') clearTimeout(sendTimeout);
             button.disabled = false;
-            button.textContent = originalSubmitText;
+            button.textContent = envoiEchoue
+                ? window.generationLiaisonTranslate('Réessayer')
+                : window.generationLiaisonTranslate('Envoyer');
             if (typeof mettreAJourCompteurMessage === 'function') mettreAJourCompteurMessage(role);
             quickButtons.forEach(item => { item.disabled = false; });
         }

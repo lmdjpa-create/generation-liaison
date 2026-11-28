@@ -69,6 +69,8 @@ test('failed message sending keeps the draft and explains that it can be retried
   assert.match(source, /30000/);
   assert.match(source, /Délai d’envoi dépassé/);
   assert.ok((source.match(/abortController\.abort\(\)/g) || []).length >= 2);
+  assert.match(source, /button\.textContent = envoiEchoue/);
+  assert.match(source, /window\.generationLiaisonTranslate\('Réessayer'\)/);
 });
 
 test('message drafts stay in session storage and are cleared on logout', () => {
