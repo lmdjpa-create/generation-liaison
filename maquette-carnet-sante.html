@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Maquette du carnet de santé | Génération Liaison</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 16px/1.55 Arial, sans-serif; color: #203d32; background: #f2f8f4; }
+    main { max-width: 1000px; margin: auto; padding: 28px 18px 48px; }
+    header, .notice, .card, .help { border: 1px solid #c8ded1; border-radius: 18px; background: #fff; padding: 22px; }
+    header { background: linear-gradient(135deg, #eff9f2, #fff); }
+    h1 { margin: 6px 0 10px; font-size: clamp(1.8rem, 5vw, 2.7rem); line-height: 1.15; }
+    h2 { margin: 0 0 8px; font-size: 1.2rem; }
+    p { margin: 8px 0; }
+    .eyebrow { color: #156c4f; font-weight: 700; }
+    .notice { margin: 18px 0; background: #fff8e6; border-color: #e6cc8b; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; }
+    .card { min-width: 0; }
+    .icon { display: inline-grid; place-items: center; width: 44px; height: 44px; margin-bottom: 12px; border-radius: 12px; background: #e6f4ee; font-size: 1.3rem; }
+    .example { margin: 14px 0; padding: 12px; border-radius: 10px; background: #f4f8f5; color: #38564a; }
+    details { border-top: 1px solid #dcebe1; padding-top: 10px; }
+    summary { min-height: 44px; display: flex; align-items: center; color: #155e48; font-weight: 700; cursor: pointer; }
+    summary:focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+    .help { margin-top: 18px; }
+    .help details + details { margin-top: 10px; }
+    .footer { margin-top: 18px; color: #38564a; }
+    .demo { margin: 18px 0; padding: 22px; border: 1px solid #c8ded1; border-radius: 18px; background: #fff; }
+    .demo label { display: block; font-weight: 700; margin: 10px 0 4px; }
+    .demo select, .demo button { max-width: 100%; min-height: 48px; padding: 10px 12px; border: 2px solid #156c4f; border-radius: 10px; background: #fff; color: #155e48; font: inherit; }
+    .demo button { font-weight: 700; cursor: pointer; }
+    .demo :is(select, button):focus-visible { outline: 3px solid #163b72; outline-offset: 3px; }
+    .demo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-top: 14px; }
+    .demo-entry { border: 1px solid #dcebe1; border-radius: 12px; padding: 14px; }
+    .demo-entry h3 { margin: 0 0 8px; }
+    .permission-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 10px; }
+    .demo [hidden] { display: none; }
+    @media (max-width: 560px) { main { padding: 16px 12px 32px; } header, .notice, .card, .help { padding: 18px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="eyebrow">Génération Liaison · Projet Premium</p>
+    <h1>Mon carnet de santé</h1>
+    <p>Une première idée pour retrouver ses informations de santé et comprendre comment elles pourraient être partagées.</p>
+  </header>
+  <div class="notice" role="note">
+    <strong>Maquette uniquement : ne saisissez aucune information réelle.</strong>
+    Rien n’est enregistré, partagé ou envoyé. Les choix sont des simulations temporaires, pas des autorisations réelles. Les fonctions présentées ne sont pas disponibles.
+  </div>
+  <section class="demo" aria-labelledby="demo-title">
+    <h2 id="demo-title">Essayer le carnet avec des exemples fictifs</h2>
+    <p>Choisissez une personne fictive pour voir son aperçu. Les changements disparaissent au rechargement et ne protègent aucune donnée réelle.</p>
+    <label for="demo-role">Afficher comme</label>
+    <select id="demo-role">
+      <option value="owner">Personne accompagnée fictive</option>
+      <option value="caregiver">Proche fictif</option>
+      <option value="professional">Soignant fictif</option>
+    </select>
+    <details id="demo-permissions">
+      <summary>Simuler les autorisations par rubrique</summary>
+      <p>Dans cet exemple, seul le profil de la personne accompagnée peut modifier ces choix. Les proches et soignants commencent sans accès ; ce sont des règles de démonstration, à valider pour le vrai carnet.</p>
+      <div id="permission-list" class="permission-list"></div>
+    </details>
+    <div id="demo-entries" class="demo-grid" aria-live="polite"></div>
+    <p id="demo-status" role="status" aria-live="polite"></p>
+  </section>
+  <section class="grid" aria-label="Rubriques envisagées">
+    <article class="card">
+      <span class="icon" aria-hidden="true">🩺</span>
+      <h2>Informations importantes</h2>
+      <p>Un aperçu des informations que la personne souhaiterait retrouver facilement.</p>
+      <p class="example">Exemple fictif : une information importante à préciser.</p>
+      <details><summary>À quoi sert cette rubrique ?</summary><p>Elle pourrait aider à rassembler les informations utiles. Son contenu et les personnes pouvant le consulter restent à définir.</p></details>
+    </article>
+    <article class="card">
+      <span class="icon" aria-hidden="true">!</span>
+      <h2>Allergies déclarées</h2>
+      <p>Une rubrique envisagée pour retrouver une allergie déjà déclarée, avec des droits d’accès à définir.</p>
+      <p class="example">Exemple fictif : allergie déclarée à la substance fictive A.</p>
+      <details><summary>Louis détecte-t-il une allergie ?</summary><p>Non. Ni ce carnet ni Louis ne détectent d’allergie, ne comparent de médicaments et ne produisent d’alerte médicale. L’absence d’information ne signifie pas l’absence d’allergie. Les règles et la fiabilité d’une éventuelle fonction médicale doivent être évaluées par des professionnels.</p></details>
+    </article>
+    <article class="card">
+      <span class="icon" aria-hidden="true">💊</span>
+      <h2>Traitements</h2>
+      <p>Un espace envisagé pour retrouver les traitements indiqués par un professionnel.</p>
+      <p class="example">Exemple fictif : traitement à renseigner.</p>
+      <details><summary>Comment utiliser cette rubrique ?</summary><p>Le carnet ne donne pas de conseil médical et ne modifie aucun traitement. Aucun rappel ou contrôle automatique n’est actif dans cette maquette.</p></details>
+    </article>
+    <article class="card">
+      <span class="icon" aria-hidden="true">📅</span>
+      <h2>Rendez-vous de santé</h2>
+      <p>Retrouver les rendez-vous de santé dans un espace distinct du carnet quotidien.</p>
+      <p class="example">Exemple fictif : rendez-vous à renseigner.</p>
+      <details><summary>Qui pourrait les voir ?</summary><p>Le partage et les éventuels rappels restent à définir. Aucun rendez-vous n’est créé ni synchronisé ici.</p></details>
+    </article>
+    <article class="card">
+      <span class="icon" aria-hidden="true">📄</span>
+      <h2>Documents de santé</h2>
+      <p>Une rubrique envisagée pour classer les documents que la personne souhaite conserver.</p>
+      <p class="example">Exemple fictif : document à ajouter.</p>
+      <details><summary>Comment seraient protégés les documents ?</summary><p>Le stockage, la protection, la durée de conservation et les accès doivent être définis et vérifiés avant toute mise en service. Aucun fichier ne peut être envoyé ici.</p></details>
+    </article>
+    <article class="card">
+      <span class="icon" aria-hidden="true">👥</span>
+      <h2>Personnes et contacts</h2>
+      <p>Identifier les personnes que l’on souhaite contacter ou autoriser à consulter certaines informations.</p>
+      <p class="example">Exemple fictif : contact à choisir.</p>
+      <details><summary>Un proche associé aura-t-il accès ?</summary><p>Pas automatiquement dans ce projet : les autorisations, leur retrait et les cas de représentation légale doivent être définis avant toute utilisation.</p></details>
+    </article>
+    <article class="card">
+      <span class="icon" aria-hidden="true">🔒</span>
+      <h2>Partage et confidentialité</h2>
+      <p>Prévoir un choix clair des informations partagées et des personnes autorisées.</p>
+      <p class="example">Exemple fictif : aucun partage configuré.</p>
+      <details><summary>Que faut-il préparer ?</summary><p>Les règles de consentement, les accès, leur retrait et leur suivi doivent être conçus et vérifiés. Cette maquette ne configure aucun partage.</p></details>
+    </article>
+  </section>
+  <section class="help" aria-labelledby="help-title">
+    <h2 id="help-title">Aide pour comprendre le carnet</h2>
+    <details><summary>Quelle différence avec le carnet du quotidien ?</summary><p>Le carnet actuel sert aux nouvelles du quotidien et ne doit pas contenir de données de santé. Ce projet serait distinct et n’est pas encore disponible.</p></details>
+    <details><summary>Est-ce un service d’urgence ?</summary><p>Non. La maquette ne surveille personne, ne déclenche pas d’alerte et ne remplace ni un professionnel de santé ni les secours locaux.</p></details>
+    <details><summary>Quand pourra-t-on l’utiliser ?</summary><p>Après définition des fonctionnalités et vérification des protections, de l’hébergement et des obligations applicables aux données de santé. Aucune date n’est annoncée.</p></details>
+  </section>
+  <p class="footer">Tous les exemples sont fictifs. Aucun champ de saisie libre, paiement ou transmission n’est actif.</p>
+</main>
+<script>
+  (() => {
+    const categories = [
+      { id: 'allergies', label: 'Allergies déclarées', example: 'Allergie déclarée : substance fictive A', updated: 'Allergie déclarée : substance fictive B' },
+      { id: 'treatments', label: 'Traitements', example: 'Exemple fictif de traitement', updated: 'Exemple fictif de traitement modifié' },
+      { id: 'appointments', label: 'Rendez-vous', example: 'Exemple fictif de rendez-vous', updated: 'Exemple fictif de rendez-vous modifié' },
+      { id: 'documents', label: 'Documents', example: 'Exemple fictif de document', updated: 'Exemple fictif de document modifié' },
+      { id: 'contacts', label: 'Contacts', example: 'Exemple fictif de contact', updated: 'Exemple fictif de contact modifié' }
+    ];
+    const roles = [{ id: 'caregiver', label: 'Proche fictif' }, { id: 'professional', label: 'Soignant fictif' }];
+    const permissions = Object.fromEntries(roles.map(role => [role.id, Object.fromEntries(categories.map(category => [category.id, 'none']))]));
+    const updated = Object.fromEntries(categories.map(category => [category.id, false]));
+    const roleSelector = document.getElementById('demo-role');
+    const permissionList = document.getElementById('permission-list');
+    const permissionPanel = document.getElementById('demo-permissions');
+    const entries = document.getElementById('demo-entries');
+    const status = document.getElementById('demo-status');
+
+    roles.forEach(role => categories.forEach(category => {
+      const wrapper = document.createElement('div');
+      const label = document.createElement('label');
+      const select = document.createElement('select');
+      select.id = `demo-${role.id}-${category.id}`;
+      label.htmlFor = select.id;
+      label.textContent = `${role.label} : ${category.label}`;
+      [['none', 'Aucun accès'], ['read', 'Lecture'], ['edit', 'Lecture et modification']].forEach(([value, name]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = name;
+        select.append(option);
+      });
+      select.addEventListener('change', () => {
+        permissions[role.id][category.id] = select.value;
+        status.textContent = 'Choix fictif modifié pour cette démonstration.';
+        render();
+      });
+      wrapper.append(label, select);
+      permissionList.append(wrapper);
+    }));
+
+    function render() {
+      const role = roleSelector.value;
+      permissionPanel.hidden = role !== 'owner';
+      entries.replaceChildren();
+      categories.forEach(category => {
+        const access = role === 'owner' ? 'edit' : permissions[role][category.id];
+        const card = document.createElement('article');
+        card.className = 'demo-entry';
+        const title = document.createElement('h3');
+        title.textContent = category.label;
+        const description = document.createElement('p');
+        description.textContent = access === 'none' ? 'Aucun accès dans cette simulation.' :
+          updated[category.id] ? category.updated : category.example;
+        card.append(title, description);
+        if (access === 'edit') {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.id = `demo-change-${category.id}`;
+          button.textContent = 'Simuler une modification';
+          button.setAttribute('aria-label', `Simuler une modification : ${category.label}`);
+          button.addEventListener('click', () => {
+            updated[category.id] = !updated[category.id];
+            status.textContent = 'Exemple fictif modifié uniquement dans cette démonstration.';
+            render();
+            document.getElementById(`demo-change-${category.id}`).focus();
+          });
+          card.append(button);
+        }
+        entries.append(card);
+      });
+    }
+
+    roleSelector.addEventListener('change', () => {
+      status.textContent = 'Aperçu du profil fictif sélectionné.';
+      render();
+    });
+    render();
+  })();
+</script>
+</body>
+</html>
