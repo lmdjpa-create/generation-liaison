@@ -23,6 +23,7 @@ const pages = [
   'aidant.html',
   'pro.html',
   'app-mobile.html',
+  'simulation-louis-autonome.html',
   'aide-installation-android.html',
   'reset-password.html',
   'admin.html',

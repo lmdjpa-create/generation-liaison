@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation : Louis progresse avec vous</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; color: #203d34; background: #f1f7f3; font: 17px/1.5 Arial, sans-serif; }
+  main { max-width: 860px; margin: auto; padding: 22px 16px 40px; }
+  h1 { font-size: clamp(1.7rem, 5vw, 2.4rem); line-height: 1.15; margin: 0 0 12px; }
+  h2 { font-size: 1.25rem; margin: 0 0 8px; }
+  h3 { margin: 0 0 6px; }
+  p { margin: 0 0 12px; }
+  .notice { border: 1px solid #d8bd76; border-radius: 12px; background: #fff9e6; padding: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px; margin: 18px 0; }
+  .card { border: 1px solid #c9ded1; border-radius: 14px; background: #fff; padding: 18px; }
+  .steps { display: grid; gap: 9px; margin: 14px 0; padding: 0; list-style: none; }
+  .steps li { padding: 10px 12px; border-radius: 10px; background: #f1f6f3; }
+  .steps li.current { background: #d9eee2; outline: 2px solid #126b4d; }
+  .number { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-right: 8px; border-radius: 50%; background: #126b4d; color: white; font-weight: bold; }
+  button { min-height: 48px; border: 2px solid #126b4d; border-radius: 10px; padding: 9px 16px; background: #126b4d; color: white; font: inherit; font-weight: bold; cursor: pointer; }
+  button.secondary { background: white; color: #126b4d; }
+  button:focus-visible { outline: 3px solid #245bb5; outline-offset: 3px; }
+  button:disabled { opacity: .48; cursor: default; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+  select { width: 100%; min-height: 48px; margin-top: 6px; padding: 8px; border: 1px solid #799e88; border-radius: 8px; background: white; color: #203d34; font: inherit; }
+  label { font-weight: bold; }
+  .result { min-height: 140px; padding: 16px; border-left: 5px solid #126b4d; border-radius: 8px; background: #edf6ef; }
+  .muted { color: #496458; font-size: .95rem; }
+  .journal { margin-top: 14px; padding: 14px; border: 1px solid #c9ded1; border-radius: 10px; background: #fff; }
+  .journal p { margin: 0; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Louis progresse avec vous</h1>
+  <p>Un exemple pour imaginer une autonomie progressive, avec vous aux commandes.</p>
+  <p class="notice"><strong>Simulation fictive :</strong> aucun modèle n’est lancé, aucune recherche Internet n’est effectuée et aucune donnée ni modification n’est enregistrée ou publiée. Les résultats ci-dessous sont inventés pour illustrer le fonctionnement.</p>
+  <div class="grid">
+    <section class="card" aria-labelledby="process-title">
+      <h2 id="process-title">Le parcours proposé</h2>
+      <ol class="steps">
+        <li id="step-1"><span class="number">1</span>Choisir une mission</li>
+        <li id="step-2"><span class="number">2</span>Chercher des pistes</li>
+        <li id="step-3"><span class="number">3</span>Préparer une proposition</li>
+        <li id="step-4"><span class="number">4</span>Vous décidez</li>
+      </ol>
+      <label for="mission">Choisir une mission fictive</label>
+      <select id="mission">
+        <option value="accessibilite">Faciliter l’accueil senior</option>
+        <option value="clients">Préparer une réponse à un client</option>
+        <option value="site">Examiner un problème du site</option>
+      </select>
+      <p class="muted">Changez de mission avant de commencer ou recommencez la simulation.</p>
+    </section>
+    <section class="card" aria-labelledby="simulation-title">
+      <h2 id="simulation-title">La simulation</h2>
+      <div class="result" id="result" role="status" aria-live="polite">
+        <h3>Prêt à commencer</h3>
+        <p>Louis va vous montrer les étapes d’une mission fictive.</p>
+      </div>
+      <div class="actions">
+        <button id="next" type="button">Commencer</button>
+        <button id="approve" type="button" hidden>Accepter la proposition</button>
+        <button id="reject" class="secondary" type="button" hidden>Refuser la proposition</button>
+        <button id="next-cycle" type="button" hidden>Découvrir la suite</button>
+        <button id="restart" class="secondary" type="button">Recommencer</button>
+      </div>
+      <div class="journal">
+        <h3>Journal fictif de Louis</h3>
+        <p id="journal">Aucune proposition examinée.</p>
+      </div>
+    </section>
+  </div>
+  <section class="card" aria-labelledby="limits-title">
+    <h2 id="limits-title">Dans une future version réelle</h2>
+    <p>Louis pourrait rechercher des idées, préparer une note et proposer des changements à examiner. Les sources et les résultats devraient être vérifiés : il peut se tromper.</p>
+    <p>Votre accord resterait nécessaire pour retenir une connaissance ou publier une modification. La mémoire ne réentraîne pas automatiquement le modèle. Une mise à disposition dans l’application demanderait un hébergement adapté, des protections et une étude des coûts.</p>
+  </section>
+  <p><a href="/">Retour à l’accueil</a></p>
+</main>
+<script>
+  const missions = {
+    accessibilite: {
+      mission: "Trouver une idée pour faciliter le repérage des boutons de l’accueil senior.",
+      recherche: "Louis imagine associer un pictogramme clair à chaque texte.",
+      proposition: "Ajouter une enveloppe à côté de « Messages » et garder le texte bien visible.",
+      note: "Idée à vérifier : associer une icône au texte sans remplacer celui-ci.",
+      suite: "Louis pourrait préparer une maquette, puis vous la présenter avant toute modification."
+    },
+    clients: {
+      mission: "Préparer une réponse simple à une question fictive d’un client.",
+      recherche: "Louis imagine les informations utiles à vérifier avant de répondre.",
+      proposition: "Préparer une réponse claire et inviter le client à préciser son besoin, sans l’envoyer.",
+      note: "Idée à vérifier : privilégier une réponse simple et relire les informations avant l’envoi.",
+      suite: "Louis pourrait préparer un brouillon ; vous le reliriez et choisiriez de l’envoyer ou non."
+    },
+    site: {
+      mission: "Examiner un problème fictif signalé sur le site.",
+      recherche: "Louis imagine une liste d’étapes pour reproduire et comprendre le problème.",
+      proposition: "Décrire les vérifications à faire avant de proposer une correction.",
+      note: "Idée à vérifier : reproduire le problème et tester la correction avant publication.",
+      suite: "Louis pourrait préparer un rapport et une correction à examiner, sans intervenir sur le site publié."
+    }
+  };
+  let stage = 0;
+  let choice = null;
+  const mission = document.getElementById("mission");
+  const result = document.getElementById("result");
+  const next = document.getElementById("next");
+  const approve = document.getElementById("approve");
+  const reject = document.getElementById("reject");
+  const nextCycle = document.getElementById("next-cycle");
+  const journal = document.getElementById("journal");
+  function display(title, body) {
+    result.replaceChildren();
+    const heading = document.createElement("h3");
+    const paragraph = document.createElement("p");
+    heading.textContent = title;
+    paragraph.textContent = body;
+    result.append(heading, paragraph);
+  }
+  function render() {
+    const selected = missions[mission.value];
+    const stages = [
+      { title: "Prêt à commencer", body: "Choisissez une mission puis suivez les étapes fictives." },
+      { title: "1. Une mission lui est confiée", body: selected.mission },
+      { title: "2. Il cherche des pistes", body: selected.recherche + " Dans une version réelle, ses sources devraient être vérifiées." },
+      { title: "3. Il prépare une proposition", body: selected.proposition + " Aucun changement n’est fait." },
+      { title: "4. À vous de décider", body: "Vous pouvez accepter ou refuser cette idée. Ici votre choix ne change rien et n’est pas enregistré." }
+    ];
+    display(stages[stage].title, stages[stage].body);
+    for (let i = 1; i <= 4; i++) document.getElementById("step-" + i).classList.toggle("current", i === stage);
+    mission.disabled = stage > 0;
+    next.hidden = stage === 4;
+    next.textContent = stage === 0 ? "Commencer" : "Étape suivante";
+    approve.hidden = reject.hidden = stage !== 4;
+    nextCycle.hidden = true;
+  }
+  function decide(accepted) {
+    choice = accepted;
+    display(accepted ? "Proposition acceptée dans la simulation" : "Proposition refusée dans la simulation",
+      accepted ? "Dans une version réelle, une idée acceptée pourrait être préparée pour validation. Ici, rien n’est conservé ni modifié." : "Dans une version réelle, Louis pourrait chercher une autre piste. Ici, rien n’est conservé ni modifié.");
+    journal.textContent = accepted
+      ? "Exemple de note à vérifier : " + missions[mission.value].note + " Aucune note réelle n’a été créée."
+      : "Proposition refusée : aucune note fictive retenue.";
+    approve.hidden = reject.hidden = true;
+    nextCycle.hidden = false;
+  }
+  next.addEventListener("click", () => { if (stage < 4) { stage++; render(); } });
+  approve.addEventListener("click", () => decide(true));
+  reject.addEventListener("click", () => decide(false));
+  nextCycle.addEventListener("click", () => {
+    display("La suite possible", choice ? missions[mission.value].suite :
+      "Louis pourrait chercher une autre idée et vous la soumettre. Dans cette simulation, rien n’est lancé.");
+    nextCycle.hidden = true;
+  });
+  document.getElementById("restart").addEventListener("click", () => {
+    stage = 0;
+    choice = null;
+    journal.textContent = "Aucune proposition examinée.";
+    render();
+  });
+  render();
+</script>
+</body>
+</html>
