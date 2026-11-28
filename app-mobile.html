@@ -8491,10 +8491,12 @@
         }
         const userId = connectedUser.id;
         button.disabled = true;
+        const originalSubmitText = button.textContent;
+        button.textContent = window.generationLiaisonTranslate('Envoi…');
         const quickButtons = role === 'senior'
             ? [document.getElementById('message-quick-received'), document.getElementById('message-quick-well')] : [];
         quickButtons.forEach(item => { item.disabled = true; });
-        if (role === 'senior') status.textContent = window.generationLiaisonTranslate('Envoi du message…');
+        status.textContent = window.generationLiaisonTranslate('Envoi du message…');
         try {
             if (selected.length) {
                 await seniorLinksRequest('/api/messages/multiple', {
@@ -8508,6 +8510,7 @@
             if (connectedUser?.id !== userId || connectedUser?.role !== role) return;
             if (text.value.trim() === message) text.value = '';
             selected.forEach(input => { input.checked = false; });
+            if (typeof mettreAJourCompteurMessage === 'function') mettreAJourCompteurMessage(role);
             let refreshed = true;
             if (select.value === contactId && (!selected.length || selected.some(input => input.value === contactId))) {
                 refreshed = await ouvrirConversation(role);
@@ -8519,10 +8522,14 @@
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === role) {
-                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.');
+                status.textContent =
+                    window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.')
+                    + ' ' + window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.');
             }
         } finally {
             button.disabled = false;
+            button.textContent = originalSubmitText;
+            if (typeof mettreAJourCompteurMessage === 'function') mettreAJourCompteurMessage(role);
             quickButtons.forEach(item => { item.disabled = false; });
         }
     }

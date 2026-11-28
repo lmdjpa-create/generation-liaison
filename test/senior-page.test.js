@@ -62,6 +62,12 @@ test('emoji insertion respects cursor position and the message length limit', ()
   assert.equal(input.value.length, 1999);
 });
 
+test('failed message sending keeps the draft and explains that it can be retried', () => {
+  assert.match(source, /button\.textContent = window\.generationLiaisonTranslate\('Envoi…'\)/);
+  assert.match(source, /Votre brouillon est conservé\. Vous pouvez réessayer/);
+  assert.match(source, /if \(text\.value\.trim\(\) === message\) text\.value = '';/);
+});
+
 test('message character counters update and warn at the limit', () => {
   const input = {
     value: 'Bonjour',
