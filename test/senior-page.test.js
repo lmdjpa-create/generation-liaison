@@ -10,6 +10,93 @@ test('daily recipe follows the senior shopping list', () => {
   assert.match(source, /id="senior-shopping-status"[\s\S]*?<\/details>\s*<\/section>\s*<section class="form-card" id="senior-daily-recipe">/);
 });
 
+test('message emoji picker is available for every account role', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`id="message-emojis-${role}"`));
+    assert.match(source, new RegExp(`ajouterEmojiMessagerie\\('${role}', '😊'\\)`));
+    assert.match(source, new RegExp(`id="message-text-${role}" maxlength="2000"`));
+    assert.match(source, new RegExp(`id="message-count-${role}"`));
+  }
+  assert.match(source, /function ajouterEmojiMessagerie\(role, emoji\)/);
+  assert.match(source, /function configurerCompteursMessages\(\)/);
+});
+
+test('emoji insertion respects cursor position and the message length limit', () => {
+  const input = {
+    value: 'Bonjour',
+    selectionStart: 3,
+    selectionEnd: 3,
+    maxLength: 2000,
+    focused: false,
+    setRangeText(emoji, start, end, mode) {
+      this.value = this.value.slice(0, start) + emoji + this.value.slice(end);
+      this.selectionStart = start + emoji.length;
+      this.selectionEnd = start + emoji.length;
+    },
+    dispatchEvent() {},
+    focus() { this.focused = true; }
+  };
+  const context = {
+    document: {
+      getElementById(id) { return id === 'message-text-senior' ? input : null; }
+    },
+    Event: function() { return {}; },
+    annulerPropositionMessage() {}
+  };
+  vm.runInNewContext(extract('    function ajouterEmojiMessagerie(role, emoji)', '    function configurerDicteeMessagerie()'), context);
+  context.ajouterEmojiMessagerie('senior', '❤️');
+  assert.equal(input.value, 'Bon❤️jour');
+  assert.equal(input.selectionStart, 5);
+  assert.equal(input.focused, true);
+
+  input.value = 'x'.repeat(1999);
+  input.selectionStart = 1999;
+  input.selectionEnd = 1999;
+  context.ajouterEmojiMessagerie('senior', '😊');
+  assert.equal(input.value.length, 1999);
+
+  input.value = 'x'.repeat(1999);
+  input.selectionStart = 1999;
+  input.selectionEnd = 1999;
+  context.ajouterEmojiMessagerie('senior', '👍');
+  assert.equal(input.value.length, 1999);
+});
+
+test('message character counters update and warn at the limit', () => {
+  const input = {
+    value: 'Bonjour',
+    maxLength: 2000,
+    style: {},
+    listeners: {},
+    addEventListener(type, handler) { this.listeners[type] = handler; }
+  };
+  const count = { textContent: '', style: {} };
+  const status = { textContent: '' };
+  const context = {
+    document: {
+      getElementById(id) {
+        if (id === 'message-text-senior') return input;
+        if (id === 'message-count-senior') return count;
+        if (id === 'message-status-senior') return status;
+        return null;
+      }
+    },
+    window: { generationLiaisonTranslate: text => text }
+  };
+  vm.runInNewContext(
+    extract('    function mettreAJourCompteurMessage(role)', '    function configurerDicteeMessagerie()') +
+    '\n    globalThis.configureCounters = configurerCompteursMessages;',
+    context
+  );
+  context.configureCounters();
+  assert.equal(count.textContent, '7 / 2 000');
+  input.value = 'x'.repeat(2000);
+  input.listeners.input();
+  assert.equal(count.textContent, '2000 / 2 000');
+  assert.equal(count.style.color, '#b42318');
+  assert.equal(status.textContent, '');
+});
+
 test('professional workspace explains its areas and assigned tasks in separate tabs', () => {
   const pro = source.slice(source.indexOf('id="screen-pro"'), source.indexOf('id="screen-settings"'));
   assert.match(pro, /<details class="senior-disclosure senior-tab-disclosure" data-close-on-mouse-leave>[\s\S]*?Comprendre les espaces[\s\S]*?proches autorisés[\s\S]*?coordonnées ne leur sont pas transmises/);

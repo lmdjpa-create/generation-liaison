@@ -302,6 +302,27 @@
         }
         #message-loading-senior .message-placeholder:last-child { width: 68%; }
         #message-status-senior { font-size: 1rem; font-weight: 700; }
+        .message-emoji-bar { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0 10px; }
+        .message-emoji-button {
+            flex: 0 0 52px;
+            min-width: 52px;
+            min-height: 52px;
+            padding: 0;
+            border: 2px solid #c9ddd3;
+            border-radius: 14px;
+            background: #f5faf7;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+        }
+        .message-emoji-button:focus-visible { outline: 3px solid #17684f; outline-offset: 2px; }
+        .message-character-count {
+            margin: -6px 0 10px;
+            text-align: right;
+            color: #52665c;
+            font-size: 0.9rem;
+            font-weight: 700;
+        }
         @media (prefers-reduced-motion: no-preference) {
             #messages-senior button { transition: transform .15s ease, box-shadow .15s ease; }
             #messages-senior button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(20, 73, 52, .16); }
@@ -2351,6 +2372,17 @@
             <form id="message-form-senior">
                 <label for="message-text-senior">Votre message</label>
                 <textarea id="message-text-senior" maxlength="2000" required></textarea>
+                <div class="message-emoji-bar" id="message-emojis-senior" aria-label="Ajouter un emoji">
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter sourire" onclick="ajouterEmojiMessagerie('senior', '😊')">😊</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter rire" onclick="ajouterEmojiMessagerie('senior', '😂')">😂</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter cœur" onclick="ajouterEmojiMessagerie('senior', '❤️')">❤️</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter pouce en l’air" onclick="ajouterEmojiMessagerie('senior', '👍')">👍</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter bravo" onclick="ajouterEmojiMessagerie('senior', '👏')">👏</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter merci" onclick="ajouterEmojiMessagerie('senior', '🙏')">🙏</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter fleur" onclick="ajouterEmojiMessagerie('senior', '🌷')">🌷</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter soleil" onclick="ajouterEmojiMessagerie('senior', '☀️')">☀️</button>
+                </div>
+                <p class="message-character-count" id="message-count-senior" role="status" aria-live="polite">0 / 2 000</p>
                 <div id="senior-message-advanced">
                 <button id="message-dictation-senior" type="button">🎙️ Dicter mon message</button>
                 <p class="helper-text">La dictée dépend du navigateur : son fournisseur peut traiter votre voix. Vérifiez le texte avant de l’envoyer.</p>
@@ -2401,6 +2433,17 @@
             <form id="message-form-aidant">
                 <label for="message-text-aidant">Votre message</label>
                 <textarea id="message-text-aidant" maxlength="2000" required></textarea>
+                <div class="message-emoji-bar" id="message-emojis-aidant" aria-label="Ajouter un emoji">
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter sourire" onclick="ajouterEmojiMessagerie('aidant', '😊')">😊</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter rire" onclick="ajouterEmojiMessagerie('aidant', '😂')">😂</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter cœur" onclick="ajouterEmojiMessagerie('aidant', '❤️')">❤️</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter pouce en l’air" onclick="ajouterEmojiMessagerie('aidant', '👍')">👍</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter bravo" onclick="ajouterEmojiMessagerie('aidant', '👏')">👏</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter merci" onclick="ajouterEmojiMessagerie('aidant', '🙏')">🙏</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter fleur" onclick="ajouterEmojiMessagerie('aidant', '🌷')">🌷</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter soleil" onclick="ajouterEmojiMessagerie('aidant', '☀️')">☀️</button>
+                </div>
+                <p class="message-character-count" id="message-count-aidant" role="status" aria-live="polite">0 / 2 000</p>
                 <button type="submit">Envoyer</button>
             </form>
             <p id="message-status-aidant" class="helper-text" aria-live="polite"></p>
@@ -2426,6 +2469,17 @@
             <form id="message-form-pro">
                 <label for="message-text-pro">Votre message</label>
                 <textarea id="message-text-pro" maxlength="2000" required></textarea>
+                <div class="message-emoji-bar" id="message-emojis-pro" aria-label="Ajouter un emoji">
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter sourire" onclick="ajouterEmojiMessagerie('pro', '😊')">😊</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter rire" onclick="ajouterEmojiMessagerie('pro', '😂')">😂</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter cœur" onclick="ajouterEmojiMessagerie('pro', '❤️')">❤️</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter pouce en l’air" onclick="ajouterEmojiMessagerie('pro', '👍')">👍</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter bravo" onclick="ajouterEmojiMessagerie('pro', '👏')">👏</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter merci" onclick="ajouterEmojiMessagerie('pro', '🙏')">🙏</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter fleur" onclick="ajouterEmojiMessagerie('pro', '🌷')">🌷</button>
+                    <button type="button" class="message-emoji-button" aria-label="Ajouter soleil" onclick="ajouterEmojiMessagerie('pro', '☀️')">☀️</button>
+                </div>
+                <p class="message-character-count" id="message-count-pro" role="status" aria-live="polite">0 / 2 000</p>
                 <button type="submit">Envoyer</button>
             </form>
             <p id="message-status-pro" class="helper-text" aria-live="polite"></p>
@@ -2701,6 +2755,7 @@
         <summary><span class="tile-icon" aria-hidden="true" style="background:#f3e8fa;">ℹ️</span>Gratuité et partie médicale</summary>
         <p>La visio est gratuite, sous réserve de disponibilité du service.</p>
         <p>L’application est gratuite. Le futur carnet de soins Premium est envisagé à 9,90 € TTC par mois ; il n’est pas encore disponible. Aucun paiement n’est actuellement activé dans l’application.</p>
+        <p>Une option payante Louis pour les professionnels de santé est à l’étude, par exemple pour signaler une allergie médicamenteuse possible. Cette fonction n’existe pas encore ; sa faisabilité, sa sécurité et son statut réglementaire doivent être évalués avec des professionnels avant toute mise en service. Son prix n’est pas défini. Ne saisissez aucune donnée de patient.</p>
       </details>
     </section>
 <section class="form-card" id="settings-account-closure" style="display:none;">
@@ -8320,6 +8375,63 @@
         }
     }
 
+    function ajouterEmojiMessagerie(role, emoji) {
+        if (!['senior', 'aidant', 'pro'].includes(role) || typeof emoji !== 'string') return;
+        const input = document.getElementById(`message-text-${role}`);
+        if (!input) return;
+        const texte = input.value || '';
+        const debut = typeof input.selectionStart === 'number' ? input.selectionStart : texte.length;
+        const fin = typeof input.selectionEnd === 'number' ? input.selectionEnd : debut;
+        const limite = typeof input.maxLength === 'number' && input.maxLength >= 0 ? input.maxLength : 2000;
+        if (texte.length - (fin - debut) + emoji.length > limite) {
+            const status = document.getElementById(`message-status-${role}`);
+            if (status) {
+                status.textContent = typeof window.generationLiaisonTranslate === 'function'
+                    ? window.generationLiaisonTranslate('Limite de 2 000 caractères atteinte.')
+                    : 'Limite de 2 000 caractères atteinte.';
+            }
+            return;
+        }
+        if (typeof input.setRangeText === 'function') {
+            input.setRangeText(emoji, debut, fin, 'end');
+        } else {
+            input.value = texte.slice(0, debut) + emoji + texte.slice(fin);
+            if (typeof input.setSelectionRange === 'function') {
+                input.setSelectionRange(debut + emoji.length, debut + emoji.length);
+            }
+        }
+        if (role === 'senior' && typeof annulerPropositionMessage === 'function') {
+            annulerPropositionMessage();
+        }
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+        mettreAJourCompteurMessage(role);
+    }
+
+    function mettreAJourCompteurMessage(role) {
+        if (!['senior', 'aidant', 'pro'].includes(role)) return;
+        const input = document.getElementById(`message-text-${role}`);
+        const count = document.getElementById(`message-count-${role}`);
+        if (!input || !count) return;
+        count.textContent = `${(input.value || '').length} / 2 000`;
+        if (typeof input.maxLength === 'number' && input.maxLength >= 0) {
+            count.style.color = input.value.length >= input.maxLength ? '#b42318' : '#52665c';
+        }
+    }
+
+    function configurerCompteursMessages() {
+        ['senior', 'aidant', 'pro'].forEach(role => {
+            const input = document.getElementById(`message-text-${role}`);
+            if (!input) return;
+            mettreAJourCompteurMessage(role);
+            input.addEventListener('input', () => {
+                mettreAJourCompteurMessage(role);
+                const status = document.getElementById(`message-status-${role}`);
+                if (status) status.textContent = '';
+            });
+        });
+    }
+
     function configurerDicteeMessagerie() {
         document.getElementById('message-dictation-senior').addEventListener('click', dicterMessageSenior);
         document.getElementById('message-rewrite-senior').addEventListener('click', proposerReformulationMessage);
@@ -12539,6 +12651,9 @@
         configurerTuilesAidant();
         configurerAlbumJournal();
         configurerDicteeMessagerie();
+        if (typeof configurerCompteursMessages === 'function') {
+            configurerCompteursMessages();
+        }
         configurerProfil();
         configurerFormulairesCoordination();
         configurerFormulairesInformationsPersonne();

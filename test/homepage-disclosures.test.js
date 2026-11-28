@@ -19,10 +19,14 @@ test('future paid offers are clearly distinguished from available services', () 
   assert.match(offers, /carnet actuel ne doit pas contenir de données de santé/);
   assert.match(offers, /exprimer son intérêt ne crée ni commande ni paiement/);
   assert.match(offers, /leurs tarifs et modalités restent à préciser/);
+  const louisOffer = 'Une option payante Louis pour les professionnels de santé est à l’étude, par exemple pour signaler une allergie médicamenteuse possible. Cette fonction n’existe pas encore ; sa faisabilité, sa sécurité et son statut réglementaire doivent être évalués avec des professionnels avant toute mise en service. Son prix n’est pas défini. Ne saisissez aucune donnée de patient.';
+  assert.ok(offers.includes(louisOffer));
+  assert.ok(mobileSource.includes(louisOffer));
   assert.match(offers, /href="\/cgv\.html"/);
   const window = { localStorage: { getItem: () => 'en' } };
   const document = { documentElement: {}, addEventListener() {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
+  assert.match(window.generationLiaisonTranslate(louisOffer), /does not yet exist/);
   for (const text of [
     'Offres et paiements : ce qui est prévu',
     'Des informations claires avant toute souscription',

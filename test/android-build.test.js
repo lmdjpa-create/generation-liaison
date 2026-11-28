@@ -10,6 +10,7 @@ test('Android web assets omit downloadable builds, including stale files from a 
   try {
     for (const entry of [
       'index.html', 'aidant.html', 'pro.html', 'app-mobile.html', 'aide-installation-android.html',
+      'simulation-louis-autonome.html',
       'presentation-senior.html', 'presentation-proches.html', 'presentation-intervenants.html', 'presentation-residences.html', 'presentation.css',
       'reset-password.html', 'admin.html', 'privacy-policy.html', 'cgu.html', 'cgv.html',
       'language.js', 'robots.txt', 'sitemap.xml', 'logo-generation-liaison.jpg', 'accessibility.css', 'help-bubbles.js',
