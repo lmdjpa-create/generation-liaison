@@ -2665,6 +2665,13 @@ test('opening an announcement notification works in the staff workspace', async 
   assert.equal(element('admin-announcements').scrolled, true);
 });
 
+test('conversation list keeps chronological order and accessible previews', () => {
+  assert.match(source, /new Date\(b\.createdAt\) - new Date\(a\.createdAt\)/);
+  assert.match(source, /previewText\.length > 140/);
+  assert.match(source, /setAttribute\(\s*'aria-label'/);
+  assert.match(source, /messages non lus/);
+});
+
 test('today inbox shows received messages and opens the selected conversation', async () => {
   const elements = new Map();
   const node = () => ({

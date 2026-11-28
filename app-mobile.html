@@ -7319,8 +7319,17 @@
                 const button = document.createElement('button');
                 button.type = 'button';
                 button.className = `today-inbox-item${!message.safety && message.unreadCount > 0 ? ' unread' : ''}`;
-                button.append(makeTextElement('strong', message.safety ? `${window.generationLiaisonTranslate('Message automatique pour')} ${message.seniorName}` : message.senderName));
-                button.append(makeTextElement('span', message.safety ? traduireMessageSecurite(message.body) : message.body));
+                const conversationName = message.safety
+                    ? `${window.generationLiaisonTranslate('Message automatique pour')} ${message.seniorName}`
+                    : message.senderName;
+                const previewText = typeof (message.safety ? traduireMessageSecurite(message.body) : message.body) === 'string'
+                    ? (message.safety ? traduireMessageSecurite(message.body) : message.body)
+                        .replace(/\s+/g, ' ')
+                        .trim()
+                    : '';
+                const preview = previewText.length > 140 ? `${previewText.slice(0, 137)}…` : previewText;
+                button.append(makeTextElement('strong', conversationName));
+                button.append(makeTextElement('span', preview));
                 const timestamp = formatDateTime(message.createdAt);
                 const readStatus = message.safety ? '' : message.readAt
                     ? ` · ${window.generationLiaisonTranslate('Ouvert le')} ${formatDateTime(message.readAt)}`
@@ -7329,6 +7338,14 @@
                     ? ` · ${message.unreadCount} ${window.generationLiaisonTranslate(message.unreadCount > 1 ? 'messages non lus dans cette conversation' : 'message non lu dans cette conversation')}`
                     : '';
                 button.append(makeTextElement('small', `${timestamp}${readStatus}${unreadStatus}`));
+                if (typeof button.setAttribute === 'function') {
+                    button.setAttribute(
+                        'aria-label',
+                        `${conversationName}. ${preview}${message.unreadCount > 0
+                            ? `. ${message.unreadCount} ${window.generationLiaisonTranslate(message.unreadCount > 1 ? 'messages non lus' : 'message non lu')}`
+                            : ''}`
+                    );
+                }
                 button.addEventListener('click', () => ouvrirMessageDepuisBoite(role, message));
                 container.append(button);
             });
