@@ -8564,9 +8564,15 @@
         const buttons = [submit, document.getElementById('message-quick-received'), document.getElementById('message-quick-well')];
         buttons.forEach(button => { button.disabled = true; });
         status.textContent = window.generationLiaisonTranslate('Envoi du message…');
+        const abortController = typeof AbortController === 'function' ? new AbortController() : null;
+        const sendTimeout = abortController && typeof setTimeout === 'function'
+            ? setTimeout(() => abortController.abort(), 30000)
+            : null;
         try {
             await seniorLinksRequest(`/api/messages/${encodeURIComponent(contactId)}`, {
-                method: 'POST', body: { message: window.generationLiaisonTranslate(message) }
+                method: 'POST',
+                body: { message: window.generationLiaisonTranslate(message) },
+                ...(abortController ? { signal: abortController.signal } : {})
             });
             if (connectedUser?.id !== userId || connectedUser?.role !== 'senior') return;
             const refreshed = select.value !== contactId || await ouvrirConversation('senior');
@@ -8575,9 +8581,13 @@
             }
         } catch (error) {
             if (connectedUser?.id === userId && connectedUser?.role === 'senior') {
-                status.textContent = window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.');
+                status.textContent = error?.name === 'AbortError'
+                    ? window.generationLiaisonTranslate('Délai d’envoi dépassé.') + ' ' +
+                      window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.')
+                    : window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.');
             }
         } finally {
+            if (sendTimeout && typeof clearTimeout === 'function') clearTimeout(sendTimeout);
             buttons.forEach(button => { button.disabled = false; });
         }
     }

@@ -68,6 +68,7 @@ test('failed message sending keeps the draft and explains that it can be retried
   assert.match(source, /if \(text\.value\.trim\(\) === message\) text\.value = '';/);
   assert.match(source, /30000/);
   assert.match(source, /Délai d’envoi dépassé/);
+  assert.ok((source.match(/abortController\.abort\(\)/g) || []).length >= 2);
 });
 
 test('message character counters update and warn at the limit', () => {
