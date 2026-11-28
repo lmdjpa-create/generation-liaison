@@ -19,10 +19,14 @@ test('future paid offers are clearly distinguished from available services', () 
   assert.match(offers, /carnet actuel ne doit pas contenir de données de santé/);
   assert.match(offers, /exprimer son intérêt ne crée ni commande ni paiement/);
   assert.match(offers, /leurs tarifs et modalités restent à préciser/);
+  const louisOffer = 'Une option payante Louis pour les professionnels de santé est à l’étude, par exemple pour signaler une allergie médicamenteuse possible. Cette fonction n’existe pas encore ; sa faisabilité, sa sécurité et son statut réglementaire doivent être évalués avec des professionnels avant toute mise en service. Son prix n’est pas défini. Ne saisissez aucune donnée de patient.';
+  assert.ok(offers.includes(louisOffer));
+  assert.ok(mobileSource.includes(louisOffer));
   assert.match(offers, /href="\/cgv\.html"/);
   const window = { localStorage: { getItem: () => 'en' } };
   const document = { documentElement: {}, addEventListener() {} };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'language.js'), 'utf8'), { window, document });
+  assert.match(window.generationLiaisonTranslate(louisOffer), /does not yet exist/);
   for (const text of [
     'Offres et paiements : ce qui est prévu',
     'Des informations claires avant toute souscription',
@@ -34,6 +38,14 @@ test('future paid offers are clearly distinguished from available services', () 
     'Les prestations à domicile sont réalisées par les intervenants ; leurs tarifs et modalités restent à préciser. Aucun paiement n’est prélevé par l’application.',
     'Avant toute offre payante, le prix total, les conditions de paiement et de résiliation seront précisés.'
   ]) assert.notEqual(window.generationLiaisonTranslate(text), text);
+});
+
+test('homepage and mobile app expose a visible skip-to-content link', () => {
+  assert.match(source, /<a class="skip-link" href="#main-content">Aller au contenu principal<\/a>/);
+  assert.match(source, /<main class="landing" id="main-content" tabindex="-1">/);
+  assert.match(source, /\.skip-link:focus\s*\{\s*transform: translateY\(0\)/);
+  assert.match(mobileSource, /class="skip-link" href="#main-content" onclick="allerAuContenu\(event\)"/);
+  assert.match(mobileSource, /function allerAuContenu\(event\)/);
 });
 
 test('homepage introduces the service and offers clear entry points in both languages', () => {

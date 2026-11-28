@@ -10,6 +10,116 @@ test('daily recipe follows the senior shopping list', () => {
   assert.match(source, /id="senior-shopping-status"[\s\S]*?<\/details>\s*<\/section>\s*<section class="form-card" id="senior-daily-recipe">/);
 });
 
+test('message emoji picker is available for every account role', () => {
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`id="message-emojis-${role}"`));
+    assert.match(source, new RegExp(`ajouterEmojiMessagerie\\('${role}', '😊'\\)`));
+    assert.match(source, new RegExp(`id="message-text-${role}" maxlength="2000"`));
+    assert.match(source, new RegExp(`id="message-count-${role}"`));
+  }
+  assert.match(source, /function ajouterEmojiMessagerie\(role, emoji\)/);
+  assert.match(source, /function configurerCompteursMessages\(\)/);
+});
+
+test('emoji insertion respects cursor position and the message length limit', () => {
+  const input = {
+    value: 'Bonjour',
+    selectionStart: 3,
+    selectionEnd: 3,
+    maxLength: 2000,
+    focused: false,
+    setRangeText(emoji, start, end, mode) {
+      this.value = this.value.slice(0, start) + emoji + this.value.slice(end);
+      this.selectionStart = start + emoji.length;
+      this.selectionEnd = start + emoji.length;
+    },
+    dispatchEvent() {},
+    focus() { this.focused = true; }
+  };
+  const context = {
+    document: {
+      getElementById(id) { return id === 'message-text-senior' ? input : null; }
+    },
+    Event: function() { return {}; },
+    annulerPropositionMessage() {}
+  };
+  vm.runInNewContext(extract('    function ajouterEmojiMessagerie(role, emoji)', '    function configurerDicteeMessagerie()'), context);
+  context.ajouterEmojiMessagerie('senior', '❤️');
+  assert.equal(input.value, 'Bon❤️jour');
+  assert.equal(input.selectionStart, 5);
+  assert.equal(input.focused, true);
+
+  input.value = 'x'.repeat(1999);
+  input.selectionStart = 1999;
+  input.selectionEnd = 1999;
+  context.ajouterEmojiMessagerie('senior', '😊');
+  assert.equal(input.value.length, 1999);
+
+  input.value = 'x'.repeat(1999);
+  input.selectionStart = 1999;
+  input.selectionEnd = 1999;
+  context.ajouterEmojiMessagerie('senior', '👍');
+  assert.equal(input.value.length, 1999);
+});
+
+test('failed message sending keeps the draft and explains that it can be retried', () => {
+  assert.match(source, /button\.textContent = window\.generationLiaisonTranslate\('Envoi…'\)/);
+  assert.match(source, /Votre brouillon est conservé\. Vous pouvez réessayer/);
+  assert.match(source, /const brouillonEnvoye = text\.value\.trim\(\) === message/);
+  assert.match(source, /30000/);
+  assert.match(source, /Délai d’envoi dépassé/);
+  assert.ok((source.match(/abortController\.abort\(\)/g) || []).length >= 2);
+  assert.match(source, /button\.textContent = envoiEchoue/);
+  assert.match(source, /window\.generationLiaisonTranslate\('Réessayer'\)/);
+});
+
+test('message drafts stay in session storage and are cleared on logout', () => {
+  assert.match(source, /generation-liaison:draft:/);
+  assert.match(source, /sessionStorage\.setItem\(key, input\.value\)/);
+  assert.match(source, /restaurerBrouillonMessage\(role\)/);
+  assert.match(source, /effacerBrouillonsMessages\(\)/);
+  assert.match(source, /reinitialiserChoixTablette\(\)[\s\S]*?effacerBrouillonsMessages\(\)/);
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`effacerBrouillonMessage\\('${role}'\\)`));
+  }
+  assert.match(source, /function effacerBrouillonMessage\(role\)/);
+});
+
+test('message character counters update and warn at the limit', () => {
+  const input = {
+    value: 'Bonjour',
+    maxLength: 2000,
+    style: {},
+    listeners: {},
+    addEventListener(type, handler) { this.listeners[type] = handler; }
+  };
+  const count = { textContent: '', style: {} };
+  const status = { textContent: '' };
+  const context = {
+    document: {
+      getElementById(id) {
+        if (id === 'message-text-senior') return input;
+        if (id === 'message-count-senior') return count;
+        if (id === 'message-status-senior') return status;
+        return null;
+      }
+    },
+    window: { generationLiaisonTranslate: text => text }
+  };
+  vm.runInNewContext(
+    extract('    function mettreAJourCompteurMessage(role)', '    function configurerDicteeMessagerie()') +
+    '\n    globalThis.configureCounters = configurerCompteursMessages;',
+    context
+  );
+  context.configureCounters();
+  assert.equal(count.textContent, '7 / 2 000');
+  input.value = 'x'.repeat(2000);
+  input.listeners.input();
+  assert.equal(count.textContent, '2000 / 2 000');
+  assert.equal(count.style.color, '#b42318');
+  assert.equal(status.textContent, '');
+});
+
 test('professional workspace explains its areas and assigned tasks in separate tabs', () => {
   const pro = source.slice(source.indexOf('id="screen-pro"'), source.indexOf('id="screen-settings"'));
   assert.match(pro, /<details class="senior-disclosure senior-tab-disclosure" data-close-on-mouse-leave>[\s\S]*?Comprendre les espaces[\s\S]*?proches autorisés[\s\S]*?coordonnées ne leur sont pas transmises/);
@@ -2339,6 +2449,13 @@ test('focus indicators cover form fields and controls across account screens', (
   assert.match(source, /\.screen-container :is\(button, a, summary\):focus-visible\s*\{\s*outline:\s*3px solid #163b72/);
 });
 
+test('mobile navigation has a skip link and reports the current page', () => {
+  assert.match(source, /class="skip-link" href="#main-content" onclick="allerAuContenu\(event\)"/);
+  assert.match(source, /function allerAuContenu\(event\)/);
+  assert.match(source, /n\.removeAttribute\('aria-current'\)/);
+  assert.match(source, /activeNav\.setAttribute\('aria-current', 'page'\)/);
+});
+
 test('the notification shortcut opens the separate page', () => {
   const calls = [];
   const context = {
@@ -2546,6 +2663,13 @@ test('opening an announcement notification works in the staff workspace', async 
   await context.window.handlePendingNotification();
   assert.equal(element('admin-announcements-details').open, true);
   assert.equal(element('admin-announcements').scrolled, true);
+});
+
+test('conversation list keeps chronological order and accessible previews', () => {
+  assert.match(source, /new Date\(b\.createdAt\) - new Date\(a\.createdAt\)/);
+  assert.match(source, /previewText\.length > 140/);
+  assert.match(source, /setAttribute\(\s*'aria-label'/);
+  assert.match(source, /messages non lus/);
 });
 
 test('today inbox shows received messages and opens the selected conversation', async () => {

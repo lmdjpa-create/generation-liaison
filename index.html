@@ -28,6 +28,20 @@
     }
 
     * { box-sizing: border-box; }
+    .skip-link {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 10000;
+      transform: translateY(-160%);
+      padding: 12px 16px;
+      border-radius: 10px;
+      background: #163b72;
+      color: #fff;
+      font-weight: 700;
+      text-decoration: none;
+    }
+    .skip-link:focus { transform: translateY(0); }
     body {
       margin: 0;
       font-family: Arial, sans-serif;
@@ -1422,7 +1436,8 @@
   <link rel="stylesheet" href="/accessibility.css">
 </head>
 <body>
-  <main class="landing" id="accueil">
+  <a class="skip-link" href="#main-content">Aller au contenu principal</a>
+  <main class="landing" id="main-content" tabindex="-1">
     <header class="audience-header">
       <div class="landing-brand"><img src="/logo-generation-liaison.jpg" width="600" height="600" alt="" /><span>Génération<br>Liaison</span></div>
       <h1>Le lien au quotidien entre générations</h1>
@@ -1568,6 +1583,7 @@
         <ul>
           <li>Les comptes senior et proches sont actuellement gratuits.</li>
           <li>Un futur carnet de soins Premium est envisagé à 9,90 € TTC par mois, mais n’est pas disponible. Ses fonctions et ses conditions restent à définir. Le carnet actuel ne doit pas contenir de données de santé.</li>
+          <li>Une option payante Louis pour les professionnels de santé est à l’étude, par exemple pour signaler une allergie médicamenteuse possible. Cette fonction n’existe pas encore ; sa faisabilité, sa sécurité et son statut réglementaire doivent être évalués avec des professionnels avant toute mise en service. Son prix n’est pas défini. Ne saisissez aucune donnée de patient.</li>
           <li>Les options de tablette sont indicatives : exprimer son intérêt ne crée ni commande ni paiement. Le prix et la disponibilité restent à confirmer par devis.</li>
           <li>Les prestations à domicile sont réalisées par les intervenants ; leurs tarifs et modalités restent à préciser. Aucun paiement n’est prélevé par l’application.</li>
         </ul>
