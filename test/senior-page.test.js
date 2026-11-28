@@ -65,10 +65,18 @@ test('emoji insertion respects cursor position and the message length limit', ()
 test('failed message sending keeps the draft and explains that it can be retried', () => {
   assert.match(source, /button\.textContent = window\.generationLiaisonTranslate\('Envoi…'\)/);
   assert.match(source, /Votre brouillon est conservé\. Vous pouvez réessayer/);
-  assert.match(source, /if \(text\.value\.trim\(\) === message\) text\.value = '';/);
+  assert.match(source, /const brouillonEnvoye = text\.value\.trim\(\) === message/);
   assert.match(source, /30000/);
   assert.match(source, /Délai d’envoi dépassé/);
   assert.ok((source.match(/abortController\.abort\(\)/g) || []).length >= 2);
+});
+
+test('message drafts stay in session storage and are cleared on logout', () => {
+  assert.match(source, /generation-liaison:draft:/);
+  assert.match(source, /sessionStorage\.setItem\(key, input\.value\)/);
+  assert.match(source, /restaurerBrouillonMessage\(role\)/);
+  assert.match(source, /effacerBrouillonsMessages\(\)/);
+  assert.match(source, /reinitialiserChoixTablette\(\)[\s\S]*?effacerBrouillonsMessages\(\)/);
 });
 
 test('message character counters update and warn at the limit', () => {

@@ -8419,13 +8419,68 @@
         }
     }
 
+    function cleBrouillonMessage(role, contactId) {
+        if (!['senior', 'aidant', 'pro'].includes(role) || !contactId) return '';
+        return `generation-liaison:draft:${role}:${contactId}`;
+    }
+
+    function sauvegarderBrouillonMessage(role) {
+        if (!['senior', 'aidant', 'pro'].includes(role)) return;
+        const select = document.getElementById(`message-contact-${role}`);
+        const input = document.getElementById(`message-text-${role}`);
+        const key = cleBrouillonMessage(role, select?.value);
+        if (!key || typeof sessionStorage === 'undefined') return;
+        try {
+            if (input.value) sessionStorage.setItem(key, input.value);
+            else sessionStorage.removeItem(key);
+        } catch (error) {
+            // Le navigateur peut refuser le stockage local : le brouillon reste dans l’écran courant.
+        }
+    }
+
+    function restaurerBrouillonMessage(role) {
+        if (!['senior', 'aidant', 'pro'].includes(role)) return;
+        const select = document.getElementById(`message-contact-${role}`);
+        const input = document.getElementById(`message-text-${role}`);
+        const key = cleBrouillonMessage(role, select?.value);
+        if (!input || !key || typeof sessionStorage === 'undefined') return;
+        try {
+            input.value = sessionStorage.getItem(key) || '';
+            mettreAJourCompteurMessage(role);
+        } catch (error) {
+            input.value = '';
+        }
+    }
+
+    function retirerBrouillonMessage(role, contactId) {
+        const key = cleBrouillonMessage(role, contactId);
+        if (!key || typeof sessionStorage === 'undefined') return;
+        try {
+            sessionStorage.removeItem(key);
+        } catch (error) {}
+    }
+
+    function effacerBrouillonsMessages() {
+        if (typeof sessionStorage === 'undefined') return;
+        try {
+            const keys = [];
+            for (let index = 0; index < sessionStorage.length; index++) {
+                const key = sessionStorage.key(index);
+                if (key && key.startsWith('generation-liaison:draft:')) keys.push(key);
+            }
+            keys.forEach(key => sessionStorage.removeItem(key));
+        } catch (error) {}
+    }
+
     function configurerCompteursMessages() {
         ['senior', 'aidant', 'pro'].forEach(role => {
             const input = document.getElementById(`message-text-${role}`);
             if (!input) return;
             mettreAJourCompteurMessage(role);
+            restaurerBrouillonMessage(role);
             input.addEventListener('input', () => {
                 mettreAJourCompteurMessage(role);
+                sauvegarderBrouillonMessage(role);
                 const status = document.getElementById(`message-status-${role}`);
                 if (status) status.textContent = '';
             });
@@ -8516,8 +8571,20 @@
                 });
             }
             if (connectedUser?.id !== userId || connectedUser?.role !== role) return;
-            if (text.value.trim() === message) text.value = '';
+            const brouillonEnvoye = text.value.trim() === message;
+            if (brouillonEnvoye) text.value = '';
             selected.forEach(input => { input.checked = false; });
+            if (brouillonEnvoye) {
+                if (selected.length) {
+                    if (typeof retirerBrouillonMessage === 'function') {
+                        selected.forEach(input => retirerBrouillonMessage(role, input.value));
+                    }
+                } else {
+                    if (typeof retirerBrouillonMessage === 'function') retirerBrouillonMessage(role, contactId);
+                }
+            } else {
+                if (typeof sauvegarderBrouillonMessage === 'function') sauvegarderBrouillonMessage(role);
+            }
             if (typeof mettreAJourCompteurMessage === 'function') mettreAJourCompteurMessage(role);
             let refreshed = true;
             if (select.value === contactId && (!selected.length || selected.some(input => input.value === contactId))) {
@@ -8535,9 +8602,11 @@
                         window.generationLiaisonTranslate('Délai d’envoi dépassé.')
                         + ' ' + window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.');
                 } else {
+                    const erreurEnvoi = typeof window.generationLiaisonTranslateError === 'function'
+                        ? window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.')
+                        : window.generationLiaisonTranslate('Impossible d’envoyer le message.');
                     status.textContent =
-                        window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.')
-                        + ' ' + window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.');
+                        erreurEnvoi + ' ' + window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.');
                 }
             }
         } finally {
@@ -8584,7 +8653,9 @@
                 status.textContent = error?.name === 'AbortError'
                     ? window.generationLiaisonTranslate('Délai d’envoi dépassé.') + ' ' +
                       window.generationLiaisonTranslate('Votre brouillon est conservé. Vous pouvez réessayer.')
-                    : window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.');
+                    : (typeof window.generationLiaisonTranslateError === 'function'
+                        ? window.generationLiaisonTranslateError(error.message, 'Impossible d’envoyer le message.')
+                        : window.generationLiaisonTranslate('Impossible d’envoyer le message.'));
             }
         } finally {
             if (sendTimeout && typeof clearTimeout === 'function') clearTimeout(sendTimeout);
@@ -11775,6 +11846,7 @@
         successMessage = 'Déconnexion réussie'
     } = {}) {
         reinitialiserChoixTablette();
+        effacerBrouillonsMessages();
         const headers = authHeaders();
         let revocationFailed = false;
         const registeredPush = JSON.parse(localStorage.getItem(PUSH_TOKEN_KEY) || 'null');
@@ -12787,6 +12859,7 @@
         });
         ['senior', 'aidant', 'pro'].forEach(role => {
             document.getElementById(`message-contact-${role}`).addEventListener('change', () => {
+                restaurerBrouillonMessage(role);
                 if (role === 'senior') {
                     annulerDicteeMessage();
                     annulerPropositionMessage();
