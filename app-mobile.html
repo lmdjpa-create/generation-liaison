@@ -337,6 +337,18 @@
             font-size: 0.9rem;
             font-weight: 700;
         }
+        .secondary-message-action {
+            width: 100%;
+            min-height: 48px;
+            margin: 0 0 10px;
+            border: 2px solid #b42318;
+            border-radius: 12px;
+            background: #fff;
+            color: #8f1d18;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+        }
         @media (prefers-reduced-motion: no-preference) {
             #messages-senior button { transition: transform .15s ease, box-shadow .15s ease; }
             #messages-senior button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(20, 73, 52, .16); }
@@ -2398,6 +2410,7 @@
                     <button type="button" class="message-emoji-button" aria-label="Ajouter soleil" onclick="ajouterEmojiMessagerie('senior', '☀️')">☀️</button>
                 </div>
                 <p class="message-character-count" id="message-count-senior" role="status" aria-live="polite">0 / 2 000</p>
+                <button type="button" class="secondary-message-action" onclick="effacerBrouillonMessage('senior')">Effacer mon texte</button>
                 <div id="senior-message-advanced">
                 <button id="message-dictation-senior" type="button">🎙️ Dicter mon message</button>
                 <p class="helper-text">La dictée dépend du navigateur : son fournisseur peut traiter votre voix. Vérifiez le texte avant de l’envoyer.</p>
@@ -2459,6 +2472,7 @@
                     <button type="button" class="message-emoji-button" aria-label="Ajouter soleil" onclick="ajouterEmojiMessagerie('aidant', '☀️')">☀️</button>
                 </div>
                 <p class="message-character-count" id="message-count-aidant" role="status" aria-live="polite">0 / 2 000</p>
+                <button type="button" class="secondary-message-action" onclick="effacerBrouillonMessage('aidant')">Effacer mon texte</button>
                 <button type="submit">Envoyer</button>
             </form>
             <p id="message-status-aidant" class="helper-text" aria-live="polite"></p>
@@ -2495,6 +2509,7 @@
                     <button type="button" class="message-emoji-button" aria-label="Ajouter soleil" onclick="ajouterEmojiMessagerie('pro', '☀️')">☀️</button>
                 </div>
                 <p class="message-character-count" id="message-count-pro" role="status" aria-live="polite">0 / 2 000</p>
+                <button type="button" class="secondary-message-action" onclick="effacerBrouillonMessage('pro')">Effacer mon texte</button>
                 <button type="submit">Envoyer</button>
             </form>
             <p id="message-status-pro" class="helper-text" aria-live="polite"></p>
@@ -8489,6 +8504,20 @@
         try {
             sessionStorage.removeItem(key);
         } catch (error) {}
+    }
+
+    function effacerBrouillonMessage(role) {
+        if (!['senior', 'aidant', 'pro'].includes(role)) return;
+        const input = document.getElementById(`message-text-${role}`);
+        const select = document.getElementById(`message-contact-${role}`);
+        const status = document.getElementById(`message-status-${role}`);
+        if (!input) return;
+        input.value = '';
+        retirerBrouillonMessage(role, select?.value);
+        mettreAJourCompteurMessage(role);
+        if (status) status.textContent = '';
+        if (role === 'senior') annulerPropositionMessage();
+        input.focus();
     }
 
     function effacerBrouillonsMessages() {

@@ -79,6 +79,10 @@ test('message drafts stay in session storage and are cleared on logout', () => {
   assert.match(source, /restaurerBrouillonMessage\(role\)/);
   assert.match(source, /effacerBrouillonsMessages\(\)/);
   assert.match(source, /reinitialiserChoixTablette\(\)[\s\S]*?effacerBrouillonsMessages\(\)/);
+  for (const role of ['senior', 'aidant', 'pro']) {
+    assert.match(source, new RegExp(`effacerBrouillonMessage\\('${role}'\\)`));
+  }
+  assert.match(source, /function effacerBrouillonMessage\(role\)/);
 });
 
 test('message character counters update and warn at the limit', () => {
